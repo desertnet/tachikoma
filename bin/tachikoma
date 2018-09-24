@@ -1,0 +1,214 @@
+#!perl
+# ----------------------------------------------------------------------
+# tachikoma interpreter
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::EventFrameworks::Select;
+use Tachikoma::Nodes::Router;
+use Tachikoma::Nodes::TTY qw( TK_R TK_SYNC );
+use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Responder;
+use Tachikoma::Nodes::Dumper;
+use Tachikoma::Nodes::Timeout;
+use Tachikoma::Nodes::Shutdown;
+use Tachikoma::Message qw(
+    TYPE FROM TIMESTAMP PAYLOAD
+    TM_BYTESTREAM TM_EOF
+);
+use Tachikoma::Config qw( %Tachikoma %Forbidden %Var load_module );
+use Getopt::Long qw( GetOptions );
+use POSIX qw( isatty );
+
+use version; our $VERSION = qv('v2.0.192');
+
+my $config        = '/usr/local/etc/tachikoma.conf';
+my $host          = undef;
+my $port          = undef;
+my $socket        = undef;
+my $path          = undef;
+my $line_buffered = undef;
+my $use_ed25519   = undef;
+my $use_SSL       = undef;
+my $seconds       = undef;
+my $validate      = undef;
+my $verbose       = undef;
+my $debug         = undef;
+my $help          = undef;
+
+splice @ARGV, 1, 0, q{--} if ( @ARGV and $ARGV[0] !~ m{^-} );
+
+my $r = GetOptions(
+    'config=s'      => \$config,
+    'host=s'        => \$host,
+    'port=i'        => \$port,
+    'socket=s'      => \$socket,
+    'path=s'        => \$path,
+    'line-buffered' => \$line_buffered,
+    'use-ed25519'   => \$use_ed25519,
+    'use-ssl'       => \$use_SSL,
+    'timeout=i'     => \$seconds,
+    'validate'      => \$validate,
+    'verbose'       => \$verbose,
+    'debug:i'       => \$debug,
+    'help'          => \$help,
+);
+my $filename = $ARGV[0];
+
+usage() if ( $help or not $r );
+require $config if ( -f $config );
+$Tachikoma{Config} = $config;
+$Forbidden{$config} = 1;
+my $new_server = undef;
+$new_server = 'true' if ( not $host and not $socket );
+$port    //= $Tachikoma{Listen}->[0]->{Port};
+$use_SSL //= $Tachikoma{Listen}->[0]->{use_SSL};
+my $isa_tty = $filename ? undef : isatty(*STDIN);
+$verbose = 'true' if ( $isa_tty or $debug );
+
+Tachikoma->scheme('ed25519') if ($use_ed25519);
+Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
+
+my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
+    $timeout, $shutdown, $stdout,    $router,    $node
+);
+$stdin = Tachikoma::Nodes::TTY->filehandle( *STDIN, TK_R )
+    if ( not $filename );
+$shell = Tachikoma::Nodes::Shell2->new;
+if ($new_server) {
+    my $module = 'Tachikoma::Nodes::CommandInterpreter';
+    load_module($module);
+    $tachikoma = $module->new;
+}
+else {
+    my $module = 'Tachikoma::Nodes::Socket';
+    load_module($module);
+    if ($socket) {
+        $tachikoma =
+            $module->unix_client( $socket, '_socket', TK_SYNC, $use_SSL );
+    }
+    else {
+        $tachikoma = $module->inet_client( $host, $port, TK_SYNC, $use_SSL );
+    }
+}
+$responder = Tachikoma::Nodes::Responder->new;
+$dumper    = Tachikoma::Nodes::Dumper->new if ($verbose);
+$timeout   = Tachikoma::Nodes::Timeout->new if ($seconds);
+$shutdown  = Tachikoma::Nodes::Shutdown->new;
+$stdout    = Tachikoma::Nodes::TTY->filehandle( *STDOUT, TK_SYNC );
+$router    = Tachikoma::Nodes::Router->new;
+$node      = undef;
+
+$router->name('_router');
+$shell->path($path);
+$timeout->arguments( $seconds * 1000 ) if ($seconds);
+
+$node = $stdout;
+attach($shutdown);
+attach($timeout) if ($seconds);
+if ($verbose) {
+    $shell->show_commands('true') if ( not $isa_tty );
+    $dumper->stdin($stdin) if ($isa_tty);
+    $dumper->debug($debug);
+    attach($dumper);
+}
+$responder->name('_responder') if ($new_server);
+$responder->client( $new_server ? 'new_server' : 'tachikoma' );
+$responder->ignore('true');
+$responder->router($tachikoma);
+$responder->shell($shell);
+attach($responder);
+if ($new_server) {
+    $node = $router;
+    $tachikoma->name('command_interpreter');
+}
+attach($tachikoma);
+$shell->stdin($stdin) if ( not $filename );
+$shell->isa_tty($isa_tty);
+$shell->should_reply($verbose);
+$shell->dumper($dumper);
+$shell->responder($responder);
+$shell->validate($validate);
+attach($shell);
+$Tachikoma::Now       = time;
+$Tachikoma::Right_Now = $Tachikoma::Now;
+
+if ($filename) {
+    my @values = @ARGV;
+    $Var{$_} = $values[$_] for ( 1 .. $#values );
+    $Var{q{0}}  = shift @values;
+    $Var{q{@}}  = join q{ }, @values;
+    $Var{q{_C}} = scalar @values;
+    my @lines = ();
+    my $fh;
+    open $fh, '<', $filename or die "ERROR: can't open $filename: $!\n";
+    push @lines, $_ while (<$fh>);
+    close $fh or die $!;
+
+    for my $line (@lines) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE] = TM_BYTESTREAM;
+        $message->[TIMESTAMP] += 3600;    # give the server plenty of time
+        $message->[PAYLOAD] = $line;
+        $shell->fill($message);
+    }
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE] = TM_EOF;
+    $message->[FROM] = 'stdin';
+    $shell->fill($message);
+}
+else {
+    $stdin->name('stdin') if ( not $new_server );
+    $stdin->buffer_mode('line-buffered');
+    $stdin->use_readline('true') if ($isa_tty);
+    attach($stdin);
+}
+
+sub attach {
+    my $next = shift;
+    $next->sink($node);
+    $node = $next;
+    return;
+}
+
+if ($isa_tty) {
+    $shell->prompt;
+    $shell->get_completions if ( $stdin->use_readline );
+}
+
+$router->drain( ( $host or $socket ) ? $tachikoma : undef );
+
+# makes sure readline resets the display:
+if ($isa_tty) {
+    $stdin->close_filehandle;
+    print "\n";
+}
+
+if ( $shell->errors and ( $validate or not $isa_tty ) ) {
+    print $filename ? "$filename " : 'stdin ', "had compilation errors.\n";
+    exit 1;
+}
+print $filename ? "$filename " : q{}, "syntax OK\n" if ($validate);
+
+sub usage {
+    print "Usage:\n"
+        . "tachikoma [ --config=<path>     ]\n"
+        . "          [ --host=<host>       ]\n"
+        . "          [ --port=<port>       ]\n"
+        . "          [ --socket=<path>     ]\n"
+        . "          [ --path=<path>       ]\n"
+        . "          [ --line-buffered     ]\n"
+        . "          [ --use-ssl           ]\n"
+        . "          [ --use-ed25519       ]\n"
+        . "          [ --timeout=<seconds> ]\n"
+        . "          [ --validate          ]\n"
+        . "          [ --verbose           ]\n"
+        . "          [ --help              ]\n"
+        . "          [ <filename>          ]\n";
+    exit 1;
+}

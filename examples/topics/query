@@ -1,0 +1,115 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# fetch
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma::Nodes::QueryEngine;
+require '/usr/local/etc/tachikoma.conf';
+use Getopt::Long qw( GetOptions );
+use JSON -support_by_pp;
+
+my ( $topic, $keys, $verbose, $help );
+my @ops = qw( eq ne re nr ge le );
+my %options = map { $_ => {} } @ops;
+my ( $r, $argv ) = GetOptions(
+    'topic=s' => \$topic,
+    'eq=s'    => $options{eq},
+    'ne=s'    => $options{ne},
+    're=s'    => $options{re},
+    'nr=s'    => $options{nr},
+    'ge=s'    => $options{ge},
+    'le=s'    => $options{le},
+    'keys=s'  => \$keys,
+    'verbose' => \$verbose,
+    'help'    => \$help,
+);
+$topic //= $ARGV[0];
+usage() if ( $help or not $r or not $topic );
+
+die "ERROR: no topic\n"    if ( not $topic );
+my $engine = Tachikoma::Nodes::QueryEngine->new;
+$engine->hosts([ 'localhost' ]);
+$engine->ports([ 5401, 5402 ]);
+$engine->topic($topic);
+my $json = JSON->new;
+$json->canonical(1);
+$json->pretty(1);
+$json->allow_blessed(1);
+$json->convert_blessed(0);
+my $query = [];
+
+for my $op (@ops) {
+    push @{$query},
+        {
+        field => join( q{}, $topic, '.', $_, ':index' ),
+        op    => $op,
+        key   => $options{$op}->{$_}
+        }
+        for ( keys %{ $options{$op} } );
+}
+
+$query = $query->[0] if ( @{$query} == 1 );
+$query = {
+    op    => 'keys',
+    field => join( q{}, $topic, '.', $keys, ':index' ),
+    }
+    if ($keys);
+
+$engine->query($query);
+
+my $comma = undef;
+while ( my $value = $engine->fetchrow ) {
+    my $output = undef;
+    if ( ref $value eq 'Tachikoma::Message' ) {
+        $output = $verbose ? &dump_message($value) : $value->payload;
+    }
+    else {
+        $output = $value;
+    }
+    if ( ref $output ) {
+        my $json_output = undef;
+        if ( not $comma ) {
+            $json_output = "[\n";
+            $comma       = 1;
+        }
+        else {
+            $json_output = ",\n";
+        }
+        $json_output .= $json->utf8->encode($output);
+        chomp $json_output;
+        $output = $json_output;
+    }
+    print $output;
+}
+print "\n]\n" if ($comma);
+
+sub dump_message {
+    my $message = shift;
+    return {
+        type      => $message->type_as_string,
+        timestamp => $message->timestamp,
+        partition => $message->from,
+        offset    => $message->id,
+        key       => $message->stream,
+        payload   => $message->payload
+    };
+}
+
+sub usage {
+    print "Usage:\n"
+        . "query   --topic=<name>\n"
+        . "      [ --eq <field>=<value> ]\n"
+        . "      [ --ne <field>=<value> ]\n"
+        . "      [ --re <field>=<value> ]\n"
+        . "      [ --nr <field>=<value> ]\n"
+        . "      [ --ge <field>=<value> ]\n"
+        . "      [ --le <field>=<value> ]\n"
+        . "      [ --keys=<field>       ]\n"
+        . "      [ --verbose            ]\n";
+    exit 1;
+}

@@ -1,0 +1,137 @@
+
+NAME
+       Tachikoma.pm - Synchronous interface for Tachikoma
+
+SYNOPSIS
+        #!/usr/bin/perl
+        use strict;
+        use warnings;
+        use Tachikoma;
+        use Tachikoma::Message qw( TM_BYTESTREAM );
+        require '/usr/local/etc/tachikoma.conf';
+        my $tachikoma = Tachikoma->inet_client;
+        my $message = Tachikoma::Message->new;
+        $message->type(TM_BYTESTREAM);
+        $message->to("echo");
+        $message->payload("hello, world\n");
+        $tachikoma->fill($message);
+        $tachikoma->callback(sub {
+            my $message = shift;
+            print $message->payload;
+            return;
+        });
+        $tachikoma->drain;
+
+DESCRIPTION
+       This interface is useful in writing simple clients, as well as well as
+       designing jobs to run as "islands of serialization in a sea of
+       concurrency".
+
+CLASS CONSTRUCTOR METHODS
+   unix_client( $filename )
+       Opens a connection to a tachikoma server located on the same physical
+       machine, using the specified unix domain socket.  Returns a node object
+       that you can "fill()" and "drain()".
+
+   inet_client( $hostname, $port )
+       Opens a TCP/IP connection to a tachikoma server using the specified
+       hostname and port.  Returns a node object that you can "fill()" and
+       "drain()".
+
+INSTANCE METHODS
+   fill( $message )
+       Sends a message to the server.  Returns the number of bytes written or
+       undef.
+
+   callback( $new_callback )
+       Sets the callback to receive messages during "drain()".  Your callback
+       should return undef when you want "drain()" to stop.
+
+   timeout( $new_timeout )
+       Sets the timeout used by "drain()" to set an alarm() before blocking on
+       sysread().  "drain()" will stop if the alarm fires.  The default
+       timeout is 15 minutes.
+
+   drain()
+       Drains the socket of messages using sysread() until sysread() or your
+       callback returns undef or until the alarm fires (see "timeout()").
+
+DETAILS
+       The "callback()" method actually creates a Tachikoma::Nodes::Callback
+       node and sets it as the "sink()".  As an alternative to using a
+       callback, you can set this sink yourself to any node you like.
+       However, this node must still return undef when you want to stop
+       "drain()".
+
+       Be aware that return values are not consistent across all nodes.  Most
+       nodes were designed for the asynchronous interface, which pays no heed
+       to return values.
+
+       Some return whatever their own sink's "fill()" method returned--in
+       which case you can probably get away with putting your own node at the
+       end.  A Tachikoma::Nodes::Callback node might be a good choice for the
+       end point.
+
+       Unfortunately, other nodes may simply return undef regardless of the
+       situation, or worse, always return a true value.  It's important to
+       check the code for any nodes you plan to employ and make sure you
+       understand how they will interact.
+
+CLASS CONVENIENCE METHODS
+       counter()
+
+       closing()
+
+       profiles()
+
+       stack()
+
+       my_pid()
+
+       init_time()
+
+       event_framework()
+
+       nodes()
+
+       nodes_by_id()
+
+       nodes_by_fd()
+
+       nodes_by_pid()
+
+       nodes_to_reconnect()
+
+       shutting_down()
+
+       scheme()
+
+DEPENDENCIES
+       Tachikoma::Node
+
+       Tachikoma::Message
+
+       Tachikoma::Config
+
+       Tachikoma::Nodes::Callback
+
+       Crypt::OpenSSL::RSA
+
+       Digest::MD5
+
+       IO::Socket::SSL
+
+       Socket
+
+       POSIX
+
+SEE ALSO
+       unix(4)
+
+       socket(2)
+
+AUTHOR
+       Christopher Reaume "<chris@desert.net>"
+
+COPYRIGHT
+       Copyright (c) 2018 DesertNet

@@ -1,0 +1,22 @@
+#!/bin/sh -ex
+config=$1
+cd /path/to/tachikoma/branches/tachikoma_2_0-stable
+perl Makefile.PL
+make
+make test
+sudo make install
+make clean
+rm -f Makefile.old
+sudo cp etc/tachikoma.conf /usr/local/etc/
+sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
+cp cgi-bin/* ~/Sites/cgi-bin/
+etc/scripts/regenerate.pl
+mkdir -p ~/.tachikoma/services/
+cp etc/scripts/workstation/$config.tsl ~/.tachikoma/startup.tsl
+cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
+etc/authorized_keys/regenerate.pl
+cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+sudo mkdir -p /var/run/tachikoma
+sudo mkdir -p /var/log/tachikoma
+sudo chown $USER /var/run/tachikoma
+sudo chown $USER /var/log/tachikoma

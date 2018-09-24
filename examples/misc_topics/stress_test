@@ -1,0 +1,78 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::Topic;
+use Tachikoma::Message qw( TO PAYLOAD TM_BYTESTREAM TM_BATCH TM_PERSIST );
+use Time::HiRes qw( time );
+require '/usr/local/etc/tachikoma.conf';
+
+my $topic                = $ARGV[0] or die "usage: stress_test <topic>\n";
+my $partition            = $ARGV[1] // -1;
+my $broker               = Tachikoma::Nodes::Topic->new($topic);
+my $partitions           = $broker->get_partitions;
+my $i                    = $partition > -1 ? $partition : 0;
+my $messages             = '';
+my $total                = 0;
+my $message_payload_size = 0;
+my $count                = 0;
+
+# serialization is expensive, do this part once
+my $targets = $broker->targets;
+while ( length($messages) < 65400 ) {
+    my $message = Tachikoma::Message->new;
+    $message->type(TM_BYTESTREAM);
+    $message->payload( ( "." x 99 ) . "\n" );
+    $messages .= ${ $message->packed };
+    $message_payload_size ||= length $message->payload;
+    $count++;
+}
+my $batch = Tachikoma::Message->new;
+
+# $batch->type(TM_BATCH | TM_PERSIST);
+$batch->type(TM_BATCH);
+$batch->to("$topic:partition:$i");
+$batch->payload($messages);
+
+my $batch_payload_size = length $messages;
+my $batch_total_size   = $batch->size;
+print "message payload: $message_payload_size bytes\n"
+    . "  batch   count: $count messages\n"
+    . "  batch payload: $batch_payload_size bytes\n"
+    . "  batch   total: $batch_total_size bytes\n\n";
+
+# strip off all the doors and airbags
+for ( @{$partitions} ) {
+    my $target = $broker->get_target($_);
+    $target->callback( sub {return} );
+}
+
+# light it up
+my $start = time;
+while ( ( $total * $count ) < 50000000 ) {
+    my $broker_id = $partitions->[ $i % @{$partitions} ] or die;
+    my $target = $targets->{$broker_id} or die;
+    $batch->[TO] = "$topic:partition:$i";
+    $target->fill($batch);
+
+    # $target->drain;
+    $total++;
+    $i = 0 if ( $partition < 0 and $i++ >= $#$partitions );
+}
+my $end = time;
+
+printf "%d messages in %.2f seconds\n", $count * $total, $end - $start;
+printf "%.2f messages per second\n", $count * $total / ( $end - $start );
+printf "%.2f batches per second\n", $total / ( $end - $start );
+print_stats( 'message payload', $count * $message_payload_size );
+print_stats( 'batch payload',   $batch_payload_size );
+print_stats( 'batch total',     $batch_total_size );
+
+sub print_stats {
+    my $name = shift;
+    my $size = shift;
+    print "\n-- $name --\n";
+    printf "%d total bytes - %.2f MB\n", $size * $total,
+        $size * $total / 1024 / 1024;
+    printf "%.2f MB per second\n",
+        $size * $total / 1024 / 1024 / ( $end - $start );
+}

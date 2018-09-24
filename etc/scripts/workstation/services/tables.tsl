@@ -1,0 +1,57 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = tables;
+include services/daemonize.tsl
+
+var http_port = 3124
+
+connect_hub
+
+
+# example of caching values
+make_node ConsumerBroker topic1:consumer    --broker=<broker>        \
+                                            --topic=topic1           \
+                                            --group=cache.<hostname> \
+                                            --default_offset=start   \
+                                            --auto_commit=60
+
+make_node Table          topic1:table       --num_partitions=1       \
+                                            --window_size=0          \
+                                            --num_buckets=1
+
+connect_edge topic1:consumer topic1:table
+
+
+# example of caching offsets
+make_node ConsumerBroker topic1.ID:consumer --broker=<broker>        \
+                                            --topic=topic1.ID        \
+                                            --group=IDs.<hostname>   \
+                                            --default_offset=start   \
+                                            --auto_commit=60
+
+make_node Table          topic1.ID:table    --num_partitions=1       \
+                                            --window_size=0          \
+                                            --num_buckets=1
+
+connect_edge topic1.ID:consumer topic1.ID:table
+
+
+topic_probe
+
+# listen for http connections
+make_node HTTP_Responder responder /tmp/http <http_port>
+make_node Tee            http:log
+make_node HTTP_Route     root
+make_node HTTP_File      root:dir  /Users/chris/Sites
+make_node HTTP_Fetch     fetch:dir /fetch    topic1:table
+make_node HTTP_Store     store:dir /store    topic1
+make_node Topic          topic1    <broker>
+make_node HTTP_Timeout
+command root add /      root:dir
+command root add /fetch fetch:dir
+command root add /store store:dir
+connect_node responder          root
+listen_inet --io <hostname>:<http_port>
+connect_sink <hostname>:<http_port> responder
+
+listen_inet localhost:<root_port>
+secure 3

@@ -1,0 +1,374 @@
+#!perl
+# ----------------------------------------------------------------------
+# tachikoma fsync client
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw(
+    TYPE FROM TO STREAM PAYLOAD
+    TM_PING TM_BYTESTREAM TM_PERSIST TM_COMMAND TM_RESPONSE TM_ERROR TM_EOF
+);
+use Tachikoma::Command;
+use Tachikoma::Jobs::DirStats qw( stat_directory );
+use POSIX qw( isatty );
+my $USE_RESOLVER;
+
+BEGIN {
+    $USE_RESOLVER = eval {
+        my $module_name = 'Net::DNS::Resolver';
+        my $module_path = 'Net/DNS/Resolver.pm';
+        require $module_path;
+        import $module_name;
+        return 1;
+    };
+}
+use Getopt::Long qw( GetOptions );
+
+use version; our $VERSION = qv('v2.0.192');
+
+my $disabled_file =
+    '/usr/local/sync/foundation/from_tachikoma/monitoring/disabled_mon.txt';
+my $Lower = 128;
+my $Upper = 256;
+
+# my $Separator = chr(0);
+my $Separator = join q{}, chr 30, ' -> ', chr 30;
+my $Home      = ( getpwuid $< )[7];
+my $config    = '/usr/local/etc/tachikoma.conf';
+my $host      = 'localhost';
+my $port      = 5601;
+my $prefix    = undef;
+my $quiet     = undef;
+my $timeout   = 180;
+my $withsums  = undef;
+my $pedantic  = undef;
+my $nosync    = undef;
+my $help      = undef;
+local $| = 1;    # autoflush
+
+# get arguments
+my $r = GetOptions(
+    'config=s'  => \$config,
+    'host=s'    => \$host,
+    'port=i'    => \$port,
+    'prefix=s'  => \$prefix,
+    'quiet'     => \$quiet,
+    'timeout=s' => \$timeout,
+    'withsums'  => \$withsums,
+    'pedantic'  => \$pedantic,
+    'nosync'    => \$nosync,
+    'help'      => \$help,
+);
+usage() if ( $help or not $r or not $ARGV[0] );
+require $config if ( -f $config );
+$prefix ||= $ARGV[0];
+$quiet ||= isatty(*STDIN) ? undef : 1;
+
+# connect
+my $tachikoma = Tachikoma->inet_client( $host, $port );
+$tachikoma->timeout($timeout);
+
+# blow out the tubes
+my $request = Tachikoma::Message->new;
+$request->[TYPE] = TM_PING;
+$request->[TO]   = 'DirStats:tee';
+$tachikoma->fill($request);
+
+# get targets
+my @targets = ();
+$request = $tachikoma->command( 'ls', '-ao ^DirStats:tee$' );
+$tachikoma->fill($request);
+$tachikoma->callback(
+    sub {
+        my $message = shift;
+        my $command = Tachikoma::Command->new( $message->payload );
+        my $payload = $command->payload;
+        chomp $payload;
+        $payload =~ s{^.*?-> }{};
+        @targets = split m{,\s+}, $payload;
+        return;
+    }
+);
+$tachikoma->drain;
+exit 0 if ( not @targets );
+
+# get hostnames if possible
+my @hostnames = ();
+if ($USE_RESOLVER) {
+    my $resolver = Net::DNS::Resolver->new;
+    for my $target (@targets) {
+        my $address  = ( split m{:}, $target, 2 )[0];
+        my $revquery = $resolver->search($address);
+        my $hostname = $address;
+        next if ( not $revquery );
+        for my $rr ( $revquery->answer ) {
+            if ( $rr->type eq 'PTR' ) {
+                $hostname = lc( $rr->ptrdname );
+                last;
+            }
+        }
+        $hostname =~ s{[.].*}{};
+        push @hostnames, $hostname;
+    }
+}
+else {
+    for my $target (@targets) {
+        my $address = ( split m{:}, $target, 2 )[0];
+        push @hostnames, $address;
+    }
+}
+
+# roll call
+my $fh;
+my @missing   = ();
+my $roll_file = "$Home/.fsync-$port";
+my %roll      = ();
+my %clients   = map { $_ => 1 } @hostnames;
+my %disabled  = ();
+if ( -f $roll_file ) {
+    open $fh, '<', $roll_file or die "ERROR: couldn't open $roll_file: $!";
+    while ( my $hostname = <$fh> ) {
+        chomp $hostname;
+        $roll{$hostname} = 1;
+    }
+    close $fh or die $!;
+}
+if ( -f $disabled_file ) {
+    open $fh, '<', $disabled_file
+        or die "ERROR: couldn't open $disabled_file: $!";
+    while ( my $line = <$fh> ) {
+        chomp $line;
+        my ( $timestmap, $moncmd, $hostname ) = split q{ }, $line, 3;
+        $hostname =~ s{[.].*}{};
+        $disabled{$hostname} = 1
+            if ( $moncmd eq 'host' or $moncmd eq 'rhost' );
+    }
+    close $fh or die $!;
+}
+my $dirty = undef;
+for my $hostname (@hostnames) {
+    next if ( $roll{$hostname} );
+    $roll{$hostname} = 1;
+    $dirty = 1;
+}
+if ($dirty) {
+    open $fh, '>', $roll_file or die "ERROR: couldn't open $roll_file: $!";
+    print {$fh} "$_\n" for ( sort keys %roll );
+    close $fh or die $!;
+}
+for my $hostname ( sort keys %roll ) {
+    push @missing, $hostname
+        if ( not $clients{$hostname} and not $disabled{$hostname} );
+}
+
+# check intent
+my $intent = q{};
+my $fail   = undef;
+open $fh, '<', join q{/}, $prefix, '.intent'
+    or die "couldn't open $prefix/.intent: $!\n";
+$intent .= $_ while (<$fh>);
+chomp $intent;
+close $fh or die $!;
+$request            = Tachikoma::Message->new;
+$request->[TYPE]    = TM_BYTESTREAM;
+$request->[TO]      = 'DirStats:tee';
+$request->[STREAM]  = $prefix;
+$request->[PAYLOAD] = ".intent\n";
+$tachikoma->fill($request);
+$tachikoma->callback(
+    sub {
+        my $message = shift;
+        my $payload = $message->[PAYLOAD];
+        chomp $payload;
+        if ( $payload ne $intent ) {
+            print {*STDERR} join q{},
+                'wrong intent: "', $payload, q{"},
+                ' should be: "',   $intent,  q{"},
+                ' from ', $message->from, "\n";
+            $fail = 1;
+        }
+        pop @targets;
+        return 'wait' if (@targets);
+        return;
+    }
+);
+$tachikoma->drain;
+if ($fail) {
+    print {*STDERR} "ERROR: intent check failed!\n";
+    exit 1;
+}
+
+# scan
+my $width = $quiet ? 0 : `tput cols`; ## no critic (ProhibitBacktickOperators)
+my $clear = "\r\e[J";
+my $count = 0;
+my $total = 0;
+while (1) {
+
+    # stat targets
+    my %unique    = ();
+    my $finishing = undef;
+    $tachikoma->callback(
+        sub {
+            my $message = shift;
+            my $type    = $message->[TYPE];
+            if ( $type & TM_BYTESTREAM ) {
+                $unique{ $message->[PAYLOAD] } = undef;
+            }
+            elsif ( $type & TM_RESPONSE ) {
+                oneline( "finished $count: " . $message->[STREAM] )
+                    if ( $finishing and not $quiet );
+                $count--;
+            }
+            elsif ( $type & TM_EOF ) {
+                die "ERROR: premature EOF\n";
+            }
+            else {
+                die "ERROR: unexpected response\n";
+            }
+            return if ( $count <= $Lower and not $finishing );
+            return $count > 0 ? 'wait' : undef;
+        }
+    );
+    explore_path($_) for ( map glob, @ARGV );
+    $finishing = $count;
+    $tachikoma->drain if ($finishing);
+    print $clear if ( not $quiet );
+    my @updates = sort keys %unique;
+    $total = @updates;
+
+    # last if ($withsums and not $total);
+    last if ( not $total );
+
+    if ($nosync) {
+        for my $update (@updates) {
+            my $path = ( split m{:}, $update )[1];
+            next if ( $path =~ m{[.]svn/(?:entries|wc[.]db)} );
+            cleanline( join q{}, 'update ', $prefix, q{/}, $path );
+        }
+        last;
+    }
+
+    # send updates
+    $tachikoma->callback(
+        sub {
+            my $message = shift;
+            my $type    = $message->[TYPE];
+            if ( $type & TM_RESPONSE ) {
+                my $path = ( split m{:}, $message->[STREAM], 2 )[1];
+                if ( not $quiet ) {
+                    cleanline("updated $path\n");
+                    print "$total remaining ($count in flight)...";
+                }
+                $count--;
+                $total--;
+            }
+            elsif ( $type & TM_EOF ) {
+                die "ERROR: premature EOF\n";
+            }
+            else {
+                die "unexpected response\n";
+            }
+            return if ( $count <= $Lower and @updates );
+            return $count > 0 ? 'wait' : undef;
+        }
+    );
+    while (@updates) {
+        my $update = shift @updates;
+        if ($update) {
+            my $relative = ( split m{:}, $update, 2 )[1];
+            send_update( join q{}, 'update:', $prefix, q{/}, $relative );
+        }
+        $tachikoma->drain if ( $count >= $Upper );
+    }
+    $tachikoma->drain if ($count);
+    sleep 1;    # XXX: this shouldn't be necessary...
+                # $withsums = 1;
+}
+
+print 'ok: ', join( q{, }, sort @hostnames ), "\n" if ( not $quiet );
+print {*STDERR} 'WARNING: missing from client list: ',
+    join( q{, }, sort @missing ), "\n"
+    if (@missing);
+
+sub explore_path {
+    my $path = shift;
+    oneline("checking $total ($count): $path") if ( not $quiet );
+    my ( $out, $directories );
+    my $okay = eval {
+        ( $out, $directories ) =
+            stat_directory( $prefix, $path, $withsums, $pedantic );
+        return 1;
+    };
+    if ( not $okay ) {
+        if ( $@ =~ m{can't open} ) {
+            return;
+        }
+        else {
+            die $@;
+        }
+    }
+    $count++;
+    $total += @{$out} - 1;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
+    $message->[TO]      = 'DirStats:tee';
+    $message->[STREAM]  = $path;
+    $message->[PAYLOAD] = join q{}, @{$out};
+    $tachikoma->fill($message);
+    $tachikoma->drain if ( $count >= $Upper );
+    explore_path($_) for ( @{$directories} );
+    return;
+}
+
+sub send_update {
+    my $update = shift;
+    my $stream = $update;
+    chomp $stream;
+    $count++;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
+    $message->[TO]      = 'FileController';
+    $message->[STREAM]  = $stream;
+    $message->[PAYLOAD] = $update;
+    $tachikoma->fill($message);
+    return;
+}
+
+sub oneline {
+    my $line   = shift;
+    my $output = substr $line, 0, $width;
+    my $size   = length $output;
+    print "\r", $output, q{ } x ( $width - $size );
+    return;
+}
+
+sub cleanline {
+    my $output = shift;
+    chomp $output;
+    my $size = length $output;
+    print "\r", $output,
+        ( ( $width > $size ) ? q{ } x ( $width - $size ) : q{} ),
+        "\n";
+    return;
+}
+
+sub usage {
+    print "Usage:\n"
+        . "tachikoma-fsync [ --host <host>       ]\n"
+        . "                [ --port <port>       ]\n"
+        . "                [ --prefix <prefix>   ]\n"
+        . "                [ --quiet             ]\n"
+        . "                [ --timeout <seconds> ]\n"
+        . "                [ --withsums          ]\n"
+        . "                [ --pedantic          ]\n"
+        . "                [ --nosync            ]\n"
+        . "                [ --help              ]\n"
+        . "                <path>\n";
+    exit 1;
+}

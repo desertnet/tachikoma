@@ -1,0 +1,89 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Accessories::Forks;
+
+my $forks = Accessories::Forks->new;
+
+my @hosts = @ARGV;
+my @up_hosts = ();
+
+print "checking hosts with ping...\n";
+my $start    = Time::HiRes::time;
+my @commands = ();
+for my $host (@hosts) {
+    push( @commands, "ping -c 1 $host" );
+}
+
+$forks->spawn(
+    8,
+    \@commands,
+    sub {
+        my $command = shift;
+        my $output  = shift;
+        my $host    = ( split( ' ', $command, 4 ) )[3];
+        if ( $output =~ m([1-9] packets received) ) {
+            print "$host: up\n";
+        }
+        else {
+            print "$host: down\n";
+        }
+    }
+);
+printf "took: %.3f seconds\n", Time::HiRes::time - $start;
+print "\n";
+
+# ----------------------------------------------------------------
+
+print "checking hosts with Net::Ping...\n";
+$start = Time::HiRes::time;
+my $map = q(
+    my $self    = shift;
+    my $message = shift;
+    my $host    = $message->payload;
+    chomp($host);
+    use Net::Ping;
+    # $self->stderr($host);
+    if (not $self->{pinger}) {
+        $self->{pinger} = Net::Ping->new("tcp");
+        $self->{pinger}->port_number("22");
+    }
+    if ($self->{pinger}->ping($host, 25)) {
+        return 'up';
+    }
+    else {
+        return 'down';
+    }
+);
+$forks->farm(
+    8,
+    \@hosts,
+    $map,
+    sub {
+        my $host   = shift;
+        my $output = shift;
+        print "$host: $output\n";
+        push( @up_hosts, $host ) if ( $output eq 'up' );
+    }
+);
+printf "took: %.3f seconds\n", Time::HiRes::time - $start;
+print "\n";
+
+# ----------------------------------------------------------------
+
+print "running remote commands...\n";
+@commands = ();
+for my $host (@up_hosts) {
+    push( @commands, "ssh $host date" );
+}
+
+$forks->spawn(
+    8,
+    \@commands,
+    sub {
+        my $command = shift;
+        my $output  = shift;
+        my $host    = ( split( ' ', $command, 3 ) )[1];
+        print "$host: $output";
+    }
+);

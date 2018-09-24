@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::Topic;
+use Time::HiRes qw( time );
+require '/usr/local/etc/tachikoma.conf';
+
+my $topic      = $ARGV[0] or die "usage: load_test <topic>\n";
+my $partition  = $ARGV[1] // -1;
+my $count      = $ARGV[2] // 10000000;
+my $broker     = Tachikoma::Nodes::Topic->new($topic);
+my $partitions = $broker->get_partitions;
+my $i          = $partition > -1 ? $partition : 0;
+my $j          = 0;
+my @lines      = ();
+my $total      = 0;
+$broker->persist(undef);
+my $start = time;
+push( @lines, ( '.' x 99 ) . "\n" ) while ( $j++ < 542 );
+
+while ( $total < $count ) {
+    $broker->send_messages( $i, \@lines );
+    die $broker->sync_error if ( $broker->{sync_error} );
+    $total += @lines;
+    $i = 0 if ( $partition < 0 and $i++ >= $#$partitions );
+}
+my $end = time;
+printf "%d messages in %.2f seconds\n", $total, $end - $start;
+printf "%.2f messages per second\n", $total / ( $end - $start );

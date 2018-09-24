@@ -1,0 +1,46 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = hunter;
+include services/daemonize.tsl
+
+var start = 0;
+var count = 8;
+if (<hostname> eq "trantor") {
+    start += <count>;
+}
+var end = <start> + <count> - 1;
+
+make_node Tee images
+for i (<start> .. <end>) {
+    command jobs start_job CommandInterpreter images<i>;
+    cd images<i>;
+      connect_hub;
+
+      # indb
+      make_node ConsumerBroker images.indb:consumer   --broker=<broker>
+                                                      --topic=images.indb
+                                                      --partition_id=<i>
+                                                      --default_offset=start;
+      make_node Table          images.indb:table      --num_partitions=1
+                                                      --window_size=0
+                                                      --num_buckets=1;
+      connect_edge images.indb:consumer images.indb:table;
+
+      # ondisk
+      make_node ConsumerBroker images.ondisk:consumer --broker=<broker>
+                                                      --topic=images.ondisk
+                                                      --partition_id=<i>
+                                                      --default_offset=start
+                                                      --max_unanswered=1024;
+      make_node Lookup         images:lookup        images.orphans;
+      make_node Topic          images.orphans       <broker>;
+      connect_edge images:lookup          images.indb:table;
+      connect_node images.ondisk:consumer images:lookup;
+
+      topic_probe;
+      secure 2;
+    cd ..;
+    connect_node images images<i>;
+}
+
+listen_inet localhost:<root_port>
+secure 3

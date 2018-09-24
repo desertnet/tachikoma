@@ -1,0 +1,129 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
+use Tachikoma::Message qw( STREAM PAYLOAD );
+use Data::Dumper;
+use Getopt::Long qw( GetOptions );
+use Time::HiRes qw( time );
+require '/usr/local/etc/tachikoma.conf';
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+$Data::Dumper::Useperl  = 1;
+
+my ( $topic, $group, $batch, $help );
+my $mode  = 'values';
+my $total = 0;
+my ( $r, $argv ) = GetOptions(
+    'topic=s' => \$topic,
+    'group=s' => \$group,
+    'batch'   => \$batch,
+    'mode=s'  => \$mode,
+    'help'    => \$help,
+);
+$topic //= $ARGV[0];
+usage() if ( $help or not $r or not $topic );
+
+my $consumer = Tachikoma::Nodes::ConsumerBroker->new( $topic, $group );
+$consumer->default_offset('start') if ($batch);
+$consumer->poll_interval(0.1);
+if ( $mode eq 'keys' ) {
+    while (1) {
+        my @output = ();
+        for my $message ( @{ $consumer->fetch } ) {
+            my $key = $message->[STREAM];
+            chomp $key;
+            push @output, "$key\n";
+        }
+        syswrite STDOUT, join q{}, @output;
+        last if check_status();
+    }
+}
+elsif ( $mode eq 'debug' ) {
+    while (1) {
+        my @output   = ();
+        my $messages = $consumer->fetch;
+        my $time     = time;
+        for my $message (@$messages) {
+            my ( $offset, $next_offset ) = split( ':', $message->id, 2 );
+            my $key   = $message->[STREAM];
+            my $value = undef;
+            chomp $key;
+            if ( ref $message->payload ) {
+                $value = Dumper( $message->[PAYLOAD] );
+            }
+            else {
+                my $payload = $message->[PAYLOAD];
+                chomp $payload;
+                $value = "[$payload]\n";
+            }
+            push @output, sprintf "%16f %9d %2d %9d:%-9d [%s] %s", $time,
+                $total++,
+                $message->from,
+                $offset,
+                $next_offset,
+                $key,
+                $value;
+        }
+        syswrite STDOUT, join q{}, @output;
+        last if check_status();
+    }
+}
+elsif ( $mode eq 'dump_message' ) {
+    while (1) {
+        my @output = ();
+        for my $message ( @{ $consumer->fetch } ) {
+            $message->payload;
+            push @output, Dumper($message);
+        }
+        syswrite STDOUT, join q{}, @output;
+        last if check_status();
+    }
+}
+elsif ( $mode eq 'dump_payload' ) {
+    while (1) {
+        my @output = ();
+        for my $message ( @{ $consumer->fetch } ) {
+            push @output, Dumper($message->payload);
+        }
+        syswrite STDOUT, join q{}, @output;
+        last if check_status();
+    }
+}
+elsif ($batch) {
+    while (1) {
+        syswrite STDOUT, join q{}, map $_->[PAYLOAD], @{ $consumer->fetch };
+        if ( $consumer->{sync_error} ) {
+            syswrite STDERR, $consumer->sync_error;
+            exit 1 if ( $consumer->sync_error !~ m(^REBALANCING) );
+        }
+        last if ( $consumer->{eos} );
+    }
+}
+else {
+    while (1) {
+        syswrite STDOUT, join q{}, map $_->[PAYLOAD], @{ $consumer->fetch };
+        syswrite STDERR, $consumer->sync_error if ( $consumer->{sync_error} );
+    }
+}
+$consumer->commit_offset if ( $batch and $group );
+
+sub check_status {
+    my $rv = undef;
+    if ( $consumer->{sync_error} ) {
+        syswrite STDERR, $consumer->sync_error;
+        exit 1 if ( $batch and $consumer->sync_error !~ m(^REBALANCING) );
+    }
+    $rv = 1 if ( $batch and $consumer->{eos} );
+    return $rv;
+}
+
+sub usage {
+    print "Usage:\n"
+        . "consume_topic   --topic=<name>\n"
+        . "              [ --group=<name>      ]\n"
+        . "              [ --batch             ]\n"
+        . "              [ --mode=<string>     ]\n"
+        . "    # valid modes: keys values debug dump_message dump_payload\n";
+    exit 1;
+}

@@ -1,0 +1,38 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use HTTP::Request::Common qw(GET);
+use JSON -support_by_pp;
+use LWP::UserAgent;
+use Mozilla::CA;
+
+my ( $server, $topic, $partition, $offset, $count ) = @ARGV;
+die "ERROR: no topic\n" if not($topic);
+$partition //= 0;
+$offset    //= 0;
+$count     //= 1024;
+my $json = JSON->new;
+my $ua   = LWP::UserAgent->new;
+$ua->timeout(60);
+$ua->ssl_opts( SSL_ca_file => Mozilla::CA::SSL_ca_file() );
+push( @{ $ua->requests_redirectable }, 'GET' );
+$server =~ s($)(/cgi-bin/topic.cgi) if ( $server !~ m(/) );
+$server =~ s(^)(http://)            if ( $server !~ m(^https?://) );
+my $url = join( '/', $server, $topic, $partition, $offset, $count );
+CONSUME: while (1) {
+    my $req = GET $url;
+    my $res = $ua->request($req);
+    if ( $res->is_success ) {
+        my $batch = $json->decode( $res->content );
+        for my $record ( @{ $batch->{payload} } ) {
+            print $record;
+        }
+        last if ( $url eq $batch->{next_url} );
+        $url = $batch->{next_url};
+    }
+    else {
+        my $output = $res->as_string;
+        print STDERR $output;
+        exit 1;
+    }
+}

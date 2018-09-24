@@ -1,0 +1,87 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var stick;
+if (<_C> > 0) {
+    stick = <1>;
+}
+var name = hubs
+include services/daemonize.tsl
+
+var hub_from = <port> + 1
+var hub_to   = <port> + 4
+var all_hubs
+var my_hubs
+for h (<hostname>) {
+    for i ( <hub_from> .. <hub_to> ) {
+        all_hubs .= "<h>:<i>";
+    };
+}
+for i ( <hub_from> .. <hub_to> ) {
+    my_hubs .= "<hostname>:<i>";
+}
+
+func add_hub {
+    local broker_id = <1>;
+    local path      = <2>;
+    command jobs start_job CommandInterpreter hub:<broker_id>;
+    cd hub:<broker_id>;
+        make_node Broker broker <broker_id> <path>;
+        cd broker;
+            for hub (<all_hubs>) {
+                set_broker <hub>;
+            };
+            set_topic topic1;
+            set_topic topic1.ID            --segment_size=(16 * 1024 * 1024);
+            set_topic server_log           --num_partitions=4
+                                           --segment_size=(64 * 1024 * 1024);
+            set_topic server_log.timestamp --num_partitions=4
+                                           --segment_size=(4 * 1024 * 1024);
+            set_topic server_log.hostname  --num_partitions=4
+                                           --segment_size=(4 * 1024 * 1024);
+            set_topic server_log.process   --num_partitions=4
+                                           --segment_size=(4 * 1024 * 1024);
+
+            set_group cache.nyx            --topic=topic1;
+            set_group cache.misa           --topic=topic1;
+            set_group IDs                  --topic=topic1;
+            set_group IDs.nyx              --topic=topic1.ID;
+            set_group IDs.misa             --topic=topic1.ID;
+            set_group timestamps           --topic=server_log;
+            set_group timestamps.nyx       --topic=server_log.timestamp
+                                           --cache_size=0;
+            set_group timestamps.misa      --topic=server_log.timestamp
+                                           --cache_size=0;
+            set_group hostnames            --topic=server_log;
+            set_group hostnames.nyx        --topic=server_log.hostname
+                                           --cache_size=0;
+            set_group hostnames.misa       --topic=server_log.hostname
+                                           --cache_size=0;
+            set_group processes            --topic=server_log;
+            set_group processes.nyx        --topic=server_log.process
+                                           --cache_size=0;
+            set_group processes.misa       --topic=server_log.process
+                                           --cache_size=0;
+
+            set_topic images.ondisk  --num_partitions=8
+                                     --segment_size=(128 * 1024 * 1024);
+            set_topic images.indb    --num_partitions=8
+                                     --segment_size=(128 * 1024 * 1024);
+            set_topic images.orphans --num_partitions=8
+                                     --segment_size=(128 * 1024 * 1024);
+
+            start_broker;
+        cd ..;
+        topic_probe;
+        listen_inet <broker_id>;
+        if ( <broker_id> =~ ":(\\d+)\$" ) {
+           # listen_inet localhost:<_1>;
+        };
+        secure 3;
+    cd ..;
+}
+
+for hub (<my_hubs>) {
+    add_hub <hub> <topics_dir>;
+}
+
+listen_inet localhost:<root_port>
+secure 3

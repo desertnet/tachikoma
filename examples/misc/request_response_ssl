@@ -1,0 +1,13 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw( TM_BYTESTREAM );
+require '/usr/local/etc/tachikoma.conf';
+my $tachikoma = Tachikoma->inet_client( 'localhost', 4231, 'use_SSL' );
+my $message = Tachikoma::Message->new;
+$message->type(TM_BYTESTREAM);
+$message->to("echo");
+$message->payload("hello, world\n");
+$tachikoma->fill($message);
+print $_->payload for ( @{ $tachikoma->fetch } );

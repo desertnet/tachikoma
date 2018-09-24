@@ -1,0 +1,79 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = engines;
+include services/daemonize.tsl
+
+var root_port = 5499
+
+make_node Tee engines
+for i (1 .. 2) {
+    local my_port = <port> + <i>;
+    command jobs start_job CommandInterpreter engine<i>;
+    cd engine<i>;
+        connect_hub;
+
+
+        # timestamps
+        make_node ConsumerBroker server_log.timestamp:consumer
+                                 --broker=<broker>
+                                 --topic=server_log.timestamp
+                                 --group=timestamps.<hostname>
+                                 --default_offset=start
+                                 --cache_dir=<cache_dir>
+                                 --auto_commit=<auto_commit>;
+
+        make_node Index          server_log.timestamp:index
+                                 --num_partitions=4
+                                 --window_size=86400
+                                 --num_buckets=7;
+
+        connect_edge server_log.timestamp:consumer server_log.timestamp:index;
+
+
+        # hostnames
+        make_node ConsumerBroker server_log.hostname:consumer
+                                 --broker=<broker>
+                                 --topic=server_log.hostname
+                                 --group=hostnames.<hostname>
+                                 --default_offset=start
+                                 --cache_dir=<cache_dir>
+                                 --auto_commit=<auto_commit>;
+
+        make_node Index          server_log.hostname:index
+                                 --num_partitions=4
+                                 --window_size=86400
+                                 --num_buckets=7;
+
+        connect_edge server_log.hostname:consumer server_log.hostname:index;
+
+
+        # processes
+        make_node ConsumerBroker server_log.process:consumer
+                                 --broker=<broker>
+                                 --topic=server_log.process
+                                 --group=processes.<hostname>
+                                 --default_offset=start
+                                 --cache_dir=<cache_dir>
+                                 --auto_commit=<auto_commit>;
+
+        make_node Index          server_log.process:index
+                                 --num_partitions=4
+                                 --window_size=86400
+                                 --num_buckets=7;
+
+        connect_edge server_log.process:consumer server_log.process:index;
+
+
+        make_node QueryEngine QueryEngine server_log.timestamp:index
+                                          server_log.hostname:index
+                                          server_log.process:index;
+
+
+        topic_probe;
+        listen_inet <hostname>:<my_port>;
+        secure 3;
+    cd ..;
+    connect_node engines engine<i>;
+}
+
+listen_inet localhost:<root_port>
+secure 3

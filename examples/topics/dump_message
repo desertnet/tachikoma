@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
+use Data::Dumper;
+require '/usr/local/etc/tachikoma.conf';
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+$Data::Dumper::Useperl  = 1;
+
+my $topic     = $ARGV[0];
+my $partition = $ARGV[1];
+my $offset    = $ARGV[2] // 'recent';
+die "usage: dump_message <topic> <partition> [ <offset> ]\n"
+    if ( not defined $partition );
+my $group    = Tachikoma::Nodes::ConsumerBroker->new($topic);
+my $consumer = $group->make_sync_consumer($partition);
+$consumer->next_offset($offset);
+my $message = $consumer->fetch->[0];
+$message->payload;
+print Dumper($message);
+die $consumer->sync_error if ( $consumer->sync_error );

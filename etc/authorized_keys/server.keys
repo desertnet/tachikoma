@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# $Id$
+# ----------------------------------------------------------------------
+
+use strict;
+use warnings;
+use Tachikoma::Config qw( %Keys );
+
+# Set our authorized keys
+
+%Keys = (
+    'tachikoma@nyx' => {
+        allow => {map {$_=>1} qw(
+            client
+            command
+            meta
+        )},
+        public_key =>
+q(-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAL7HdQeC2zQOm61S7u5toPgDWvhOiBb5YZD/vsLBywBTeU4o6JGDEuVk
+CcXCCedlZ4VQSfOMR0VCx0kuY+awzCac9WhQx88CWobAN2aoGuCJoNmD7mlbaG20
+Qs+3gn+llLLhyOuCKPAUwMZagjbAa/aocufOeMJ770J+YZPdimrlAgMBAAE=
+-----END RSA PUBLIC KEY-----
+),
+    },
+);
+
+1;

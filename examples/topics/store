@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::Topic;
+use Digest::MD5 qw( md5 );
+require '/usr/local/etc/tachikoma.conf';
+
+my $name         = $ARGV[0];
+my $key          = $ARGV[1] or die "usage: store <topic> <key>\n";
+my $topic        = Tachikoma::Nodes::Topic->new($name);
+my $partitions   = $topic->get_partitions;
+my $partition_id = 0;
+$partition_id += $_ for ( unpack "C*", md5($key) );
+$partition_id %= scalar @{$partitions};
+$topic->send_kv( $partition_id, { $key => [ join q{}, <STDIN> ] } )
+    or die $topic->sync_error;
+print "ok\n";

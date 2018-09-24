@@ -1,0 +1,200 @@
+#!/bin/sh
+#
+# $Id: tachikoma.rc,v 1.1 2008/06/06 23:05:32 nick Exp $
+
+# PROVIDE: tachikoma
+# REQUIRE: LOGIN sshd
+# KEYWORD: shutdown
+
+# Add the following line to /etc/rc.conf to enable tachikoma:
+#
+# tachikoma_enable="YES"
+#
+
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"; export PATH
+
+. "/etc/rc.subr"
+
+name="tachikoma"
+rcvar="tachikoma_enable"
+
+command="tachikoma-server"
+client="tachikoma"
+
+start_precmd="tachikoma_prestart"
+start_cmd="tachikoma_start"
+restart_cmd="tachikoma_restart"
+stop_postcmd="tachikoma_poststop"
+
+load_rc_config "${name}"
+
+: ${tachikoma_pidfile="/var/run/tachikoma/tachikoma-server.pid"}
+: ${tachikoma_user="tachikoma"}
+: ${tachikoma_group="tachikoma"}
+: ${tachikoma_startup_script=""}
+: ${tachikoma_dbdir="/var/db/tachikoma"}
+: ${tachikoma_logdir="/var/log/tachikoma"}
+: ${tachikoma_schedulesdir="${tachikoma_dbdir}/.tachikoma/schedules"}
+: ${tachikoma_buffersdir="${tachikoma_dbdir}/.tachikoma/buffers"}
+: ${tachikoma_verify_buffers="NO"}
+: ${tachikoma_delete_corrupt_buffers="YES"}
+: ${tachikoma_delete_stale_buffers="YES"}
+: ${tachikoma_stale_buffer_newermt="6 months ago"}
+: ${tachikoma_rotate_logs_at_restart="YES"}
+: ${tachikoma_delete_old_logs="YES"}
+: ${tachikoma_old_log_newermt="3 months ago"}
+: ${tachikoma_extra_environment=""}
+: ${tachikoma_restart_delay="1"}
+
+tachikoma_pid_dir=`/usr/bin/dirname "${tachikoma_pidfile}"`
+
+pidfile="${tachikoma_pidfile}"
+
+if [ -z "${tachikoma_flags}" ]; then
+	if [ -n "${tachikoma_startup_script}" ]; then
+		tachikoma_flags="--startup=${tachikoma_startup_script}"
+	fi
+fi
+
+tachikoma_restart()
+{
+    run_rc_command stop
+    sleep ${tachikoma_restart_delay}
+    run_rc_command start
+}
+
+tachikoma_prestart()
+{
+	if [ `sysctl -n security.jail.jailed` -eq 0 ]; then
+		if pgrep -u "${tachikoma_user}" -j none -f "${command}"; then
+			err 1 "tachikoma-server appears to already be running!"
+		elif [ -f "${tachikoma_pidfile}" ]; then
+			echo "removing stale ${tachikoma_pidfile}"
+			/bin/rm "${tachikoma_pidfile}"
+		fi
+	else
+		if pgrep -u "${tachikoma_user}" -f "${command}"; then
+			err 1 "tachikoma-server appears to already be running!"
+		elif [ -f "${tachikoma_pidfile}" ]; then
+			echo "removing stale ${tachikoma_pidfile}"
+			/bin/rm "${tachikoma_pidfile}"
+		fi
+	fi
+
+	if [ ! -d "${tachikoma_pid_dir}" ]; then
+		/bin/mkdir "${tachikoma_pid_dir}"
+		/usr/sbin/chown "${tachikoma_user}:${tachikoma_group}" \
+			"${tachikoma_pid_dir}"
+	fi
+	if [ ! -d "${tachikoma_logdir}" ]; then
+		/bin/mkdir -p "${tachikoma_logdir}"
+		/usr/sbin/chown "${tachikoma_user}:${tachikoma_group}" \
+			"${tachikoma_logdir}"
+	fi
+
+	if [ ! -d "${tachikoma_dbdir}" ]; then
+		/bin/mkdir -p "${tachikoma_dbdir}"
+		/usr/sbin/chown "${tachikoma_user}:${tachikoma_group}" \
+			"${tachikoma_dbdir}"
+	fi
+
+	if [ ! -d "${tachikoma_schedulesdir}" ]; then
+		/bin/mkdir -p "${tachikoma_schedulesdir}"
+		/usr/sbin/chown "${tachikoma_user}:${tachikoma_group}" \
+			"${tachikoma_schedulesdir}"
+	fi
+
+	if [ ! -d "${tachikoma_buffersdir}" ]; then
+		/bin/mkdir -p "${tachikoma_buffersdir}"
+		/usr/sbin/chown "${tachikoma_user}:${tachikoma_group}" \
+			"${tachikoma_schedulesdir}"
+	fi
+
+	if checkyesno tachikoma_rotate_logs_at_restart; then
+		echo "Rotating tachikoma logs"
+		ds=`date '+%Y-%m-%d_%H:%M:%S'`
+		for log in `find ${tachikoma_logdir}/*.log -type f -Btime +24h`; do
+			mv "${log}" "${log}-${ds}"
+		done
+	fi
+
+	if checkyesno tachikoma_delete_old_logs; then
+		echo "Deleting old tachikoma logs"
+		for log in `/usr/bin/find ${tachikoma_logdir} -type f          \
+			-and \( -name '*.log*' \) -and -not                    \
+			-newermt "${tachikoma_old_log_newermt}" | uniq`; do
+			rm "${log}" && echo "  $log"
+		done
+	fi
+
+	if [ -d /var/log/gyrobase ]; then
+		buffersdirs="${tachikoma_dbdir}/ ${tachikoma_buffersdir}/ /var/log/gyrobase/"
+	else
+		buffersdirs="${tachikoma_dbdir}/ ${tachikoma_buffersdir}/ "
+	fi
+
+	for badbuf in `find $buffersdirs -type f -name "__db.*.db"`; do
+		echo "Removing stale buffer temp file ${badbuf}."
+		rm -f "${badbuf}"
+	done
+
+	if checkyesno tachikoma_delete_stale_buffers; then
+		echo "Deleting stale Tachikoma buffers..."
+		for db in `/usr/bin/find ${buffersdirs} -type f                \
+			-and \( -name '*.hash' -or -name '*.db' \)             \
+			-and -not -newermt "${tachikoma_stale_buffer_newermt}" \
+			| uniq`; do
+			echo "Deleting ${db}..."
+			rm "${db}"
+		done
+	fi
+
+	if checkyesno tachikoma_verify_buffers; then
+		echo "Verifying Tachikoma buffers..."
+		perl_bdb_ver=`perl -e 'use BerkeleyDB;
+		print $BerkeleyDB::db_version."\n";'`
+		if [ -z "${perl_bdb_ver}" ]; then
+			err 1 "couldn't determine perl BerkeleyDB version!"
+		fi
+		verify=`/usr/bin/which db_verify-${perl_bdb_ver}`
+		if [ $? -ne 0 ]; then
+			err 1 "no db_verify script found for bdb ${perl_bdb_ver}!"
+		fi
+		mustexit=0
+		for db in `/usr/bin/find ${buffersdirs} -type f -and \( -name '*.hash' -or -name '*.db' \) | uniq`; do
+			if pgrep -u "${tachikoma_user}" -f "${db}"; then
+				err 1 "there might be other processes with $db already open!"
+			fi
+			$verify "${db}"
+			if [ $? -eq 0 ]; then
+				echo "Tachikoma db $db verified OK."
+			else
+				warn "Tachikoma db $db failed verify."
+				if checkyesno tachikoma_delete_corrupt_buffers; then
+					warn "Deleting Tachikoma db $db."
+					/bin/rm -f "${db}"
+				fi
+			fi
+		done
+		if [ $mustexit != 0 ]; then
+			err 1 "Verification errors occurred. Can't start ${name}."
+		fi
+	fi
+
+	return 0
+}
+
+tachikoma_start()
+{
+	echo "Starting ${name}."
+	/usr/bin/su -l $tachikoma_user -c "${tachikoma_extra_environment} ${command} ${tachikoma_flags}"
+	ecode=$?
+	[ $ecode != 0 ] && err $ecode "failed to start ${name}."
+}
+
+tachikoma_poststop()
+{
+	[ -f "${pidfile}" ] && rm -f "${pidfile}"
+}
+
+run_rc_command "$1"

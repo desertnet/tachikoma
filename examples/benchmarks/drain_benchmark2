@@ -1,0 +1,36 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Time::HiRes qw( time );
+
+use Socket qw(
+    PF_INET SOCK_STREAM inet_aton pack_sockaddr_in
+);
+my $hostname = 'localhost';
+my $port     = 6000;
+my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
+my $proto    = getprotobyname('tcp');
+my $recv     = 0;
+my $size     = 0;
+my $then     = time;
+my $delay    = shift(@ARGV) || 2;
+my $buf;
+
+my $socket;
+socket( $socket, PF_INET, SOCK_STREAM, $proto ) or die "FAILED: socket: $!";
+connect( $socket, pack_sockaddr_in( $port, $iaddr ) )
+    or die "ERROR: connect: $!";
+
+while (1) {
+    $size += sysread( $socket, $buf, 65536 );
+    if ( $recv++ >= 10000 ) {
+        my $now  = time;
+        my $span = $now - $then;
+        if ( $span >= $delay ) {
+            printf( "%.2f MB per second\n", $size / 1024 / 1024 / $span );
+            $size = 0;
+            $then = $now;
+        }
+        $recv = 0;
+    }
+}

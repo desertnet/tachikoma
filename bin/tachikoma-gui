@@ -1,0 +1,1566 @@
+#!perl
+# ----------------------------------------------------------------------
+# tachikoma gui
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw(
+  TYPE FROM TO ID STREAM PAYLOAD
+  TM_STORABLE TM_PERSIST TM_RESPONSE TM_EOF
+);
+use Tachikoma::Command;
+use Tachikoma::Nodes::Dumper;
+use IO::Select;
+use POSIX qw( fmod pow floor );
+use OpenGL qw( :all );
+
+#use OpenGL::Shader;
+use Time::HiRes;
+use Getopt::Long;
+require '/usr/local/etc/tachikoma.conf';
+
+my $host              = 'localhost';
+my $port              = 4230;
+my $Frame_Rate        = 60;
+my $Animate           = Time::HiRes::time;
+my $Update_Interval   = 2;
+my $Graph_Interval    = 15;
+my $Update_Count      = 0;
+my $Last_Update       = $Animate - $Update_Interval;
+my $Last_Graph        = $Animate - $Graph_Interval;
+my $Window_Width      = 800;
+my $Window_Height     = 800;
+my $Sub_Window_Width  = 0;
+my $Sub_Window_Height = 0;
+my $Old_Window_Width  = undef;
+my $Old_Window_Height = undef;
+my $Old_Window_X      = undef;
+my $Old_Window_Y      = undef;
+my $Char_Width        = 8;
+my $Char_Height       = 13;
+my $Padding           = 5;
+my $Line_Padding      = 3;
+my $Line_Height       = $Char_Height + $Line_Padding;
+my $Top               = int( $Sub_Window_Height / $Line_Height ) * $Line_Height;
+my $X                 = $Line_Padding;
+my $Y                 = $Top - $Line_Height + $Line_Padding;
+my $Pi                = 3.1415926532;
+my $Zoom              = 1065;
+my $Parent_Window     = undef;
+my $Sub_Window        = undef;
+my $Graph_Window      = undef;
+my $Show_Sub_Window   = undef;
+my $Show_Graph_Window = undef;
+my $Shader            = undef;
+my $Show_Owners       = 2;
+my $Show_Gauge        = 1;
+my $Char_List         = undef;
+my $Sub_Char_List     = undef;
+my $Graph_Char_List   = undef;
+my $Dirty             = undef;
+my $Connected_To      = undef;
+my $Graph_Path        = undef;
+my $Wait_For_Response = 0;
+my $Reset_Branch      = undef;
+my $Last_From         = '';
+my $Chars             = '';
+my %Candidates        = ();
+my $Pointer           = 0;
+my $Selected          = undef;
+my $Path              = '';
+my @List              = ();
+my %Cells             = ();
+my %Distances         = ();
+my %Counters          = ();
+my %Nodes             = ();
+my %Sinks             = ();
+my %Sunk              = ();
+my %Owners            = ();
+my %Branches          = ();
+my $Branch            = undef;
+my $Buffer            = '';
+my @Data              = ();
+my $Compare           = \&by_sink;
+
+my $r = GetOptions(
+    'host=s' => \$host,
+    'port=i' => \$port,
+);
+
+my $tachikoma = Tachikoma->inet_client( $host, $port );
+my $Dumper    = Tachikoma::Nodes::Dumper->new;
+my $self      = bless {};
+$tachikoma->sink($self);
+$Dumper->sink($self);
+
+sub fill {
+    my $self    = shift;
+    my $message = shift;
+    return if ( $message->type & TM_EOF );
+    if ( $message->type & TM_RESPONSE ) {
+        my $command = Tachikoma::Command->new( $message->payload );
+        %Counters = () if ( $message->from ne $Last_From );
+        $Last_From = $message->from;
+        if ( $command->name eq 'dump_metadata' ) {
+            my $now = Time::HiRes::time;
+            $Last_Update = $now;
+            @List        = split( "\n", $command->payload );
+            %Nodes       = ();
+            %Sinks       = ();
+            %Sunk        = ();
+            %Owners      = ();
+            for my $item (@List) {
+                my (
+                    $received, $sent,  $name, $sink,
+                    $owners,   $class, $type, @extra
+                ) = ( split( '\|', $item ) );
+                $name =~ s(^\s*\d+\s+)()g;
+                if ( $Counters{$name} ) {
+                    $Counters{$name}->{old_received} =
+                      ( $Counters{$name}->{received} );
+                    $Counters{$name}->{old_sent} = $Counters{$name}->{sent};
+                }
+                else {
+                    $Counters{$name} = {
+                        old_received => $received,
+                        old_sent     => $sent,
+                        apparency    => 0,
+                        level        => 0
+                    };
+                }
+                $Counters{$name}->{received} = $received;
+                $Counters{$name}->{sent}     = $sent;
+                if ( not $type ) {
+                    if ( $class eq 'Tachikoma::Nodes::Tee' ) {
+                        $type = 'source';
+                    }
+                    elsif ( $class eq 'Tachikoma::Nodes::RegexTee' ) {
+                        $type = 'filter';
+                    }
+                    elsif ( $class eq 'Tachikoma::Nodes::Tail' ) {
+                        $type = 'tail';
+                    }
+                    elsif ( $class eq 'Tachikoma::Nodes::CommandInterpreter' ) {
+                        $type = 'group';
+                    }
+                    elsif ( $class eq 'Tachikoma::Nodes::JobController' ) {
+                        $type   = 'group';
+                        $owners = $sink;
+                    }
+                }
+                $type ||= '';
+                $Nodes{$name}->{class}     = $class;
+                $Nodes{$name}->{type}      = $type;
+                $Nodes{$name}->{can_enter} = (
+                    ( $type eq 'host' or $type eq 'connector' )
+                    ? 'true'
+                    : ''
+                );
+                $Sinks{$name} = $sink;
+                $Sunk{$sink}->{$name} = 1;
+                for my $owner ( split( m(,\s*), $owners ) ) {
+                    $owner =~ s(/.*$)();
+                    $Owners{$name}->{$owner} = 1;
+                }
+                if (@extra) {
+                    $Nodes{$name}->{level} = $extra[0];
+                    $Nodes{$name}->{max}   = $extra[1];
+                }
+            }
+            for my $name ( keys %Owners ) {
+                next
+                  if ( $Nodes{$name}->{class} eq
+                    'Tachikoma::Nodes::JobController' );
+                my $keep = {};
+                for my $owner ( keys %{ $Owners{$name} } ) {
+                    my $node = $Nodes{$owner} or next;
+                    if ( $node->{class} eq 'Tachikoma::Nodes::JobFarmer' ) {
+                        $keep->{"$owner:load_balancer"} = 1;
+                    }
+                    else {
+                        $keep->{$owner} = 1;
+                    }
+                }
+                $Owners{$name} = $keep;
+            }
+            %Branches     = ();
+            $Branch       = undef if ($Reset_Branch);
+            $Reset_Branch = undef;
+            $Wait_For_Response-- if ( $Wait_For_Response > 0 );
+            build_tree( {}, 'command_interpreter' );
+            build_model();
+        }
+        elsif ( $command->name eq 'times' ) {
+            my $now = Time::HiRes::time;
+            $Last_Graph = $now;
+            @Data       = ();
+            my %hash = ();
+            for my $line ( split( "\n", $command->payload ) ) {
+                my ( $timestamp, $datum ) = split( ' ', $line, 2 );
+                $timestamp =~ s(\D.*)();
+                $hash{$timestamp}->{$datum} = 1;
+            }
+            for my $timestamp ( sort keys %hash ) {
+                push( @Data, $timestamp, $_ )
+                  for ( keys %{ $hash{$timestamp} } );
+            }
+            $Wait_For_Response-- if ( $Wait_For_Response > 0 );
+        }
+    }
+    elsif ( $message->type & TM_STORABLE ) {
+        $Dumper->fill($message);
+    }
+    else {
+        if ( $message->[TYPE] & TM_PERSIST ) {
+            my $response = Tachikoma::Message->new;
+            $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
+            $response->[FROM]    = $self->{name};
+            $response->[TO]      = $message->[FROM];
+            $response->[ID]      = $message->[ID];
+            $response->[STREAM]  = $message->[STREAM];
+            $response->[PAYLOAD] = 'cancel';
+            $tachikoma->fill($response);
+        }
+        if ($Show_Sub_Window) {
+            my $chunk = $message->payload;
+            my $rows  = $Window_Height / $Line_Height;
+            my $cols  = ( $Window_Width - $Padding * 2 ) / ( $Char_Width * 2 );
+            my $chars = $rows * $cols;
+            $Buffer .= $chunk;
+            substr( $Buffer, 0, length($Buffer) - $chars ) = ''
+              if ( length($Buffer) > $chars );
+        }
+    }
+    return 1;
+}
+
+sub build_tree {
+    my $branch = shift;
+    my $name   = shift;
+    my $seen   = shift || {};
+    return if ( $seen->{$name} );
+    $branch->{$name} ||= {};
+    $seen->{$name} = 1;
+    build_tree( $branch->{$name}, $_, $seen ) for ( keys %{ $Sunk{$name} } );
+    $Branches{$name} = $branch->{$name};
+    return;
+}
+
+sub build_model {
+    %Cells     = ();
+    %Distances = ();
+    my $name = $Branch || 'command_interpreter';
+    build_model_contents( $Branches{$name}, 0, $Window_Height, 0,
+        $Window_Width, $Window_Height, 0 );
+    return;
+}
+
+sub build_model_contents {
+    my $branch      = shift;
+    my $x           = shift;
+    my $y           = shift;
+    my $z           = shift;
+    my $width       = shift;
+    my $height      = shift;
+    my $depth       = shift;
+    my $count       = keys %$branch;
+    my $sqrt        = sqrt($count) || 1;
+    my $columns     = $sqrt == int($sqrt) ? $sqrt : int($sqrt) + 1;
+    my $cell_width  = ( $width - $Padding ) / $columns - $Padding;
+    my $cell_height = ( $height - $Padding ) / $columns - $Padding;
+    my $cx          = $x + $Padding;
+    my $cy          = $y - ( $cell_height + $Padding );
+    my $i           = 0;
+    my $mx          = $Window_Width / 2;
+    my $my          = $Window_Height / 2;
+    my $padding     = $Padding;
+    $padding = 0 if ( $cell_height < $Padding );
+    $depth ||= 280;
+
+    for my $name ( sort { &$Compare( $a, $b ) } keys %$branch ) {
+
+        # recurse
+        build_model_contents(
+            $branch->{$name}, $cx,
+            $cy + $cell_height,
+            $z + $padding,
+            $cell_width, $cell_height, $depth - $padding
+          )
+          if (  ref $branch->{$name}
+            and keys %{ $branch->{$name} }
+            and $name ne '_parent' );
+
+        # model
+        my $dx       = $cx - $mx;
+        my $dy       = $cy - $my;
+        my $distance = sqrt( $dx * $dx + $dy * $dy );
+        $Distances{$name} = $distance;
+        $Cells{$name} = [ $cx, $cy, $z, $cell_width, $cell_height, $depth ];
+
+        # increment
+        $cx += $cell_width + $padding;
+        if ( ++$i >= $columns ) {
+            $cx = $x + $padding;
+            $cy -= $cell_height + $padding;
+            $i = 0;
+        }
+    }
+    return;
+}
+
+sub display {
+
+    # Begin drawing quads
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    glLoadIdentity();
+    gluLookAt(
+        $Window_Width / 2,
+        $Window_Height / 2,
+        $Zoom,
+        $Window_Width / 2,
+        $Window_Height / 2,
+        0, 0, 1, 0
+    );
+    my $name = $Branch || 'command_interpreter';
+    display_branch($name);
+    display_owners();
+    glFlush();
+
+    if ($Show_Sub_Window) {
+        glutSetWindow($Sub_Window);
+        glutPostRedisplay();
+    }
+    elsif ($Show_Graph_Window) {
+        glutSetWindow($Graph_Window);
+        glutPostRedisplay();
+    }
+    return;
+}
+
+sub display_branch {
+    my $name = shift;
+    return if ( not $Branches{$name} );
+    my $mx = $Window_Width / 2;
+    my $my = $Window_Height / 2;
+    for my $name (
+        sort { $Distances{$b} <=> $Distances{$a} }
+        keys %{ $Branches{$name} }
+      )
+    {
+        my $node    = $Nodes{$name}    or next;
+        my $counter = $Counters{$name} or next;
+        my $cell    = $Cells{$name}    or next;
+        my ( $cx, $cy, $cz, $cell_width, $cell_height, $depth ) = @$cell;
+        return if ( $cell_height < $Padding );
+
+        # meter
+        my $value = (
+              $Selected
+            ? $Candidates{$name}
+                  ? $Selected eq $name
+                      ? 1
+                      : 0.5
+                  : 0
+            : ( $Show_Gauge and defined $node->{max} )
+            ? $node->{level} / ( $node->{max} || 1 )
+            : 0
+        );
+        my $level = $counter->{level};
+        $value = 1 if ( $value > 1 );
+        $level = $level + ( $value - $level ) * 4 / $Frame_Rate;    # smooth
+        $level = 0 if ( $level < 0.001 );
+        $counter->{level} = $level;
+        $cz += ( $depth + $Padding ) * $level;
+        $cell->[6] = $cz;
+
+        # surface coefficients
+        my $surface = get_surface($name);
+        $counter->{surface} = $surface;
+        my $a = $counter->{apparency} + $level;
+        $a = 1 if ( $a > 1 );
+        my $b = $a;
+        $b = 0.25 if ( $b < 0.25 );
+
+        # translate
+        glPushMatrix();
+        glTranslatef( $cx, $cy, $cz );
+        glScalef( $cell_width, $cell_height, $depth );
+
+        # borders
+        glMaterialfv_p( GL_FRONT,
+            GL_AMBIENT_AND_DIFFUSE, @{ $surface->[1] }, $b );
+        glBegin(GL_LINE_STRIP);    # back
+        glVertex3f( 0, 0, 0 );
+        glVertex3f( 0, 1, 0 );
+        glVertex3f( 1, 1, 0 );
+        glVertex3f( 1, 0, 0 );
+        glVertex3f( 0, 0, 0 );
+        glEnd();
+
+        if ( $cx < $mx ) {
+            glBegin(GL_LINE_STRIP);    # left
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 0, 0, 1 );
+            glEnd();
+            glBegin(GL_LINE_STRIP);
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 0, 1, 1 );
+            glEnd();
+        }
+        if ( $cx + $cell_width > $mx ) {
+            glBegin(GL_LINE_STRIP);    # right
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 0, 1 );
+            glEnd();
+            glBegin(GL_LINE_STRIP);
+            glVertex3f( 1, 1, 0 );
+            glVertex3f( 1, 1, 1 );
+            glEnd();
+        }
+
+        # surfaces
+        glMaterialfv_p( GL_FRONT,
+            GL_AMBIENT_AND_DIFFUSE, @{ $surface->[0] }, $a );
+        glBegin(GL_QUADS);    # inside back
+        glVertex3f( 0, 0, 0 );
+        glVertex3f( 0, 1, 0 );
+        glVertex3f( 1, 1, 0 );
+        glVertex3f( 1, 0, 0 );
+        glEnd();
+
+        if ( $cx < $mx ) {
+            glBegin(GL_QUADS);    # inside left
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 0, 0, 1 );
+            glVertex3f( 0, 1, 1 );
+            glVertex3f( 0, 1, 0 );
+            glEnd();
+        }
+        if ( $cx + $cell_width > $mx ) {
+            glBegin(GL_QUADS);    # inside right
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 1, 0 );
+            glVertex3f( 1, 1, 1 );
+            glVertex3f( 1, 0, 1 );
+            glEnd();
+        }
+        if ( $cy < $my ) {
+            glBegin(GL_QUADS);    # inside bottom
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 0, 1 );
+            glVertex3f( 0, 0, 1 );
+            glEnd();
+        }
+        if ( $cy + $cell_height > $my ) {
+            glBegin(GL_QUADS);    # inside top
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 0, 1, 1 );
+            glVertex3f( 1, 1, 1 );
+            glVertex3f( 1, 1, 0 );
+            glEnd();
+        }
+
+        # recurse
+        glPopMatrix();
+        display_branch($name) if ( $Branches{$name} );
+        glPushMatrix();
+        glTranslatef( $cx, $cy, $cz );
+        glScalef( $cell_width, $cell_height, $depth );
+
+        # surfaces
+        glMaterialfv_p( GL_FRONT,
+            GL_AMBIENT_AND_DIFFUSE, @{ $surface->[0] }, $a );
+        if ( $cx + $cell_width < $mx ) {
+            glBegin(GL_QUADS);    # outside right
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 0, 1 );
+            glVertex3f( 1, 1, 1 );
+            glVertex3f( 1, 1, 0 );
+            glEnd();
+        }
+        elsif ( $cx < $mx ) {
+            glBegin(GL_QUADS);    # inside right
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 1, 0 );
+            glVertex3f( 1, 1, 1 );
+            glVertex3f( 1, 0, 1 );
+            glEnd();
+        }
+        else {
+            glBegin(GL_QUADS);    # outside left
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 0, 1, 1 );
+            glVertex3f( 0, 0, 1 );
+            glEnd();
+        }
+        if ( $cy + $cell_height < $my ) {
+            glBegin(GL_QUADS);    # outside top
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 1, 1, 0 );
+            glVertex3f( 1, 1, 1 );
+            glVertex3f( 0, 1, 1 );
+            glEnd();
+        }
+        elsif ( $cy < $my ) {
+            glBegin(GL_QUADS);    # inside top
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 0, 1, 1 );
+            glVertex3f( 1, 1, 1 );
+            glVertex3f( 1, 1, 0 );
+            glEnd();
+        }
+        else {
+            glBegin(GL_QUADS);    # outside bottom
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 0, 0, 1 );
+            glVertex3f( 1, 0, 1 );
+            glVertex3f( 1, 0, 0 );
+            glEnd();
+        }
+        glMaterialfv_p( GL_FRONT, GL_AMBIENT_AND_DIFFUSE, @{ $surface->[0] },
+            $a / 4 );
+
+        # glPushAttrib(GL_ENABLE_BIT);
+        glDisable(GL_DEPTH_TEST);
+        glBegin(GL_QUADS);        # outside front
+        glVertex3f( 0, 0, 1 );
+        glVertex3f( 0, 1, 1 );
+        glVertex3f( 1, 1, 1 );
+        glVertex3f( 1, 0, 1 );
+        glEnd();
+        glEnable(GL_DEPTH_TEST);
+
+        # glPopAttrib();
+
+        # borders
+        glMaterialfv_p( GL_FRONT,
+            GL_AMBIENT_AND_DIFFUSE, @{ $surface->[1] }, $b );
+        if ( $cx < $mx ) {
+            glBegin(GL_LINE_STRIP);    # right
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 0, 1 );
+            glEnd();
+            glBegin(GL_LINE_STRIP);
+            glVertex3f( 1, 1, 0 );
+            glVertex3f( 1, 1, 1 );
+            glEnd();
+        }
+        if ( $cx + $cell_width > $mx ) {
+            glBegin(GL_LINE_STRIP);    # left
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 0, 0, 1 );
+            glEnd();
+            glBegin(GL_LINE_STRIP);
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 0, 1, 1 );
+            glEnd();
+        }
+        if ( $cy < $my and $cx < $mx ) {
+            glBegin(GL_LINE_STRIP);    # left top
+            glVertex3f( 0, 1, 0 );
+            glVertex3f( 0, 1, 1 );
+            glEnd();
+        }
+        elsif ( $cy < $my ) {
+            glBegin(GL_LINE_STRIP);    # right top
+            glVertex3f( 1, 1, 0 );
+            glVertex3f( 1, 1, 1 );
+            glEnd();
+        }
+        elsif ( $cx < $mx ) {
+            glBegin(GL_LINE_STRIP);    # left bottom
+            glVertex3f( 0, 0, 0 );
+            glVertex3f( 0, 0, 1 );
+            glEnd();
+        }
+        else {
+            glBegin(GL_LINE_STRIP);    # right bottom
+            glVertex3f( 1, 0, 0 );
+            glVertex3f( 1, 0, 1 );
+            glEnd();
+        }
+        glBegin(GL_LINE_STRIP);        # front
+        glVertex3f( 0, 0, 1 );
+        glVertex3f( 0, 1, 1 );
+        glVertex3f( 1, 1, 1 );
+        glVertex3f( 1, 0, 1 );
+        glVertex3f( 0, 0, 1 );
+        glEnd();
+
+        # pop translation and scale
+        glPopMatrix();
+
+        # label
+        glDisable(GL_LIGHTING);
+        glColor4f( 1, 1, 1, $b );
+        glRasterPos3d( $cx + $Padding, $cy + $Padding, $cz + $depth + 1 );
+        my $chx = $cx + $Padding;
+        for my $c ( split( '', $name ) ) {
+            glCallList( $Char_List + ord($c) );
+            $chx += $Char_Width;
+            last
+              if (  $chx >= $cx + $cell_width - $Padding * 2
+                and ( not $Selected or $Selected ne $name )
+                and $value < 1 );
+        }
+        glEnable(GL_LIGHTING);
+    }
+    return;
+}
+
+sub get_surface {
+    my $name      = shift;
+    my $counter   = $Counters{$name} or return [ [ 0, 0, 0 ], [ 0, 0, 0 ] ];
+    my $d         = $counter->{received} - $counter->{old_received};
+    my $v         = $d / $Update_Interval;
+    my $magnitude = $v ? length( int($v) ) : 0;
+    $magnitude = 4 if ( $magnitude > 4 );
+    my $tier = pow( 10, $magnitude );
+    $v = sqrt( abs( $v / $tier ) );
+    $v = 1.0 if ( $v > 1.0 );
+    $v = 0.0 if ( $v < 0.0 );
+    my $a = $counter->{apparency};
+    $a = $a + ( $magnitude / 4 + $v / 4 - $a ) * 4 / $Frame_Rate;    # smooth
+    $a = 0 if ( $a < 0.001 );
+    $counter->{apparency} = $a;
+
+    my $sr = undef;
+    my $sg = undef;
+    my $sb = undef;
+    my $br = undef;
+    my $bg = undef;
+    my $bb = undef;
+    if ( $Selected and $name eq $Selected ) {
+        $sr = $sg = $sb = 0.5 + 0.25 * sin( 13.0 * $Animate );
+        $br = $bg = $bb = $sr + 0.25;
+    }
+    elsif ( $Candidates{$name} ) {
+        $sr = $sg = $sb = 0.3 + 0.2 * sin( 4.0 * $Animate );
+        $br = $bg = $bb = $sr + 0.25;
+    }
+    else {
+        ( $sr, $sg, $sb ) = HSVtoRGB( -360 * $a, $a > 0.5 ? 1 : $a / 0.5, $a );
+        $br = $sr + 0.5;
+        $bg = $sg + 0.5;
+        $bb = $sb + 0.5;
+    }
+    $br = 1.0 if ( $br > 1.0 );
+    $bg = 1.0 if ( $bg > 1.0 );
+    $bb = 1.0 if ( $bb > 1.0 );
+    return [ [ $sr, $sg, $sb ], [ $br, $bg, $bb ] ];
+}
+
+sub HSVtoRGB {
+    my ( $h, $s, $v ) = @_;
+    my ( $i, $f, $p, $q, $t );
+    return $v, $v, $v if ( $s == 0 );    # achromatic (grey)
+    $h = fmod( $h, 360 );
+    $h += 360 if ( $h < 0 );
+    $h /= 60;                            # sector 0 to 5
+    $i = floor($h);
+    $f = $h - $i;                        # factorial part of h
+    $p = $v * ( 1 - $s );
+    $q = $v * ( 1 - $s * $f );
+    $t = $v * ( 1 - $s * ( 1 - $f ) );
+    return $v, $t, $p if ( $i == 0 );
+    return $q, $v, $p if ( $i == 1 );
+    return $p, $v, $t if ( $i == 2 );
+    return $p, $q, $v if ( $i == 3 );
+    return $t, $p, $v if ( $i == 4 );
+    return $v, $p, $q;
+}
+
+sub display_owners {
+    for my $name ( keys %Owners ) {
+        next if ( not $Cells{$name} or not $Counters{$name} );
+        my $num_owners = keys %{ $Owners{$name} };
+        next if ( not $num_owners );
+        my $total = $Counters{$name}->{sent} - $Counters{$name}->{old_sent};
+        my $num_streams = $num_owners > $total ? $total : $num_owners;
+        my $type        = $Nodes{$name}->{type};
+        my $count       = 0;
+        my $remainder   = 0;
+        my $i           = 1;
+        my $l           = undef;
+        my $cell        = $Cells{$name};
+        my $counter     = $Counters{$name};
+        my ( $mx, $my, $bz, $mw, $mh, $md, $mz ) = @$cell;
+        my $fx = $mx + $mw / 2;
+        my $fy = $my + $mh / 2;
+        my $fz = $mz ? $mz + $md : $md;
+
+        if ( $type eq 'source' ) {
+            $count = $total;
+        }
+        elsif ( $type ne 'filter' ) {
+            $count     = int( $total / $num_owners );
+            $remainder = $total % $num_owners;
+        }
+        for my $owner ( keys %{ $Owners{$name} } ) {
+            next if ( not $Cells{$owner} );
+            my $num = $count + ( $remainder-- > 0 ? 1 : 0 );
+            if ( $type eq 'filter' ) {
+                $counter = $Counters{$owner} or next;
+                $num = $counter->{received} - $counter->{old_received};
+                $num = $total if ( $num > $total );    # bleh
+            }
+            my $show_lines = ( $num and $Show_Owners > 1 ) ? 1 : 0;
+            $l = $show_lines * $counter->{apparency};
+            $l = 0.2
+              if (
+                $l < 0.2
+                and ( ( $num and $Show_Owners > 1 )
+                    or $Show_Owners > 2 )
+              );
+
+            my ( $ox, $oy, $bz2, $ow, $oh, $od, $oz ) = @{ $Cells{$owner} };
+            $oz ||= $bz2;
+            my $tx = $ox + $ow / 2;
+            my $ty = $oy + $oh / 2;
+            my $tz = $oz + $od;
+            if ( $Show_Owners and $l > 0.01 ) {
+                glLineWidth( 2 * $l );
+                $l = 0.25 + $l / 2;
+                glMaterialfv_p( GL_FRONT,
+                    GL_AMBIENT_AND_DIFFUSE, $l, $l, $l, 0.5 );
+                glBegin(GL_LINE_STRIP);
+                glVertex3f( $fx, $fy, $fz );
+                glVertex3f( $tx, $ty, $tz );
+                glEnd();
+            }
+            next if ( not $num or not $Show_Owners );
+
+            $num = 1000 if ( $num > 1000 );
+            my $distance =
+              sqrt( ( $tx - $fx )**2 + ( $ty - $fy )**2 + ( $tz - $fz )**2 );
+            my $rise = $tz - $fz;
+            my $run = sqrt( ( $tx - $fx )**2 + ( $ty - $fy )**2 );
+            $run = 0.000000001 if ( not $run );
+            my $segment   = $distance / $num;
+            my $angle     = atan2( $ty - $fy, $tx - $fx );
+            my $z_angle   = atan2( $rise, $run );
+            my $degrees   = $angle * 360 / ( 2 * $Pi );
+            my $z_degrees = $z_angle * 360 / ( 2 * $Pi );
+            my $step      = fmod(
+                $Animate * $distance / $Update_Interval + (
+                    $type ne 'source'
+                      and $type ne 'filter'
+                    ? $i / $num_streams * $segment
+                    : 0
+                ),
+                $segment
+            );
+            glMaterialfv_p( GL_FRONT,
+                GL_AMBIENT_AND_DIFFUSE, 0.33, 0.33, 0.33, 1 );
+            glPushMatrix();
+            glTranslatef( $fx, $fy, $fz );
+            glRotatef( $degrees,    0, 0, 1 );
+            glRotatef( -$z_degrees, 0, 1, 0 );
+            glTranslatef( $step, 0, 0 );
+
+            for ( 1 .. $num ) {
+                glBegin(GL_TRIANGLES);
+                glVertex2f( 6, 0 );
+                glVertex2f( 0, -4 );
+                glVertex2f( 0, 4 );
+                glEnd();
+                glTranslatef( $segment, 0, 0 );
+            }
+            glPopMatrix();
+            $i++;
+        }
+    }
+    glLineWidth(2.0);
+    return;
+}
+
+sub display_sub_window {
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) if ($Dirty);
+    glColor4f( 1, 1, 1, 1 );
+    my $x    = $X;
+    my $y    = $Y;
+    my $copy = 0;
+    for my $c ( split( '', $Buffer ) ) {
+        $x += $Char_Width if ( $c ne "\n" );
+        if (   $c eq "\n"
+            or $x + $Char_Width + $Line_Padding * 2 >= $Sub_Window_Width )
+        {
+            $x = $Line_Padding;
+            $y -= $Line_Height;
+            $copy += $Line_Height if ( $y < $Line_Padding );
+        }
+    }
+    if ( $copy >= $Sub_Window_Height ) {
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) if ( not $Dirty );
+    }
+    else {
+        glRasterPos2d( 0, $copy );
+        glCopyPixels( 0, 0, $Sub_Window_Width, $Sub_Window_Height - $copy,
+            GL_COLOR );
+        glColor4f( 0, 0, 0, 1 );
+        glPushMatrix();
+        glScalef( $Sub_Window_Width, $copy + $Line_Padding / 2, 0 );
+        glBegin(GL_QUADS);
+        glVertex2f( 0, 0 );
+        glVertex2f( 0, 1 );
+        glVertex2f( 1, 1 );
+        glVertex2f( 1, 0 );
+        glEnd();
+        glPopMatrix();
+        glColor4f( 1, 1, 1, 1 );
+    }
+    $X = $Line_Padding;
+    $Y = $copy + $Line_Padding;
+    glRasterPos2d( $X, $Y );
+    for my $c ( split( '', $Buffer ) ) {
+        if ( $c ne "\n" ) {
+            glCallList( $Sub_Char_List + ord($c) );
+            $X += $Char_Width;
+        }
+        if (   $c eq "\n"
+            or $X + $Char_Width + $Line_Padding * 2 >= $Sub_Window_Width )
+        {
+            $X = $Line_Padding;
+            $Y -= $Line_Height;
+            glRasterPos2d( $X, $Y );
+        }
+    }
+    glBegin(GL_LINE_STRIP);
+    glVertex2f( 1,                     1 );
+    glVertex2f( 1,                     $Sub_Window_Height );
+    glVertex2f( $Sub_Window_Width - 1, $Sub_Window_Height );
+    glVertex2f( $Sub_Window_Width - 1, 1 );
+    glVertex2f( 0,                     1 );
+    glEnd();
+    $Buffer = '';
+    $Dirty  = undef;
+    glFlush();
+    return;
+}
+
+sub display_graph_window {
+
+    # Begin drawing quads
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    glLoadIdentity();
+
+    # surface
+    glPushMatrix();
+    glMaterialfv_p( GL_FRONT, GL_AMBIENT, 1 / 80, 1 / 80, 1 / 40, 1 );
+    glMaterialfv_p( GL_FRONT, GL_DIFFUSE, 1 / 20, 1 / 20, 1 / 10, 1 );
+    glScalef( $Sub_Window_Width, $Sub_Window_Height, 0 );
+    glBegin(GL_QUADS);
+    glVertex2f( 0, 0 );
+    glVertex2f( 0, 1 );
+    glVertex2f( 1, 1 );
+    glVertex2f( 1, 0 );
+    glEnd();
+    glPopMatrix();
+
+    # draw data
+    glMaterialfv_p( GL_FRONT, GL_AMBIENT, 2 / 5, 2 / 5, 2 / 5, 0.1 );
+    glMaterialfv_p( GL_FRONT, GL_DIFFUSE, 2 / 5, 2 / 5, 1 / 2, 0.1 );
+    glBegin(GL_LINE_STRIP);
+    my $min_x        = 0;
+    my $max_x        = 0;
+    my $max_y        = 0;
+    my %by_timestamp = ();
+    for ( my $i = 0 ; $i < $#Data - 1 ; $i += 2 ) {
+        my ( $timestamp, $datum ) = ( $Data[$i], $Data[ $i + 1 ] );
+        next if ( not defined $datum );
+        $min_x = $timestamp
+          if ( $timestamp and ( $timestamp < $min_x or not $min_x ) );
+        $max_x = $timestamp
+          if ( $timestamp and $timestamp > $max_x );
+        $max_y = $datum if ( $datum and $datum > $max_y );
+        $by_timestamp{$timestamp} ||= [];
+        push( @{ $by_timestamp{$timestamp} }, $datum );
+    }
+    if ( $min_x != $max_x and $max_y ) {
+        my $i    = 0;
+        my $last = 0;
+        for my $timestamp ( sort { $a <=> $b } keys %by_timestamp ) {
+            my @data = sort { $a <=> $b } @{ $by_timestamp{$timestamp} };
+            while ( my $datum = shift(@data) ) {
+                glVertex2f(
+                    $Sub_Window_Width *
+                      ( $timestamp - $min_x ) /
+                      ( $max_x - $min_x ),
+                    $Sub_Window_Height * $datum / $max_y
+                );
+                $datum = pop(@data);
+                last if ( not defined $datum );
+                glVertex2f(
+                    $Sub_Window_Width *
+                      ( $timestamp - $min_x ) /
+                      ( $max_x - $min_x ),
+                    $Sub_Window_Height * $datum / $max_y
+                );
+            }
+            $last = $timestamp;
+        }
+        glEnd();
+    }
+
+    # label
+    glDisable(GL_LIGHTING);
+    glColor4f( 1, 1, 1, 0.85 );
+    glRasterPos2d( $Padding * 2, $Sub_Window_Height - $Line_Height - $Padding );
+    for my $c ( split( '', "$max_y" ) ) {
+        glCallList( $Graph_Char_List + ord($c) );
+    }
+    glEnable(GL_LIGHTING);
+
+    # border
+    glBegin(GL_LINE_STRIP);
+    glMaterialfv_p( GL_FRONT, GL_AMBIENT, 1 / 8, 1 / 8, 1 / 4, 1 );
+    glMaterialfv_p( GL_FRONT, GL_DIFFUSE, 1 / 3, 1 / 3, 1 / 2, 1 );
+    glVertex2f( 1,                     1 );
+    glVertex2f( 1,                     $Sub_Window_Height );
+    glVertex2f( $Sub_Window_Width - 1, $Sub_Window_Height );
+    glVertex2f( $Sub_Window_Width - 1, 1 );
+    glVertex2f( 0,                     1 );
+    glEnd();
+    glFlush();
+    return;
+}
+
+sub reshape_3d {
+    $Window_Width  = glutGet(GLUT_WINDOW_WIDTH);
+    $Window_Height = glutGet(GLUT_WINDOW_HEIGHT);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective( 75, $Window_Width / $Window_Height, 0.1, 3000 );
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glViewport( 0, 0, $Window_Width, $Window_Height );
+
+    glLightfv_p( GL_LIGHT0, GL_POSITION, 0, $Window_Height,
+          $Window_Width > $Window_Height
+        ? $Window_Height
+        : $Window_Width, 1 );
+
+    if ($Sub_Window) {
+        glutSetWindow($Sub_Window);
+        glutReshapeWindow( $Window_Width * 5 / 6, $Window_Height * 5 / 6 );
+        glutPositionWindow( $Window_Width * 1 / 12, $Window_Height * 1 / 12 );
+        glutSetWindow($Parent_Window);
+    }
+    if ($Graph_Window) {
+        glutSetWindow($Graph_Window);
+        glutReshapeWindow( $Window_Width * 5 / 6, $Window_Height * 5 / 6 );
+        glutPositionWindow( $Window_Width * 1 / 12, $Window_Height * 1 / 12 );
+        glutSetWindow($Parent_Window);
+    }
+    glutSetWindowTitle(
+          ( $Path and $Branch ) ? "tachikoma - $Path/$Branch"
+        : $Path   ? "tachikoma - $Path"
+        : $Branch ? "tachikoma - $Branch"
+        :           'tachikoma'
+    );
+    build_model();
+    return;
+}
+
+sub reshape_sub_window {
+    $Sub_Window_Width  = glutGet(GLUT_WINDOW_WIDTH);
+    $Sub_Window_Height = glutGet(GLUT_WINDOW_HEIGHT);
+    $Top = int( $Sub_Window_Height / $Line_Height ) * $Line_Height;
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho( 0, $Sub_Window_Width, 0, $Sub_Window_Height, -10, 10 );
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glViewport( 0, 0, $Sub_Window_Width, $Sub_Window_Height );
+    glLightfv_p(
+        GL_LIGHT0,
+        GL_POSITION,
+        0,
+        $Sub_Window_Height,
+        $Sub_Window_Width > $Sub_Window_Height
+        ? $Sub_Window_Height
+        : $Sub_Window_Width,
+        1
+    );
+    $Dirty = 'true';
+    $X     = $Line_Padding;
+    $Y     = $Top - $Line_Height + $Line_Padding;
+    return;
+}
+
+sub reshape_graph_window {
+    $Sub_Window_Width  = glutGet(GLUT_WINDOW_WIDTH);
+    $Sub_Window_Height = glutGet(GLUT_WINDOW_HEIGHT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho( 0, $Sub_Window_Width, 0, $Sub_Window_Height, -10, 10 );
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glViewport( 0, 0, $Sub_Window_Width, $Sub_Window_Height );
+    return;
+}
+
+sub keyboard {
+    my ( $key, $x, $y ) = (@_);
+    my $chr = chr($key);
+    if ( $chr eq 'f' ) {
+        glutSetWindow($Parent_Window);
+        if ($Old_Window_Width) {
+            glutPositionWindow( $Old_Window_X, $Old_Window_Y );
+            glutReshapeWindow( $Old_Window_Width, $Old_Window_Height );
+            $Old_Window_Width  = undef;
+            $Old_Window_Height = undef;
+            $Old_Window_X      = undef;
+            $Old_Window_Y      = undef;
+        }
+        else {
+            $Old_Window_X      = glutGet(GLUT_WINDOW_X);
+            $Old_Window_Y      = glutGet(GLUT_WINDOW_Y);
+            $Old_Window_Width  = $Window_Width;
+            $Old_Window_Height = $Window_Height;
+            glutFullScreen();
+        }
+        return;
+    }
+    return if ( cancel_sub_window() );
+    if ( $chr eq 'o' ) {
+        $Show_Owners = ( $Show_Owners + 1 ) % 4;
+    }
+    elsif ( $chr eq 'g' ) {
+        $Show_Gauge = !$Show_Gauge;
+    }
+
+    # elsif ($chr eq 'd') {
+    #     use Data::Dumper;
+    #     print Dumper(\%Counters);
+    # }
+    elsif ( $chr eq 'i' or $chr eq '/' ) {
+        glutKeyboardFunc( \&keyboard_interactive );
+    }
+    elsif ( $chr eq '-' ) {
+        $Zoom *= 100 / 99;
+    }
+    elsif ( $chr eq '=' ) {
+        $Zoom *= 99 / 100;
+    }
+    elsif ( $chr eq '0' ) {
+        $Zoom = 1065;
+    }
+    elsif ( $key == 27 ) {
+
+        # escape
+        if ($Branch) {
+            $Branch = undef;
+            glutSetWindowTitle( $Path ? "tachikoma - $Path" : 'tachikoma' );
+            build_model();
+        }
+        else {
+            $Path =~ s(/?[^/]+$)();
+            glutSetWindowTitle( $Path ? "tachikoma - $Path" : 'tachikoma' );
+            my $message = $tachikoma->command('dump_metadata');
+            $message->to($Path);
+            $tachikoma->fill($message);
+        }
+    }
+    elsif ( $key == 32 ) {
+
+        # spacebar
+        my $message = $tachikoma->command('dump_metadata');
+        $message->to($Path);
+        $tachikoma->fill($message);
+    }
+    elsif ( $chr eq 'q' ) {
+        exit 0;
+    }
+
+    # else {
+    #     print "keyboard: $key\n";
+    # }
+    return;
+}
+
+sub keyboard_interactive {
+    my ( $key, $x, $y ) = (@_);
+    my $chr = chr($key);
+    if ( $key == 27 ) {
+
+        # escape
+        if ($Chars) {
+            $Chars      = '';
+            %Candidates = ();
+            $Pointer    = 0;
+            $Selected   = undef;
+        }
+        else {
+            glutKeyboardFunc( \&keyboard );
+        }
+    }
+    elsif ( $key == 32 ) {
+
+        # spacebar
+        action($Selected) if ($Selected);
+    }
+    elsif ( $key == 13 ) {
+
+        # return
+        if ($Selected) {
+            action($Selected);
+            glutKeyboardFunc( \&keyboard );
+        }
+    }
+    elsif ( $key == 9 ) {
+
+        # tab
+        if ( length($Chars) ) {
+            $Selected =
+              ( sort keys %Candidates )[ ++$Pointer % keys %Candidates ];
+        }
+        else {
+            $Selected = undef;
+        }
+    }
+    elsif ( $key == 25 ) {
+
+        # shift-tab
+        if ( length($Chars) ) {
+            $Selected =
+              ( sort keys %Candidates )[ --$Pointer % keys %Candidates ];
+        }
+        else {
+            $Selected = undef;
+        }
+    }
+    elsif ( $key == 127 ) {
+
+        # backspace
+        my $chars      = $Chars;
+        my %candidates = ();
+        if ( length($chars) > 1 ) {
+            $chars =~ s(.$)()s;
+            for my $name ( sort keys %Nodes ) {
+                if ( $name =~ m(^\Q$chars\E) ) {
+                    $candidates{$name} = 1;
+                    $Selected ||= $name;
+                    $Pointer = 0;
+                }
+            }
+        }
+        else {
+            $chars    = '';
+            $Selected = undef;
+            $Pointer  = 0;
+        }
+        %Candidates = %candidates;
+        $Chars      = $chars;
+    }
+    else {
+        my $chars      = $Chars . $chr;
+        my %candidates = ();
+        my $selected   = undef;
+        for my $name ( sort keys %Nodes ) {
+            if ( $name =~ m(^\Q$chars\E) ) {
+                $candidates{$name} = 1;
+                $selected ||= $name;
+            }
+        }
+        if ($selected) {
+            $Chars      = $chars;
+            %Candidates = %candidates;
+            $Pointer    = 0;
+            $Selected   = $selected;
+        }
+    }
+    return;
+}
+
+sub mouse {
+    my ( $button, $state, $x, $y ) = (@_);
+    $y = $Window_Height - $y;
+
+    # print "mouse:  button: $button  state: $state  x: $x  y: $y\n";
+    return unless ( $state == 1 );
+    return if ( cancel_sub_window() );
+    my $name = undef;
+
+    # if ($button == 0) {
+    #     my $name = find_cell($x, $y);
+    #     action($name) if ($name);
+    # }
+    # elsif ($Branch and not $Reset_Branch) {
+    #     $Branch = undef;
+    #     glutSetWindowTitle($Path ? "tachikoma - $Path" : 'tachikoma');
+    #     reshape_3d();
+    # }
+    # else {
+    #     $Branch = undef;
+    #     $Path =~ s(/?[^/]+$)();
+    #     %Counters = ();
+    #     glutSetWindowTitle($Path ? "tachikoma - $Path" : 'tachikoma');
+    #     my $message = $tachikoma->command('dump_metadata');
+    #     $message->to($Path);
+    #     $tachikoma->fill($message);
+    # }
+    return;
+}
+
+sub action {
+    my $name = shift;
+    return if ( not $Nodes{$name} );
+    my $type = $Nodes{$name}->{type};
+    if ( $type eq 'source' ) {
+        if ( not $Sub_Window ) {
+            $Sub_Window = glutCreateSubWindow(
+                $Parent_Window,
+                $Window_Width * 1 / 12,
+                $Window_Height * 1 / 12,
+                $Window_Width * 5 / 6,
+                $Window_Height * 5 / 6
+            );
+            glutDisplayFunc( \&display_sub_window );
+            glutReshapeFunc( \&reshape_sub_window );
+            glutKeyboardFunc( \&keyboard );
+            glutMouseFunc( \&mouse );
+            $Sub_Char_List = glGenLists(256) if ( not $Sub_Char_List );
+            for my $i ( 0 .. 255 ) {
+                glNewList( $Sub_Char_List + $i, GL_COMPILE );
+                glutBitmapCharacter( GLUT_BITMAP_8_BY_13, $i );
+                glEndList();
+            }
+        }
+        else {
+            glutSetWindow($Sub_Window);
+            glutShowWindow();
+            reshape_sub_window();
+        }
+        glutSetWindow($Parent_Window);
+        $Show_Sub_Window = 'true';
+        $Dirty           = 'true';
+        $Connected_To    = $name;
+        $Buffer          = '';
+        my $message = $tachikoma->command( 'connect', $name );
+        $message->to($Path);
+        $tachikoma->fill($message);
+    }
+    elsif ( $type eq 'buffer' ) {
+        if ( not $Graph_Window ) {
+            $Graph_Window = glutCreateSubWindow(
+                $Parent_Window,
+                $Window_Width * 1 / 12,
+                $Window_Height * 1 / 12,
+                $Window_Width * 5 / 6,
+                $Window_Height * 5 / 6
+            );
+            glutDisplayFunc( \&display_graph_window );
+            glutReshapeFunc( \&reshape_graph_window );
+            glutKeyboardFunc( \&keyboard );
+            glutMouseFunc( \&mouse );
+            glEnable(GL_BLEND);
+            glEnable(GL_ALPHA_TEST);
+            glEnable(GL_LINE_SMOOTH);
+            glEnable(GL_POLYGON_SMOOTH);
+            glEnable(GL_LIGHTING);
+            glEnable(GL_LIGHT0);
+            glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+            glLineWidth(1.0);
+            glLightfv_p( GL_LIGHT0, GL_DIFFUSE,  1, 1, 1, 1 );
+            glLightfv_p( GL_LIGHT0, GL_AMBIENT,  1, 1, 1, 0.5 );
+            glLightfv_p( GL_LIGHT0, GL_SPECULAR, 1, 1, 1, 1 );
+            glMaterialfv_p( GL_FRONT, GL_SHININESS, 1 );
+            $Graph_Char_List = glGenLists(256)
+              if ( not $Graph_Char_List );
+
+            for my $i ( 0 .. 255 ) {
+                glNewList( $Graph_Char_List + $i, GL_COMPILE );
+                glutBitmapCharacter( GLUT_BITMAP_8_BY_13, $i );
+                glEndList();
+            }
+        }
+        else {
+            glutSetWindow($Graph_Window);
+            glutShowWindow();
+            reshape_graph_window();
+        }
+        $Show_Graph_Window = 'true';
+        $Graph_Path        = $Path ? join( '/', $Path, $name ) : $name;
+        @Data              = ();
+        my $message = $tachikoma->command('times');
+        $message->to($Graph_Path);
+        $tachikoma->fill($message);
+    }
+    elsif ( $type eq 'group' ) {
+        $Branch = $name;
+        glutSetWindowTitle(
+            $Path
+            ? "tachikoma - $Path/$Branch"
+            : "tachikoma - $Branch"
+        );
+        reshape_3d();
+    }
+    else {
+        $Path         = $Path ? join( '/', $Path, $name ) : $name;
+        %Counters     = ();
+        $Reset_Branch = 'true';
+        glutSetWindowTitle("tachikoma - $Path");
+        my $message = $tachikoma->command('dump_metadata');
+        $message->to($Path);
+        $tachikoma->fill($message);
+    }
+    $Chars      = '';
+    %Candidates = ();
+    $Pointer    = 0;
+    $Selected   = undef;
+    return;
+}
+
+sub motion {
+    my ( $x, $y ) = (@_);
+
+    # print "motion:  x: $x  y: $y\n";
+    return;
+}
+
+sub passive_motion {
+    my ( $x, $y ) = (@_);
+    print "passive motion:  x: $x  y: $y\n";
+    return;
+}
+
+sub idle {
+    my $now = Time::HiRes::time;
+    if ( not $Wait_For_Response and $now - $Last_Update >= $Update_Interval ) {
+        my $message = $tachikoma->command('dump_metadata');
+        $message->to($Path);
+        $tachikoma->fill($message);
+        $Wait_For_Response++;
+    }
+    if (    $Show_Graph_Window
+        and $Wait_For_Response < 2
+        and $now - $Last_Graph >= $Graph_Interval )
+    {
+        my $message = $tachikoma->command('times');
+        $message->to($Graph_Path);
+        $tachikoma->fill($message);
+        $Wait_For_Response++;
+    }
+    my $r_in = IO::Select->new;
+    $r_in->add( $tachikoma->{fh} );
+    my ($read) = IO::Select->select( $r_in, undef, undef, 1 / $Frame_Rate );
+    $tachikoma->drain_cycle or exit 0 if ($read);
+    if ( $now - $Animate >= 1 / $Frame_Rate ) {
+        glutSetWindow($Parent_Window);
+        glutPostRedisplay();
+        $Animate = $now;
+    }
+    return;
+}
+
+sub cancel_sub_window {
+    if ($Show_Sub_Window) {
+        if ($Sub_Window) {
+            glutSetWindow($Sub_Window);
+            glutHideWindow();
+            glutSetWindow($Parent_Window);
+            $Show_Sub_Window = undef;
+        }
+        if ($Connected_To) {
+            my $message = $tachikoma->command( 'disconnect', $Connected_To );
+            $message->to($Path);
+            $tachikoma->fill($message);
+            $Connected_To = undef;
+            $Buffer       = '';
+        }
+        return 'true';
+    }
+    elsif ($Show_Graph_Window) {
+        if ($Graph_Window) {
+            glutSetWindow($Graph_Window);
+            glutHideWindow();
+            glutSetWindow($Parent_Window);
+            $Show_Graph_Window = undef;
+        }
+        return 'true';
+    }
+    else {
+        return;
+    }
+}
+
+sub find_cell {
+    my ( $ix, $iy ) = @_;
+    my $min = $Window_Width > $Window_Height ? $Window_Width : $Window_Height;
+    my $cell_name = undef;
+    for my $name ( keys %Cells ) {
+        my ( $x, $y, $z, $w, $h ) = @{ $Cells{$name} };
+        my $type = $Nodes{$name}->{type};
+        if (
+                $w < $min
+            and $ix >= $x
+            and $iy >= $y
+            and $ix <= $x + $w
+            and $iy <= $y + $h
+            and (  $Nodes{$name}->{can_enter}
+                or $type eq 'buffer'
+                or $type eq 'source'
+                or $type eq 'group' )
+          )
+        {
+            $cell_name = $name;
+            $min       = $w;
+        }
+    }
+    return $cell_name;
+}
+
+sub by_name {
+    return $_[0] cmp $_[1];
+}
+
+sub by_sink {
+    my $s0 = $Sinks{ $_[0] };
+    my $s1 = $Sinks{ $_[1] };
+    print STDERR "sink for $_[0] not defined\n" if not $s0;
+    print STDERR "sink for $_[1] not defined\n" if not $s1;
+    return (
+          $s0 cmp $s1
+        ? $s0 eq 'command_interpreter'
+              ? -1
+              : $s1 eq 'command_interpreter' ? 1
+            : $s0 cmp $s1
+        : $_[0] cmp $_[1]
+    );
+}
+
+glutInit();
+glutInitDisplayMode( GLUT_RGBA | GLUT_DEPTH | GLUT_ALPHA );
+glutInitWindowSize( $Window_Width, $Window_Height );
+
+# glutInitWindowPosition(100, 100);
+$Parent_Window = glutCreateWindow("tachikoma");
+glutDisplayFunc( \&display );
+glutReshapeFunc( \&reshape_3d );
+
+# glutSpecialFunc(\&special);
+glutKeyboardFunc( \&keyboard );
+glutMouseFunc( \&mouse );
+glutMotionFunc( \&motion );
+
+# OMG! this works in linux:
+# glutPassiveMotionFunc(\&passive_motion);
+glutIdleFunc( \&idle );
+
+glEnable(GL_ALPHA_TEST);
+glEnable(GL_BLEND);
+glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+glEnable(GL_CULL_FACE);
+glFrontFace(GL_CW);
+glEnable(GL_DEPTH_TEST);
+glDepthFunc(GL_LEQUAL);
+glClearDepth(1);
+glEnable(GL_LINE_SMOOTH);
+glLineWidth(2.0);
+glEnable(GL_LIGHTING);
+glLightfv_p( GL_LIGHT0, GL_DIFFUSE,  1, 1, 1, 1.0 );
+glLightfv_p( GL_LIGHT0, GL_AMBIENT,  1, 1, 1, 0.1 );
+glLightfv_p( GL_LIGHT0, GL_SPECULAR, 1, 1, 1, 0.0 );
+glEnable(GL_LIGHT0);
+
+$Char_List = glGenLists(256) if ( not $Char_List );
+for my $i ( 0 .. 255 ) {
+    glNewList( $Char_List + $i, GL_COMPILE );
+    glutBitmapCharacter( GLUT_BITMAP_8_BY_13, $i );
+    glEndList();
+}
+
+# $Shader = OpenGL::Shader->new('GLSL');
+# print "shader type: ", $Shader->GetType(), "\n",
+#       "shader version: ", $Shader->GetVersion(), "\n";
+#
+# # shaders courtesy of http://www.ozone3d.net/tutorials/image_filtering_p2.php
+# my $errors = $Shader->Load(
+# # Fragment Shader
+# <<'EOF',
+# #define KERNEL_SIZE 9
+#
+# // Gaussian kernel
+# // 1 2 1
+# // 2 4 2
+# // 1 2 1
+# float kernel[KERNEL_SIZE];
+#
+# varying vec4 VaryingTexCoord0;
+# uniform sampler2D colorMap;
+# uniform float width;
+# uniform float height;
+#
+# float step_w = 1.0/width;
+# float step_h = 1.0/height;
+#
+# vec2 offset[KERNEL_SIZE];
+#
+# void main(void)
+# {
+#     int i = 0;
+#     vec4 sum = vec4(0.0);
+#
+#     //offset[0] = vec2(-step_w, -step_h);
+#     //offset[1] = vec2(0.0, -step_h);
+#     //offset[2] = vec2(step_w, -step_h);
+#     //
+#     //offset[3] = vec2(-step_w, 0.0);
+#     //offset[4] = vec2(0.0, 0.0);
+#     //offset[5] = vec2(step_w, 0.0);
+#     //
+#     //offset[6] = vec2(-step_w, step_h);
+#     //offset[7] = vec2(0.0, step_h);
+#     //offset[8] = vec2(step_w, step_h);
+#     //
+#     //kernel[0] = 1.0/16.0;    kernel[1] = 2.0/16.0;    kernel[2] = 1.0/16.0;
+#     //kernel[3] = 2.0/16.0;    kernel[4] = 4.0/16.0;    kernel[5] = 2.0/16.0;
+#     //kernel[6] = 1.0/16.0;    kernel[7] = 2.0/16.0;    kernel[8] = 1.0/16.0;
+#     //
+#     //if (gl_TexCoord[0].s < 0.495) {
+#     //    for (i=0; i < KERNEL_SIZE; i++) {
+#     //        vec4 tmp = texture2D(colorMap, VaryingTexCoord0.st + offset[i]);
+#     //        sum += tmp * kernel[i];
+#     //    }
+#     //}
+#     //else if (gl_TexCoord[0].s > 0.505) {
+#         sum = texture2D(colorMap, VaryingTexCoord0.xy);
+#     //}
+#     //else {
+#     //    sum = vec4(1.0, 0.0, 0.0, 1.0);
+#     //}
+#
+#     gl_FragColor = gl_Color;
+# }
+# EOF
+#
+# # Vertex Shader
+# <<'EOF',
+# varying vec4 VaryingTexCoord0;
+#
+# void main(void) {
+#     VaryingTexCoord0 = gl_MultiTexCoord0;
+#     gl_Position = ftransform();
+# }
+# EOF
+# );
+# die $errors if ($errors);
+# $Shader->SetVector('width',  1);
+# $Shader->SetVector('height', 1);
+# $Shader->SetVector('colorMap', 0);
+# $Shader->Enable;
+# $Shader->Disable;
+
+glutMainLoop();
+
+1;

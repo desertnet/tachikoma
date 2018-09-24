@@ -1,0 +1,82 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# fetch
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma::Nodes::QueryEngine;
+require '/usr/local/etc/tachikoma.conf';
+use Getopt::Long qw( GetOptions );
+
+my ( $topic, $keys, $help );
+my @ops = qw( eq ne re nr ge le );
+my %options = map { $_ => {} } @ops;
+my ( $r, $argv ) = GetOptions(
+    'topic=s' => \$topic,
+    'eq=s'    => $options{eq},
+    'ne=s'    => $options{ne},
+    're=s'    => $options{re},
+    'nr=s'    => $options{nr},
+    'ge=s'    => $options{ge},
+    'le=s'    => $options{le},
+    'keys=s'  => \$keys,
+    'help'    => \$help,
+);
+$topic //= $ARGV[0];
+usage() if ( $help or not $r or not $topic );
+
+die "ERROR: no topic\n"    if ( not $topic );
+my $engine = Tachikoma::Nodes::QueryEngine->new;
+$engine->hosts([ 'localhost' ]);
+$engine->ports([ 5401, 5402 ]);
+$engine->topic($topic);
+my $query = [];
+
+for my $op (@ops) {
+    push @{$query},
+        {
+        field => join( q{}, $topic, '.', $_, ':index' ),
+        op    => $op,
+        key   => $options{$op}->{$_}
+        }
+        for ( keys %{ $options{$op} } );
+}
+
+$query = $query->[0] if ( @{$query} == 1 );
+$query = {
+    op    => 'keys',
+    field => join( q{}, $topic, '.', $keys, ':index' ),
+    }
+    if ($keys);
+
+while (1) {
+    $engine->query($query);
+
+    while ( my $value = $engine->fetchrow ) {
+        my $output = undef;
+        if ( ref $value eq 'Tachikoma::Message' ) {
+            $output = $value->payload;
+        }
+        else {
+            $output = $value;
+        }
+        print $output;
+    }
+}
+
+sub usage {
+    print "Usage:\n"
+        . "query   --topic=<name>\n"
+        . "      [ --eq <field>=<value> ]\n"
+        . "      [ --ne <field>=<value> ]\n"
+        . "      [ --re <field>=<value> ]\n"
+        . "      [ --nr <field>=<value> ]\n"
+        . "      [ --ge <field>=<value> ]\n"
+        . "      [ --le <field>=<value> ]\n"
+        . "      [ --keys=<field>       ]\n";
+    exit 1;
+}

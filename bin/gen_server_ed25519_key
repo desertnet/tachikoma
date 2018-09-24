@@ -1,0 +1,43 @@
+#!perl
+# ----------------------------------------------------------------------
+# gen_server_key
+# ----------------------------------------------------------------------
+#
+# $Id: gen_server_ed25519_key 33355 2018-02-19 19:59:16Z chris $
+#
+use strict;
+use warnings;
+use Crypt::NaCl::Sodium qw( :utils );
+use Sys::Hostname;
+
+umask(0077);
+
+my $home        = ( getpwuid($<) )[7];
+my $hostname    = hostname();
+my $id          = "tachikoma\@$hostname";
+my $id_file     = $ARGV[0] || "$home/.tachikoma/ed25519_id";
+my $force       = $ARGV[1];
+my $crypto_sign = Crypt::NaCl::Sodium->sign;
+my ( $public_key, $private_key ) = $crypto_sign->keypair;
+my $public_hex  = $public_key->to_hex;
+my $private_hex = $private_key->to_hex;
+die "$id_file exists!" if ( -e $id_file and not $force );
+open( FH, ">$id_file" ) or die "couldn't open $id_file: $!";
+print FH <<EOF;
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# \$Id\$
+# ----------------------------------------------------------------------
+
+use strict;
+use warnings;
+use Tachikoma::Config qw( \$ID \$Private_Ed25519_Key \%Keys );
+
+\$Private_Ed25519_Key = pack('H*', q($private_hex));
+
+\$Keys{\$ID}->{ed25519} = pack('H*', q($public_hex));
+
+1;
+EOF
+
+1;

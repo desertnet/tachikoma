@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# fetch
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma::Nodes::Table;
+require '/usr/local/etc/tachikoma.conf';
+
+my ( $field, @keys ) = @ARGV;
+die "no field\n" if ( not $field );
+die "no key\n"   if ( not @keys );
+my $table = Tachikoma::Nodes::Table->new;
+$table->host('localhost');
+$table->port(5400);
+$table->field($field);
+while (1) {
+    my $payload = $table->mget(\@keys) or last;
+    print @{$payload};
+}

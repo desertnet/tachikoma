@@ -1,0 +1,553 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# Tachikoma::Nodes::BufferMonitor
+# ----------------------------------------------------------------------
+#
+# $Id: BufferMonitor.pm 12689 2012-02-01 01:24:14Z chris $
+#
+
+package Tachikoma::Nodes::BufferMonitor;
+use strict;
+use warnings;
+use Tachikoma::Nodes::Timer;
+use Tachikoma::Nodes::CommandInterpreter;
+use Tachikoma::Message qw(
+    TYPE FROM TO TIMESTAMP PAYLOAD
+    TM_BYTESTREAM TM_COMMAND TM_INFO TM_EOF
+);
+use parent qw( Tachikoma::Nodes::Timer );
+
+my $Timer_Interval = 60;
+my $Alert_Delay    = 600;
+my $Alert_Interval = 3600;
+my $Email_After    = 300;
+my $Trap_After     = 1200;
+my %C              = ();
+
+sub new {
+    my $class = shift;
+    my $self  = $class->SUPER::new;
+    $self->{buffers}          = {};
+    $self->{email_thresholds} = {};
+    $self->{trap_thresholds}  = {};
+    $self->{hosts}            = {};
+    $self->{email_alerts}     = {};
+    $self->{trap_alerts}      = {};
+    $self->{email}            = '';
+    $self->{trap}             = '';
+    $self->{last_email}       = 0;
+    $self->{last_trap}        = 0;
+    $self->{email_address}    = '';
+    $self->{mon_path}         = '';
+    $self->{interpreter}      = Tachikoma::Nodes::CommandInterpreter->new;
+    $self->{interpreter}->patron($self);
+    $self->{interpreter}->commands( \%C );
+    bless $self, $class;
+    $self->set_timer( $Timer_Interval * 1000 );
+    return $self;
+}
+
+sub arguments {
+    my $self = shift;
+    if (@_) {
+        $self->{arguments}    = shift;
+        $self->{buffers}      = {};
+        $self->{email_alerts} = {};
+        $self->{trap_alerts}  = {};
+    }
+    return $self->{arguments};
+}
+
+sub fill {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
+        return
+            if ($message->[TYPE] & TM_EOF
+            and $message->[FROM] =~ m(^(?:_parent/)?[^/]+$) );
+        return $self->interpreter->fill($message);
+    }
+    if ( $message->[TYPE] & TM_INFO ) {
+        $self->arguments( $self->arguments );
+        return;
+    }
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
+    my $thresholds  = $self->{email_thresholds};
+    my $buffers     = $self->{buffers};
+    my $new_buffers = {};
+LINE: for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
+        my $buffer = { map { split( ':', $_ ) } split( ' ', $line ) };
+        my $buffer_id =
+            join( ':', $buffer->{hostname}, $buffer->{buff_name} );
+        my $old_buffer = $buffers->{$buffer_id};
+        $new_buffers->{$buffer_id} = $buffer;
+        $buffer->{id}              = $buffer_id;
+        $buffer->{last_update}     = $Tachikoma::Right_Now;
+        $buffer->{last_timestamp}  = $message->[TIMESTAMP];
+        $buffer->{last_email} = $old_buffer->{last_email} || 0;
+        $buffer->{last_trap}  = $old_buffer->{last_trap}  || 0;
+        $buffer->{lag}        = sprintf( "%.1f",
+            $buffer->{last_update} - $buffer->{last_timestamp} );
+        $buffer->{age} ||= 0;
+
+        if ( $buffer->{lag} > $Email_After ) {
+            $self->alert(
+                'email', $buffer,
+                "lag exceeded $Email_After seconds",
+                sub { $_[0]->{lag} > $Email_After }
+            );
+            next LINE;
+        }
+        for my $regex ( keys %$thresholds ) {
+            next if ( $buffer_id !~ m($regex) );
+            my $threshold = $thresholds->{$regex};
+            if ( $buffer->{msg_in_buf} > $threshold ) {
+                $self->alert(
+                    'email', $buffer,
+                    "msg_in_buf exceeded $threshold",
+                    sub { $_[0]->{msg_in_buf} > $threshold }
+                );
+            }
+            next LINE;
+        }
+        if ( $buffer->{msg_in_buf} > 1000 ) {
+            $self->alert(
+                'email', $buffer,
+                "msg_in_buf exceeded 1000",
+                sub { $_[0]->{msg_in_buf} > 1000 }
+            );
+            next LINE;
+        }
+    }
+    $thresholds = $self->{trap_thresholds};
+AGAIN: for my $buffer_id ( keys %$new_buffers ) {
+        my $buffer = $new_buffers->{$buffer_id};
+        $buffers->{$buffer_id} = $buffer;
+        if ( $buffer->{lag} > $Trap_After ) {
+            $self->alert(
+                'trap', $buffer,
+                "lag exceeded $Trap_After seconds",
+                sub { $_[0]->{lag} > $Trap_After }
+            );
+            next AGAIN;
+        }
+        for my $regex ( keys %$thresholds ) {
+            next if ( $buffer_id !~ m($regex) );
+            my $threshold = $thresholds->{$regex};
+            if ( $buffer->{msg_in_buf} > $threshold ) {
+                $self->alert(
+                    'trap', $buffer,
+                    "msg_in_buf exceeded $threshold",
+                    sub { $_[0]->{msg_in_buf} > $threshold }
+                );
+            }
+            next AGAIN;
+        }
+        if ( $buffer->{msg_in_buf} > 100000 ) {
+            $self->alert(
+                'trap', $buffer,
+                "msg_in_buf exceeded 100000",
+                sub { $_[0]->{msg_in_buf} > 100000 }
+            );
+            next AGAIN;
+        }
+    }
+    return $self->cancel($message);
+}
+
+sub fire {
+    my $self    = shift;
+    my $buffers = $self->{buffers};
+    for my $buffer_id ( keys %$buffers ) {
+        my $buffer = $buffers->{$buffer_id};
+        $buffer->{age} = $Tachikoma::Right_Now - $buffer->{last_update};
+        if ( $buffer->{age} > $Email_After ) {
+            $self->alert(
+                'email', $buffer,
+                "age exceeded $Email_After seconds",
+                sub { $_[0]->{age} > $Email_After }
+            );
+        }
+        if ( $buffer->{age} > $Trap_After ) {
+            $self->alert(
+                'trap', $buffer,
+                "age exceeded $Trap_After seconds",
+                sub { $_[0]->{age} > $Trap_After }
+            );
+        }
+    }
+    $self->get_alerts('email');
+    $self->send_alerts('email');
+    $self->get_alerts('trap');
+    $self->send_alerts('trap');
+    return;
+}
+
+$C{help} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    return $self->response( $envelope,
+              "commands: set_email_address <address>\n"
+            . "          list_email_thresholds\n"
+            . "          add_email_threshold <regex> <threshold>\n"
+            . "          remove_email_threshold <regex>\n" . "\n"
+            . "          set_mon_path  <address>\n"
+            . "          list_trap_thresholds\n"
+            . "          add_trap_threshold  <regex> <threshold>\n"
+            . "          remove_trap_threshold  <regex>\n" );
+};
+
+$C{set_email_address} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->email_address( $command->arguments );
+    return $self->okay;
+};
+
+$C{list_email_thresholds} = sub {
+    my $self       = shift;
+    my $command    = shift;
+    my $envelope   = shift;
+    my $glob       = $command->arguments;
+    my $thresholds = $self->patron->email_thresholds;
+    my $response   = '';
+    for my $path ( sort keys %$thresholds ) {
+        eval {
+            $response .= sprintf( "%30s %10d\n", $path, $thresholds->{$path} )
+                if ( not $glob or $path =~ $glob );
+        };
+    }
+    return $self->response( $envelope, $response );
+};
+
+$C{ls} = $C{list_email_thresholds};
+
+$C{add_email_threshold} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my ( $regex, $threshold ) = split( ' ', $command->arguments, 2 );
+    $self->patron->email_thresholds->{$regex} = $threshold;
+    $self->patron->email_alerts( {} );
+    return $self->okay;
+};
+
+$C{add} = $C{add_email_threshold};
+
+$C{remove_email_threshold} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $patron   = $self->patron;
+    delete $patron->email_thresholds->{ $command->arguments };
+    $self->patron->email_alerts( {} );
+    return $self->okay;
+};
+
+$C{rm} = $C{remove_email_threshold};
+
+$C{set_mon_path} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->mon_path( $command->arguments );
+    return $self->okay;
+};
+
+$C{list_trap_thresholds} = sub {
+    my $self       = shift;
+    my $command    = shift;
+    my $envelope   = shift;
+    my $glob       = $command->arguments;
+    my $thresholds = $self->patron->trap_thresholds;
+    my $response   = '';
+    for my $path ( sort keys %$thresholds ) {
+        eval {
+            $response .= sprintf( "%30s %10d\n", $path, $thresholds->{$path} )
+                if ( not $glob or $path =~ $glob );
+        };
+    }
+    return $self->response( $envelope, $response );
+};
+
+$C{ls_traps} = $C{list_trap_thresholds};
+
+$C{add_trap_threshold} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my ( $regex, $threshold ) = split( ' ', $command->arguments, 2 );
+    $self->patron->trap_thresholds->{$regex} = $threshold;
+    $self->patron->trap_alerts( {} );
+    return $self->okay;
+};
+
+$C{add_trap} = $C{add_trap_threshold};
+
+$C{remove_trap_threshold} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $patron   = $self->patron;
+    delete $patron->trap_thresholds->{ $command->arguments };
+    $self->patron->trap_alerts( {} );
+    return $self->okay;
+};
+
+$C{rm_trap} = $C{remove_trap_threshold};
+
+# sub alert {
+#     my $self       = shift;
+#     my $type       = shift;
+#     my $buffer     = shift;
+#     my $warning    = shift;
+#     my $short_host = ($buffer->{hostname} =~ m(^([^.]+)))[0];
+#     my $subject    = join(' ',
+#         $warning, 'on', $short_host, $buffer->{buff_name}
+#     );
+#     return
+#         if ($Tachikoma::Now - $buffer->{"last_$type"} < $Alert_Interval);
+#     $buffer->{"last_$type"} = $Tachikoma::Now;
+#     if ($type eq 'email') {
+#         my $body = '';
+#         $body .= sprintf("%20s: %s\n", 'hostname', $buffer->{hostname});
+#         $body .= sprintf("%20s: %s\n", 'buff_name', $buffer->{buff_name});
+#         for my $field (sort keys %$buffer) {
+#             next if ($field eq 'hostname'
+#                   or $field eq 'buff_name'
+#                   or $field =~ m(^last_));
+#             $body .= sprintf("%20s: %12d\n", $field, $buffer->{$field});
+#         }
+#         $self->{$type} .= join('',
+#             $subject, qq(\n),
+#             $body, qq(\n\n)
+#         );
+#     }
+#     else {
+#         $self->{$type} .= "$subject\n";
+#     }
+#     $self->{hosts}->{$short_host} = 1;
+#     return;
+# }
+
+sub alert {
+    my $self       = shift;
+    my $type       = shift;
+    my $buffer     = shift;
+    my $warning    = shift;
+    my $callback   = shift;
+    my $alerts     = $self->{"${type}_alerts"};
+    my $id         = $buffer->{id};
+    my $short_host = ( $buffer->{hostname} =~ m(^([^.]+)) )[0];
+    my $subject =
+        join( ' ', $warning, 'on', $short_host, $buffer->{buff_name} );
+    $alerts->{$id} ||= {};
+    $alerts->{$id}->{$subject} ||= [ $Tachikoma::Now => $callback ];
+    return;
+}
+
+sub get_alerts {
+    my $self    = shift;
+    my $type    = shift;
+    my $buffers = $self->{buffers};
+    my $alerts  = $self->{"${type}_alerts"};
+    my %hosts   = ();
+    my $body    = '';
+    for my $id ( sort keys %$alerts ) {
+        my $subjects = $alerts->{$id};
+        my $buffer   = $buffers->{$id};
+        my $chunk    = '';
+        for my $subject ( sort keys %$subjects ) {
+            my ( $timestamp, $callback ) = @{ $subjects->{$subject} };
+            next if ( $Tachikoma::Now - $timestamp < $Alert_Delay );
+            if ( not &$callback($buffer) ) {
+                delete $subjects->{$subject};
+                next;
+            }
+            my $short_host = ( $buffer->{hostname} =~ m(^([^.]+)) )[0];
+            $hosts{$short_host} = 1;
+            $chunk .= $subject . "\n";
+        }
+        delete $alerts->{$id} if ( not keys %$subjects );
+        next if ( not $chunk );
+        $chunk .= $self->get_details($buffer) . "\n\n"
+            if ( $type eq 'email' );
+        $body .= $chunk;
+    }
+    $self->{hosts} = \%hosts;
+    $self->{$type} = $body;
+    return;
+}
+
+sub get_details {
+    my $self    = shift;
+    my $buffer  = shift;
+    my $details = '';
+    $details .= sprintf( "%20s: %s\n", 'hostname',  $buffer->{hostname} );
+    $details .= sprintf( "%20s: %s\n", 'buff_name', $buffer->{buff_name} );
+    for my $field ( sort keys %$buffer ) {
+        next
+            if ( $field eq 'id'
+            or $field eq 'hostname'
+            or $field eq 'buff_name'
+            or $field =~ m(^last_) );
+        $details .= sprintf( "%20s: %12d\n", $field, $buffer->{$field} );
+    }
+    return $details;
+}
+
+sub send_alerts {
+    my $self = shift;
+    my $type = shift;
+    if ( $type eq 'email' ) {
+        return
+            if ( not $self->{email}
+            or $Tachikoma::Now - $self->{"last_email"} < $Alert_Interval );
+        $self->{"last_email"} = $Tachikoma::Now;
+        my $email = $self->{"email_address"};
+        delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};
+        $ENV{PATH} = '';
+        my $subject = 'WARNING: BufferMonitor threshold(s) exceeded';
+        my $grep    = '/usr/bin/grep';
+        for my $host ( keys %{ $self->{hosts} } ) {
+            $grep .= " -e $host";
+        }
+        my $grep2 = $grep;
+        $grep .= ' /logs/tachikoma/servers/servers.log | /usr/bin/tail -n100';
+        $grep2
+            .= ' /logs/tachikoma/systems/systems.log | /usr/bin/tail -n100';
+        my $server_logs = `$grep`;
+        my $system_logs = `$grep2`;
+        open( my $mail, '|-', qq(/usr/bin/mail -s "$subject" $email) )
+            or die "couldn't open mail: $!";
+        print $mail scalar( localtime(time) ),
+            qq(\n\n),
+            qq(Affected hosts: ), join( ', ', sort keys %{ $self->{hosts} } ),
+            qq(\n\n),
+            $self->{email},
+            qq(\n\n),
+            qq(Last 100 server log entries from affected hosts:\n\n),
+            $server_logs,
+            qq(\n\n),
+            qq(Last 100 system log entries from affected hosts:\n\n),
+            $system_logs;
+        close($mail);
+    }
+    elsif ( $self->{mon_path} ) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE] = TM_BYTESTREAM;
+        $message->[TO]   = $self->{mon_path};
+        if ( $self->{trap} ) {
+            $message->[PAYLOAD] = join( '',
+                "BufferMonitor threshold(s) exceeded\n",
+                $self->{trap} );
+        }
+        else {
+            $message->[PAYLOAD] = $Tachikoma::Now . "\n";
+        }
+        $self->SUPER::fill($message);
+    }
+    $self->{hosts} = {};
+    $self->{$type} = '';
+    return;
+}
+
+sub buffers {
+    my $self = shift;
+    if (@_) {
+        $self->{buffers} = shift;
+    }
+    return $self->{buffers};
+}
+
+sub email_thresholds {
+    my $self = shift;
+    if (@_) {
+        $self->{email_thresholds} = shift;
+    }
+    return $self->{email_thresholds};
+}
+
+sub trap_thresholds {
+    my $self = shift;
+    if (@_) {
+        $self->{trap_thresholds} = shift;
+    }
+    return $self->{trap_thresholds};
+}
+
+sub hosts {
+    my $self = shift;
+    if (@_) {
+        $self->{hosts} = shift;
+    }
+    return $self->{hosts};
+}
+
+sub email_alerts {
+    my $self = shift;
+    if (@_) {
+        $self->{email_alerts} = shift;
+    }
+    return $self->{email_alerts};
+}
+
+sub trap_alerts {
+    my $self = shift;
+    if (@_) {
+        $self->{trap_alerts} = shift;
+    }
+    return $self->{trap_alerts};
+}
+
+sub email {
+    my $self = shift;
+    if (@_) {
+        $self->{email} = shift;
+    }
+    return $self->{email};
+}
+
+sub trap {
+    my $self = shift;
+    if (@_) {
+        $self->{trap} = shift;
+    }
+    return $self->{trap};
+}
+
+sub last_email {
+    my $self = shift;
+    if (@_) {
+        $self->{last_email} = shift;
+    }
+    return $self->{last_email};
+}
+
+sub last_trap {
+    my $self = shift;
+    if (@_) {
+        $self->{last_trap} = shift;
+    }
+    return $self->{last_trap};
+}
+
+sub email_address {
+    my $self = shift;
+    if (@_) {
+        $self->{email_address} = shift;
+    }
+    return $self->{email_address};
+}
+
+sub mon_path {
+    my $self = shift;
+    if (@_) {
+        $self->{mon_path} = shift;
+    }
+    return $self->{mon_path};
+}
+
+1;

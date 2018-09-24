@@ -1,0 +1,44 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw( TM_BYTESTREAM );
+use Tachikoma::Config qw( %Tachikoma );
+use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
+use Time::HiRes qw( time );
+require '/usr/local/etc/tachikoma.conf';
+
+my $tachikoma = Tachikoma->inet_client( 'localhost', 5001 );
+my $recv      = 0;
+my $count     = 0;
+my $then      = time;
+my $delay     = shift(@ARGV) || 2;
+my $size;
+
+# $tachikoma->timeout(undef);
+$tachikoma->callback(
+    sub {
+        my $message = shift;
+        $count++;
+        if ( $recv++ >= 10000 ) {
+            my $now  = time;
+            my $span = $now - $then;
+            if ( $span >= $delay ) {
+                if ( not $size ) {
+                    $size = $message->size;
+                    print "size: $size\n";
+                }
+                printf
+                    "%.2f MB per second - %.2f messages per second\n",
+                    $count * $size / 1024 / 1024 / $span,
+                    $count / $span;
+                $count = 0;
+                $then  = $now;
+            }
+            $recv = 0;
+        }
+        $tachikoma->cancel($message);
+    }
+);
+
+$tachikoma->drain;

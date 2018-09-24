@@ -1,0 +1,20 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::Consumer;
+use Data::Dumper;
+require '/usr/local/etc/tachikoma.conf';
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+$Data::Dumper::Useperl  = 1;
+
+my $partition = $ARGV[0];
+my $offset    = $ARGV[1];
+die "usage: dump_message <partition> <offset>\n"
+    if ( not defined $offset );
+my $consumer = Tachikoma::Nodes::Consumer->new($partition);
+$consumer->next_offset($offset);
+my $message = $consumer->fetch->[0];
+$message->payload if ($message);
+print Dumper($message);
+die $consumer->sync_error if ( $consumer->sync_error );

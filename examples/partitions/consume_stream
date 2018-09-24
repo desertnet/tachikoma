@@ -1,0 +1,21 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::Consumer;
+require '/usr/local/etc/tachikoma.conf';
+
+my $partition = $ARGV[0];
+my $offsetlog = $ARGV[1];
+die "usage: consume_stream <partition> [ <offsetlog> ]\n"
+    if ( not $partition );
+my $consumer = Tachikoma::Nodes::Consumer->new( $partition, $offsetlog );
+while (1) {
+    my $messages = $consumer->fetch;
+    for my $message (@$messages) {
+        print $message->payload;
+    }
+    STDOUT->flush();
+    if ( $consumer->sync_error ) {
+        print STDERR $consumer->sync_error;
+    }
+}

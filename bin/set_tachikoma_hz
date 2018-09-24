@@ -1,0 +1,38 @@
+#!perl
+# ----------------------------------------------------------------------
+# set_tachikoma_hz
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Config qw( %Tachikoma );
+require '/usr/local/etc/tachikoma.conf';
+
+my $hz      = $ARGV[0];
+my $home    = $Tachikoma{Home} || ( getpwuid($<) )[7];
+my $hz_file = "$home/.tachikoma/hz";
+die "invalid hz setting" if ( $hz !~ m(^\d+$) );
+open( FH, ">$hz_file" );
+print FH <<'EOF';
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# \$Id\$
+# ----------------------------------------------------------------------
+
+use strict;
+use warnings;
+use Tachikoma::Config qw( \%Tachikoma );
+
+# Set our Hz
+\$Tachikoma{Hz} = $hz;
+
+1;
+EOF
+
+my $pid = Tachikoma->get_pid('tachikoma-server');
+kill( 'HUP', $pid );
+
+1;

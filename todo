@@ -1,0 +1,14 @@
+<pre>
+
+the language should handle TM_STORABLE messages better
+
+keep worrying about security
+
+add $message->[PARTITION]?
+add $message->[SUBJECT]?
+
+add more documentation to the help commands
+
+rewrite gui
+
+</pre>

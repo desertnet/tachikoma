@@ -1,0 +1,69 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = indexers;
+include services/daemonize.tsl
+
+connect_hub
+
+
+make_node Topic      topic1.ID            <broker>
+make_node Topic      server_log           <broker>
+make_node Topic      server_log.timestamp <broker>
+make_node Topic      server_log.hostname  <broker>
+make_node Topic      server_log.process   <broker>
+
+
+# IDs
+make_node ConsumerBroker   topic1:consumer      --broker=<broker>      \
+                                                --topic=topic1         \
+                                                --group=IDs            \
+                                                --default_offset=start \
+                                                --auto_commit=60
+
+make_node IndexByStream    IndexByStream
+
+connect_node topic1:consumer IndexByStream/topic1.ID
+
+
+# timestamps
+make_node ConsumerBroker   server_log:consumer1 --broker=<broker>      \
+                                                --topic=server_log     \
+                                                --group=timestamps     \
+                                                --default_offset=start \
+                                                --max_unanswered=64    \
+                                                --auto_commit=60
+
+make_node IndexByTimestamp IndexByTimestamp
+
+connect_node server_log:consumer1 IndexByTimestamp/server_log.timestamp
+
+
+# hostnames
+make_node ConsumerBroker   server_log:consumer2 --broker=<broker>      \
+                                                --topic=server_log     \
+                                                --group=hostnames      \
+                                                --default_offset=start \
+                                                --max_unanswered=64    \
+                                                --auto_commit=60
+
+make_node IndexByHostname  IndexByHostname
+
+connect_node server_log:consumer2 IndexByHostname/server_log.hostname
+
+
+# processes
+make_node ConsumerBroker   server_log:consumer3 --broker=<broker>      \
+                                                --topic=server_log     \
+                                                --group=processes      \
+                                                --default_offset=start \
+                                                --max_unanswered=64    \
+                                                --auto_commit=60
+
+make_node IndexByProcess   IndexByProcess
+
+connect_node server_log:consumer3 IndexByProcess/server_log.process
+
+
+topic_probe
+
+listen_inet localhost:<root_port>
+secure 3

@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
+use Time::HiRes qw( usleep );
+require '/usr/local/etc/tachikoma.conf';
+
+die "usage: consume_topics <topic> ...\n" if ( not @ARGV );
+my @consumers = ();
+for my $topic (@ARGV) {
+    my $consumer = Tachikoma::Nodes::ConsumerBroker->new($topic);
+    $consumer->poll_interval(0);
+    push( @consumers, $consumer );
+}
+while (1) {
+    my $messages = [];
+    my @errors   = ();
+    for my $consumer (@consumers) {
+        push( @$messages, @{ $consumer->fetch } );
+        push( @errors,    $consumer->sync_error )
+            if ( $consumer->sync_error );
+    }
+    for my $message (@$messages) {
+        print $message->payload;
+    }
+    print STDERR @errors if (@errors);
+    usleep(250000) if ( not @$messages );
+}

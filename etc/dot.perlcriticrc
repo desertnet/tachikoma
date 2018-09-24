@@ -1,0 +1,12 @@
+severity = 1
+exclude = ProhibitConstantPragma ProhibitPunctuationVars RequireDotMatchAnything RequireExtendedFormatting RequireLineBoundaryMatching RequireCarping ProhibitPostfixControls ProhibitPackageVars RequireBriefOpen RequireBlockMap RequireBlockGrep Documentation ProhibitLeadingZeros RequireNumberSeparators ProhibitMagicNumbers ProhibitCascadingIfElse ProhibitExcessMainComplexity
+
+[InputOutput::RequireCheckedSyscalls]
+functions = :builtins
+exclude_functions = print sleep
+
+[NamingConventions::Capitalization]
+global_variables = :starts_with_upper
+file_lexical_variables = :no_restriction
+local_lexical_variable_exemptions = .*(SSL|EOF|ENOENT).*
+subroutine_exemptions = .*(SSL|EOF|ENOENT).*

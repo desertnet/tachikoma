@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# fetch
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma::Nodes::Table;
+use Tachikoma::Message qw( PAYLOAD );
+require '/usr/local/etc/tachikoma.conf';
+
+my ( $topic, $field, $key ) = @ARGV;
+die "no topic\n" if ( not $topic );
+die "no field\n" if ( not $field );
+die "no key\n"   if ( not length $key );
+my $table = Tachikoma::Nodes::Table->new;
+$table->host('localhost');
+$table->port(5400);
+$table->topic($topic);
+$table->field($field);
+while (1) {
+    my $payload = $table->fetch($key) or last;
+    my ( $partition, $offset ) = split m{:}, $payload, 2;
+    my $value = $table->fetch_offset( $partition, $offset ) or last;
+    print $value->[PAYLOAD];
+}

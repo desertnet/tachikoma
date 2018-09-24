@@ -1,0 +1,21 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Accessories::Forks;
+
+my $forks = Accessories::Forks->new;
+my ( $command, @hosts ) = @ARGV;
+my @commands = ();
+for my $host (@hosts) {
+    push @commands, "ssh $host $command";
+}
+$forks->spawn(
+    8,
+    \@commands,
+    sub {
+        my ( $cmd, $out ) = @_;
+        chomp $cmd;
+        chomp $out;
+        print "+ $cmd\n$out\n";
+    }
+);
