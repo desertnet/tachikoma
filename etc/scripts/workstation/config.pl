@@ -213,7 +213,7 @@ cd http
   make_node HTTP_Route        root
   make_node HTTP_Auth         root:auth <home>/Sites/.htpasswd tachikoma-tools
   make_node HTTP_File         root:dir  <home>/Sites
-  make_node JobFarmer         CGI       4 CGI /usr/local/etc/CGI.conf /tmp/http
+  make_node JobFarmer         CGI       4 CGI /usr/local/etc/tachikoma/CGI.conf /tmp/http
   command CGI  autokill on
   command CGI  lazy on
   command root add_path /              root:dir
