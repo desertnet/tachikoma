@@ -7,8 +7,9 @@ make test
 sudo make install
 make clean
 rm -f Makefile.old
-sudo cp etc/tachikoma.conf /usr/local/etc/
+sudo cp etc/tachikoma.conf           /usr/local/etc/
 sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
+sudo cp etc/Devel/CGI.conf           /usr/local/etc/tachikoma/
 cp cgi-bin/* ~/Sites/cgi-bin/
 etc/scripts/regenerate.pl
 mkdir -p ~/.tachikoma/services/

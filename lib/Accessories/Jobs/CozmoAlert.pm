@@ -34,7 +34,7 @@ sub fill {
     return if ( $Tachikoma::Now - $message->timestamp > 1 );
     my $arguments = $message->payload;
     $arguments =~ s(\n)( )g;
-    system( '/Users/chris/Documents/bin/cozmo_alert.py', $arguments );
+    system( '/usr/local/bin/cozmo_alert.py', $arguments );
     return $self->SUPER::fill($message);
 }
 

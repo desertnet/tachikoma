@@ -17,14 +17,14 @@ workstation_topic_top();
 workstation_sound_effects();
 workstation_http_server();
 fsync_source(
-    path       => '/Users/chris/Documents',
+    path       => '<home>/Documents',
     pedantic   => 1,
     count      => 0,
     broadcasts => [],
     no_probe   => 1
 );
 fsync_destination(
-    path    => '/Users/chris/Documents',
+    path    => '<home>/Documents',
     sources => [ 'nyx' ],
     mode    => 'validate',
 );
