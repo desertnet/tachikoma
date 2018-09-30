@@ -172,7 +172,7 @@ cd http
   make_node HTTP_Timeout
   make_node Echo              http:log
   make_node HTTP_Route        root
-  make_node HTTP_Auth         root:auth <home>/Sites/tools/.htpasswd tools
+  make_node HTTP_Auth         root:auth <home>/Sites/.htpasswd tachikoma-tools
   make_node HTTP_File         root:dir  <home>/Sites
   make_node JobFarmer         CGI       4 CGI /usr/local/etc/CGI.conf /tmp/http
   command CGI  autokill on
