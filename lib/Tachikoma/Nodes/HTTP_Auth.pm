@@ -15,6 +15,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
     TM_STORABLE TM_BYTESTREAM TM_EOF
 );
+use MIME::Base64;
 use parent qw( Tachikoma::Node );
 
 sub new {
