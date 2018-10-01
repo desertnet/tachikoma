@@ -1,52 +1,61 @@
-# INSTALL:
+######################################
+# TO GET READLINE SUPPORT ON THE MAC:
+######################################
+port -v install readline +universal
 
-cp etc/tachikoma.conf /usr/local/etc
+# fetch and extract the source for Term::ReadLine::Gnu and run:
+perl Makefile.PL --includedir=/opt/local/include --libdir=/opt/local/lib
+make && make test && sudo make install
+
+############################################################################
+# TO GET READLINE SUPPORT ON GNU/LINUX: have curses-dev and libreadline-dev
+# dependencies installed and get Term::ReadLine::Gnu running
+############################################################################
+
+########################
+# INSTALLING TACHIKOMA:
+########################
+
+# From the distribution directory, simply run:
+bin/install_tachikoma
+
+
+
+# Or follow these steps by hand:
+
+# install perl modules
+perl Makefile.PL
+make && make test && sudo make install
+
+# install config
+sudo cp etc/tachikoma.conf /usr/local/etc/
 
 # set up your paths here:
 vi /usr/local/etc/tachikoma.conf
 
+# user keys and config overrides will go here:
 mkdir ~/.tachikoma
 
 # generate new ~/.tachikoma/id file:
 # (the public key is printed on STDOUT--copy it to the appropriate place
 # in etc/authorized_keys/ and run etc/authorized_keys/regenerate.pl)
-gen_server_key
+bin/gen_server_key ~/.tachikoma/id 4096
+
+# install the appropriate startup.txt file from etc/scripts:
+etc/scripts/regenerate.pl
+mkdir ~/.tachikoma/services/
+cp etc/scripts/workstation/default.tsl    ~/.tachikoma/startup.txt
+cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 
 # install the appropriate authorized_keys file from etc/authorized_keys:
-# (if using deployment you should instead specify which file to install
-# by editing tachikoma:/usr/local/etc/tachikoma/deploy/<config>)
+etc/authorized_keys/regenerate.pl
 cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
 
 # make directories for log and pidfile
 mkdir -p /var/log/tachikoma
 mkdir -p /var/run/tachikoma
 
-# to get readline support on the mac:
-port -v install readline +universal
-
-# fetch and extract the source for Term::ReadLine::Gnu and run:
-perl Makefile.PL --includedir=/opt/local/include --libdir=/opt/local/lib
-make test && make && sudo make install
-
-# to get readline support on gnu/linux: have curses-dev and libreadline-dev
-# dependencies installed and get Term::ReadLine::Gnu running
-
-
-
---------------------------------
-OLD INSTRUCTIONS REGARDING KEYS:
---------------------------------
-
-# To generate a new RSA keypair, run this
-# and use the output to update id and authorized_keys:
-
-perl -e 'use Crypt::OpenSSL::RSA;
-         my $rsa = generate_key Crypt::OpenSSL::RSA(4096);
-         print $rsa->get_private_key_string(),
-               $rsa->get_public_key_string();'
-
-# make sure your public key is in authorized_keys:
-vi ~/.tachikoma/authorized_keys
-
-# set your $ID in id and your unencrypted private key in id
-vi ~/.tachikoma/id
+# if using the default example server:
+sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
+sudo cp etc/Devel/CGI.conf           /usr/local/etc/tachikoma/
+cp cgi-bin/* ~/Sites/cgi-bin/

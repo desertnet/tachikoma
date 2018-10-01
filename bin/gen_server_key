@@ -1,9 +1,9 @@
-#!perl
+#!/usr/bin/env perl
 # ----------------------------------------------------------------------
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_key 34842 2018-09-03 21:43:14Z chris $
+# $Id: gen_server_key 34990 2018-10-01 06:46:57Z chris $
 #
 use strict;
 use warnings;
@@ -16,11 +16,19 @@ my $home        = ( getpwuid($<) )[7];
 my $hostname    = hostname();
 my $id          = "tachikoma\@$hostname";
 my $id_file     = $ARGV[0] || "$home/.tachikoma/id";
-my $force       = $ARGV[1];
-my $rsa         = generate_key Crypt::OpenSSL::RSA(4096);
+my $bits        = $ARGV[1] || 4096;
+my $force       = $ARGV[2];
+my $rsa         = generate_key Crypt::OpenSSL::RSA($bits);
 my $private_key = $rsa->get_private_key_string();
 my $public_key  = $rsa->get_public_key_string();
-die "$id_file exists!" if ( -e $id_file and not $force );
+if ( -e $id_file ) {
+    if ( not $force ) {
+        die "$id_file exists!"
+    }
+    elsif ( $force eq "ignore" ) {
+        exit 0;
+    }
+}
 open( FH, ">$id_file" ) or die "couldn't open $id_file: $!";
 print FH <<EOF;
 #!/usr/bin/perl

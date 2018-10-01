@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 33259 2018-02-17 15:06:46Z chris $
+# $Id: CircuitTester.pm 34982 2018-09-30 21:21:20Z chris $
 #
 
 package Tachikoma::Nodes::CircuitTester;
@@ -31,7 +31,6 @@ sub new {
     $self->{times}       = {};
     $self->{interval}    = $Default_Interval;
     $self->{timeout}     = $Default_Timeout;
-    $self->{should_kick} = undef;
     $self->{interpreter} = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
@@ -42,7 +41,7 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node CircuitTester <node name> [ <interval> <timeout> <should_kick> ]
+make_node CircuitTester <node name> [ <interval> <timeout> ]
 EOF
 }
 
@@ -50,11 +49,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $interval, $timeout, $should_kick ) =
+        my ( $interval, $timeout ) =
             split( ' ', $self->{arguments}, 3 );
         $self->{interval} = $interval || $Default_Interval;
         $self->{timeout}  = $timeout  || $Default_Timeout;
-        $self->{should_kick} = $should_kick;
         $self->set_timer( $self->{interval} * 1000 );
     }
     return $self->{arguments};
@@ -111,13 +109,6 @@ sub fire {
                 $self->stderr("no response from $path in $how_many seconds");
             }
             $offline->{$path} = $Tachikoma::Now;
-            if ( $self->{should_kick} and $how_many > $how_often ) {
-                my $name = ( split( '/', $path, 2 ) )[0];
-                my $node = $Tachikoma::Nodes{$name};
-                $node->close_filehandle('reconnect')
-                    if ($node
-                    and $node->isa('Tachikoma::Nodes::FileHandle') );
-            }
         }
     }
     else {
@@ -355,14 +346,6 @@ sub timeout {
         $self->{timeout} = shift;
     }
     return $self->{timeout};
-}
-
-sub should_kick {
-    my $self = shift;
-    if (@_) {
-        $self->{should_kick} = shift;
-    }
-    return $self->{should_kick};
 }
 
 1;

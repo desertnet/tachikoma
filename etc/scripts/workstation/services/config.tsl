@@ -1,5 +1,6 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 var hostname = `hostname -s`;
+var home     = `echo ~`;
 
 var topics_dir = /logs/topics
 var cache_dir  = /logs/cache

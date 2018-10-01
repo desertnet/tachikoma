@@ -1,21 +1,37 @@
-#!/bin/sh -ex
+#!/bin/sh -e
 config=$1
-cd /path/to/tachikoma/branches/tachikoma_2_0-stable
+if [ -z "$config" ] ; then
+    config=default
+fi
+if [ ! -d lib/Tachikoma/Nodes ] ; then
+    echo ERROR: must be run from within tachikoma distribution.
+    exit 1
+fi
+set -x
+
 perl Makefile.PL
 make
 make test
 sudo make install
 make clean
 rm -f Makefile.old
-sudo cp etc/tachikoma.conf /usr/local/etc/
+
+sudo cp etc/tachikoma.conf           /usr/local/etc/
 sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
+sudo cp etc/Devel/CGI.conf           /usr/local/etc/tachikoma/
 cp cgi-bin/* ~/Sites/cgi-bin/
+
+mkdir -p ~/.tachikoma
+bin/gen_server_key ~/.tachikoma/id 2048 ignore
+
 etc/scripts/regenerate.pl
 mkdir -p ~/.tachikoma/services/
-cp etc/scripts/workstation/$config.tsl ~/.tachikoma/startup.tsl
+cp etc/scripts/workstation/$config.tsl    ~/.tachikoma/startup.txt
 cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
+
 etc/authorized_keys/regenerate.pl
 cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+
 sudo mkdir -p /var/run/tachikoma
 sudo mkdir -p /var/log/tachikoma
 sudo chown $USER /var/run/tachikoma
