@@ -24,14 +24,14 @@ make_node Echo               echo
 make_node Scheduler          scheduler
 
 cd server_log:ruleset:config
-  add  100 deny where payload=.* FROM: .* ID: "(tachikoma@nyx|tachikoma@misa)" COMMAND: .*
+  add  100 deny where payload=.* FROM: .* ID: "(tachikoma@<hostname>)" COMMAND: .*
   add  200 deny where payload=silo .* pub .* user .* addr .* is rfc1918
   add  999 copy to error_log:tee where payload="WARNING:|ERROR:|FAILED:|TRAP:|COMMAND:|CircuitTester:|reconnect:"
   add 1000 redirect to server_log:tee
 cd ..
 
 cd local_system_log:ruleset:config
-  add 100 allow where payload="(nyx|misa).* sudo"
+  add 100 allow where payload=sudo
   add 1000 deny
 cd ..
 
@@ -52,20 +52,6 @@ connect_node error_log:tee            error_log:color
 connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
 connect_node local_server_log         server_log:ruleset
-
-cd hosts
-  connect_inet --use-ssl tachikoma:4231
-  connect_inet --use-ssl tachikoma:4232 server_logs
-  connect_inet --use-ssl tachikoma:4233 system_logs
-  connect_inet --use-ssl tachikoma:4234 silc_dn
-cd ..
-
-connect_node silc_dn                  silc_dn:tee
-connect_node system_logs              system_log:ruleset
-connect_node server_logs              server_log:ruleset
-
-command jobs start_job Tail local_system_log /var/log/system.log
-connect_node local_system_log local_system_log:ruleset
 
 
 
@@ -192,6 +178,20 @@ cd http
   # connect_sink 127.0.0.1:4243    proxy:responder
   secure 3
 cd ..
+
+cd hosts
+  connect_inet --use-ssl tachikoma:4231
+  connect_inet --use-ssl tachikoma:4232 server_logs
+  connect_inet --use-ssl tachikoma:4233 system_logs
+  connect_inet --use-ssl tachikoma:4234 silc_dn
+cd ..
+
+connect_node silc_dn                  silc_dn:tee
+connect_node system_logs              system_log:ruleset
+connect_node server_logs              server_log:ruleset
+
+command jobs start_job Tail local_system_log /var/log/system.log
+connect_node local_system_log local_system_log:ruleset
 
 
 

@@ -13,8 +13,6 @@ mkdir ~/.tachikoma
 gen_server_key
 
 # install the appropriate authorized_keys file from etc/authorized_keys:
-# (if using deployment you should instead specify which file to install
-# by editing tachikoma:/usr/local/etc/tachikoma/deploy/<config>)
 cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
 
 # make directories for log and pidfile

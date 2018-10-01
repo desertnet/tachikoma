@@ -1,10 +1,3 @@
-#!/usr/bin/perl
-use strict;
-use warnings;
-require 'config.pl';
-
-sub workstation_header {
-    print <<EOF;
 v2
 var hostname = `hostname -s`;
 var home     = `echo ~`;
@@ -31,7 +24,7 @@ make_node Echo               echo
 make_node Scheduler          scheduler
 
 cd server_log:ruleset:config
-  add  100 deny where payload=.* FROM: .* ID: "(tachikoma\@<hostname>)" COMMAND: .*
+  add  100 deny where payload=.* FROM: .* ID: "(tachikoma@<hostname>)" COMMAND: .*
   add  200 deny where payload=silo .* pub .* user .* addr .* is rfc1918
   add  999 copy to error_log:tee where payload="WARNING:|ERROR:|FAILED:|TRAP:|COMMAND:|CircuitTester:|reconnect:"
   add 1000 redirect to server_log:tee
@@ -47,9 +40,9 @@ cd system_log:ruleset:config
   add 1000 redirect to system_log:tee
 cd ..
 
-command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
-command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
-command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
+command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
+command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
+command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
@@ -60,11 +53,6 @@ connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
 connect_node local_server_log         server_log:ruleset
 
-EOF
-}
-
-sub workstation_benchmarks {
-    print <<EOF;
 
 
 # benchmarks
@@ -84,11 +72,6 @@ on 127.0.0.1:6000 connected {
 }
 on 127.0.0.1:6000 EOF rm benchmark:timer
 
-EOF
-}
-
-sub workstation_partitions {
-    print <<EOF;
 
 
 # partitions
@@ -96,11 +79,6 @@ make_node Partition scratch:log --filename=/logs/scratch.log --segment_size=(32 
 make_node Partition offset:log  --filename=/logs/offset.log  --segment_size=(256 * 1024)
 make_node Consumer scratch:consumer --partition=scratch:log --offsetlog=offset:log
 
-EOF
-}
-
-sub workstation_services {
-    print <<EOF;
 
 
 # services
@@ -124,11 +102,6 @@ command hosts connect_inet localhost:<tachikoma.hunter.port>   hunter:service
 # ingest server logs
 connect_node server_log:tee indexers:service/server_log
 
-EOF
-}
-
-sub workstation_topic_top {
-    print <<EOF;
 
 
 # topic top
@@ -146,11 +119,6 @@ cd topic_top
   secure 3
 cd ..
 
-EOF
-}
-
-sub workstation_sound_effects {
-    print <<EOF;
 
 
 # sound effects
@@ -160,15 +128,15 @@ make_node MemorySieve CozmoAlert:sieve 1
 make_node JobFarmer   CozmoAlert       1 CozmoAlert
 make_node Function server_log:sounds '{
     local sound = "";
-    # if (<1> =~ "\\sWARNING:\\s")    [ sound = Tink;                    ]
-    if (<1> =~ "\\sERROR:\\s(.*)")  [ sound = Tink;   cozmo_alert <_1> ]
-    elsif (<1> =~ "\\sFAILURE:\\s") [ sound = Sosumi;                  ]
-    elsif (<1> =~ "\\sCOMMAND:\\s") [ sound = Hero;                    ];
+    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;                    ]
+    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   cozmo_alert <_1> ]
+    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi;                  ]
+    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;                    ];
     if (<sound>) { afplay { get_sound <sound> } };
 }'
 make_node Function silc:sounds '{
     local sound = Pop;
-    if (<1> =~ "\\bchris\\b(?!>)") [ sound = Glass ];
+    if (<1> =~ "\bchris\b(?!>)") [ sound = Glass ];
     afplay { get_sound <sound> };
 }'
 command AfPlay     lazy on
@@ -180,11 +148,6 @@ connect_node AfPlay:sieve     AfPlay:load_balancer
 connect_node server_log:tee   server_log:sounds
 connect_node silc_dn:tee      silc:sounds
 
-EOF
-}
-
-sub workstation_http_server {
-    print <<EOF;
 
 
 # http server
@@ -216,23 +179,4 @@ cd http
   secure 3
 cd ..
 
-EOF
-}
-
-sub workstation_hosts {
-    print <<EOF;
-cd hosts
-  connect_inet --use-ssl tachikoma:4231
-  connect_inet --use-ssl tachikoma:4232 server_logs
-  connect_inet --use-ssl tachikoma:4233 system_logs
-  connect_inet --use-ssl tachikoma:4234 silc_dn
-cd ..
-
-connect_node silc_dn                  silc_dn:tee
-connect_node system_logs              system_log:ruleset
-connect_node server_logs              server_log:ruleset
-
-EOF
-}
-
-1;
+insecure
