@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 34904 2018-09-07 16:35:21Z chris $
+# $Id: Tail.pm 35000 2018-10-01 20:00:49Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -313,12 +313,6 @@ sub note_fh {
     }
     my $fh;
     if ( not open $fh, q{<}, $self->{filename} ) {
-        if ( $! !~ m{No such file or directory} ) {
-            $self->stderr("ERROR: can't open $self->{filename}: $!");
-            $self->{on_EOF} = 'close';
-            $self->handle_EOF;
-            return;
-        }
         $self->print_less_often(
             "WARNING: can't open $self->{filename}: $! - retrying")
             if ( $self->reattempt > 10 and $self->{on_ENOENT} eq 'retry' );
