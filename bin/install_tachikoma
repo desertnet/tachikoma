@@ -19,12 +19,14 @@ rm -f Makefile.old
 sudo cp etc/tachikoma.conf           /usr/local/etc/
 sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
 sudo cp etc/Devel/CGI.conf           /usr/local/etc/tachikoma/
-
 cp cgi-bin/* ~/Sites/cgi-bin/
 
+mkdir -p ~/.tachikoma
+bin/gen_server_key ~/.tachikoma/id 2048 ignore
+
 etc/scripts/regenerate.pl
-cp etc/scripts/workstation/$config.tsl ~/.tachikoma/startup.txt
 mkdir -p ~/.tachikoma/services/
+cp etc/scripts/workstation/$config.tsl    ~/.tachikoma/startup.txt
 cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 
 etc/authorized_keys/regenerate.pl

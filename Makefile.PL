@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2018 DesertNet
 #
-# $Id: Makefile.PL 34972 2018-09-24 00:48:12Z chris $
+# $Id: Makefile.PL 34990 2018-10-01 06:46:57Z chris $
 #
 
 use strict;
@@ -47,8 +47,6 @@ WriteMakefile(
         bin/buffer_top
         bin/drain_node
         bin/fill_node
-        bin/gen_server_key
-        bin/gen_server_ed25519_key
         bin/set_tachikoma_hz
         bin/tachikoma
         bin/tachikoma-client
