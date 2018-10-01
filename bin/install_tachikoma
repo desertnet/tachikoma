@@ -30,7 +30,7 @@ cp etc/scripts/workstation/$config.tsl    ~/.tachikoma/startup.txt
 cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 
 etc/authorized_keys/regenerate.pl
-cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+# cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
 
 sudo mkdir -p /var/run/tachikoma
 sudo mkdir -p /var/log/tachikoma
