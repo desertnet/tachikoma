@@ -19,7 +19,9 @@ make && make test && sudo make install
 # From the distribution directory, simply run:
 bin/install_tachikoma
 
-# or follow these steps by hand:
+
+
+# Or follow these steps by hand:
 
 # install perl modules
 perl Makefile.PL

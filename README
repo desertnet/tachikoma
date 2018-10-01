@@ -4,10 +4,6 @@ This is the distribution for the Tachikoma distributed messaging system.
 
 To get started, follow the instructions in the file INSTALL.
 
-or, from this directory, simply run:
-
-  bin/install_tachikoma
-
 Then:
 
   tachikoma-server
