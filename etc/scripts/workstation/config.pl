@@ -154,6 +154,10 @@ sub workstation_sound_effects {
 
 
 # sound effects
+func get_sound   { return "/System/Library/Sounds/<1>.aiff" }
+func afplay      { send AfPlay:sieve <1> }
+func cozmo_alert { send CozmoAlert:sieve <1> }
+
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay
 make_node MemorySieve CozmoAlert:sieve 1
