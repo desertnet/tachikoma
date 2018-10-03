@@ -2,7 +2,7 @@
 # TO GET READLINE SUPPORT ON THE MAC
 ############################################################################
 
-port -v install readline +universal
+port -v install readline
 
 # fetch and extract the source for Term::ReadLine::Gnu and run:
 perl Makefile.PL --includedir=/opt/local/include --libdir=/opt/local/lib
