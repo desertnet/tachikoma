@@ -1,61 +1,98 @@
-######################################
-# TO GET READLINE SUPPORT ON THE MAC:
-######################################
-port -v install readline +universal
+############################################################################
+# TO GET READLINE SUPPORT ON THE MAC
+############################################################################
+
+port -v install readline
 
 # fetch and extract the source for Term::ReadLine::Gnu and run:
 perl Makefile.PL --includedir=/opt/local/include --libdir=/opt/local/lib
 make && make test && sudo make install
 
+
 ############################################################################
-# TO GET READLINE SUPPORT ON GNU/LINUX: have curses-dev and libreadline-dev
-# dependencies installed and get Term::ReadLine::Gnu running
+# TO GET READLINE SUPPORT ON GNU/LINUX
 ############################################################################
 
-########################
-# INSTALLING TACHIKOMA:
-########################
+# have curses-dev and libreadline-dev dependencies installed and get
+# Term::ReadLine::Gnu running
 
-# From the distribution directory, simply run:
+
+############################################################################
+# QUICK INSTALL
+############################################################################
+
+# To quickly get up and running with the example server,
+# run this from the distribution directory:
 bin/install_tachikoma
 
 
 
-# Or follow these steps by hand:
+############################################################################
+# MANUAL INSTALL
+############################################################################
 
-# install perl modules
+# ------------
+# PERL MODULES
+# ------------
+
 perl Makefile.PL
 make && make test && sudo make install
 
-# install config
+# at this point you should be able to run the tachikoma interpreter:
+#
+# bash$ tachikoma
+# tachikoma> version
+# Tachikoma wire format 2.0.27
+# tachikoma>
+
+
+# -------------
+# SERVER CONFIG
+# -------------
+
 sudo cp etc/tachikoma.conf /usr/local/etc/
-
-# set up your paths here:
-vi /usr/local/etc/tachikoma.conf
-
-# user keys and config overrides will go here:
-mkdir ~/.tachikoma
-
-# generate new ~/.tachikoma/id file:
-# (the public key is printed on STDOUT--copy it to the appropriate place
-# in etc/authorized_keys/ and run etc/authorized_keys/regenerate.pl)
-bin/gen_server_key ~/.tachikoma/id 4096
-
-# install the appropriate startup.txt file from etc/scripts:
-etc/scripts/regenerate.pl
-mkdir ~/.tachikoma/services/
-cp etc/scripts/workstation/default.tsl    ~/.tachikoma/startup.txt
-cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
-
-# install the appropriate authorized_keys file from etc/authorized_keys:
-etc/authorized_keys/regenerate.pl
-cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
 
 # make directories for log and pidfile
 mkdir -p /var/log/tachikoma
 mkdir -p /var/run/tachikoma
 
-# if using the default example server:
+# user keys and config overrides will go here:
+mkdir ~/.tachikoma
+
+
+# -----------
+# PRIVATE KEY
+# -----------
+
+bin/gen_server_key ~/.tachikoma/id 4096
+
+# (the public key is printed on STDOUT--copy it to the appropriate place
+# in etc/authorized_keys/config.pl and run etc/authorized_keys/regenerate.pl)
+
+
+# ---------------------------
+# IF USING THE EXAMPLE SERVER
+# ---------------------------
+
 sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
 sudo cp etc/Devel/CGI.conf           /usr/local/etc/tachikoma/
 cp cgi-bin/* ~/Sites/cgi-bin/
+
+# install the default startup.txt file from etc/scripts:
+etc/scripts/regenerate.pl
+cp etc/scripts/workstation/default.tsl    ~/.tachikoma/startup.txt
+
+# install the example services from etc/scripts:
+mkdir ~/.tachikoma/services/
+cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
+
+
+# -----------------------------------------------------
+# IF SETTING UP MULTIPLE MACHINES TO TALK TO EACH OTHER
+# -----------------------------------------------------
+
+# you might copy etc/authorized_keys/ somewhere safe, and use it as a
+# starting point.
+
+etc/authorized_keys/regenerate.pl
+cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys

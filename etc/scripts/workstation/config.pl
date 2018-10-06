@@ -6,9 +6,6 @@ require 'config.pl';
 sub workstation_header {
     print <<EOF;
 v2
-var hostname = `hostname -s`;
-var home     = `echo ~`;
-var services = "<home>/.tachikoma/services";
 include services/config.tsl
 
 # listen_inet 127.0.0.1:4230
@@ -104,6 +101,8 @@ sub workstation_services {
 
 
 # services
+var services = "<home>/.tachikoma/services";
+
 command jobs  run_job Shell <services>/hubs.tsl
 command hosts connect_inet localhost:<tachikoma.hubs.port>     hubs:service
 
@@ -154,6 +153,10 @@ sub workstation_sound_effects {
 
 
 # sound effects
+func get_sound   { return "/System/Library/Sounds/<1>.aiff" }
+func afplay      { send AfPlay:sieve <1> }
+func cozmo_alert { send CozmoAlert:sieve <1> }
+
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay
 make_node MemorySieve CozmoAlert:sieve 1

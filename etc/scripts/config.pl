@@ -4,7 +4,8 @@ use warnings;
 
 
 our %fsync_ports = (
-    'fsync' =>  5600,
+    'fsync'  => 5600,
+    'fsync2' => 5700,
 );
 
 sub header {
@@ -28,7 +29,7 @@ EOF
 
 sub buffer_probe {
     my $prefix = shift || '';
-    my $host   = shift || 'tachikoma';
+    my $host   = shift || 'localhost';
     $prefix   .= '_' if ($prefix);
     print <<EOF;
 
@@ -47,6 +48,7 @@ sub fsync_source {
     my $path       = $options{path}       || '/usr/local/sync';
     my $user       = $options{user};
     my $count      = $options{count}      // ($user ? 1 : 4);
+    my $probe      = $options{probe}      // 1;
     my $broadcasts = $options{broadcasts} || [ $path ];
     my $interval   = $options{interval}   || 120;
     my $max_files  = $options{max_files}  || 256;
@@ -98,30 +100,30 @@ EOF
   make_node Responder          DirStats:cap
   make_node Tee                DirStats:tee
   make_node ClientConnector    DirStats:client_connector DirStats:tee
+  make_node Responder          FileSender:cap
 EOF
     if ($count) {
+        if ($user) {
+            print "  make_node JobController jobs:$user\n";
+            print "  command jobs:$user username $user\n";
+        }
         print "  command DirStats:buffer set_count 4\n";
         for my $i (1 .. $count) {
-            print <<EOF;
-
-
-  command jobs start_job CommandInterpreter $name:bridge$i
-  cd $name:bridge$i
-    make_node Tee             FileSender:tee
-    make_node ClientConnector FileSender:client_connector FileSender:tee
-    make_node Responder       FileSender:cap
-    listen_inet --use-ssl 0.0.0.0:${port}${i}1
-    register 0.0.0.0:${port}${i}1 FileSender:client_connector authenticated
-EOF
             if ($user) {
-                print "    make_node SudoFarmer FileSender $user 1 FileSender $path FileSender:tee\n"
+                print "  command jobs:$user start_job CommandInterpreter $name:bridge$i\n";
             }
             else {
-                print "    make_node JobFarmer FileSender 1 FileSender $path FileSender:tee\n"
+                print "  command jobs start_job CommandInterpreter $name:bridge$i\n";
             }
             print <<EOF;
-    connect_node FileSender:cap _parent/output:tee
-    connect_node FileSender     FileSender:cap
+  cd $name:bridge$i
+    make_node FileSender      FileSender            $path FileSender:tee
+    make_node Tee             FileSender:tee
+    make_node ClientConnector FileSender:client_connector FileSender:tee
+    connect_sink FileSender:tee FileSender # force responses through
+    connect_node FileSender     _parent/FileSender:cap
+    listen_inet --use-ssl 0.0.0.0:${port}${i}1
+    register 0.0.0.0:${port}${i}1 FileSender:client_connector authenticated
     secure 3
   cd ..
 EOF
@@ -131,6 +133,7 @@ EOF
             print "  connect_node FileSender:load_balancer      $name:bridge$i/FileSender\n";
         }
         print <<EOF;
+  connect_node FileSender:cap                output:tee
   connect_node DirStats                      DirStats:cap
   connect_node DirStats:sieve                DirStats
   connect_node DirStats:buffer               DirStats:sieve
@@ -224,12 +227,12 @@ EOF
   register 0.0.0.0:${port}02 DirStats:client_connector authenticated
 
 EOF
-    buffer_probe() if ($count);
+    buffer_probe() if ($probe and $count);
     if (defined $secure) {
         print "  secure $secure\n" if ($secure > 0);
     }
     else {
-        print "  secure 3\n";
+        print "  secure 2\n";
     }
     print "cd ..\n\n";
 }
@@ -270,9 +273,19 @@ EOF
     $arguments   .= " $mode" if ($mode);
     print "  ", &$farmer('        DirCheck', "$count DirCheck $arguments") . "\n";
     if (not $mode or $mode eq 'update') {
-        for my $i (1 .. $count) {
-            print "  command jobs start_job CommandInterpreter $name:destination$i \\\n".
-                  "    ", &$farmer('FileReceiver', "1 FileReceiver $path") . "\n";
+        if ($user) {
+            print "  make_node JobController jobs:$user\n";
+            print "  command jobs:$user username $user\n";
+            for my $i (1 .. $count) {
+                print "  command jobs:$user start_job CommandInterpreter $name:destination$i \\\n".
+                      "    make_node FileReceiver FileReceiver $path\n";
+            }
+        }
+        else {
+            for my $i (1 .. $count) {
+                print "  command jobs start_job CommandInterpreter $name:destination$i \\\n".
+                      "    make_node FileReceiver FileReceiver $path\n";
+            }
         }
     }
     my $j = 1;

@@ -175,9 +175,6 @@ sub fill {
         return if ( $type & TM_EOF );
         return $self->{collector}->fill($message);
     }
-    elsif ( $type & TM_EOF and not $message->[TO] ) {
-        return $self->{interpreter}->fill($message);
-    }
     return $self->{sink}->fill($message);
 }
 

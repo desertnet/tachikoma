@@ -1,7 +1,4 @@
 v2
-var hostname = `hostname -s`;
-var home     = `echo ~`;
-var services = "<home>/.tachikoma/services";
 include services/config.tsl
 
 # listen_inet 127.0.0.1:4230
@@ -82,6 +79,8 @@ make_node Consumer scratch:consumer --partition=scratch:log --offsetlog=offset:l
 
 
 # services
+var services = "<home>/.tachikoma/services";
+
 command jobs  run_job Shell <services>/hubs.tsl
 command hosts connect_inet localhost:<tachikoma.hubs.port>     hubs:service
 
@@ -122,6 +121,10 @@ cd ..
 
 
 # sound effects
+func get_sound   { return "/System/Library/Sounds/<1>.aiff" }
+func afplay      { send AfPlay:sieve <1> }
+func cozmo_alert { send CozmoAlert:sieve <1> }
+
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay
 make_node MemorySieve CozmoAlert:sieve 1
@@ -206,6 +209,7 @@ cd fsync:source
   make_node Responder          DirStats:cap
   make_node Tee                DirStats:tee
   make_node ClientConnector    DirStats:client_connector DirStats:tee
+  make_node Responder          FileSender:cap
 
 
   # listen ports for incoming connections
@@ -214,7 +218,7 @@ cd fsync:source
   listen_inet --use-ssl 0.0.0.0:5602
   register 0.0.0.0:5602 DirStats:client_connector authenticated
 
-  secure 3
+  secure 2
 cd ..
 
 

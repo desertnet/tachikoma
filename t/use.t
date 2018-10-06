@@ -90,6 +90,8 @@ use Tachikoma::Nodes::Dumper;
 use Tachikoma::Nodes::Echo;
 use Tachikoma::Nodes::Edge;
 use Tachikoma::Nodes::FileController;
+use Tachikoma::Nodes::FileReceiver;
+use Tachikoma::Nodes::FileSender;
 use Tachikoma::Nodes::Function;
 use Tachikoma::Nodes::Gate;
 use Tachikoma::Nodes::Grep;

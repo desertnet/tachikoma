@@ -277,7 +277,7 @@ sub mget {
             return $expecting-- > 1 ? 1 : undef;
         }
     );
-    for my $key (@{$keys}) {
+    for my $key ( @{$keys} ) {
         $request->[PAYLOAD] = "GET $key\n";
         $tachikoma->fill($request);
     }
