@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35000 2018-10-01 20:00:49Z chris $
+# $Id: Tail.pm 35016 2018-10-06 08:47:06Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -512,7 +512,7 @@ sub finished {
     return 'true' if ( not defined $self->{fh} );
     return if ( $self->{on_EOF} eq 'wait_for_delete' );
     if ( not defined $size ) {
-        $size = ( stat( $self->{fh} ) )[7];
+        $size = ( stat $self->{fh} )[7];
         return 'true' if ( not defined $size );
         $self->{size} = $size;
     }

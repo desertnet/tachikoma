@@ -6,9 +6,6 @@ require 'config.pl';
 sub workstation_header {
     print <<EOF;
 v2
-var hostname = `hostname -s`;
-var home     = `echo ~`;
-var services = "<home>/.tachikoma/services";
 include services/config.tsl
 
 # listen_inet 127.0.0.1:4230
@@ -104,6 +101,8 @@ sub workstation_services {
 
 
 # services
+var services = "<home>/.tachikoma/services";
+
 command jobs  run_job Shell <services>/hubs.tsl
 command hosts connect_inet localhost:<tachikoma.hubs.port>     hubs:service
 
