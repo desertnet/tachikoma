@@ -16,6 +16,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.349';
+
 my $Default_Timeout = 840;
 my %Exclusive = map { $_ => 1 } qw(
     rmdir
@@ -25,7 +27,7 @@ my %Exclusive = map { $_ => 1 } qw(
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{op}    = '';
+    $self->{op}    = q{};
     $self->{pools} = [];
     bless $self, $class;
     return $self;
@@ -35,33 +37,32 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{op}        = '';
+        $self->{op}        = q{};
         $self->{pools}     = [];
     }
     return $self->{arguments};
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
     my $pools   = $self->{pools};
     if ( $type & TM_BYTESTREAM ) {
         my $payload = $message->[PAYLOAD];
-        chomp($payload);
-        my ( $op, $path ) = split( ':', $payload, 2 );
+        chomp $payload;
+        my ( $op, $path ) = split m{:}, $payload, 2;
         return if ( not $op );
         if ( not $path ) {
             $path    = $op;
             $op      = 'update';
-            $payload = join( ':', $op, $path );
+            $payload = join q{:}, $op, $path;
         }
         my $last_op = $self->{op};
-        my $pools   = $self->{pools};
         $self->{op} = $op;
         if ( not $last_op or ( $op eq $last_op and not $Exclusive{$op} ) ) {
             $pools->[0] ||= {};
-            if ( @$pools == 1 ) {
+            if ( @{$pools} == 1 ) {
 
                 # still filling the first pool
                 if ( not $pools->[0]->{$payload} ) {
@@ -72,7 +73,7 @@ sub fill {
                 }
                 else {
                     # another event for the same payload requires a new pool
-                    push( @$pools, { $payload => $message } );
+                    push @{$pools}, { $payload => $message };
                 }
             }
             elsif ( $pools->[-1]->{$payload} ) {
@@ -87,7 +88,7 @@ sub fill {
         }
         else {
             # different or exclusive operations require new pools
-            push( @$pools, { $payload => $message } );
+            push @{$pools}, { $payload => $message };
         }
         $self->set_timer( $Default_Timeout * 1000 )
             if ( not $self->{timer_is_active} );
@@ -99,10 +100,10 @@ sub fill {
         $self->cancel( $first_pool->{$payload} )
             if ( $first_pool->{$payload} );
         delete $first_pool->{$payload};
-        if ( not keys %$first_pool ) {
-            shift(@$pools);
-            if ( not @$pools ) {
-                $self->{op} = '';
+        if ( not keys %{$first_pool} ) {
+            shift @{$pools};
+            if ( not @{$pools} ) {
+                $self->{op} = q{};
                 $self->stop_timer;
                 return 1;
             }
@@ -117,8 +118,8 @@ sub fire {
     my $self = shift;
 
     # empty all the pools so the buffer can refill them
-    $self->stderr("WARNING: emptying event pools");
-    $self->{op}    = '';
+    $self->stderr('WARNING: emptying event pools');
+    $self->{op}    = q{};
     $self->{pools} = [];
     $self->stop_timer;
     return;

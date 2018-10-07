@@ -17,13 +17,15 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.349';
+
 my $Request_Timeout = 600;
 my $Expire_Interval = 60;
 my $Respawn_Timeout = 300;
 my $Shutting_Down   = undef;
 
 # my $Separator       = chr 0;
-my $Separator = join q{}, chr(30), ' -> ', chr(30);
+my $Separator = join q{}, chr 30, ' -> ', chr 30;
 
 sub arguments {
     my $self = shift;
@@ -38,7 +40,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
@@ -46,12 +48,15 @@ sub fill {
     my $prefix  = $self->{prefix};
 
     # service tails
-    if ( $from =~ m(^tail-\d+$) ) {
-        my $tail = $Tachikoma::Nodes{$from};
-        if ( $tail->{filename} !~ m(^$prefix/(.*)$) ) {
+    if ( $from =~ m{^tail-\d+$} ) {
+        my $tail     = $Tachikoma::Nodes{$from};
+        my $filename = undef;
+        if ( $tail->{filename} =~ m{^$prefix/(.*)$} ) {
+            $filename = $1;
+        }
+        else {
             return $self->stderr("ERROR: bad path: $tail->{filename}");
         }
-        my $filename = $1;
         $message->[STREAM] = join q{:}, 'update', $filename;
         $message->[TO] = $self->{receiver};
         if ( $type & TM_EOF ) {
@@ -70,7 +75,7 @@ sub fill {
         my $requests = $self->{requests};
         my $request  = $requests->{$stream};
         if ( $to and $to ne $self->{name} ) {
-            if ( $to !~ m(^tail-\d+$) ) {
+            if ( $to !~ m{^tail-\d+$} ) {
                 return $self->stderr(
                     "WARNING: bad response for $stream from $from");
             }
@@ -83,7 +88,7 @@ sub fill {
             }
             else {
                 return $self->print_less_often(
-                    "WARNING: stale response for ", $stream );
+                    'WARNING: stale response for ', $stream );
             }
             return $self->stderr("ERROR: couldn't find request for $stream")
                 if ( not $request );
@@ -100,45 +105,53 @@ sub fill {
     my $payload   = $message->[PAYLOAD];
     my $op        = undef;
     my $path      = undef;
-    my $arguments = '';
-    if ( $payload =~ m(^\w+:) ) {
-        ( $op, $path ) = split q{:}, $payload, 2;
+    my $arguments = q{};
+    if ( $payload =~ m{^\w+:} ) {
+        ( $op, $path ) = split m{:}, $payload, 2;
     }
     else {
         $op   = 'update';
         $path = $payload;
     }
-    chomp($path);
+    chomp $path;
     my $relative = undef;
     my $stream   = undef;
     if ( $op ne 'rename' ) {
-        $path =~ s(/\./)(/)g while ( $path =~ m(/\./) );
-        $path =~ s((?:^|/)\.\.(?=/))()g;
-        $path =~ s(/+)(/)g;
-        if ( $path !~ m(^$prefix/(.*)$) ) {
+        $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
+        $path =~ s{(?:^|/)[.][.](?=/)}{}g;
+        $path =~ s{/+}{/}g;
+        if ( $path =~ m{^$prefix/(.*)$} ) {
+            $relative = $1;
+        }
+        else {
             $self->stderr( "ERROR: bad path: $path from ", $message->from );
             return $self->cancel($message);
         }
-        $relative = $1;
     }
     else {
         my @paths = split q{ }, $path;
         @paths = split $Separator, $path, 2 if ( @paths > 2 );
         my ( $from_path, $to_path ) = @paths;
-        $from_path =~ s((?:^|/)\.\.(?=/))()g if ($from_path);
-        $to_path =~ s((?:^|/)\.\.(?=/))()g   if ($to_path);
-        if ( $from_path !~ m(^$prefix/(.*)$) ) {
+        $from_path =~ s{(?:^|/)[.][.](?=/)}{}g if ($from_path);
+        $to_path =~ s{(?:^|/)[.][.](?=/)}{}g   if ($to_path);
+        my $from_relative = undef;
+        my $to_relative   = undef;
+        if ( $from_path =~ m{^$prefix/(.*)$} ) {
+            $from_relative = $1;
+        }
+        else {
             $self->stderr( qq(ERROR: bad "from" path: $from_path from ),
                 $message->from );
             return $self->cancel($message);
         }
-        my $from_relative = $1;
-        if ( $to_path !~ m(^$prefix/(.*)$) ) {
+        if ( $to_path =~ m{^$prefix/(.*)$} ) {
+            $to_relative = $1;
+        }
+        else {
             $self->stderr( qq(ERROR: bad "to" path: $to_path from ),
                 $message->from );
             return $self->cancel($message);
         }
-        my $to_relative = $1;
         $relative = join $Separator, $from_relative, $to_relative;
     }
     $stream = join q{:}, $op, $relative;
@@ -152,15 +165,14 @@ sub fill {
     }
 
     if ( $op eq 'update' ) {
-        my $fh;
-        if ( not lstat($path) ) {
+        if ( not lstat $path ) {
             $self->stderr("WARNING: couldn't find $path");
             return $self->cancel($message);
         }
         elsif ( -l _ ) {
             $op        = 'symlink';
             $stream    = join q{:}, $op, $relative;
-            $arguments = readlink($path);
+            $arguments = readlink $path;
         }
         elsif ( -d _ ) {
             $op        = 'mkdir';
@@ -171,10 +183,10 @@ sub fill {
             # set up tails
             my $name;
             do {
-                $name = sprintf( 'tail-%016d', Tachikoma->counter );
+                $name = sprintf 'tail-%016d', Tachikoma->counter;
             } while ( exists $Tachikoma::Nodes{$name} );
             my $node;
-            eval {
+            my $okay = eval {
                 $node = Tachikoma::Nodes::Tail->new;
                 $node->name($name);
                 $node->arguments(
@@ -186,10 +198,12 @@ sub fill {
                     }
                 );
                 $node->{sink} = $self;
+                return 1;
             };
-            if ($@) {
-                my $error = $@;
-                eval { $node->remove_node };
+            if ( not $okay ) {
+                my $error = $@ // 'eval failed';
+                eval { $node->remove_node; return 1 }
+                    or $self->stderr("ERROR: remove_node failed: $@");
                 $self->stderr("ERROR: $error");
                 return $self->cancel($message);
             }
@@ -215,7 +229,7 @@ sub fill {
         }
     }
     elsif ( $op eq 'chmod' ) {
-        my @lstat = lstat($path);
+        my @lstat = lstat $path;
         if ( not @lstat ) {
             $self->stderr("WARNING: couldn't find $path");
             return $self->cancel($message);
@@ -245,7 +259,7 @@ sub fill {
 sub fire {
     my $self     = shift;
     my $requests = $self->{requests};
-    for my $stream ( keys %$requests ) {
+    for my $stream ( keys %{$requests} ) {
         if ( $Tachikoma::Now - $requests->{$stream}->{timestamp}
             > $Request_Timeout )
         {
