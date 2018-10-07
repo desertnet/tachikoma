@@ -13,6 +13,8 @@ use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
+use version; our $VERSION = 'v2.0.349';
+
 sub initialize_graph {
     my $self = shift;
     $self->connector->sink($self);

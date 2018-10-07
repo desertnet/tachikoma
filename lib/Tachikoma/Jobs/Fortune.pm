@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Fortune
 # ----------------------------------------------------------------------
 #
-# $Id: Fortune.pm 32953 2018-02-09 10:17:30Z chris $
+# $Id: Fortune.pm 35026 2018-10-07 21:39:47Z chris $
 #
 
 package Tachikoma::Jobs::Fortune;
@@ -12,6 +12,8 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
+
+use version; our $VERSION = 'v2.0.349';
 
 my $Fortune = undef;
 if ( -f '/opt/local/bin/fortune' ) {
@@ -38,19 +40,19 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    $message->to( $message->from );
     return if ( not $message->type & TM_BYTESTREAM );
     my $arguments = $message->payload;
     my $fortune   = $self->execute( $Fortune, $arguments );
     my @canned    = ();
     return if ( not $fortune );
-    $fortune =~ s(^%% [(].*?[)]\s*)()g;
+    $fortune =~ s{^%% [(].*?[)]\s*}{}g;
 
-    for my $cookie ( split( "%%\n", $fortune ) ) {
-        $cookie =~ s(\t)(        )g;
-        push( @canned, $cookie );
+    for my $cookie ( split m{%%\n}, $fortune ) {
+        $cookie =~ s{\t}{        }g;
+        push @canned, $cookie;
     }
-    $message->payload( $canned[ int rand(@canned) ] );
+    $message->to( $message->from );
+    $message->payload( $canned[ int rand @canned ] );
     return $self->SUPER::fill($message);
 }
 

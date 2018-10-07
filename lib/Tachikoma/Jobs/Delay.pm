@@ -13,6 +13,8 @@ use Tachikoma::Job;
 use Time::HiRes;
 use parent qw( Tachikoma::Job );
 
+use version; our $VERSION = 'v2.0.349';
+
 sub fill {
     my $self    = shift;
     my $message = shift;

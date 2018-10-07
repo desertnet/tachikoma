@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::FileReceiver
 # ----------------------------------------------------------------------
 #
-# $Id: FileReceiver.pm 35016 2018-10-06 08:47:06Z chris $
+# $Id: FileReceiver.pm 35026 2018-10-07 21:39:47Z chris $
 #
 
 package Tachikoma::Jobs::FileReceiver;
@@ -13,8 +13,10 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::FileReceiver;
 use parent qw( Tachikoma::Job );
 
+use version; our $VERSION = 'v2.0.349';
+
 sub initialize_graph {
-    my $self = shift;
+    my $self          = shift;
     my $file_receiver = Tachikoma::Nodes::FileReceiver->new;
     $file_receiver->arguments( $self->arguments );
     $self->connector->sink($file_receiver);
