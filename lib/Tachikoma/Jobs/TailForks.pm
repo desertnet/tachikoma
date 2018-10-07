@@ -344,14 +344,28 @@ sub tiedhash {
     }
     if ( not defined $self->{tiedhash} ) {
         my %h    = ();
+        my %copy = ();
         my $path = $self->db_dir . '/' . $self->filename;
         $self->make_parent_dirs($path);
+        if ( -f $path ) {
+
+            # defunk
+            tie(%h,
+                'BerkeleyDB::Btree',
+                -Filename => $path,
+                -Mode     => 0600
+            );
+            %copy = %h;
+            untie(%h);
+            unlink($path);
+        }
         tie(%h,
             'BerkeleyDB::Btree',
             -Filename => $path,
             -Flags    => DB_CREATE,
             -Mode     => 0600
         ) or die "couldn't tie $path: $!\n";
+        %h = %copy if ( keys %copy );
         return $self->{tiedhash} = \%h;
     }
     return $self->{tiedhash};
