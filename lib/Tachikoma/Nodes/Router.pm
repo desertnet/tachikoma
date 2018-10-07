@@ -19,7 +19,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = 'v2.0.195';
 
-my $Last_UTime = 0;
+my $Last_UTime         = 0;
+my $Heartbeat_Interval = 15;    # seconds
 
 sub new {
     my $class = shift;
@@ -160,7 +161,7 @@ sub fire {
         }
     }
     @Tachikoma::Reconnect = @again;
-    if ( $Tachikoma::Right_Now - $self->{last_fire} >= 15 ) {
+    if ( $Tachikoma::Now - $self->{last_fire} >= $Heartbeat_Interval ) {
         $self->heartbeat;
         $self->update_logs;
         $self->expire_callbacks;
@@ -174,7 +175,7 @@ sub fire {
         if ( defined $Tachikoma::Profiles ) {
             $self->trim_profiles;
         }
-        $self->{last_fire} = $Tachikoma::Right_Now;
+        $self->{last_fire} = $Tachikoma::Now;
     }
     return;
 }
