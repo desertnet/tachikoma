@@ -561,6 +561,7 @@ sub make_sync_consumer {
     my $consumer   = Tachikoma::Nodes::Consumer->new($log);
     $consumer->broker_id($broker_id);
     $consumer->partition_id($partition_id);
+    $consumer->target( $self->get_target($broker_id) );
 
     if ( $self->{group} ) {
         if ( $self->{cache_dir} ) {
