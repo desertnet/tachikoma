@@ -530,8 +530,7 @@ sub fetch {
     $request->[TYPE]    = TM_INFO;
     $request->[TO]      = $self->{partition};
     $request->[PAYLOAD] = join q{}, 'GET ', $self->{next_offset}, "\n";
-    $target->callback( $self->get_batch_sync )
-        if ( not $target->{callback} );
+    $target->callback( $self->get_batch_sync );
     my $okay = eval {
         $target->fill($request);
         $target->drain;
@@ -968,6 +967,7 @@ sub remove_target {
     if ( $self->{target} ) {
         if ( $self->{target}->{fh} ) {
             close $self->{target}->{fh} or die $!;
+            $self->{target}->{fh} = undef;
         }
         $self->{target} = undef;
         usleep( $self->{poll_interval} * 1000000 )
