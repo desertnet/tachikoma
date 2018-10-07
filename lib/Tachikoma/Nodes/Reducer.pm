@@ -13,6 +13,8 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = qv('v2.0.349');
+
 my $Default_Timeout = 900;
 
 sub new {
@@ -29,7 +31,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $timeout, $interval ) = split( ' ', $self->{arguments}, 2 );
+        my ( $timeout, $interval ) = split q{ }, $self->{arguments}, 2;
         $timeout  ||= $Default_Timeout;
         $interval ||= $timeout / 60;
         $self->timeout($timeout);
@@ -50,7 +52,7 @@ sub fill {
     if ( not exists $messages->{$payload} ) {
         $messages->{$payload} = 1;
         $timestamps->{$Tachikoma::Now} ||= [];
-        push( @{ $timestamps->{$Tachikoma::Now} }, $payload );
+        push @{ $timestamps->{$Tachikoma::Now} }, $payload;
         return $self->SUPER::fill($message);
     }
     return $self->cancel($message);
@@ -61,7 +63,7 @@ sub fire {
     my $timeout    = $self->{timeout};
     my $messages   = $self->{messages};
     my $timestamps = $self->{timestamps};
-    for my $timestamp ( sort { $a <=> $b } keys %$timestamps ) {
+    for my $timestamp ( sort { $a <=> $b } keys %{$timestamps} ) {
         last if ( ( $Tachikoma::Now - $timestamp ) < $timeout );
         delete $messages->{$_} for ( @{ $timestamps->{$timestamp} } );
         delete $timestamps->{$timestamp};

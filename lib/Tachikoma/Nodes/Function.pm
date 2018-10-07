@@ -17,6 +17,8 @@ use Tachikoma::Message qw(
 use Tachikoma::Config qw( %Functions );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = qv('v2.0.349');
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -67,27 +69,31 @@ sub fill {
     $self->climb( 'message', $copy, $arguments );
     if ( $message->[TYPE] & TM_BYTESTREAM or $message->[TYPE] & TM_INFO ) {
         my $name = $self->{name};
-        $arguments->{'@'}  = join( ' ', $name, $payload );
-        $arguments->{'0'}  = $name;
-        $arguments->{'1'}  = $payload;
-        $arguments->{'_C'} = 1;
+        $arguments->{q{@}}  = join q{ }, $name, $payload;
+        $arguments->{q{0}}  = $name;
+        $arguments->{q{1}}  = $payload;
+        $arguments->{q{_C}} = 1;
     }
     my $shell     = $self->shell;
     my $old_local = $shell->set_local($arguments);
-    eval { $rv = $shell->send_command( $self->{parse_tree} ); };
+    my $okay      = eval {
+        $rv = $shell->send_command( $self->{parse_tree} );
+        return 1;
+    };
     $shell->restore_local($old_local);
-    if ($@) {
-        my $trap = $@;
-        chomp($trap);
-        my ( $type, $value ) = split( ':', $trap, 2 );
-        if ( $type eq 'RV' ) {
+    if ( not $okay ) {
+        my $trap = $@ // q{};
+        chomp $trap;
+        my ( $type, $value ) = split m{:}, $trap, 2;
+        if ( $type and $type eq 'RV' ) {
             $rv = [$value] if ( defined $value );
         }
         else {
-            return $self->stderr($@);
+            return $self->stderr( $@ // 'ERROR: send_command failed' );
         }
     }
     return if ( not $self->{owner} );
+    return $self->cancel($message) if ( not @{$rv} );
     my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BYTESTREAM;
@@ -95,22 +101,22 @@ sub fill {
     $response->[FROM]    = $message->[FROM];
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join( '', @$rv );
+    $response->[PAYLOAD] = join q{}, @{$rv};
     return $self->SUPER::fill($response);
 }
 
 sub climb {
     my ( $self, $prefix, $branch, $paths ) = @_;
-    if ( ref($branch) eq 'HASH' ) {
+    if ( ref $branch eq 'HASH' ) {
         $self->climb( "$prefix.$_", $branch->{$_}, $paths )
-            for ( keys %$branch );
+            for ( keys %{$branch} );
     }
-    elsif ( ref($branch) eq 'ARRAY' ) {
+    elsif ( ref $branch eq 'ARRAY' ) {
         $self->climb( "$prefix.$_", $branch->[$_], $paths )
-            for ( 0 .. $#$branch );
+            for ( 0 .. $#{$branch} );
     }
-    elsif ( ref($branch) ) {
-        $self->stderr( "ERROR: $prefix is a ", ref($branch) );
+    elsif ( ref $branch ) {
+        $self->stderr( "ERROR: $prefix is a ", ref $branch );
     }
     else {
         $paths->{$prefix} = $branch;
