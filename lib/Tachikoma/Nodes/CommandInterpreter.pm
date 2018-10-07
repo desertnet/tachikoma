@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 34959 2018-09-20 23:21:09Z chris $
+# $Id: CommandInterpreter.pm 35028 2018-10-07 22:26:29Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1871,7 +1871,15 @@ $C{remote_var} = sub {
     }
     elsif ( defined $key ) {
         if ( defined $Var{$key} ) {
-            return $self->response( $envelope, $Var{$key} . "\n" );
+            if ( ref $Var{$key} ) {
+                return $self->response( $envelope,
+                          '["'
+                        . join( q{", "}, grep m{\S}, @{ $Var{$key} } )
+                        . qq{"]\n} );
+            }
+            else {
+                return $self->response( $envelope, $Var{$key} . "\n" );
+            }
         }
         else {
             return $self->response( $envelope, q{} );
