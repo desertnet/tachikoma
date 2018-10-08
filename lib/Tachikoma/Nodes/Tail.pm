@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35016 2018-10-06 08:47:06Z chris $
+# $Id: Tail.pm 35033 2018-10-08 02:16:47Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -70,7 +70,7 @@ make_node Tail <node name> --filename=<filename>             \
 EOF
 }
 
-sub arguments {    ## no critic (ProhibitExcessComplexity)
+sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments      = shift;
@@ -108,16 +108,7 @@ sub arguments {    ## no critic (ProhibitExcessComplexity)
             $on_enoent      = $arguments->{on_ENOENT};
         }
         my $fh;
-        my $path = ( $filename =~ m{^(/.*)$} )[0];
-        die "ERROR: invalid path: $filename\n" if ( not defined $path );
-        $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
-        $path =~ s{(?:^|/)[.][.](?=/)}{}g;
-        $path =~ s{/+}{/}g;
-        my $link_path = undef;
-        $link_path = readlink $path if ( -l $path );
-        die "ERROR: forbidden file: $path\n"
-            if ( $Forbidden{$path}
-            or ( $link_path and $Forbidden{$link_path} ) );
+        my $path = $self->check_path($filename);
         $stream //= join q{:}, hostname(), $path;
         $max_unanswered ||= 0;
         $self->close_filehandle if ( $self->{fh} );
@@ -132,18 +123,8 @@ sub arguments {    ## no critic (ProhibitExcessComplexity)
         $self->{on_ENOENT}      = $on_enoent if ($on_enoent);
 
         if ( not open $fh, q{<}, $path ) {
-            my $this_eof    = $on_eof    || $self->{on_EOF};
-            my $this_enoent = $on_enoent || $self->{on_ENOENT};
-            my %okay_for = map { $_ => 1 } qw( reopen );
-            die "can't open $filename: $!\n"
-                if ( $this_enoent eq 'die'
-                or not $okay_for{$this_eof}
-                or $! !~ m{No such file or directory} );
-            $self->print_less_often(
-                "WARNING: can't open $filename: $! - retrying")
-                if ( $this_enoent eq 'retry' );
-            $self->on_EOF($on_eof) if ($on_eof);
-            $self->reattempt;
+            $self->{on_EOF} = $on_eof if ($on_eof);
+            $self->process_enoent;
             return $self->{arguments};
         }
         my $size = ( stat $fh )[7];
@@ -168,50 +149,41 @@ sub arguments {    ## no critic (ProhibitExcessComplexity)
     return $self->{arguments};
 }
 
-sub drain_fh {    ## no critic (ProhibitExcessComplexity)
+sub check_path {
+    my $self     = shift;
+    my $filename = shift;
+    my $path     = ( $filename =~ m{^(/.*)$} )[0];
+    die "ERROR: invalid path: $filename\n" if ( not defined $path );
+    $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
+    $path =~ s{(?:^|/)[.][.](?=/)}{}g;
+    $path =~ s{/+}{/}g;
+    my $link_path = undef;
+    $link_path = readlink $path if ( -l $path );
+    die "ERROR: forbidden file: $path\n"
+        if ( $Forbidden{$path}
+        or ( $link_path and $Forbidden{$link_path} ) );
+    return $path;
+}
+
+sub drain_fh {
     my $self = shift;
     my $kev  = shift;
     my $fh   = $self->{fh} or return;
-    if ( $kev and $kev->[4] < 0 ) {
-        if ( $self->{on_EOF} ne 'reopen' ) {
-            my $filename = $self->{filename};
-            $self->stderr("ERROR: file $filename shrank unexpectedly");
-            $self->{on_EOF} = 'close';
-            $self->handle_EOF;
-            return;
-        }
-
-        # $self->stderr("WARNING: $self->{filename} has shrunk");
-        sysseek $fh, 0, SEEK_SET or die $!;
-        $self->{bytes_read}     = 0;
-        $self->{bytes_answered} = 0;
-    }
+    $self->file_shrank if ( $kev and $kev->[4] < 0 );
     my $buffer = q{};
     my $read = sysread $fh, $buffer, 65536;
     &{ $self->{drain_buffer} }( $self, \$buffer, $self->{stream} )
         if ( $read and $self->{sink} );
     $self->print_less_often("WARNING: couldn't read(): $!")
         if ( not defined $read );
-    my $on_eof = $self->{on_EOF};
-    if ( defined $read and $read < 1 and not $! ) {
-
-        # support for epoll and select - only poll the file every so often
-        # also throttles overzealous fifos in kqueue
-        if ( $on_eof eq 'reopen' ) {
-            my $size = ( stat $self->{filename} )[7];
-            return $self->reattempt
-                if ( not defined $size or $size < $self->{bytes_read} );
-        }
-        $self->unregister_reader_node;
-        $self->poll_timer->set_timer( 1000 / ( $Tachikoma{Hz} || 10 ),
-            'oneshot' );
-    }
+    $self->handle_soft_EOF
+        if ( defined $read and $read < 1 and not $! );    # select and epoll
     $self->handle_EOF
         if (
         not defined $read
         or (    $read < 1
-            and $on_eof ne 'reopen'
-            and $on_eof ne 'ignore'
+            and $self->{on_EOF} ne 'reopen'
+            and $self->{on_EOF} ne 'ignore'
             and $self->finished )
         or (    $read
             and $self->{size}
@@ -221,54 +193,19 @@ sub drain_fh {    ## no critic (ProhibitExcessComplexity)
     return $read;
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self           = shift;
     my $message        = shift;
-    my $from           = $message->[FROM];
-    my $type           = $message->[TYPE];
-    my $stream         = $message->[STREAM];
     my $msg_unanswered = $self->{msg_unanswered};
     my $max_unanswered = $self->{max_unanswered};
-    if ( not length $from ) {
-
-        if ( $stream eq 'msg_timer' ) {
-            die "WARNING: timeout waiting for response\n"
-                if ( $self->{on_timeout} eq 'die' );
-            $self->stderr(
-                'WARNING: timeout waiting for response, trying again');
-            $self->expire;
-        }
-        elsif ( $stream eq 'poll_timer' ) {
-            $self->register_reader_node;
-        }
-        elsif ( $stream eq 'reattempt_timer' ) {
-            $self->note_fh;
-        }
-        elsif ( $stream eq 'wait_timer' ) {
-            if ( $self->{on_EOF} eq 'wait_for_delete' ) {
-                $self->stderr('WARNING: timeout waiting for delete event');
-                $self->{on_EOF} = 'close';
-                $self->handle_EOF;
-            }
-            elsif ( $self->{on_EOF} eq 'wait_for_a_while' ) {
-                $self->{on_EOF} = 'close';
-                $self->handle_EOF;
-            }
-            else {
-                $self->stderr('ERROR: unexpected wait timer');
-            }
-        }
-        else {
-            $self->stderr( 'WARNING: unexpected ', $message->type_as_string );
-        }
-        return;
-    }
-    $self->stderr( 'WARNING: unexpected response from ', $from )
-        if ( not $msg_unanswered and not $type & TM_ERROR );
+    return $self->check_timers($message) if ( not length $message->[FROM] );
+    return $self->stderr( 'WARNING: unexpected response from ',
+        $message->[FROM] )
+        if ( not $msg_unanswered and not $message->[TYPE] & TM_ERROR );
     return
         if ( not $max_unanswered
-        or not $type & TM_PERSIST
-        or not $type & TM_RESPONSE );
+        or not $message->[TYPE] & TM_PERSIST
+        or not $message->[TYPE] & TM_RESPONSE );
     $self->{bytes_answered} = $message->[ID]
         if ($message->[ID] =~ m{^\d}
         and $message->[ID] > $self->{bytes_answered} );
@@ -313,9 +250,7 @@ sub note_fh {
     }
     my $fh;
     if ( not open $fh, q{<}, $self->{filename} ) {
-        $self->print_less_often(
-            "WARNING: can't open $self->{filename}: $! - retrying")
-            if ( $self->reattempt > 10 and $self->{on_ENOENT} eq 'retry' );
+        $self->process_enoent;
         return;
     }
     $self->fh($fh);
@@ -335,6 +270,58 @@ sub note_fh {
     return;
 }
 
+sub file_shrank {
+    my $self = shift;
+    if ( $self->{on_EOF} ne 'reopen' ) {
+        my $filename = $self->{filename};
+        $self->stderr("ERROR: file $filename shrank unexpectedly");
+        $self->{on_EOF} = 'close';
+        $self->handle_EOF;
+        return;
+    }
+
+    # $self->stderr("WARNING: $self->{filename} has shrunk");
+    sysseek $self->{fh}, 0, SEEK_SET or die $!;
+    $self->{bytes_read}     = 0;
+    $self->{bytes_answered} = 0;
+    return;
+}
+
+sub check_timers {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->[STREAM] eq 'msg_timer' ) {
+        die "WARNING: timeout waiting for response\n"
+            if ( $self->{on_timeout} eq 'die' );
+        $self->stderr('WARNING: timeout waiting for response, trying again');
+        $self->expire;
+    }
+    elsif ( $message->[STREAM] eq 'poll_timer' ) {
+        $self->register_reader_node;
+    }
+    elsif ( $message->[STREAM] eq 'reattempt_timer' ) {
+        $self->note_fh;
+    }
+    elsif ( $message->[STREAM] eq 'wait_timer' ) {
+        if ( $self->{on_EOF} eq 'wait_for_delete' ) {
+            $self->stderr('WARNING: timeout waiting for delete event');
+            $self->{on_EOF} = 'close';
+            $self->handle_EOF;
+        }
+        elsif ( $self->{on_EOF} eq 'wait_for_a_while' ) {
+            $self->{on_EOF} = 'close';
+            $self->handle_EOF;
+        }
+        else {
+            $self->stderr('ERROR: unexpected wait timer');
+        }
+    }
+    else {
+        $self->stderr( 'WARNING: unexpected ', $message->type_as_string );
+    }
+    return;
+}
+
 sub expire {
     my ( $self, @args ) = @_;
     my $fh     = $self->{fh};
@@ -351,6 +338,39 @@ sub expire {
     }
     $self->{bytes_read} = $offset;
     return Tachikoma::Nodes::STDIO::expire( $self, @args );
+}
+
+sub process_enoent {
+    my $self     = shift;
+    my $filename = $self->{filename};
+    if (    $self->{on_EOF} eq 'reopen'
+        and $self->{on_ENOENT} eq 'retry' )
+    {
+        $self->print_less_often(
+            "WARNING: can't open $self->{filename}: $! - retrying")
+            if ( $self->reattempt > 10 );
+        return;
+    }
+    else {
+        die "ERROR: can't open $self->{filename}: $!";
+    }
+    return;
+}
+
+sub handle_soft_EOF {
+    my $self = shift;
+    if ( $self->{on_EOF} eq 'reopen' ) {
+        my $size = ( stat $self->{filename} )[7];
+        return $self->reattempt
+            if ( not defined $size or $size < $self->{bytes_read} );
+    }
+
+    # only poll the file every so often
+    # also throttles overzealous fifos in kqueue
+    $self->unregister_reader_node;
+    $self->poll_timer->set_timer( 1000 / ( $Tachikoma{Hz} || 10 ),
+        'oneshot' );
+    return;
 }
 
 sub reattempt {
