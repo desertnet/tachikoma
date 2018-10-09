@@ -2,18 +2,22 @@
 var hostname = `hostname -s`;
 var home     = `echo ~`;
 
-var topics_dir = /logs/topics
-var cache_dir  = /logs/cache
+var topics_dir = /logs/topics;
+var cache_dir  = /logs/cache;
 
-var tachikoma.hunter.port   = 5200;
-var tachikoma.indexers.port = 5300;
-var tachikoma.engines.port  = 5400;
-var tachikoma.tables.port   = 5400;
-var tachikoma.hubs.port     = 5500;
+var tachikoma.hunter.port           = 5200;
+var tachikoma.indexers.port         = 5300;
+var tachikoma.engines.port          = 5400;
+var tachikoma.tables.port           = 5400;
+var tachikoma.hubs.port             = 5500;
+var tachikoma.topic_top.hostname    = localhost;
+var tachikoma.topic_top.port        = 4380;
+var tachikoma.topic_top.output.port = 4381;
+var tachikoma.topic_top.input.port  = 4391;
 
 var hub       = localhost:5501;
 var broker    = <hub>/broker;
-var topic_top = localhost:4391;
+var topic_top = <tachikoma.topic_top.hostname>:<tachikoma.topic_top.input.port>;
 
 func connect_hub {
     connect_inet <hub> <hub>;
@@ -24,7 +28,7 @@ func topic_probe {
     if (<_C>) [
         prefix = <1>;
     ];
-    connect_inet localhost:4391 topic_top;
+    connect_inet <topic_top> topic_top;
     make_node MemorySieve topic_top:sieve 4 should_warn;
     make_node TopicProbe topic_probe 4 <prefix>;
     connect_node topic_top:sieve topic_top;
