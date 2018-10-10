@@ -797,6 +797,7 @@ sub read_block {
     my $got      = length ${$buffer};
     my $read     = sysread $fh, ${$buffer}, $buf_size, $got;
     my $again    = $! == EAGAIN;
+    my $error    = $!;
     $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     $got += $read if ( defined $read );
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
@@ -829,12 +830,11 @@ sub read_block {
         $self->{input_buffer} = $buffer;
         return ( $got, $message );
     }
-    if ( not defined $read ) {
+    if ( not defined $read or ( $read < 1 and not $again ) ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1] . '()';
-        $self->print_less_often("WARNING: $caller couldn't read(): $!");
+        $self->print_less_often("WARNING: $caller couldn't read(): $error");
+        return $self->handle_EOF;
     }
-    $self->handle_EOF
-        if ( not defined $read or ( $read < 1 and not $again ) );
     return;
 }
 

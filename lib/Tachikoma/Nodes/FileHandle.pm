@@ -131,17 +131,16 @@ sub drain_fh {
     my $read   = sysread $fh, ${$buffer}, 1048576, $got;
     my $again  = $! == EAGAIN;
     $read = 0 if ( $self->{use_SSL} and not defined $read and $again );
-    $got += $read if ( defined $read );
-    $got = $self->drain_buffer($buffer) if ( $got > 0 );
-
-    if ( not defined $got or $got < 1 ) {
-        my $new_buffer = q{};
-        $self->{input_buffer} = \$new_buffer;
-    }
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         $self->print_less_often("WARNING: couldn't read(): $!")
             if ( not defined $read and $! ne 'Connection reset by peer' );
-        $self->handle_EOF;
+        return $self->handle_EOF;
+    }
+    $got += $read;
+    $got = $self->drain_buffer($buffer) if ( $got > 0 );
+    if ( not defined $got or $got < 1 ) {
+        my $new_buffer = q{};
+        $self->{input_buffer} = \$new_buffer;
     }
     return $read;
 }
