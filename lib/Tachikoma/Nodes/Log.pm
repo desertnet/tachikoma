@@ -108,7 +108,7 @@ sub rotate {
     $self->make_parent_dirs($new_name);
     rename $self->{filename}, $new_name
         or $self->stderr("WARNING: couldn't rename $self->{filename}: $!");
-    $self->arguments( $self->{arguments} );
+    $self->arguments( $self->arguments );
     return;
 }
 
