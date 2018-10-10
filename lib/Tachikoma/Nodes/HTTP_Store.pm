@@ -56,7 +56,6 @@ sub fill {
     my $prefix  = $self->{prefix};
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
-    my $type            = ( $path =~ m{\.([^.]+)$} )[0] || 'json';
     my $accept_encoding = $headers->{'accept-encoding'} || q{};
     my ( $topic_name, $escaped ) = split q{/}, $path, 2;
     my $postdata = $request->{'body'};
