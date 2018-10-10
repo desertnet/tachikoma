@@ -22,7 +22,6 @@ make_node Ruleset            system_log:ruleset
 make_node Tee                system_log:tee
 make_node Tee                system_log
 make_node Tee                silc_dn:tee
-make_node Tail               http_log /var/log/tachikoma/http-access.log
 make_node Null               null
 make_node Echo               echo
 make_node Scheduler          scheduler
@@ -47,6 +46,7 @@ cd ..
 command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
 command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
 command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
+command jobs start_job Tail      http_log         /var/log/tachikoma/http-access.log
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
