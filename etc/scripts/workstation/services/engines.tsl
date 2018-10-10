@@ -2,7 +2,7 @@
 var name = engines;
 include services/daemonize.tsl
 
-var root_port = 5499
+var service_port = 5499
 
 make_node Tee engines
 for i (1 .. 2) {
@@ -75,5 +75,5 @@ for i (1 .. 2) {
     connect_node engines engine<i>;
 }
 
-listen_inet localhost:<root_port>
+listen_inet localhost:<service_port>
 secure 3
