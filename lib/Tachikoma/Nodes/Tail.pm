@@ -65,7 +65,8 @@ make_node Tail <node name> --filename=<filename>             \
                            --buffer_mode=<buffer mode>       \
                            --max_unanswered=<max unanswered> \
                            --on-eof=<on_EOF>                 \
-                           --on-enoent=<on_ENOENT>
+                           --on-enoent=<on_ENOENT>           \
+                           --timeout=<seconds>
     # buffer modes: line-buffered, block-buffered, binary
 EOF
 }
@@ -81,6 +82,7 @@ sub arguments {
         my $max_unanswered = undef;
         my $on_eof         = undef;
         my $on_enoent      = undef;
+        my $timeout        = undef;
         if ( not ref $arguments ) {
             my ( $r, $argv ) = GetOptionsFromString(
                 $arguments,
@@ -90,7 +92,8 @@ sub arguments {
                 'buffer_mode=s'    => \$buffer_mode,
                 'max_unanswered=i' => \$max_unanswered,
                 'on-eof=s'         => \$on_eof,
-                'on-enoent=s'      => \$on_enoent
+                'on-enoent=s'      => \$on_enoent,
+                'timeout=i'        => \$timeout
             );
             die "invalid option\n" if ( not $r );
             $filename ||= $argv->[0];
@@ -106,11 +109,12 @@ sub arguments {
             $max_unanswered = $arguments->{max_unanswered};
             $on_eof         = $arguments->{on_EOF};
             $on_enoent      = $arguments->{on_ENOENT};
+            $timeout        = $arguments->{timeout};
         }
         my $fh;
         my $path = $self->check_path($filename);
         $stream //= join q{:}, hostname(), $path;
-        $max_unanswered ||= 0;
+        $on_enoent = 'die' if ( defined $offset );
         $self->close_filehandle if ( $self->{fh} );
         $self->{arguments}      = $arguments;
         $self->{filename}       = $path;
@@ -119,8 +123,9 @@ sub arguments {
         $self->{line_buffer}    = q{};
         $self->{buffer_mode}    = $buffer_mode;
         $self->{msg_unanswered} = 0;
-        $self->{max_unanswered} = $max_unanswered;
+        $self->{max_unanswered} = $max_unanswered || 0;
         $self->{on_ENOENT}      = $on_enoent if ($on_enoent);
+        $self->{timeout}        = $timeout if ($timeout);
 
         if ( not open $fh, q{<}, $path ) {
             $self->{on_EOF} = $on_eof if ($on_eof);
@@ -172,12 +177,12 @@ sub drain_fh {
     $self->file_shrank if ( $kev and $kev->[4] < 0 );
     my $buffer = q{};
     my $read = sysread $fh, $buffer, 65536;
-    &{ $self->{drain_buffer} }( $self, \$buffer, $self->{stream} )
-        if ( $read and $self->{sink} );
     $self->print_less_often("WARNING: couldn't read(): $!")
         if ( not defined $read );
+    &{ $self->{drain_buffer} }( $self, \$buffer, $self->{stream} )
+        if ( $read and $self->{sink} );
     $self->handle_soft_EOF
-        if ( defined $read and $read < 1 and not $! );    # select and epoll
+        if ( defined $read and $read < 1 );    # select and epoll
     $self->handle_EOF
         if (
         not defined $read
@@ -352,7 +357,7 @@ sub process_enoent {
         return;
     }
     else {
-        die "ERROR: can't open $self->{filename}: $!";
+        die "ERROR: can't open $self->{filename}: $!\n";
     }
     return;
 }
