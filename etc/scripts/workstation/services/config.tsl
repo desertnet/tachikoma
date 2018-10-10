@@ -16,7 +16,6 @@ var tachikoma.topic_top.port        = 4380;
 var tachikoma.topic_top.output.port = 4381;
 var tachikoma.topic_top.input.port  = 4391;
 var tachikoma.http.port             = 4241;
-var tachikoma.store.port            = 4251;
 
 var hub       = localhost:5501;
 var broker    = <hub>/broker;

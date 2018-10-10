@@ -119,9 +119,6 @@ command hosts connect_inet localhost:5499                       engines:service
 command jobs  run_job Shell <services>/hunter.tsl
 command hosts connect_inet localhost:<tachikoma.hunter.port>    hunter:service
 
-command jobs  run_job Shell <services>/store.tsl
-command hosts connect_inet localhost:<tachikoma.store.port>     store:service
-
 command jobs  run_job Shell <services>/topic_top.tsl
 command hosts connect_inet localhost:<tachikoma.topic_top.port> topic_top:service
 
