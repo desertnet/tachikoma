@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 34375 2018-07-03 12:17:22Z chris $
+# $Id: Select.pm 35051 2018-10-10 23:03:53Z chris $
 #
 
 package Tachikoma::EventFrameworks::Select;
@@ -124,12 +124,12 @@ sub drain {    ## no critic (ProhibitExcessComplexity)
                     next;
                 }
                 if ( $timer->[ONESHOT] ) {
+                    $node->{timer_is_active} = undef;
                     delete $Timers{$id};
                 }
                 else {
                     $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
                 }
-                $node->{timer_is_active} = undef if ( $timer->[ONESHOT] );
                 $node->fire;
             }
         }
