@@ -22,7 +22,7 @@ make_node Ruleset            system_log:ruleset
 make_node Tee                system_log:tee
 make_node Tee                system_log
 make_node Tee                silc_dn:tee
-make_node Tee                http_log
+make_node Tail               http_log /var/log/tachikoma/http-access.log
 make_node Null               null
 make_node Echo               echo
 make_node Scheduler          scheduler
@@ -56,6 +56,7 @@ connect_node error_log:tee            error_log:color
 connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
 connect_node local_server_log         server_log:ruleset
+connect_node http_log                 null
 
 EOF
 }
@@ -118,35 +119,19 @@ command hosts connect_inet localhost:5499                       engines:service
 command jobs  run_job Shell <services>/hunter.tsl
 command hosts connect_inet localhost:<tachikoma.hunter.port>    hunter:service
 
+command jobs  run_job Shell <services>/store.tsl
+command hosts connect_inet localhost:<tachikoma.store.port>     store:service
+
 command jobs  run_job Shell <services>/topic_top.tsl
 command hosts connect_inet localhost:<tachikoma.topic_top.port> topic_top:service
+
+command jobs  run_job Shell <services>/http.tsl
+command hosts connect_inet localhost:<tachikoma.http.port>      http:service
 
 
 
 # ingest server logs
 connect_node server_log:tee indexers:service/server_log
-
-EOF
-}
-
-sub workstation_topic_top {
-    print <<EOF;
-
-
-# topic top
-command jobs start_job CommandInterpreter topic_top
-cd topic_top
-  make_node Tee             topic_top:tee
-  make_node ClientConnector topic_top:client_connector topic_top:tee
-  make_node CommandInterpreter clients
-  cd clients
-    listen_inet 127.0.0.1:4381
-    register 127.0.0.1:4381 topic_top:client_connector authenticated
-    listen_inet 127.0.0.1:4391
-    connect_node 127.0.0.1:4391 topic_top:tee
-  cd ..
-  secure 3
-cd ..
 
 EOF
 }
@@ -185,42 +170,6 @@ connect_node AfPlay           null
 connect_node AfPlay:sieve     AfPlay:load_balancer
 connect_node server_log:tee   server_log:sounds
 connect_node silc_dn:tee      silc:sounds
-
-EOF
-}
-
-sub workstation_http_server {
-    print <<EOF;
-
-
-# http server
-command jobs start_job CommandInterpreter http
-cd http
-  listen_inet --io 127.0.0.1:4242
-  make_node HTTP_Responder    responder /tmp/http 4242
-  make_node HTTP_Timeout
-  make_node Echo              http:log
-  make_node HTTP_Route        root
-  make_node HTTP_Auth         root:auth <home>/Sites/.htpasswd tachikoma-tools
-  make_node HTTP_File         root:dir  <home>/Sites
-  make_node JobFarmer         CGI       4 CGI /usr/local/etc/tachikoma/CGI.conf /tmp/http
-  command CGI  autokill on
-  command CGI  lazy on
-  command root add_path /              root:dir
-  command root add_path /cgi-bin       CGI
-  command root add_path /debug/capture http:log
-  connect_node http:log     _parent/http_log
-  connect_node root:auth    root
-  connect_node responder    root:auth
-  connect_sink 127.0.0.1:4242 responder
-
-  # listen_inet --io 127.0.0.1:4243
-  # make_node HTTP_Responder    proxy:responder /tmp/proxy 4243
-  # make_node JobFarmer         LWP             4 LWP 90 /tmp/proxy
-  # connect_node proxy:responder LWP
-  # connect_sink 127.0.0.1:4243    proxy:responder
-  secure 3
-cd ..
 
 EOF
 }

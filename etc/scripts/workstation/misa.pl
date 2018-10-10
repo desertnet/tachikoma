@@ -8,7 +8,6 @@ workstation_benchmarks();
 workstation_partitions();
 # workstation_services();
 workstation_sound_effects();
-workstation_http_server();
 
 workstation_hosts();
 print <<EOF;

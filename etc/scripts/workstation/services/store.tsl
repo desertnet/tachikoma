@@ -1,0 +1,24 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = store;
+include services/daemonize.tsl
+
+var http_port = (<root_port> + 1);
+
+connect_hub
+
+listen_inet --io localhost:<http_port>
+make_node HTTP_Responder responder /tmp/<name> <http_port>
+make_node HTTP_Timeout
+make_node Log            http:log  /var/log/tachikoma/<name>-access.log
+make_node HTTP_Route     root
+make_node HTTP_Auth      root:auth <home>/Sites/.htpasswd tachikoma-tools
+make_node HTTP_Store     root:dir  / topic1 topic2
+make_node Topic          topic1    <broker>
+make_node Topic          topic2    <broker>
+command root add_path / root:dir
+connect_node root:auth             root
+connect_node responder             root:auth
+connect_sink localhost:<http_port> responder
+
+listen_inet localhost:<root_port>
+secure 3

@@ -15,7 +15,7 @@ make_node Ruleset            system_log:ruleset
 make_node Tee                system_log:tee
 make_node Tee                system_log
 make_node Tee                silc_dn:tee
-make_node Tee                http_log
+make_node Tail               http_log /var/log/tachikoma/http-access.log
 make_node Null               null
 make_node Echo               echo
 make_node Scheduler          scheduler
@@ -49,6 +49,7 @@ connect_node error_log:tee            error_log:color
 connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
 connect_node local_server_log         server_log:ruleset
+connect_node http_log                 null
 
 
 
@@ -108,37 +109,6 @@ connect_node AfPlay           null
 connect_node AfPlay:sieve     AfPlay:load_balancer
 connect_node server_log:tee   server_log:sounds
 connect_node silc_dn:tee      silc:sounds
-
-
-
-# http server
-command jobs start_job CommandInterpreter http
-cd http
-  listen_inet --io 127.0.0.1:4242
-  make_node HTTP_Responder    responder /tmp/http 4242
-  make_node HTTP_Timeout
-  make_node Echo              http:log
-  make_node HTTP_Route        root
-  make_node HTTP_Auth         root:auth <home>/Sites/.htpasswd tachikoma-tools
-  make_node HTTP_File         root:dir  <home>/Sites
-  make_node JobFarmer         CGI       4 CGI /usr/local/etc/tachikoma/CGI.conf /tmp/http
-  command CGI  autokill on
-  command CGI  lazy on
-  command root add_path /              root:dir
-  command root add_path /cgi-bin       CGI
-  command root add_path /debug/capture http:log
-  connect_node http:log     _parent/http_log
-  connect_node root:auth    root
-  connect_node responder    root:auth
-  connect_sink 127.0.0.1:4242 responder
-
-  # listen_inet --io 127.0.0.1:4243
-  # make_node HTTP_Responder    proxy:responder /tmp/proxy 4243
-  # make_node JobFarmer         LWP             4 LWP 90 /tmp/proxy
-  # connect_node proxy:responder LWP
-  # connect_sink 127.0.0.1:4243    proxy:responder
-  secure 3
-cd ..
 
 cd hosts
   connect_inet --use-ssl tachikoma:4231

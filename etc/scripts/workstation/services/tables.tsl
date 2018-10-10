@@ -2,12 +2,10 @@
 var name = tables;
 include services/daemonize.tsl
 
-var http_port = 3124
-
 connect_hub
 
 
-# example of caching values
+# example of caching values for HTTP_Fetch
 make_node ConsumerBroker topic1:consumer    --broker=<broker>        \
                                             --topic=topic1           \
                                             --group=cache.<hostname> \
@@ -21,7 +19,7 @@ make_node Table          topic1:table       --num_partitions=1       \
 connect_edge topic1:consumer topic1:table
 
 
-# example of caching offsets
+# example of caching offsets for fetch.cgi
 make_node ConsumerBroker topic1.ID:consumer --broker=<broker>        \
                                             --topic=topic1.ID        \
                                             --group=IDs.<hostname>   \
@@ -50,8 +48,8 @@ command root add /      root:dir
 command root add /fetch fetch:dir
 command root add /store store:dir
 connect_node responder          root
-listen_inet --io <hostname>:<http_port>
-connect_sink <hostname>:<http_port> responder
+listen_inet --io <hostname>:<tachikoma.tables.http.port>
+connect_sink <hostname>:<tachikoma.tables.http.port> responder
 
 listen_inet localhost:<root_port>
 secure 3
