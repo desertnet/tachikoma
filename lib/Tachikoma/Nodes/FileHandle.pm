@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 34904 2018-09-07 16:35:21Z chris $
+# $Id: FileHandle.pm 35049 2018-10-10 22:02:12Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
