@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 34667 2018-09-01 03:44:41Z chris $
+# $Id: HTTP_Responder.pm 35038 2018-10-10 00:26:59Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -130,30 +130,33 @@ sub fill {
             delete $payloads->{$name};
             return;
         }
-        if ( $length > 131072 ) {
-            if ( not $request->{tmp} ) {
-                my $tmp_path = join( '/', $self->{tmp_path}, 'post' );
-                $self->make_dirs($tmp_path)
-                    or return $self->stderr(
-                    "ERROR: couldn't mkdir $tmp_path: $!")
-                    if ( not -d $tmp_path );
-                my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
-                $request->{fh} = $fh;
-                $request->{tmp} = join( '/', $tmp_path, $template );
-            }
-            $request->{length} += length($$payload);
-            syswrite( $request->{fh}, $$payload )
-                or return $self->stderr("ERROR: can't write(): $!")
-                if ( length($$payload) );
-            $$payload = '';
-            return if ( $length > $request->{length} );
-            close( $request->{fh} );
-            delete $request->{fh};
-        }
-        else {
-            return if ( $length > length($$payload) );
-            $request->{body} = $$payload;
-        }
+
+        # if ( $length > 131072 ) {
+        #     if ( not $request->{tmp} ) {
+        #         my $tmp_path = join( '/', $self->{tmp_path}, 'post' );
+        #         $self->make_dirs($tmp_path)
+        #             or return $self->stderr(
+        #             "ERROR: couldn't mkdir $tmp_path: $!")
+        #             if ( not -d $tmp_path );
+        #         my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
+        #         $request->{fh} = $fh;
+        #         $request->{tmp} = join( '/', $tmp_path, $template );
+        #     }
+        #     $request->{length} += length($$payload);
+        #     syswrite( $request->{fh}, $$payload )
+        #         or return $self->stderr("ERROR: can't write(): $!")
+        #         if ( length($$payload) );
+        #     $$payload = '';
+        #     return if ( $length > $request->{length} );
+        #     close( $request->{fh} );
+        #     delete $request->{fh};
+        # }
+        # else {
+        #     return if ( $length > length($$payload) );
+        #     $request->{body} = $$payload;
+        # }
+        return if ( $length > length($$payload) );
+        $request->{body} = $$payload;
     }
 
     # cleanup and send the request object down the pipe
