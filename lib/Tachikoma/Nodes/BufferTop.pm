@@ -9,12 +9,11 @@
 package Tachikoma::Nodes::BufferTop;
 use strict;
 use warnings;
-use Tachikoma::Nodes::Timer;
+use Tachikoma::Nodes::TopicTop qw( smart_sort );
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM TM_EOF );
 use POSIX qw( strftime );
-use vars qw( @EXPORT_OK );
-use parent qw( Exporter Tachikoma::Nodes::Timer );
-@EXPORT_OK = qw( smart_sort );
+use vars qw( @ISA );
+@ISA = qw( Tachikoma::Nodes::TopicTop );
 
 my $Buffer_Timeout          = 10;
 my $Default_Output_Interval = 4.0;                               # seconds
@@ -54,12 +53,6 @@ sub new {
     $self->{buffers} = {};
     bless $self, $class;
     $self->set_timer( $Default_Output_Interval * 1000 );
-    $SIG{WINCH} = sub { $Winch = 1 };
-    $SIG{INT} = sub {
-        print "\e[0m\e[?25h";
-        system( '/bin/stty', 'echo', '-cbreak' );
-        exit 1;
-    };
     return $self;
 }
 
@@ -255,145 +248,6 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %$sorted ) {
     $response->[PAYLOAD] = $output;
     $self->{sink}->fill($response);
     return;
-}
-
-sub smart_sort {
-    my $a       = shift;
-    my $b       = shift;
-    my $reverse = shift;
-    return $reverse ? $a <=> $b : $b <=> $a
-        if ( $a =~ m($Numeric) and $b =~ m($Numeric) );
-    return $reverse ? lc($b) cmp lc($a) : lc($a) cmp lc($b);
-}
-
-sub select_fields {
-    my $self = shift;
-    if (@_) {
-        my $new_fields = shift;
-        $self->{select_fields} = $new_fields if ($new_fields);
-        my $width    = $self->width;
-        my $fields   = $self->{fields};
-        my @selected = ();
-        for my $field ( split( m(,\s*), $self->{select_fields} ) ) {
-            die "no such field: $field\n" if ( not exists $fields->{$field} );
-            push( @selected, $field );
-        }
-        my $total = -1;
-        $total += 2 * $fields->{$_}->{pad} + abs( $fields->{$_}->{size} ) + 1
-            for (@selected);
-        for ( reverse @selected ) {
-            next if ( not $fields->{$_}->{dynamic} );
-            my $size = $fields->{$_}->{size};
-            if ( $size > 0 ) {
-                $size += $width - $total;
-            }
-            else {
-                $size -= $width - $total;
-            }
-            $fields->{$_}->{size} = $size;
-            $total = $width;
-            last;
-        }
-        $self->{format} = join(
-            ' ',
-            map join( '',
-                ' ' x $fields->{$_}->{pad}, '%', $fields->{$_}->{size},
-                's', ' ' x $fields->{$_}->{pad} ),
-            @selected
-        );
-        $self->{format} .= ' ' x ( $width - $total );
-        $self->{header} = sprintf( $self->{format} . "\n",
-            map $fields->{$_}->{label}, @selected );
-        $self->{selected} = \@selected;
-    }
-    return $self->{select_fields};
-}
-
-sub update_window_size {
-    my $self = shift;
-    $Winch = undef;
-    my $height = `tput lines`;
-    my $width  = `tput cols`;
-    chomp($height);
-    chomp($width);
-    $self->{height} = $height;
-    $self->{width}  = $width;
-    $self->select_fields(undef);
-}
-
-sub remove_node {
-    my $self = shift;
-    print "\e[0m\e[?25h";
-    system( '/bin/stty', 'echo', '-cbreak' );
-    $self->SUPER::remove_node;
-    return;
-}
-
-sub where {
-    my $self = shift;
-    if (@_) {
-        $self->{where} = shift;
-    }
-    return $self->{where};
-}
-
-sub where_not {
-    my $self = shift;
-    if (@_) {
-        $self->{where_not} = shift;
-    }
-    return $self->{where_not};
-}
-
-sub sort {
-    my $self = shift;
-    if (@_) {
-        $self->{sort} = shift;
-    }
-    return $self->{sort};
-}
-
-sub height {
-    my $self = shift;
-    if (@_) {
-        $self->{height} = shift;
-    }
-    $self->update_window_size if ( $Winch or not defined $self->{height} );
-    return $self->{height};
-}
-
-sub width {
-    my $self = shift;
-    if (@_) {
-        $self->{width} = shift;
-    }
-    $self->update_window_size if ( $Winch or not defined $self->{width} );
-    return $self->{width};
-}
-
-sub threshold {
-    my $self = shift;
-    if (@_) {
-        $self->{threshold} = shift;
-    }
-    return $self->{threshold};
-}
-
-sub delay {
-    my $self = shift;
-    if (@_) {
-        $self->{delay} = shift;
-        $self->set_timer( $self->{delay} * 1000 );
-    }
-    return $self->{delay};
-}
-
-sub fields {
-    my $self = shift;
-    if (@_) {
-        $self->{fields} = shift;
-    }
-    return $self->{fields};
 }
 
 sub buffers {
