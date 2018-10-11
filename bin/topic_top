@@ -30,7 +30,6 @@ my %width         = ();
 my $sort          = '_distance';
 my $threshold     = undef;
 my $delay         = 4;
-my $lines         = undef;         # XXX: until wrappers are updated
 
 my $r = GetOptions(
     'host=s'      => \$host,
@@ -45,7 +44,6 @@ my $r = GetOptions(
     'delay=f'     => \$delay,
     'list_fields' => \$list_fields,
     'help'        => \$help,
-    'lines=i'     => \$lines,           # XXX: until wrappers are updated
 );
 usage() if ( $help or not $r );
 $threshold //= 1;
