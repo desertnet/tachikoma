@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35067 2018-10-12 01:13:02Z chris $
+# $Id: Tachikoma.pm 35076 2018-10-12 03:14:03Z chris $
 #
 
 package Tachikoma;
@@ -18,6 +18,7 @@ use Tachikoma::Message qw(
 use Tachikoma::Config qw(
     %Tachikoma $ID %SSL_Config %Var $Wire_Version load_module include_conf
 );
+use Tachikoma::Crypto;
 use Tachikoma::Nodes::Callback;
 use Digest::MD5 qw( md5 );
 use IO::Socket::SSL qw( SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT );
