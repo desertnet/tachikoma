@@ -1,4 +1,5 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
+scheme rsa
 if (<_C> > 0) {
     log "commandline arguments: <@>";
     for i (1 .. <_C>) {

@@ -3,8 +3,7 @@ include services/config.tsl
 
 var Log_File  = /var/log/tachikoma/<name>.log
 var Pid_File  = /var/run/tachikoma/<name>.pid
-var port      = [var "tachikoma.<name>.port"]
-var root_port = <port>
+var root_port = [var "tachikoma.<name>.port"]
 
 daemonize [var name]
 

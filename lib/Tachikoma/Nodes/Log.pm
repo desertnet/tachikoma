@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 34674 2018-09-01 08:50:38Z chris $
+# $Id: Log.pm 35049 2018-10-10 22:02:12Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -108,7 +108,7 @@ sub rotate {
     $self->make_parent_dirs($new_name);
     rename $self->{filename}, $new_name
         or $self->stderr("WARNING: couldn't rename $self->{filename}: $!");
-    $self->arguments( $self->{arguments} );
+    $self->arguments( $self->arguments );
     return;
 }
 

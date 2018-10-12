@@ -1,0 +1,27 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = http;
+include services/daemonize.tsl
+
+var http_port = (<root_port> + 1);
+
+connect_hub
+
+listen_inet --io localhost:<http_port>
+make_node HTTP_Responder    responder /tmp/<name> <http_port>
+make_node HTTP_Timeout
+make_node Log               http:log  /var/log/tachikoma/<name>-access.log
+make_node HTTP_Route        root
+make_node HTTP_Auth         root:auth <home>/Sites/.htpasswd tachikoma-tools
+make_node HTTP_File         root:dir  <home>/Sites
+make_node JobFarmer         CGI       4 CGI /usr/local/etc/tachikoma/CGI.conf /tmp/<name>
+command CGI  autokill on
+command CGI  lazy on
+command root add_path /              root:dir
+command root add_path /cgi-bin       CGI
+command root add_path /debug/capture http:log
+connect_node root:auth    root
+connect_node responder    root:auth
+connect_sink localhost:<http_port> responder
+
+listen_inet localhost:<root_port>
+secure 3

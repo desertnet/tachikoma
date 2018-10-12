@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 34372 2018-07-03 11:21:51Z chris $
+# $Id: KQueue.pm 35051 2018-10-10 23:03:53Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -154,12 +154,12 @@ sub drain {
                     next;
                 }
                 elsif ( $timer->[ONESHOT] ) {
+                    $node->{timer_is_active} = undef;
                     delete $Timers{$id};
                 }
                 else {
                     $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
                 }
-                $node->{timer_is_active} = undef if ( $timer->[ONESHOT] );
                 $node->fire;
             }
         }

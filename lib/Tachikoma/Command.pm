@@ -3,7 +3,7 @@
 # Tachikoma::Command
 # ----------------------------------------------------------------------
 #
-# $Id: Command.pm 34862 2018-09-04 07:03:11Z chris $
+# $Id: Command.pm 35073 2018-10-12 01:49:26Z chris $
 #
 
 package Tachikoma::Command;
@@ -91,7 +91,8 @@ sub sign {
     if ( $scheme eq 'ed25519' ) {
         die "ERROR: Ed25519 signatures not supported\n"
             if ( not $USE_SODIUM );
-        return if ( not $Private_Ed25519_Key );
+        die "ERROR: Ed25519 signatures not configured\n"
+            if ( not $Private_Ed25519_Key );
         my $crypto_sign = Crypt::NaCl::Sodium->sign;
         $self->{signature} = join q{}, $ID, "\n", "ed25519\n",
             $crypto_sign->mac( $plaintext, $Private_Ed25519_Key );

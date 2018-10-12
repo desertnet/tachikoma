@@ -8,6 +8,9 @@ our %workstation_keys;
 our %server_keys;
 our %workstation_ed25519_keys;
 
+%server_keys = (
+);
+
 %workstation_keys = (
     'tachikoma@nyx' =>
 q(-----BEGIN RSA PUBLIC KEY-----

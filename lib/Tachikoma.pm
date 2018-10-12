@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 34972 2018-09-24 00:48:12Z chris $
+# $Id: Tachikoma.pm 35067 2018-10-12 01:13:02Z chris $
 #
 
 package Tachikoma;
@@ -16,21 +16,9 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Tachikoma::Config qw(
-    %Tachikoma $ID %Keys %SSL_Config %Var $Wire_Version load_module include_conf
+    %Tachikoma $ID %SSL_Config %Var $Wire_Version load_module include_conf
 );
 use Tachikoma::Nodes::Callback;
-use Crypt::OpenSSL::RSA qw();
-my $USE_SODIUM;
-
-BEGIN {
-    $USE_SODIUM = eval {
-        my $module_name = 'Crypt::NaCl::Sodium';
-        my $module_path = 'Crypt/NaCl/Sodium.pm';
-        require $module_path;
-        import $module_name qw( :utils );
-        return 1;
-    };
-}
 use Digest::MD5 qw( md5 );
 use IO::Socket::SSL qw( SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT );
 use POSIX qw( setsid dup2 F_SETFL O_NONBLOCK EAGAIN );
@@ -39,7 +27,7 @@ use Socket qw(
     SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE
 );
 use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Node );
+use parent qw( Tachikoma::Node Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.101');
 
@@ -71,12 +59,9 @@ $Tachikoma::Profiles          = undef;
 @Tachikoma::Recent_Log        = ();
 %Tachikoma::Recent_Log_Timers = ();
 $Tachikoma::Shutting_Down     = undef;
-
-# $Tachikoma::SSL_Ciphers       = q{};
-$Tachikoma::SSL_Version = 'TLSv1';
-
-# $Tachikoma::Scheme      = 'sha256';
-$Tachikoma::Scheme = 'rsa';
+$Tachikoma::Scheme            = 'rsa';
+$Tachikoma::SSL_Ciphers       = q{};
+$Tachikoma::SSL_Version       = 'TLSv1';
 
 sub unix_client {
     my $class    = shift;
@@ -123,9 +108,12 @@ sub inet_client {
             SSL_verify_callback => sub {
                 my $okay  = $_[0];
                 my $error = $_[3];
-                return 1
-                    if ( $okay
-                    or $error eq 'error:0000000A:lib(0):func(0):DSA lib' );
+                return 1 if ($okay);
+                if ( $error eq 'error:0000000A:lib(0):func(0):DSA lib' ) {
+                    print {*STDERR}
+                        "WARNING: SSL certificate verification error: $error";
+                    return 1;
+                }
                 print {*STDERR}
                     "ERROR: SSL certificate verification failed: $error";
                 return 0;
@@ -205,7 +193,9 @@ sub reply_to_server_challenge {
         die "ERROR: reply_to_server_challenge() wrong challenge type\n";
     }
     elsif ( length $ID ) {
-        $self->verify_signature( 'server', $message, $command );
+        exit 1
+            if (
+            not $self->verify_signature( 'server', $message, $command ) );
     }
     $command->sign( $self->scheme, $message->timestamp );
     $message->payload( $command->packed );
@@ -239,7 +229,9 @@ sub auth_server_response {
         die "ERROR: auth_server_response() failed: wrong challenge type\n";
     }
     elsif ( length $ID ) {
-        $self->verify_signature( $command->{arguments}, $message, $command );
+        exit 1
+            if (
+            not $self->verify_signature( 'server', $message, $command ) );
     }
     elsif ( $message->[TIMESTAMP] ne $self->{auth_timestamp} ) {
         die "ERROR: auth_server_response() failed: incorrect timestamp\n";
@@ -250,88 +242,6 @@ sub auth_server_response {
     $self->{counter}++;
     $self->{auth_challenge} = undef;
     return;
-}
-
-sub verify_signature {
-    my $self      = shift;
-    my $type      = shift;
-    my $message   = shift;
-    my $command   = shift;
-    my $challenge = $command->{payload};
-    my $caller    = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
-    my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
-
-    if ( not $id ) {
-        die "ERROR: $caller failed: couldn't find ID\n";
-    }
-    elsif ( $type eq 'server' ) {
-        $self->check_server_id($id);
-    }
-    my ( $scheme, $signature ) = split m{\n}, $proto, 2;
-    $signature = $proto
-        if ($scheme ne 'rsa'
-        and $scheme ne 'sha256'
-        and $scheme ne 'ed25519' );
-    if ( not $Keys{$id} ) {
-        die "ERROR: $caller failed: $id not in authorized_keys\n";
-    }
-    elsif ( not $Keys{$id}->{allow}->{$type} ) {
-        die "ERROR: $caller failed: $id not allowed to connect\n";
-    }
-    my $signed = join q{:},
-        $id, $message->[TIMESTAMP], $command->{name}, $command->{arguments},
-        $command->{payload};
-    if ( $scheme eq 'ed25519' ) {
-        if ( not $USE_SODIUM ) {
-            die "ERROR: Ed25519 signatures not supported\n";
-        }
-        my $key_text    = $Keys{$id}->{ed25519};
-        my $crypto_sign = Crypt::NaCl::Sodium->sign;
-        if ( not $crypto_sign->verify( $signature, $signed, $key_text ) ) {
-            my $error = 'signature mismatch';
-            die "ERROR: $caller failed: $error\n";
-        }
-    }
-    else {
-        my $key_text = $Keys{$id}->{public_key};
-        my $okay     = eval {
-            my $rsa = Crypt::OpenSSL::RSA->new_public_key($key_text);
-            if ( $scheme eq 'sha256' ) {
-                $rsa->use_sha256_hash;
-            }
-            else {
-                $rsa->use_sha1_hash;
-            }
-            return $rsa->verify( $signed, $signature );
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'signature mismatch';
-            die "ERROR: $caller failed: $error\n";
-        }
-    }
-    if ( time - $message->[TIMESTAMP] > 300 ) {
-        die "ERROR: $caller failed: message too old\n";
-    }
-    return 1;
-}
-
-sub check_server_id {
-    my $self           = shift;
-    my $id             = shift;
-    my $short_id       = $id;
-    my $short_hostname = $self->{hostname};
-    if (    $short_hostname
-        and $short_hostname ne 'localhost'
-        and $short_hostname ne '127.0.0.1' )
-    {
-        $short_id =~ s{.*@}{};
-        $short_id =~ s{[.].*}{};
-        $short_hostname =~ s{[.].*}{};
-        if ( $short_id ne $short_hostname ) {
-            die "ERROR: check_server_id() failed: wrong ID: $id\n";
-        }
-    }
-    return 1;
 }
 
 sub read_block {
@@ -1083,9 +993,9 @@ L<Tachikoma::Message>
 
 L<Tachikoma::Config>
 
-L<Tachikoma::Nodes::Callback>
+L<Tachikoma::Crypto>
 
-L<Crypt::OpenSSL::RSA>
+L<Tachikoma::Nodes::Callback>
 
 L<Digest::MD5>
 
