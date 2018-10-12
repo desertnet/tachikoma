@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35059 2018-10-12 00:43:01Z chris $
+# $Id: CommandInterpreter.pm 35076 2018-10-12 03:14:03Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -21,6 +21,7 @@ use Tachikoma::Command;
 use Tachikoma::Config qw(
     %Tachikoma $ID %Keys $Secure_Level %Help %Functions %Var $Wire_Version
 );
+use Tachikoma::Crypto;
 use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Socket;
@@ -489,7 +490,7 @@ $C{scheme} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    Tachikoma->scheme( $command->arguments );
+    Tachikoma::Crypto->scheme( $command->arguments );
     return $self->okay($envelope);
 };
 
@@ -1025,9 +1026,9 @@ $C{listen_inet} = sub {
                     $listen->{Port} );
             }
             $server_node->use_SSL( $listen->{use_SSL} );
-            $server_node->scheme($scheme)
-                if ( $listen->{scheme}
-                and ( $USE_SODIUM or $listen->{scheme} ne 'ed25519' ) );
+            $server_node->scheme( $listen->{Scheme} )
+                if ( $listen->{Scheme}
+                and ( $USE_SODIUM or $listen->{Scheme} ne 'ed25519' ) );
             $server_node->sink($self);
         }
         return $self->okay($envelope);

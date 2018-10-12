@@ -34,7 +34,7 @@ sub buffer_probe {
     print <<EOF;
 
   # buffer probe
-  command hosts connect_inet $host:4390 ${prefix}buffer_top
+  command hosts connect_inet --scheme=rsa --host=$host --port=4390 --name=${prefix}buffer_top
   command hosts make_node MemorySieve ${prefix}buffer_top:sieve 4 should_warn
   make_node BufferProbe ${prefix}buffer_probe 4
   connect_node ${prefix}buffer_top:sieve ${prefix}buffer_top
@@ -73,7 +73,6 @@ sub fsync_source {
 
 command jobs start_job CommandInterpreter $name:source
 cd $name:source
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
 EOF
@@ -118,13 +117,12 @@ EOF
             }
             print <<EOF;
   cd $name:bridge$i
-    scheme rsa
     make_node FileSender      FileSender            $path FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
     connect_node FileSender     _parent/FileSender:cap
-    listen_inet --use-ssl 0.0.0.0:${port}${i}1
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}${i}1
     register 0.0.0.0:${port}${i}1 FileSender:client_connector authenticated
     secure 3
   cd ..
@@ -154,7 +152,7 @@ EOF
             print <<EOF;
 
   # sync $target
-  connect_inet --use-ssl --port ${port}00 $target target$i
+  connect_inet --scheme=rsa --use-ssl --host=$target --port=${port}00 --name=target$i
   make_node MemorySieve target$i:sieve 1024 should_warn
   connect_node target$i:sieve target$i/file:buffer
 EOF
@@ -176,7 +174,7 @@ EOF
                 print <<EOF;
 
   # fall back on target$j
-  connect_inet --use-ssl --port ${port}99 $target target$i:heartbeat
+  connect_inet --scheme=rsa --use-ssl --host=$target --port ${port}99 --name=target$i:heartbeat
   make_node Watchdog target$i:watchdog target$j:gate
   connect_node target$i:heartbeat target$i:watchdog
 EOF
@@ -195,7 +193,7 @@ EOF
             print <<EOF;
 
   # suppress dirstats if target$i is up
-  connect_inet --use-ssl --port ${port}99 $peer peer$i:heartbeat
+  connect_inet --scheme=rsa --use-ssl --host=$peer --port=${port}99 --name=peer$i:heartbeat
   connect_node DirStats:watchdog file:watchdog
   connect_node peer$i:heartbeat  DirStats:watchdog
 
@@ -215,7 +213,7 @@ EOF
   make_node Tee             heartbeat:tee
   make_node ClientConnector heartbeat:client_connector heartbeat:tee
   connect_node heartbeat heartbeat:tee
-  listen_inet --use-ssl 0.0.0.0:${port}99
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}99
   register 0.0.0.0:${port}99 heartbeat:client_connector authenticated
 EOF
     }
@@ -223,9 +221,9 @@ EOF
 
 
   # listen ports for incoming connections
-  listen_inet --use-ssl 0.0.0.0:${port}00
-  listen_inet         127.0.0.1:${port}01
-  listen_inet --use-ssl 0.0.0.0:${port}02
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}00
+  listen_inet --scheme=rsa         127.0.0.1:${port}01
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}02
   register 0.0.0.0:${port}02 DirStats:client_connector authenticated
 
 EOF
@@ -267,7 +265,6 @@ sub fsync_destination {
 
 command jobs start_job CommandInterpreter $name:destination
 cd $name:destination
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
@@ -281,14 +278,12 @@ EOF
             print "  command jobs:$user username $user\n";
             for my $i (1 .. $count) {
                 print "  command jobs:$user start_job CommandInterpreter $name:destination$i \\\n"
-                    . "    scheme rsa \\\n"
                     . "    make_node FileReceiver FileReceiver $path\n";
             }
         }
         else {
             for my $i (1 .. $count) {
                 print "  command jobs start_job CommandInterpreter $name:destination$i \\\n"
-                    . "    scheme rsa \\\n"
                     . "    make_node FileReceiver FileReceiver $path\n";
             }
         }
@@ -298,28 +293,14 @@ EOF
         print "\n  # $source\n";
         if (not $mode or $mode eq 'update') {
             for my $i (1 .. $count) {
-                print "  command $name:destination$i connect_inet --use-ssl --owner FileReceiver $source:${port}${i}1\n"
+                print "  command $name:destination$i connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=$source --port=${port}${i}1\n"
             }
         }
-        print "  command hosts connect_inet --use-ssl --owner DirCheck $source:${port}02 dirstats$j\n";
+        print "  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=$source --port=${port}02 --name=dirstats$j\n";
         $j++;
     }
-#     if (not $mode or $mode eq 'update') {
-#         for my $i (1 .. $count) {
-#             print <<EOF;
-#   cd $name:destination$i
-#     remote_var bad_ping_threshold=30
-#     remote_var slow_connector_threshold=3600
-#   cd ..
-# EOF
-#         }
-#     }
-#     print <<EOF;
-#   remote_var bad_ping_threshold=30
-#   remote_var slow_connector_threshold=3600
-# EOF
     for my $listen (@{ $options{listen} }) {
-        print "  listen_inet $listen\n";
+        print "  listen_inet --scheme=rsa $listen\n";
     }
     if (not $mode or $mode eq 'update') {
         for my $i (1 .. $count) {

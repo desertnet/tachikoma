@@ -163,7 +163,6 @@ connect_node local_system_log local_system_log:ruleset
 
 command jobs start_job CommandInterpreter fsync:source
 cd fsync:source
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Responder          DirStats:cap
@@ -173,9 +172,9 @@ cd fsync:source
 
 
   # listen ports for incoming connections
-  listen_inet --use-ssl 0.0.0.0:5600
-  listen_inet         127.0.0.1:5601
-  listen_inet --use-ssl 0.0.0.0:5602
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5600
+  listen_inet --scheme=rsa         127.0.0.1:5601
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5602
   register 0.0.0.0:5602 DirStats:client_connector authenticated
 
   secure 2
@@ -189,14 +188,13 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync:destination
 cd fsync:destination
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
   make_node JobFarmer          DirCheck 4 DirCheck <home>/Documents 60 validate
 
   # misa
-  command hosts connect_inet --use-ssl --owner DirCheck misa:5602 dirstats1
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=misa --port=5602 --name=dirstats1
   secure 3
 cd ..
 
@@ -208,7 +206,6 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync2:source
 cd fsync2:source
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Buffer             file:buffer         fsync2.db 256
@@ -232,49 +229,45 @@ cd fsync2:source
   command DirStats:buffer set_count 4
   command jobs start_job CommandInterpreter fsync2:bridge1
   cd fsync2:bridge1
-    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
     connect_node FileSender     _parent/FileSender:cap
-    listen_inet --use-ssl 0.0.0.0:5711
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5711
     register 0.0.0.0:5711 FileSender:client_connector authenticated
     secure 3
   cd ..
   command jobs start_job CommandInterpreter fsync2:bridge2
   cd fsync2:bridge2
-    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
     connect_node FileSender     _parent/FileSender:cap
-    listen_inet --use-ssl 0.0.0.0:5721
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5721
     register 0.0.0.0:5721 FileSender:client_connector authenticated
     secure 3
   cd ..
   command jobs start_job CommandInterpreter fsync2:bridge3
   cd fsync2:bridge3
-    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
     connect_node FileSender     _parent/FileSender:cap
-    listen_inet --use-ssl 0.0.0.0:5731
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5731
     register 0.0.0.0:5731 FileSender:client_connector authenticated
     secure 3
   cd ..
   command jobs start_job CommandInterpreter fsync2:bridge4
   cd fsync2:bridge4
-    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
     connect_node FileSender     _parent/FileSender:cap
-    listen_inet --use-ssl 0.0.0.0:5741
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5741
     register 0.0.0.0:5741 FileSender:client_connector authenticated
     secure 3
   cd ..
@@ -304,14 +297,14 @@ cd fsync2:source
   make_node Tee             heartbeat:tee
   make_node ClientConnector heartbeat:client_connector heartbeat:tee
   connect_node heartbeat heartbeat:tee
-  listen_inet --use-ssl 0.0.0.0:5799
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5799
   register 0.0.0.0:5799 heartbeat:client_connector authenticated
 
 
   # listen ports for incoming connections
-  listen_inet --use-ssl 0.0.0.0:5700
-  listen_inet         127.0.0.1:5701
-  listen_inet --use-ssl 0.0.0.0:5702
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5700
+  listen_inet --scheme=rsa         127.0.0.1:5701
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5702
   register 0.0.0.0:5702 DirStats:client_connector authenticated
 
   secure 2
@@ -325,30 +318,25 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync2:destination
 cd fsync2:destination
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
   make_node JobFarmer          DirCheck 4 DirCheck /Volumes/Data2 60
   command jobs start_job CommandInterpreter fsync2:destination1 \
-    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
   command jobs start_job CommandInterpreter fsync2:destination2 \
-    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
   command jobs start_job CommandInterpreter fsync2:destination3 \
-    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
   command jobs start_job CommandInterpreter fsync2:destination4 \
-    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
 
   # localhost
-  command fsync2:destination1 connect_inet --use-ssl --owner FileReceiver localhost:5711
-  command fsync2:destination2 connect_inet --use-ssl --owner FileReceiver localhost:5721
-  command fsync2:destination3 connect_inet --use-ssl --owner FileReceiver localhost:5731
-  command fsync2:destination4 connect_inet --use-ssl --owner FileReceiver localhost:5741
-  command hosts connect_inet --use-ssl --owner DirCheck localhost:5702 dirstats1
+  command fsync2:destination1 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=localhost --port=5711
+  command fsync2:destination2 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=localhost --port=5721
+  command fsync2:destination3 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=localhost --port=5731
+  command fsync2:destination4 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=localhost --port=5741
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=localhost --port=5702 --name=dirstats1
   command fsync2:destination1 secure 3
   command fsync2:destination2 secure 3
   command fsync2:destination3 secure 3

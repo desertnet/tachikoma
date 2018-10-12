@@ -1,15 +1,14 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Shell
+# Tachikoma::Nodes::Shell2
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 24877 2016-02-10 20:18:55Z chris $
+# $Id$
 #
 
 package Tachikoma::Nodes::Shell2;
 use strict;
 use warnings;
-use Tachikoma::Nodes::Shell;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO TIMESTAMP PAYLOAD
