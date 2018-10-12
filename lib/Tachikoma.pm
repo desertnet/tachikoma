@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35059 2018-10-12 00:43:01Z chris $
+# $Id: Tachikoma.pm 35067 2018-10-12 01:13:02Z chris $
 #
 
 package Tachikoma;
@@ -16,8 +16,7 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Tachikoma::Config qw(
-    %Tachikoma $ID $Private_Ed25519_Key %Keys %SSL_Config %Var $Wire_Version
-    load_module include_conf
+    %Tachikoma $ID %SSL_Config %Var $Wire_Version load_module include_conf
 );
 use Tachikoma::Nodes::Callback;
 use Digest::MD5 qw( md5 );
