@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35083 2018-10-12 04:52:12Z chris $
+# $Id: CommandInterpreter.pm 35085 2018-10-12 05:46:56Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -26,17 +26,6 @@ use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO;
-my $USE_SODIUM;
-
-BEGIN {
-    $USE_SODIUM = eval {
-        my $module_name = 'Crypt::NaCl::Sodium';
-        my $module_path = 'Crypt/NaCl/Sodium.pm';
-        require $module_path;
-        import $module_name qw( :utils );
-        return 1;
-    };
-}
 use Data::Dumper;
 use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime SIGHUP );
@@ -1026,9 +1015,15 @@ $C{listen_inet} = sub {
                     $listen->{Port} );
             }
             $server_node->use_SSL( $listen->{use_SSL} );
-            $server_node->scheme( $listen->{Scheme} )
-                if ( $listen->{Scheme}
-                and ( $USE_SODIUM or $listen->{Scheme} ne 'ed25519' ) );
+            my $okay = eval {
+                $server_node->scheme( $listen->{Scheme} )
+                    if ( $listen->{Scheme} );
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ // 'FAILED: Tachikoma::Socket::scheme()';
+                $self->stderr($error);
+            }
             $server_node->sink($self);
         }
         return $self->okay($envelope);
@@ -1079,8 +1074,7 @@ $C{listen_inet} = sub {
     $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
     $node->delegates->{tachikoma} = $delegate     if ($delegate);
-    $node->scheme($scheme)
-        if ( $scheme and ( $USE_SODIUM or $scheme ne 'ed25519' ) );
+    $node->scheme($scheme) if ($scheme);
     $node->sink($self);
     return $self->okay($envelope);
 };
@@ -1166,8 +1160,7 @@ $C{listen_unix} = sub {
     $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
     $node->delegates->{tachikoma} = $delegate     if ($delegate);
-    $node->scheme($scheme)
-        if ( $scheme and ( $USE_SODIUM or $scheme ne 'ed25519' ) );
+    $node->scheme($scheme) if ($scheme);
     $node->sink($self);
     return $self->okay($envelope);
 };
@@ -2511,9 +2504,7 @@ sub connect_inet {
     $connection->SSL_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
         if ( $options{SSL_ca_file} );
     $connection->use_SSL( $options{use_SSL} );
-    $connection->scheme( $options{scheme} )
-        if ( $options{scheme}
-        and ( $USE_SODIUM or $options{scheme} ne 'ed25519' ) );
+    $connection->scheme( $options{scheme} ) if ( $options{scheme} );
     $connection->owner($owner) if ( length $owner );
     $connection->sink($self);
     return;
@@ -2544,11 +2535,9 @@ sub connect_unix {
     $connection->on_EOF('reconnect') if ($reconnect);
     $connection->SSL_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
         if ( $options{SSL_ca_file} );
-    $connection->use_SSL('noverify') if ( $options{use_SSL} );
-    $connection->scheme( $options{scheme} )
-        if ( $options{scheme}
-        and ( $USE_SODIUM or $options{scheme} ne 'ed25519' ) );
-    $connection->owner($owner) if ( length $owner );
+    $connection->use_SSL('noverify')        if ( $options{use_SSL} );
+    $connection->scheme( $options{scheme} ) if ( $options{scheme} );
+    $connection->owner($owner)              if ( length $owner );
     $connection->sink($self);
     return;
 }

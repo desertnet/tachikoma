@@ -1179,6 +1179,12 @@ sub use_SSL {
     my $self = shift;
     if (@_) {
         $self->{use_SSL} = shift;
+        if ( $self->{use_SSL}
+            and not $self->SSL_config->{SSL_server_ca_file} )
+        {
+            $self->stderr("ERROR: SSL not configured\n");
+            $self->remove_node;
+        }
     }
     return $self->{use_SSL};
 }
