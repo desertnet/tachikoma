@@ -64,23 +64,58 @@ EOF
 sub workstation_benchmarks {
     print <<EOF;
 
+func run_benchmarks {
+    command jobs start_job CommandInterpreter benchmarks;
 
-# benchmarks
-listen_inet       127.0.0.1:5000
-listen_inet       127.0.0.1:5001
-listen_inet --io  127.0.0.1:6000
-connect_edge 127.0.0.1:5000 null
-connect_edge 127.0.0.1:6000 null
-on 127.0.0.1:5001 authenticated {
-    make_node Null benchmark:timer 0 512 100;
-    connect_sink benchmark:timer <1>;
+    cd benchmarks;
+      listen_inet       127.0.0.1:5000;
+      listen_inet       127.0.0.1:5001;
+      listen_inet       127.0.0.1:5002;
+      listen_inet --io  127.0.0.1:6000;
+      listen_inet --io  127.0.0.1:6001;
+      listen_inet --io  127.0.0.1:6002;
+      make_node Null null;
+      connect_edge 127.0.0.1:5000 null;
+      connect_edge 127.0.0.1:6000 null;
+
+      on 127.0.0.1:5001 authenticated {
+          make_node Null <1>:timer 0 512 100;
+          connect_sink <1>:timer <1>;
+      };
+      on 127.0.0.1:5001 EOF rm <1>:timer;
+
+      on 127.0.0.1:5002 authenticated {
+          make_node Null <1>:timer 0 16 65000;
+          connect_sink <1>:timer <1>;
+      };
+      on 127.0.0.1:5002 EOF rm <1>:timer;
+
+      on 127.0.0.1:6001 connected {
+          make_node Null <1>:timer 0 512 100;
+          connect_sink <1>:timer <1>;
+      };
+      on 127.0.0.1:6001 EOF rm <1>:timer;
+
+      on 127.0.0.1:6002 connected {
+          make_node Null <1>:timer 0 16 65000;
+          connect_sink <1>:timer <1>;
+      };
+      on 127.0.0.1:6002 EOF rm <1>:timer;
+      insecure;
+    cd ..;
 }
-on 127.0.0.1:5001 EOF rm benchmark:timer
-on 127.0.0.1:6000 connected {
-    make_node Null benchmark:timer 0 16 65000;
-    connect_sink benchmark:timer <1>;
+
+func run_benchmarks_profiled {
+    local time = <1>;
+    set_env NYTPROF addpid=1:file=/tmp/nytprof.out;
+    set_env PERL5OPT -d:NYTProf;
+    run_benchmarks;
+    if (<time>) {
+        command scheduler in <time> command jobs stop_job benchmarks;
+    };
+    set_env NYTPROF;
+    set_env PERL5OPT;
 }
-on 127.0.0.1:6000 EOF rm benchmark:timer
 
 EOF
 }
