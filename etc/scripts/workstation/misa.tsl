@@ -132,7 +132,6 @@ connect_node local_system_log local_system_log:ruleset
 
 command jobs start_job CommandInterpreter fsync:source
 cd fsync:source
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Responder          DirStats:cap
@@ -142,9 +141,9 @@ cd fsync:source
 
 
   # listen ports for incoming connections
-  listen_inet --use-ssl 0.0.0.0:5600
-  listen_inet         127.0.0.1:5601
-  listen_inet --use-ssl 0.0.0.0:5602
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5600
+  listen_inet --scheme=rsa         127.0.0.1:5601
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5602
   register 0.0.0.0:5602 DirStats:client_connector authenticated
 
   secure 2
@@ -158,14 +157,13 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync:destination
 cd fsync:destination
-  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
   make_node JobFarmer          DirCheck 4 DirCheck <home>/Documents 60 validate
 
   # nyx
-  command hosts connect_inet --use-ssl --owner DirCheck nyx:5602 dirstats1
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=nyx --port=5602 --name=dirstats1
   secure 3
 cd ..
 
