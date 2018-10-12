@@ -863,7 +863,7 @@ sub reply_to_heartbeat {
     }
     else {
         my $latency = $Tachikoma::Right_Now - $message->[PAYLOAD];
-        my $threshold = $Var{'bad_ping_threshold'} || 1;
+        my $threshold = $Var{'Bad_Ping_Threshold'} || 1;
         if ( $latency > $threshold ) {
             my $score = $self->{latency_score} || 0;
             if ( $score < $threshold ) {

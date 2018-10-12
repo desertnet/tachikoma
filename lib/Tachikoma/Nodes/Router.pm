@@ -182,8 +182,8 @@ sub fire {
 
 sub heartbeat {
     my $self  = shift;
-    my $stale = $Var{'stale_connector_threshold'} || 900;
-    my $slow  = $Var{'slow_connector_threshold'} || 900;
+    my $stale = $Var{'Stale_Connector_Threshold'} || 900;
+    my $slow  = $Var{'Slow_Connector_Threshold'} || 900;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {
