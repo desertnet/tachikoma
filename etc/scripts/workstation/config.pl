@@ -174,10 +174,10 @@ EOF
 sub workstation_hosts {
     print <<EOF;
 cd hosts
-  connect_inet --use-ssl tachikoma:4231
-  connect_inet --use-ssl tachikoma:4232 server_logs
-  connect_inet --use-ssl tachikoma:4233 system_logs
-  connect_inet --use-ssl tachikoma:4234 silc_dn
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4232 server_logs
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4233 system_logs
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
 cd ..
 
 connect_node silc_dn                  silc_dn:tee
