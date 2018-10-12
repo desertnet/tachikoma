@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35049 2018-10-10 22:02:12Z chris $
+# $Id: FileHandle.pm 35113 2018-10-12 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -218,7 +218,7 @@ sub fill_buffer {
         if ( $buffer_size > $self->{high_water_mark} );
     $self->{largest_msg_sent} = $packed_size
         if ( $packed_size > $self->{largest_msg_sent} );
-    $self->register_writer_node;
+    $self->register_writer_node if ( not $self->{flags} & TK_W );
     return $buffer_size;
 }
 
