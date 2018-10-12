@@ -1154,10 +1154,11 @@ $Builtins{'on'} = sub {
         and $values[0]->{type} eq 'whitespace' );
     shift @values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
-    my $name_tree   = shift @values;
-    my $name_values = $name_tree->{value};
+    my $name_tree   = {%{ shift @values }};
+    my $name_values = [@{ $name_tree->{value} }];
     push @{$name_values}, shift @values
         while ( @values and $values[0]->{type} ne 'whitespace' );
+    $name_tree->{value} = $name_values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
     my $event_tree = shift @values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
