@@ -22,7 +22,7 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Tachikoma::Config qw(
-    %Tachikoma $ID $Private_Ed25519_Key %Keys %SSL_Config %Var $Wire_Version
+    %Tachikoma $ID $Private_Ed25519_Key %SSL_Config %Var $Wire_Version
 );
 use Tachikoma::Crypto;
 use Digest::MD5 qw( md5 );
@@ -1219,8 +1219,10 @@ sub scheme {
             if ($scheme ne 'rsa'
             and $scheme ne 'sha256'
             and $scheme ne 'ed25519' );
-        die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
-        die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
+        if ( $scheme eq 'ed25519' ) {
+            die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
+            die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
+        }
         $self->{scheme} = $scheme;
     }
     return $self->{scheme};
