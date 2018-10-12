@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35059 2018-10-12 00:43:01Z chris $
+# $Id: Node.pm 35078 2018-10-12 03:20:19Z chris $
 #
 
 package Tachikoma::Node;
@@ -351,7 +351,7 @@ sub print_less_often {
     my $key    = $self->log_midfix($text);
     if ( not exists $recent->{$key} ) {
         $self->stderr( $text, @extra );
-        $recent->{$key} = Tachikoma->now;
+        $recent->{$key} = Tachikoma->now // time;
     }
     return;
 }
