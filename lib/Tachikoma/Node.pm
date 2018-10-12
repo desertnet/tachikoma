@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35078 2018-10-12 03:20:19Z chris $
+# $Id: Node.pm 35081 2018-10-12 03:41:56Z chris $
 #
 
 package Tachikoma::Node;
@@ -567,6 +567,8 @@ registrations()
 L<Tachikoma::Message>
 
 L<Tachikoma::Command>
+
+L<Tachikoma::Crypto>
 
 L<POSIX>
 
