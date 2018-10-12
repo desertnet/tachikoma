@@ -20,7 +20,7 @@ make_node Echo               echo
 make_node Scheduler          scheduler
 
 cd server_log:ruleset:config
-  add  100 deny where payload=.* FROM: .* ID: "(tachikoma@<hostname>)" COMMAND: .*
+  add  100 deny where payload=.* FROM: .* ID: "tachikoma@<hostname>(?:\..*)" COMMAND: .*
   add  200 deny where payload=silo .* pub .* user .* addr .* is rfc1918
   add  999 copy to error_log:tee where payload="WARNING:|ERROR:|FAILED:|TRAP:|COMMAND:|CircuitTester:|reconnect:"
   add 1000 redirect to server_log:tee
