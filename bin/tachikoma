@@ -197,18 +197,18 @@ print $filename ? "$filename " : q{}, "syntax OK\n" if ($validate);
 
 sub usage {
     print "Usage:\n"
-        . "tachikoma [ --config=<path>               ]\n"
-        . "          [ --host=<host>                 ]\n"
-        . "          [ --port=<port>                 ]\n"
-        . "          [ --socket=<path>               ]\n"
-        . "          [ --path=<path>                 ]\n"
-        . "          [ --line-buffered               ]\n"
-        . "          [ --use-ssl                     ]\n"
-        . "          [ --scheme=<rsa,sha256,ed25519> ]\n"
-        . "          [ --timeout=<seconds>           ]\n"
-        . "          [ --validate                    ]\n"
-        . "          [ --verbose                     ]\n"
-        . "          [ --help                        ]\n"
-        . "          [ <filename>                    ]\n";
+        . "tachikoma [ --config=<path>                   ]\n"
+        . "          [ --host=<host>                     ]\n"
+        . "          [ --port=<port>                     ]\n"
+        . "          [ --socket=<path>                   ]\n"
+        . "          [ --path=<path>                     ]\n"
+        . "          [ --line-buffered                   ]\n"
+        . "          [ --use-ssl                         ]\n"
+        . "          [ --scheme=<rsa,rsa-sha256,ed25519> ]\n"
+        . "          [ --timeout=<seconds>               ]\n"
+        . "          [ --validate                        ]\n"
+        . "          [ --verbose                         ]\n"
+        . "          [ --help                            ]\n"
+        . "          [ <filename>                        ]\n";
     exit 1;
 }

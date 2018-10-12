@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35049 2018-10-10 22:02:12Z chris $
+# $Id: FileHandle.pm 35120 2018-10-12 23:17:11Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -152,30 +152,26 @@ sub drain_buffer {
     my $sink   = $self->{sink};
     my $owner  = $self->{owner};
     my $got    = length ${$buffer};
-    my $size   = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         $message->[FROM] =
             length $message->[FROM]
             ? join q{/}, $name, $message->[FROM]
@@ -218,7 +214,7 @@ sub fill_buffer {
         if ( $buffer_size > $self->{high_water_mark} );
     $self->{largest_msg_sent} = $packed_size
         if ( $packed_size > $self->{largest_msg_sent} );
-    $self->register_writer_node;
+    $self->register_writer_node if ( not $self->{flags} & TK_W );
     return $buffer_size;
 }
 

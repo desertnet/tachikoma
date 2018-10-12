@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 33259 2018-02-17 15:06:46Z chris $
+# $Id: Timer.pm 35113 2018-10-12 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -59,21 +59,21 @@ sub set_timer {
     my $time    = shift;
     my $oneshot = shift;
     die "ERROR: invalid time requested by $self->{name}\n"
-        if ( defined $time and $time =~ m{[^\d.]} );
+        if ( defined $time and $time =~ m{\D} );
     if ( not $self->{id} ) {
         do {
             $self->{id} = Tachikoma->counter;
         } while ( exists $Tachikoma::Nodes_By_ID->{ $self->{id} } );
         $Tachikoma::Nodes_By_ID->{ $self->{id} } = $self;
     }
-    $self->{timer_interval} = $time;
-    $self->{timer_is_active} = $oneshot ? 'once' : 'forever';
     if ( defined $time ) {
         $Tachikoma::Event_Framework->set_timer( $self, $time, $oneshot );
     }
     else {
         $Tachikoma::Nodes{_router}->register( 'timer' => $self->{name} );
     }
+    $self->{timer_interval} = $time;
+    $self->{timer_is_active} = $oneshot ? 'once' : 'forever';
     return;
 }
 

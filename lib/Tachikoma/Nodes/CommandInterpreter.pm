@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35076 2018-10-12 03:14:03Z chris $
+# $Id: CommandInterpreter.pm 35085 2018-10-12 05:46:56Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -26,17 +26,6 @@ use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO;
-my $USE_SODIUM;
-
-BEGIN {
-    $USE_SODIUM = eval {
-        my $module_name = 'Crypt::NaCl::Sodium';
-        my $module_path = 'Crypt/NaCl/Sodium.pm';
-        require $module_path;
-        import $module_name qw( :utils );
-        return 1;
-    };
-}
 use Data::Dumper;
 use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime SIGHUP );
@@ -482,7 +471,7 @@ $C{list_reconnecting} = sub {
     return $self->response( $envelope, $response );
 };
 
-$H{scheme} = ["scheme <rsa,sha256,ed25519>\n"];
+$H{scheme} = ["scheme <rsa,rsa-sha256,ed25519>\n"];
 
 $C{scheme} = sub {
     my $self     = shift;
@@ -982,13 +971,13 @@ $C{connections} = $C{list_connections};
 
 $H{listen_inet} = [
     "listen_inet <address>:<port>\n",
-    "listen_inet --address=<address>           \\\n",
-    "            --port=<port>                 \\\n",
-    "            --io                          \\\n",
-    "            --max_unanswered=<num>        \\\n",
-    "            --use-ssl                     \\\n",
-    "            --ssl-delegate=<node>         \\\n",
-    "            --scheme=<rsa,sha256,ed25519> \\\n",
+    "listen_inet --address=<address>               \\\n",
+    "            --port=<port>                     \\\n",
+    "            --io                              \\\n",
+    "            --max_unanswered=<num>            \\\n",
+    "            --use-ssl                         \\\n",
+    "            --ssl-delegate=<node>             \\\n",
+    "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "            --delegate=<node>\n",
     "    alias: listen\n"
 ];
@@ -1026,9 +1015,15 @@ $C{listen_inet} = sub {
                     $listen->{Port} );
             }
             $server_node->use_SSL( $listen->{use_SSL} );
-            $server_node->scheme( $listen->{Scheme} )
-                if ( $listen->{Scheme}
-                and ( $USE_SODIUM or $listen->{Scheme} ne 'ed25519' ) );
+            my $okay = eval {
+                $server_node->scheme( $listen->{Scheme} )
+                    if ( $listen->{Scheme} );
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ // 'FAILED: Tachikoma::Socket::scheme()';
+                $self->stderr($error);
+            }
             $server_node->sink($self);
         }
         return $self->okay($envelope);
@@ -1079,8 +1074,7 @@ $C{listen_inet} = sub {
     $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
     $node->delegates->{tachikoma} = $delegate     if ($delegate);
-    $node->scheme($scheme)
-        if ( $scheme and ( $USE_SODIUM or $scheme ne 'ed25519' ) );
+    $node->scheme($scheme) if ($scheme);
     $node->sink($self);
     return $self->okay($envelope);
 };
@@ -1091,15 +1085,15 @@ $C{listen} = $C{listen_inet};
 
 $H{listen_unix} = [
     "listen_unix <filename> <node name>\n",
-    "listen_unix --filename=<filename>         \\\n",
-    "            --name=<node name>            \\\n",
-    "            --perms=<perms>               \\\n",
-    "            --gid=<gid>                   \\\n",
-    "            --io                          \\\n",
-    "            --max_unanswered=<num>        \\\n",
-    "            --use-ssl                     \\\n",
-    "            --ssl-delegate=<node>         \\\n",
-    "            --scheme=<rsa,sha256,ed25519> \\\n",
+    "listen_unix --filename=<filename>             \\\n",
+    "            --name=<node name>                \\\n",
+    "            --perms=<perms>                   \\\n",
+    "            --gid=<gid>                       \\\n",
+    "            --io                              \\\n",
+    "            --max_unanswered=<num>            \\\n",
+    "            --use-ssl                         \\\n",
+    "            --ssl-delegate=<node>             \\\n",
+    "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "            --delegate=<node>\n",
 ];
 
@@ -1166,21 +1160,20 @@ $C{listen_unix} = sub {
     $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
     $node->delegates->{tachikoma} = $delegate     if ($delegate);
-    $node->scheme($scheme)
-        if ( $scheme and ( $USE_SODIUM or $scheme ne 'ed25519' ) );
+    $node->scheme($scheme) if ($scheme);
     $node->sink($self);
     return $self->okay($envelope);
 };
 
 $H{connect_inet} = [
     "connect_inet <hostname>[:<port>] [ <node name> ]\n",
-    "connect_inet --host <hostname>             \\\n",
-    "             --port <port>                 \\\n",
-    "             --name <node name>            \\\n",
-    "             --owner <node path>           \\\n",
-    "             --io                          \\\n",
-    "             --use-ssl                     \\\n",
-    "             --scheme=<rsa,sha256,ed25519> \\\n",
+    "connect_inet --host <hostname>                 \\\n",
+    "             --port <port>                     \\\n",
+    "             --name <node name>                \\\n",
+    "             --owner <node path>               \\\n",
+    "             --io                              \\\n",
+    "             --use-ssl                         \\\n",
+    "             --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "             --reconnect\n"
 ];
 
@@ -1243,11 +1236,11 @@ $C{connect_inet} = sub {
 
 $H{connect_unix} = [
     "connect_unix <unix domain socket> <node name>\n",
-    "connect_unix --filename <unix domain socket> \\\n",
-    "             --name <node name>              \\\n",
-    "             --io                            \\\n",
-    "             --use-ssl                       \\\n",
-    "             --scheme=<rsa,sha256,ed25519>   \\\n",
+    "connect_unix --filename <unix domain socket>   \\\n",
+    "             --name <node name>                \\\n",
+    "             --io                              \\\n",
+    "             --use-ssl                         \\\n",
+    "             --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "             --reconnect\n"
 ];
 
@@ -2322,7 +2315,7 @@ sub verify_command {
     my ( $scheme, $signature ) = split m{\n}, $proto, 2;
     $signature = $proto
         if ($scheme ne 'rsa'
-        and $scheme ne 'sha256'
+        and $scheme ne 'rsa-sha256'
         and $scheme ne 'ed25519' );
     if ( not $Keys{$id} ) {
         $self->stderr( 'ERROR: verification of message from ',
@@ -2338,7 +2331,7 @@ sub verify_command {
     if ( $scheme eq 'ed25519' ) {
         return if ( not $self->verify_ed25519( $signed, $id, $signature ) );
     }
-    elsif ( $scheme eq 'sha256' ) {
+    elsif ( $scheme eq 'rsa-sha256' ) {
         return if ( not $self->verify_sha256( $signed, $id, $signature ) );
     }
     else {
@@ -2511,9 +2504,7 @@ sub connect_inet {
     $connection->SSL_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
         if ( $options{SSL_ca_file} );
     $connection->use_SSL( $options{use_SSL} );
-    $connection->scheme( $options{scheme} )
-        if ( $options{scheme}
-        and ( $USE_SODIUM or $options{scheme} ne 'ed25519' ) );
+    $connection->scheme( $options{scheme} ) if ( $options{scheme} );
     $connection->owner($owner) if ( length $owner );
     $connection->sink($self);
     return;
@@ -2544,11 +2535,9 @@ sub connect_unix {
     $connection->on_EOF('reconnect') if ($reconnect);
     $connection->SSL_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
         if ( $options{SSL_ca_file} );
-    $connection->use_SSL('noverify') if ( $options{use_SSL} );
-    $connection->scheme( $options{scheme} )
-        if ( $options{scheme}
-        and ( $USE_SODIUM or $options{scheme} ne 'ed25519' ) );
-    $connection->owner($owner) if ( length $owner );
+    $connection->use_SSL('noverify')        if ( $options{use_SSL} );
+    $connection->scheme( $options{scheme} ) if ( $options{scheme} );
+    $connection->owner($owner)              if ( length $owner );
     $connection->sink($self);
     return;
 }

@@ -55,16 +55,7 @@ use constant {
     TM_HEARTBEAT  => 020000,    #  8192
 };
 
-# XXX:
-# sub new {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-#     bless(    ## no critic (ProhibitParensWithBuiltins)
-#         $_[1]
-#         ? [ unpack 'N n/a n/a n/a n/a N a*', unpack 'N/a', ${ $_[1] } ]
-#         : [ 0, q{}, q{}, q{}, q{}, $Tachikoma::Now || time, q{}, 1 ],
-#         $_[0]
-#     );
-# }
-
+# XXX:M
 sub new {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     bless(    ## no critic (ProhibitParensWithBuiltins)
         $_[1]
@@ -150,13 +141,15 @@ sub submit {
     return $Tachikoma::Nodes{_router}->fill($self);
 }
 
-# XXX:
+# XXX:M
 # sub packed {    ## no critic (RequireArgUnpacking)
 #     if ( $_[0]->[TYPE] & TM_STORABLE and $_[0]->[IS_UNTHAWED] ) {
 #         $_[0]->[PAYLOAD] = nfreeze( $_[0]->[PAYLOAD] // {} );
 #         $_[0]->[IS_UNTHAWED] = 0;
 #     }
-#     return \pack 'N/a', pack 'N n/a* n/a* n/a* n/a* N a*', @{$_[0]};
+#     my $packed = pack 'xxxx N n/a* n/a* n/a* n/a* N a*', @{ $_[0] };
+#     substr $packed, 0, VECTOR_SIZE, pack 'N', length($packed) - VECTOR_SIZE;
+#     return \$packed;
 # }
 
 sub packed {    ## no critic (RequireArgUnpacking)

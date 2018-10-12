@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Null
 # ----------------------------------------------------------------------
 #
-# $Id: Null.pm 34417 2018-07-06 23:41:56Z chris $
+# $Id: Null.pm 35113 2018-10-12 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::Null;
@@ -57,7 +57,7 @@ sub fill {
     $self->{counter}++;
     $self->{msg_unanswered}-- if ( $self->{msg_unanswered} > 0 );
     $self->set_timer( $self->{timer_interval}, 'oneshot' )
-        if ( length $self->{arguments} );
+        if ( length $self->{arguments} and not $self->{timer_is_active} );
     return 1;
 }
 

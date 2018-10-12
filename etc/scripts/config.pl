@@ -103,21 +103,17 @@ EOF
   make_node Responder          FileSender:cap
 EOF
     if ($count) {
-        if ($user) {
-            print "  make_node JobController jobs:$user\n";
-            print "  command jobs:$user username $user\n";
-        }
         print "  command DirStats:buffer set_count 4\n";
         for my $i (1 .. $count) {
+            print "  command jobs start_job CommandInterpreter $name:bridge$i\n"
+                . "  cd $name:bridge$i\n";
             if ($user) {
-                print "  command jobs:$user start_job CommandInterpreter $name:bridge$i\n";
+                print "    make_node SudoFarmer      FileSender $user 1 FileSender $path _parent/FileSender:tee\n";
             }
             else {
-                print "  command jobs start_job CommandInterpreter $name:bridge$i\n";
+                print "    make_node FileSender      FileSender            $path FileSender:tee\n";
             }
             print <<EOF;
-  cd $name:bridge$i
-    make_node FileSender      FileSender            $path FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
@@ -274,11 +270,9 @@ EOF
     print "  ", &$farmer('        DirCheck', "$count DirCheck $arguments") . "\n";
     if (not $mode or $mode eq 'update') {
         if ($user) {
-            print "  make_node JobController jobs:$user\n";
-            print "  command jobs:$user username $user\n";
             for my $i (1 .. $count) {
-                print "  command jobs:$user start_job CommandInterpreter $name:destination$i \\\n"
-                    . "    make_node FileReceiver FileReceiver $path\n";
+                print "  command jobs start_job CommandInterpreter $name:destination$i \\\n"
+                    . "    make_node SudoFarmer FileReceiver $user 1 FileReceiver $path\n";
             }
         }
         else {

@@ -277,20 +277,16 @@ sub drain_buffer {
     my $edge   = $self->{edge};
     my $i      = $self->{partition_id};
     my $got    = length ${$buffer};
-    my $size   = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         if ( $self->{status} ne 'ACTIVE' ) {
             if ( $message->[TYPE] & TM_STORABLE ) {
                 $self->load_cache( $message->payload );
@@ -327,13 +323,13 @@ sub drain_buffer {
         }
         $offset += $size;
         $got -= $size;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     }
     $self->{offset} = $offset;
     return;
@@ -647,31 +643,27 @@ sub get_messages {
     my $offset   = $self->{offset};
     my $buffer   = $self->{buffer};
     my $got      = length ${$buffer};
-    my $size     = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         $message->[FROM] = $from;
         $message->[ID] = join q{:}, $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         push @{$messages}, $message;
     }
     $self->{offset} = $offset;

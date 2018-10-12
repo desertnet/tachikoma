@@ -353,7 +353,7 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->notify( connected => $node->{name} );
+    $node->notify( 'connected' => $node->{name} );
     $self->{counter}++;
     return;
 }
@@ -600,7 +600,7 @@ sub reply_to_client_challenge {
     );
     return if ( not $message );
     $self->{fill} = $self->{fill_modes}->{fill};
-    $self->notify( authenticated => $self->{name} );
+    $self->notify( 'authenticated' => $self->{name} );
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
     $self->drain_buffer( $self->{input_buffer} ) if ( $got > 0 );
@@ -725,13 +725,13 @@ sub read_block {
     my $error    = $!;
     $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     $got += $read if ( defined $read );
-    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     if ( $size > $buf_size ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1] . '()';
         $self->stderr("ERROR: $caller failed: size $size > $buf_size");
@@ -741,16 +741,10 @@ sub read_block {
         my $message = eval {
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
         };
-
-        # XXX:
-        # my $message = eval { Tachikoma::Message->new($buffer) };
         if ( not $message ) {
             $self->stderr("WARNING: read_block() failed: $@");
             return $self->handle_EOF;
         }
-
-        # XXX:
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
         $self->{input_buffer} = $buffer;
         return ( $got, $message );
@@ -800,30 +794,26 @@ sub drain_buffer {
     my $edge   = $self->{edge};
     my $owner  = $self->{owner};
     my $got    = length ${$buffer};
-    my $size   = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         if ( $message->[TYPE] & TM_HEARTBEAT ) {
             $self->reply_to_heartbeat($message);
             next;
@@ -935,7 +925,7 @@ sub handle_EOF {
         };
     }
     else {
-        $self->notify('EOF');
+        $self->notify( 'EOF' => $self->{name} );
         $self->SUPER::handle_EOF;
     }
     return;
@@ -1029,7 +1019,7 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         $self->print_less_often('reconnect: looking up hostname')
             if ( not $self->{address} );
     }
-    $self->notify('reconnect');
+    $self->notify( 'reconnect' => $self->{name} );
     return $rv;
 }
 
@@ -1179,6 +1169,12 @@ sub use_SSL {
     my $self = shift;
     if (@_) {
         $self->{use_SSL} = shift;
+        if ( $self->{use_SSL}
+            and not $self->SSL_config->{SSL_server_ca_file} )
+        {
+            $self->stderr("ERROR: SSL not configured\n");
+            $self->remove_node;
+        }
     }
     return $self->{use_SSL};
 }
@@ -1217,7 +1213,7 @@ sub scheme {
         my $scheme = shift;
         die "invalid scheme: $scheme\n"
             if ($scheme ne 'rsa'
-            and $scheme ne 'sha256'
+            and $scheme ne 'rsa-sha256'
             and $scheme ne 'ed25519' );
         if ( $scheme eq 'ed25519' ) {
             die "Ed25519 not supported\n"  if ( not $USE_SODIUM );

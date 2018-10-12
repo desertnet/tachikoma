@@ -8,11 +8,11 @@ use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
 use Time::HiRes qw( time );
 require '/usr/local/etc/tachikoma.conf';
 
-my $tachikoma = Tachikoma->inet_client( 'localhost', 5001 );
+my $tachikoma = Tachikoma->inet_client( 'localhost', $ARGV[0] || 5001 );
 my $recv      = 0;
 my $count     = 0;
 my $then      = time;
-my $delay     = shift(@ARGV) || 2;
+my $delay     = $ARGV[1] || 2;
 my $size;
 
 # $tachikoma->timeout(undef);

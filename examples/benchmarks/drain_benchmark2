@@ -7,13 +7,13 @@ use Socket qw(
     PF_INET SOCK_STREAM inet_aton pack_sockaddr_in
 );
 my $hostname = 'localhost';
-my $port     = 6000;
+my $port     = $ARGV[0] || 6001;
 my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
 my $proto    = getprotobyname('tcp');
 my $recv     = 0;
 my $size     = 0;
 my $then     = time;
-my $delay    = shift(@ARGV) || 2;
+my $delay    = $ARGV[1] || 2;
 my $buf;
 
 my $socket;

@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35049 2018-10-10 22:02:12Z chris $
+# $Id: STDIO.pm 35113 2018-10-12 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -308,7 +308,7 @@ sub fill_buffer {
         if ( @{$buffer} > $self->{high_water_mark} );
     $self->{last_fill} ||= $Tachikoma::Now
         if ( defined $self->{last_fill} );
-    $self->register_writer_node;
+    $self->register_writer_node if ( not $self->{flags} & TK_W );
     return scalar @{$buffer};
 }
 

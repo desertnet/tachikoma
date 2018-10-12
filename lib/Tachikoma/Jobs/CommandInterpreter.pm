@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 34883 2018-09-04 13:13:40Z chris $
+# $Id: CommandInterpreter.pm 35102 2018-10-12 08:33:29Z chris $
 #
 
 package Tachikoma::Jobs::CommandInterpreter;
@@ -29,7 +29,7 @@ sub initialize_graph {
     my $shell     = undef;
     my $responder = Tachikoma::Nodes::Responder->new;
     my @lines     = split m{^}, $self->arguments || q{};
-    if ( not @lines or $lines[0] eq "v1\n" ) {
+    if ( @lines and $lines[0] eq "v1\n" ) {
         shift @lines;
         $shell = Tachikoma::Nodes::Shell->new;
         $shell->{counter}++;
