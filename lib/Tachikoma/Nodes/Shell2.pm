@@ -10,6 +10,7 @@ package Tachikoma::Nodes::Shell2;
 use strict;
 use warnings;
 use Tachikoma::Node;
+use Tachikoma::Nodes::Shell;
 use Tachikoma::Message qw(
     TYPE FROM TO TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_PING TM_EOF
