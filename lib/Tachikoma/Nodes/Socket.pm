@@ -725,13 +725,13 @@ sub read_block {
     my $error    = $!;
     $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     $got += $read if ( defined $read );
-    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     if ( $size > $buf_size ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1] . '()';
         $self->stderr("ERROR: $caller failed: size $size > $buf_size");
@@ -741,16 +741,10 @@ sub read_block {
         my $message = eval {
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
         };
-
-        # XXX:
-        # my $message = eval { Tachikoma::Message->new($buffer) };
         if ( not $message ) {
             $self->stderr("WARNING: read_block() failed: $@");
             return $self->handle_EOF;
         }
-
-        # XXX:
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
         $self->{input_buffer} = $buffer;
         return ( $got, $message );
@@ -800,30 +794,26 @@ sub drain_buffer {
     my $edge   = $self->{edge};
     my $owner  = $self->{owner};
     my $got    = length ${$buffer};
-    my $size   = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         if ( $message->[TYPE] & TM_HEARTBEAT ) {
             $self->reply_to_heartbeat($message);
             next;

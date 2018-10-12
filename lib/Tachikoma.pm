@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35076 2018-10-12 03:14:03Z chris $
+# $Id: Tachikoma.pm 35120 2018-10-12 23:17:11Z chris $
 #
 
 package Tachikoma;
@@ -255,10 +255,6 @@ sub read_block {
     if ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
         return ( $got, $message );
     }
@@ -289,28 +285,24 @@ sub drain {
             $got = 0;                         # don't try to read messages
         }
         $got += $read if ( defined $read );
-        my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # my $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         while ( $got >= $size and $size > 0 ) {
             my $message =
                 Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-            # XXX:
-            # my $message = Tachikoma::Message->new($buffer);
-            # substr ${$buffer}, 0, $size, q{};
             $got -= $size;
-            $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-            # XXX:
+            # XXX:M
             # $size =
             #     $got > VECTOR_SIZE
             #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
             #     : 0;
+            $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
             $fh = undef if ( not defined $self->{sink}->fill($message) );
         }
         if ( not defined $read or $read < 1 ) {
@@ -333,18 +325,14 @@ sub drain_cycle {
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
-
-        # XXX:
-        # my $message = Tachikoma::Message->new($buffer);
-        # substr ${$buffer}, 0, $size, q{};
         $got -= $size;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-        # XXX:
+        # XXX:M
         # $size =
         #     $got > VECTOR_SIZE
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         $self->{sink}->fill($message);
     }
     if ( ( not defined $read or $read < 1 ) and $! != EAGAIN ) {
@@ -375,13 +363,13 @@ sub read_buffer {
         $got = 0;                         # don't try to read messages
     }
     $got += $read if ( defined $read );
-    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
 
-    # XXX:
+    # XXX:M
     # my $size =
     #     $got > VECTOR_SIZE
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     return ( $buffer, $got, $read, $size );
 }
 
