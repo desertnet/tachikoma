@@ -170,8 +170,10 @@ sub scheme {
             if ($scheme ne 'rsa'
             and $scheme ne 'sha256'
             and $scheme ne 'ed25519' );
-        die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
-        die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
+        if ( $scheme eq 'ed25519' ) {
+            die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
+            die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
+        }
         $Tachikoma::Scheme = $scheme;
     }
     return $Tachikoma::Scheme;
