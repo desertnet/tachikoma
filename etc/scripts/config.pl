@@ -73,6 +73,7 @@ sub fsync_source {
 
 command jobs start_job CommandInterpreter $name:source
 cd $name:source
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
 EOF
@@ -117,6 +118,7 @@ EOF
             }
             print <<EOF;
   cd $name:bridge$i
+    scheme rsa
     make_node FileSender      FileSender            $path FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
@@ -265,6 +267,7 @@ sub fsync_destination {
 
 command jobs start_job CommandInterpreter $name:destination
 cd $name:destination
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
@@ -277,14 +280,16 @@ EOF
             print "  make_node JobController jobs:$user\n";
             print "  command jobs:$user username $user\n";
             for my $i (1 .. $count) {
-                print "  command jobs:$user start_job CommandInterpreter $name:destination$i \\\n".
-                      "    make_node FileReceiver FileReceiver $path\n";
+                print "  command jobs:$user start_job CommandInterpreter $name:destination$i \\\n"
+                    . "    scheme rsa \\\n"
+                    . "    make_node FileReceiver FileReceiver $path\n";
             }
         }
         else {
             for my $i (1 .. $count) {
-                print "  command jobs start_job CommandInterpreter $name:destination$i \\\n".
-                      "    make_node FileReceiver FileReceiver $path\n";
+                print "  command jobs start_job CommandInterpreter $name:destination$i \\\n"
+                    . "    scheme rsa \\\n"
+                    . "    make_node FileReceiver FileReceiver $path\n";
             }
         }
     }
@@ -321,8 +326,8 @@ EOF
             print "  command $name:destination$i secure 3\n";
         }
     }
-    print "  secure 3\n".
-          "cd ..\n\n";
+    print "  secure 3\n"
+        . "cd ..\n\n";
 }
 
 sub secure {

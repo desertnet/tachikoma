@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 35051 2018-10-10 23:03:53Z chris $
+# $Id: Select.pm 35059 2018-10-12 00:43:01Z chris $
 #
 
 package Tachikoma::EventFrameworks::Select;
@@ -80,7 +80,7 @@ sub register_watcher_node {
     return $this;
 }
 
-sub drain {    ## no critic (ProhibitExcessComplexity)
+sub drain {
     my ( $self, $this, $connector ) = @_;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my ( $reads, $writes, $errors ) =

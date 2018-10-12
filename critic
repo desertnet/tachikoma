@@ -4,6 +4,7 @@ bin/tachikoma-job
 lib/Tachikoma.pm
 lib/Tachikoma/Command.pm
 lib/Tachikoma/Config.pm
+lib/Tachikoma/Crypto.pm
 lib/Tachikoma/EventFrameworks/Epoll.pm
 lib/Tachikoma/EventFrameworks/KQueue.pm
 lib/Tachikoma/EventFrameworks/Select.pm

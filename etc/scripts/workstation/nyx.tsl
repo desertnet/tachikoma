@@ -163,6 +163,7 @@ connect_node local_system_log local_system_log:ruleset
 
 command jobs start_job CommandInterpreter fsync:source
 cd fsync:source
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Responder          DirStats:cap
@@ -188,6 +189,7 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync:destination
 cd fsync:destination
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
@@ -206,6 +208,7 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync2:source
 cd fsync2:source
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Buffer             file:buffer         fsync2.db 256
@@ -229,6 +232,7 @@ cd fsync2:source
   command DirStats:buffer set_count 4
   command jobs start_job CommandInterpreter fsync2:bridge1
   cd fsync2:bridge1
+    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
@@ -240,6 +244,7 @@ cd fsync2:source
   cd ..
   command jobs start_job CommandInterpreter fsync2:bridge2
   cd fsync2:bridge2
+    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
@@ -251,6 +256,7 @@ cd fsync2:source
   cd ..
   command jobs start_job CommandInterpreter fsync2:bridge3
   cd fsync2:bridge3
+    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
@@ -262,6 +268,7 @@ cd fsync2:source
   cd ..
   command jobs start_job CommandInterpreter fsync2:bridge4
   cd fsync2:bridge4
+    scheme rsa
     make_node FileSender      FileSender            /Volumes/Data FileSender:tee
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
@@ -318,17 +325,22 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync2:destination
 cd fsync2:destination
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null
   make_node JobFarmer          DirCheck 4 DirCheck /Volumes/Data2 60
   command jobs start_job CommandInterpreter fsync2:destination1 \
+    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
   command jobs start_job CommandInterpreter fsync2:destination2 \
+    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
   command jobs start_job CommandInterpreter fsync2:destination3 \
+    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
   command jobs start_job CommandInterpreter fsync2:destination4 \
+    scheme rsa \
     make_node FileReceiver FileReceiver /Volumes/Data2
 
   # localhost

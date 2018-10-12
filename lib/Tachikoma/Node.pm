@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 34972 2018-09-24 00:48:12Z chris $
+# $Id: Node.pm 35059 2018-10-12 00:43:01Z chris $
 #
 
 package Tachikoma::Node;
@@ -14,6 +14,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_EOF
 );
 use Tachikoma::Command;
+use Tachikoma::Crypto;
 use POSIX qw( strftime );
 use Sys::Hostname qw( hostname );
 use Time::HiRes;
@@ -451,11 +452,8 @@ sub registrations {
 }
 
 sub scheme {
-    my $self = shift;
-    if (@_) {
-        $Tachikoma::Scheme = shift;
-    }
-    return $Tachikoma::Scheme;
+    my ( $self, @args ) = @_;
+    return Tachikoma::Crypto->scheme(@args);
 }
 
 1;

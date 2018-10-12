@@ -33,7 +33,7 @@ my $port          = undef;
 my $socket        = undef;
 my $path          = undef;
 my $line_buffered = undef;
-my $use_ed25519   = undef;
+my $scheme        = undef;
 my $use_SSL       = undef;
 my $seconds       = undef;
 my $validate      = undef;
@@ -50,7 +50,7 @@ my $r = GetOptions(
     'socket=s'      => \$socket,
     'path=s'        => \$path,
     'line-buffered' => \$line_buffered,
-    'use-ed25519'   => \$use_ed25519,
+    'scheme=s'      => \$scheme,
     'use-ssl'       => \$use_SSL,
     'timeout=i'     => \$seconds,
     'validate'      => \$validate,
@@ -71,7 +71,7 @@ $use_SSL //= $Tachikoma{Listen}->[0]->{use_SSL};
 my $isa_tty = $filename ? undef : isatty(*STDIN);
 $verbose = 'true' if ( $isa_tty or $debug );
 
-Tachikoma->scheme('ed25519') if ($use_ed25519);
+Tachikoma->scheme($scheme) if ($scheme);
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
 my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
@@ -197,18 +197,18 @@ print $filename ? "$filename " : q{}, "syntax OK\n" if ($validate);
 
 sub usage {
     print "Usage:\n"
-        . "tachikoma [ --config=<path>     ]\n"
-        . "          [ --host=<host>       ]\n"
-        . "          [ --port=<port>       ]\n"
-        . "          [ --socket=<path>     ]\n"
-        . "          [ --path=<path>       ]\n"
-        . "          [ --line-buffered     ]\n"
-        . "          [ --use-ssl           ]\n"
-        . "          [ --use-ed25519       ]\n"
-        . "          [ --timeout=<seconds> ]\n"
-        . "          [ --validate          ]\n"
-        . "          [ --verbose           ]\n"
-        . "          [ --help              ]\n"
-        . "          [ <filename>          ]\n";
+        . "tachikoma [ --config=<path>               ]\n"
+        . "          [ --host=<host>                 ]\n"
+        . "          [ --port=<port>                 ]\n"
+        . "          [ --socket=<path>               ]\n"
+        . "          [ --path=<path>                 ]\n"
+        . "          [ --line-buffered               ]\n"
+        . "          [ --use-ssl                     ]\n"
+        . "          [ --scheme=<rsa,sha256,ed25519> ]\n"
+        . "          [ --timeout=<seconds>           ]\n"
+        . "          [ --validate                    ]\n"
+        . "          [ --verbose                     ]\n"
+        . "          [ --help                        ]\n"
+        . "          [ <filename>                    ]\n";
     exit 1;
 }

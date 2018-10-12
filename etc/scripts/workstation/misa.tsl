@@ -132,6 +132,7 @@ connect_node local_system_log local_system_log:ruleset
 
 command jobs start_job CommandInterpreter fsync:source
 cd fsync:source
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Responder          DirStats:cap
@@ -157,6 +158,7 @@ cd ..
 
 command jobs start_job CommandInterpreter fsync:destination
 cd fsync:destination
+  scheme rsa
   make_node JobController      jobs
   make_node CommandInterpreter hosts
   make_node Null               null

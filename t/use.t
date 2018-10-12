@@ -25,6 +25,7 @@ use Accessories::Nodes::Smooth;
 
 use Tachikoma::Command;
 use Tachikoma::Config qw( %Tachikoma );
+use Tachikoma::Crypto;
 # use Tachikoma::EventFrameworks::Epoll;
 # use Tachikoma::EventFrameworks::KQueue;
 use Tachikoma::EventFrameworks::Select;
