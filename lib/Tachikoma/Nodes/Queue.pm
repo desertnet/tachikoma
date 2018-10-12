@@ -589,7 +589,8 @@ sub dbh {
             unlink "${path}.clean" or warn;
         }
         else {
-            system "/bin/rm -f ${path}*" or warn;
+            ## no critic (RequireCheckedSyscalls)
+            system "/bin/rm -f ${path}*";
         }
         my $dbh = DBI->connect("dbi:SQLite:dbname=$path");
         my $sth = $dbh->table_info( undef, undef, 'queue' );
@@ -602,7 +603,7 @@ sub dbh {
                                       message_id,
                                   message_stream,
                                message_timestamp,
-                                 message_payload
+                                 message_payload)
 EOF
             $dbh->do('CREATE UNIQUE INDEX id_index ON queue (message_id)');
             $dbh->do('CREATE INDEX payload_index ON queue (message_payload)')
