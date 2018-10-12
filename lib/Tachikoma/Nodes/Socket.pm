@@ -353,7 +353,7 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->notify( connected => $node->{name} );
+    $node->notify( 'connected' => $node->{name} );
     $self->{counter}++;
     return;
 }
@@ -600,7 +600,7 @@ sub reply_to_client_challenge {
     );
     return if ( not $message );
     $self->{fill} = $self->{fill_modes}->{fill};
-    $self->notify( authenticated => $self->{name} );
+    $self->notify( 'authenticated' => $self->{name} );
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
     $self->drain_buffer( $self->{input_buffer} ) if ( $got > 0 );
@@ -935,7 +935,7 @@ sub handle_EOF {
         };
     }
     else {
-        $self->notify('EOF');
+        $self->notify( 'EOF' => $self->{name} );
         $self->SUPER::handle_EOF;
     }
     return;
@@ -1029,7 +1029,7 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         $self->print_less_often('reconnect: looking up hostname')
             if ( not $self->{address} );
     }
-    $self->notify('reconnect');
+    $self->notify( 'reconnect' => $self->{name} );
     return $rv;
 }
 
