@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35081 2018-10-12 03:41:56Z chris $
+# $Id: Node.pm 35113 2018-10-12 21:04:44Z chris $
 #
 
 package Tachikoma::Node;
@@ -218,12 +218,13 @@ sub cancel {
 sub notify {
     my ( $self, $event, $payload ) = @_;
     $payload ||= $event;
-    $payload .= "\n" if ( $payload !~ m{\n$} );
+    chomp $payload;
     my $registrations = $self->{registrations}->{$event};
     my $responder     = $Tachikoma::Nodes{_responder};
     my $shell         = $responder ? $responder->{shell} : undef;
     for my $name ( keys %{$registrations} ) {
         if ( defined $registrations->{$name} ) {
+            chomp $payload;
             if ( not $shell->callback( $name, $payload ) ) {
                 delete $registrations->{$name};
             }
@@ -238,7 +239,7 @@ sub notify {
         $message->[TYPE]    = TM_INFO;
         $message->[FROM]    = $self->{name};
         $message->[STREAM]  = $event;
-        $message->[PAYLOAD] = $payload;
+        $message->[PAYLOAD] = "$payload\n";
         $Tachikoma::Nodes{$name}->fill($message);
     }
     return;
