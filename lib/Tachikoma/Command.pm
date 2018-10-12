@@ -3,7 +3,7 @@
 # Tachikoma::Command
 # ----------------------------------------------------------------------
 #
-# $Id: Command.pm 35073 2018-10-12 01:49:26Z chris $
+# $Id: Command.pm 35083 2018-10-12 04:52:12Z chris $
 #
 
 package Tachikoma::Command;
@@ -100,9 +100,9 @@ sub sign {
     else {
         return if ( not $Private_Key );
         my $rsa = Crypt::OpenSSL::RSA->new_private_key($Private_Key);
-        if ( $scheme eq 'sha256' ) {
+        if ( $scheme eq 'rsa-sha256' ) {
             $rsa->use_sha256_hash;
-            $self->{signature} = join q{}, $ID, "\n", "sha256\n",
+            $self->{signature} = join q{}, $ID, "\n", "rsa-sha256\n",
                 $rsa->sign($plaintext);
         }
         else {

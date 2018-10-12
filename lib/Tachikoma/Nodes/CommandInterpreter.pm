@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35076 2018-10-12 03:14:03Z chris $
+# $Id: CommandInterpreter.pm 35083 2018-10-12 04:52:12Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -482,7 +482,7 @@ $C{list_reconnecting} = sub {
     return $self->response( $envelope, $response );
 };
 
-$H{scheme} = ["scheme <rsa,sha256,ed25519>\n"];
+$H{scheme} = ["scheme <rsa,rsa-sha256,ed25519>\n"];
 
 $C{scheme} = sub {
     my $self     = shift;
@@ -982,13 +982,13 @@ $C{connections} = $C{list_connections};
 
 $H{listen_inet} = [
     "listen_inet <address>:<port>\n",
-    "listen_inet --address=<address>           \\\n",
-    "            --port=<port>                 \\\n",
-    "            --io                          \\\n",
-    "            --max_unanswered=<num>        \\\n",
-    "            --use-ssl                     \\\n",
-    "            --ssl-delegate=<node>         \\\n",
-    "            --scheme=<rsa,sha256,ed25519> \\\n",
+    "listen_inet --address=<address>               \\\n",
+    "            --port=<port>                     \\\n",
+    "            --io                              \\\n",
+    "            --max_unanswered=<num>            \\\n",
+    "            --use-ssl                         \\\n",
+    "            --ssl-delegate=<node>             \\\n",
+    "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "            --delegate=<node>\n",
     "    alias: listen\n"
 ];
@@ -1091,15 +1091,15 @@ $C{listen} = $C{listen_inet};
 
 $H{listen_unix} = [
     "listen_unix <filename> <node name>\n",
-    "listen_unix --filename=<filename>         \\\n",
-    "            --name=<node name>            \\\n",
-    "            --perms=<perms>               \\\n",
-    "            --gid=<gid>                   \\\n",
-    "            --io                          \\\n",
-    "            --max_unanswered=<num>        \\\n",
-    "            --use-ssl                     \\\n",
-    "            --ssl-delegate=<node>         \\\n",
-    "            --scheme=<rsa,sha256,ed25519> \\\n",
+    "listen_unix --filename=<filename>             \\\n",
+    "            --name=<node name>                \\\n",
+    "            --perms=<perms>                   \\\n",
+    "            --gid=<gid>                       \\\n",
+    "            --io                              \\\n",
+    "            --max_unanswered=<num>            \\\n",
+    "            --use-ssl                         \\\n",
+    "            --ssl-delegate=<node>             \\\n",
+    "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "            --delegate=<node>\n",
 ];
 
@@ -1174,13 +1174,13 @@ $C{listen_unix} = sub {
 
 $H{connect_inet} = [
     "connect_inet <hostname>[:<port>] [ <node name> ]\n",
-    "connect_inet --host <hostname>             \\\n",
-    "             --port <port>                 \\\n",
-    "             --name <node name>            \\\n",
-    "             --owner <node path>           \\\n",
-    "             --io                          \\\n",
-    "             --use-ssl                     \\\n",
-    "             --scheme=<rsa,sha256,ed25519> \\\n",
+    "connect_inet --host <hostname>                 \\\n",
+    "             --port <port>                     \\\n",
+    "             --name <node name>                \\\n",
+    "             --owner <node path>               \\\n",
+    "             --io                              \\\n",
+    "             --use-ssl                         \\\n",
+    "             --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "             --reconnect\n"
 ];
 
@@ -1243,11 +1243,11 @@ $C{connect_inet} = sub {
 
 $H{connect_unix} = [
     "connect_unix <unix domain socket> <node name>\n",
-    "connect_unix --filename <unix domain socket> \\\n",
-    "             --name <node name>              \\\n",
-    "             --io                            \\\n",
-    "             --use-ssl                       \\\n",
-    "             --scheme=<rsa,sha256,ed25519>   \\\n",
+    "connect_unix --filename <unix domain socket>   \\\n",
+    "             --name <node name>                \\\n",
+    "             --io                              \\\n",
+    "             --use-ssl                         \\\n",
+    "             --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "             --reconnect\n"
 ];
 
@@ -2322,7 +2322,7 @@ sub verify_command {
     my ( $scheme, $signature ) = split m{\n}, $proto, 2;
     $signature = $proto
         if ($scheme ne 'rsa'
-        and $scheme ne 'sha256'
+        and $scheme ne 'rsa-sha256'
         and $scheme ne 'ed25519' );
     if ( not $Keys{$id} ) {
         $self->stderr( 'ERROR: verification of message from ',
@@ -2338,7 +2338,7 @@ sub verify_command {
     if ( $scheme eq 'ed25519' ) {
         return if ( not $self->verify_ed25519( $signed, $id, $signature ) );
     }
-    elsif ( $scheme eq 'sha256' ) {
+    elsif ( $scheme eq 'rsa-sha256' ) {
         return if ( not $self->verify_sha256( $signed, $id, $signature ) );
     }
     else {

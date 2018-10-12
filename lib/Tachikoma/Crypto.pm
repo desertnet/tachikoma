@@ -43,7 +43,7 @@ sub verify_signature {
     my ( $scheme, $signature ) = split m{\n}, $proto, 2;
     $signature = $proto
         if ($scheme ne 'rsa'
-        and $scheme ne 'sha256'
+        and $scheme ne 'rsa-sha256'
         and $scheme ne 'ed25519' );
     if ( not $Keys{$id} ) {
         $self->stderr("ERROR: $id not in authorized_keys");
@@ -59,7 +59,7 @@ sub verify_signature {
     if ( $scheme eq 'ed25519' ) {
         return if ( not $self->verify_ed25519( $signed, $id, $signature ) );
     }
-    elsif ( $scheme eq 'sha256' ) {
+    elsif ( $scheme eq 'rsa-sha256' ) {
         return if ( not $self->verify_sha256( $signed, $id, $signature ) );
     }
     else {
@@ -168,7 +168,7 @@ sub scheme {
         my $scheme = shift;
         die "invalid scheme: $scheme\n"
             if ($scheme ne 'rsa'
-            and $scheme ne 'sha256'
+            and $scheme ne 'rsa-sha256'
             and $scheme ne 'ed25519' );
         if ( $scheme eq 'ed25519' ) {
             die "Ed25519 not supported\n"  if ( not $USE_SODIUM );

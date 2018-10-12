@@ -1217,7 +1217,7 @@ sub scheme {
         my $scheme = shift;
         die "invalid scheme: $scheme\n"
             if ($scheme ne 'rsa'
-            and $scheme ne 'sha256'
+            and $scheme ne 'rsa-sha256'
             and $scheme ne 'ed25519' );
         if ( $scheme eq 'ed25519' ) {
             die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
