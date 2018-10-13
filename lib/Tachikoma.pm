@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35120 2018-10-12 23:17:11Z chris $
+# $Id: Tachikoma.pm 35146 2018-10-13 23:15:48Z chris $
 #
 
 package Tachikoma;
@@ -452,6 +452,7 @@ sub daemonize {
     my $self = shift;
     my $name = shift;
     $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
+    srand;
     $self->copy_variables;
     $self->check_pid;
     open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
@@ -464,7 +465,6 @@ sub daemonize {
     $self->reset_signal_handlers;
     $self->open_log_file;
     $self->write_pid;
-    srand;
     $self->load_event_framework;
     return;
 }
