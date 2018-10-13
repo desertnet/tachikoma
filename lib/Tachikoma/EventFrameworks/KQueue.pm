@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35117 2018-10-12 21:44:29Z chris $
+# $Id: KQueue.pm 35144 2018-10-13 22:25:01Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -173,8 +173,10 @@ sub handle_signal {
         do { } while ( waitpid( -1, WNOHANG ) > 0 );
     }
     elsif ( $id == SIGHUP ) {
-        Tachikoma->close_log_file;
-        Tachikoma->open_log_file;
+        if ( $$ == Tachikoma->my_pid ) {
+            Tachikoma->close_log_file;
+            Tachikoma->open_log_file;
+        }
         $this->stderr('got SIGHUP - sending SIGUSR1');
         my $usr1 = SIGUSR1;
         kill -$usr1, $$ or die q{FAILURE: couldn't signal self};
