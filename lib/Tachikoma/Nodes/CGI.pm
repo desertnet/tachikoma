@@ -18,6 +18,8 @@ use Tachikoma::Message qw(
 use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Max_Requests = 500;
 
 sub new {
@@ -53,7 +55,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
 
@@ -71,7 +73,7 @@ sub fill {
     my $server_config = $self->{config};
     my $server_name   = $headers->{host} || 'localhost';
     my $script_url    = $request->{script_url};
-    $script_url =~ s{/\.\.(?=/)}{}g;
+    $script_url =~ s{/[.][.](?=/)}{}g;
     $script_url =~ s{/+}{/}g;
     my $last_modified   = undef;
     my $found           = undef;
@@ -103,8 +105,9 @@ FIND_SCRIPT: while ($test_path) {
                 }
             }
         }
-        $test_path =~ s{/([^/]*)$}{};
-        unshift @path_components, $1 if ( length $1 );
+        if ( $test_path =~ s{/([^/]*)$}{} ) {
+            unshift @path_components, $1 if ( length $1 );
+        }
     }
     my $path_info = join q{/}, q{}, @path_components;
 
@@ -131,18 +134,19 @@ FIND_SCRIPT: while ($test_path) {
     }
 
     # copy HTTP headers to environment
+    ## no critic (RequireLocalizedPunctuationVars)
     local %ENV = ();
-    for my $key ( keys %$headers ) {
+    for my $key ( keys %{$headers} ) {
         my $value = $headers->{$key};
         $key =~ s{-}{_}g;
-        $key = 'HTTP_' . uc($key);
+        $key = 'HTTP_' . uc $key;
         $ENV{$key} = $value // q{};
     }
-    delete $ENV{HTTP_AUTHORIZATION};
+    $ENV{HTTP_AUTHORIZATION} = q{};
 
     my $request_uri  = $script_url;
     my $query_string = $request->{query_string};
-    $request_uri .= join q{}, '?', $query_string if ($query_string);
+    $request_uri .= join q{}, q{?}, $query_string if ($query_string);
     my $is_post = $request->{method} eq 'POST';
     $ENV{PATH}              = '/bin:/usr/bin';
     $ENV{DOCUMENT_ROOT}     = $document_root;
@@ -176,20 +180,21 @@ FIND_SCRIPT: while ($test_path) {
     $self->{sent_header} = undef;
 
     # set up STDIN and STDOUT
+    ## no critic (RequireInitializationForLocalVars, ProhibitTie)
     local *STDIN;
     local *STDOUT;
     if ($is_post) {
         if ( $request->{tmp} ) {
             my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
-            open( *STDIN, '<', $tmp );
+            open *STDIN, q{<}, $tmp or die "ERROR: couldn't open $tmp: $!";
         }
         else {
             $self->{post_data} = $request->{body};
-            tie( *STDIN, 'Tachikoma::Nodes::CGI', $self );
+            tie *STDIN, 'Tachikoma::Nodes::CGI', $self;
         }
     }
-    tie( *STDOUT, 'Tachikoma::Nodes::CGI', $self );
+    tie *STDOUT, 'Tachikoma::Nodes::CGI', $self;
 
     # load up the script we want to run
     my $includes      = $self->{includes};
@@ -202,12 +207,15 @@ FIND_SCRIPT: while ($test_path) {
     }
 
     # actually run the script
-    eval { &{ $includes->{$script_path} }() }
-        if ( $includes->{$script_path} );
+    my $okay = 1;
+    $okay = eval {
+        &{ $includes->{$script_path} }();
+        return 1;
+    } if ( $includes->{$script_path} );
 
     # see how it went
     my $dirty = undef;
-    if ( $@ or not $self->{sent_header} ) {
+    if ( not $okay or not $self->{sent_header} ) {
         delete $includes->{$script_path};
         delete $include_times->{$script_path};
         if ( not $self->{sent_header} ) {
@@ -240,14 +248,14 @@ FIND_SCRIPT: while ($test_path) {
         if ( $request->{tmp} ) {
             my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
-            unlink($tmp);
-            close(STDIN);
+            unlink $tmp or die "ERROR: couldn't unlink $tmp: $!";
+            close STDIN or die "ERROR: couldn't close $tmp: $!";
         }
         else {
-            untie(*STDIN);
+            untie *STDIN;
         }
     }
-    untie(*STDOUT);
+    untie *STDOUT;
 
     # send TM_EOF to signal completion of the request
     my $response = Tachikoma::Message->new;
@@ -258,10 +266,10 @@ FIND_SCRIPT: while ($test_path) {
 
     # see if we've hit $Max_Requests
     if ( $dirty or $Max_Requests and $self->{counter} > $Max_Requests ) {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_KILLME;
-        $message->[TO]   = '_parent';
-        $self->{sink}->fill($message);
+        my $shutdown = Tachikoma::Message->new;
+        $shutdown->[TYPE] = TM_KILLME;
+        $shutdown->[TO]   = '_parent';
+        $self->{sink}->fill($shutdown);
     }
 
     return 1;
@@ -277,20 +285,22 @@ sub include_path {
     $package .= join q{}, q{_}, $counter;
     $counter = ( $counter + 1 ) % $Tachikoma::Max_Int;
     $self->{include_counter} = $counter;
-    my $fh;
-    open( $fh, '<', $script_path ) or die "couldn't open $script_path: $!";
+    local $/ = undef;
+    open my $fh, '<', $script_path or die "couldn't open $script_path: $!";
+    my $script = <$fh>;
+    close $fh or die "couldn't close $script_path: $!";
+    ## no critic (ProhibitStringyEval)
     $self->{includes}->{$script_path} = eval
         join q{},
         "sub {\n",
-        "    CGI::initialize_globals() ",
+        '    CGI::initialize_globals() ',
         "        if (defined &CGI::initialize_globals);\n",
         '    package ',
         $package,
         ";\n",
-        ( join( q{}, <$fh> ) =~ m{^(.*?)(?:__END__.*)?$}s )[0],
+        ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0],
         "\n",
         "};\n";
-    close($fh);
     return;
 }
 
@@ -298,30 +308,29 @@ sub TIEHANDLE {
     my $class  = shift;
     my $self   = shift;
     my $scalar = \$self;
-    return bless( $scalar, $class );
+    return bless $scalar, $class;
 }
 
-sub READ {
+sub READ {    ## no critic (RequireArgUnpacking)
     my $self   = shift;
     my $bufref = \$_[0];
     my ( undef, $length, $offset ) = @_;
-    $$bufref .= substr( $$self->{post_data}, 0, $length, q{} );
+    ${$bufref} .= substr ${$self}->{post_data}, 0, $length, q{};
     return $length;
 }
 
 sub WRITE {
-    my $self = shift;
-    my ( $payload, $length, $offset ) = @_;
-    my $request = $$self->{request};
-    if ( not $$self->{sent_header} ) {
+    my ( $self, $payload, $length, $offset ) = @_;
+    my $request = ${$self}->{request};
+    if ( not ${$self}->{sent_header} ) {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
         $header->[STREAM]  = $request->[STREAM] . "\n";    # XXX: LB hack;
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
-        $$self->{sink}->fill($header);
-        $$self->{sent_header} = 'true';
-        log_entry( $$self, 200, $request );
+        ${$self}->{sink}->fill($header);
+        ${$self}->{sent_header} = 'true';
+        log_entry( ${$self}, 200, $request );
     }
     return if ( $payload eq q{} );
     my $message = Tachikoma::Message->new;
@@ -329,23 +338,23 @@ sub WRITE {
     $message->[TO]      = $request->[FROM];
     $message->[STREAM]  = $request->[STREAM] . "\n";       # XXX: LB hack;
     $message->[PAYLOAD] = $payload;
-    $$self->{sink}->fill($message);
+    ${$self}->{sink}->fill($message);
     return $length;
 }
 
 sub PRINT {
-    my $self    = shift;
-    my $payload = join q{}, grep { defined $_ } @_;
-    my $request = $$self->{request};
-    if ( not $$self->{sent_header} ) {
+    my ( $self, @args ) = @_;
+    my $payload = join q{}, grep defined, @args;
+    my $request = ${$self}->{request};
+    if ( not ${$self}->{sent_header} ) {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
         $header->[STREAM]  = $request->[STREAM] . "\n";    # XXX: LB hack;
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
-        $$self->{sink}->fill($header);
-        $$self->{sent_header} = 'true';
-        log_entry( $$self, 200, $request );
+        ${$self}->{sink}->fill($header);
+        ${$self}->{sent_header} = 'true';
+        log_entry( ${$self}, 200, $request );
     }
     return if ( $payload eq q{} );
     my $message = Tachikoma::Message->new;
@@ -353,37 +362,35 @@ sub PRINT {
     $message->[TO]      = $request->[FROM];
     $message->[STREAM]  = $request->[STREAM] . "\n";       # XXX: LB hack;
     $message->[PAYLOAD] = $payload;
-    return $$self->{sink}->fill($message);
+    return ${$self}->{sink}->fill($message);
 }
 
 sub PRINTF {
-    my $self    = shift;
-    my $fmt     = shift;
-    my @payload = @_;
-    my $request = $$self->{request};
-    if ( not $$self->{sent_header} ) {
+    my ( $self, $fmt, @payload ) = @_;
+    my $request = ${$self}->{request};
+    if ( not ${$self}->{sent_header} ) {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
         $header->[STREAM]  = $request->[STREAM] . "\n";    # XXX: LB hack;
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
-        $$self->{sink}->fill($header);
-        $$self->{sent_header} = 'true';
-        log_entry( $$self, 200, $request );
+        ${$self}->{sink}->fill($header);
+        ${$self}->{sent_header} = 'true';
+        log_entry( ${$self}, 200, $request );
     }
-    my $payload = sprintf( $fmt, @payload );
+    my $payload = sprintf $fmt, @payload;
     return if ( $payload eq q{} );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
     $message->[STREAM]  = $request->[STREAM] . "\n";       # XXX: LB hack;
     $message->[PAYLOAD] = $payload;
-    return $$self->{sink}->fill($message);
+    return ${$self}->{sink}->fill($message);
 }
 
 sub CLOSE {
     my $self = shift;
-    $$self->{post_data} = undef;
+    ${$self}->{post_data} = undef;
     return 1;
 }
 

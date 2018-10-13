@@ -31,6 +31,7 @@ lib/Tachikoma/Node.pm
 lib/Tachikoma/Nodes/AgeSieve.pm
 lib/Tachikoma/Nodes/Buffer.pm
 lib/Tachikoma/Nodes/Broker.pm
+lib/Tachikoma/Nodes/CGI.pm
 lib/Tachikoma/Nodes/Callback.pm
 lib/Tachikoma/Nodes/ClientConnector.pm
 lib/Tachikoma/Nodes/CommandInterpreter.pm
@@ -45,6 +46,13 @@ lib/Tachikoma/Nodes/FileReceiver.pm
 lib/Tachikoma/Nodes/FileSender.pm
 lib/Tachikoma/Nodes/Function.pm
 lib/Tachikoma/Nodes/Grep.pm
+lib/Tachikoma/Nodes/HTTP_Auth.pm
+lib/Tachikoma/Nodes/HTTP_Fetch.pm
+lib/Tachikoma/Nodes/HTTP_File.pm
+lib/Tachikoma/Nodes/HTTP_Responder.pm
+lib/Tachikoma/Nodes/HTTP_Route.pm
+lib/Tachikoma/Nodes/HTTP_Store.pm
+lib/Tachikoma/Nodes/HTTP_Timeout.pm
 lib/Tachikoma/Nodes/Index.pm
 lib/Tachikoma/Nodes/JobController.pm
 lib/Tachikoma/Nodes/JobFarmer.pm

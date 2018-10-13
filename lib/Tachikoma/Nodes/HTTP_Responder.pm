@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35038 2018-10-10 00:26:59Z chris $
+# $Id: HTTP_Responder.pm 35142 2018-10-13 12:13:24Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -42,7 +42,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $tmp_path, $port ) = split( ' ', $self->{arguments}, 2 );
+        my ( $tmp_path, $port ) = split q{ }, $self->{arguments}, 2;
         $self->{tmp_path} = $tmp_path;
         $self->{port}     = $port;
         $self->set_timer;
@@ -50,28 +50,28 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $name     = $message->[FROM];
     my $payloads = $self->{payloads};
     my $payload  = $payloads->{$name};
-    my $lastfour = '';
+    my $lastfour = q{};
     my $requests = $self->{requests};
     my $request  = $requests->{$name};
     my $headers  = undef;
 
     # collect request payloads
     if ( not $payload ) {
-        my $scalar = '';
+        my $scalar = q{};
         $payloads->{$name} = \$scalar;
         $payload = \$scalar;
     }
-    elsif ( not $request and length($$payload) >= 4 ) {
-        $lastfour = substr( $$payload, length($$payload) - 4, 4 );
+    elsif ( not $request and length( ${$payload} ) >= 4 ) {
+        $lastfour = substr ${$payload}, length( ${$payload} ) - 4, 4;
     }
-    $$payload .= $message->[PAYLOAD];
+    ${$payload} .= $message->[PAYLOAD];
 
     # see if we have all the headers
     if ($request) {
@@ -79,26 +79,26 @@ sub fill {
     }
     else {
         my $test = $lastfour . $message->[PAYLOAD];
-        return 1 if ( $test !~ m(\r\n\r\n) );
-        my ( $remote_addr, $remote_port ) = split( ':', $message->[FROM], 2 );
-        my ( $header_text, $body ) = split( m(\r\n\r\n), $$payload, 2 );
-        $$payload = $body;
-        my @lines = split( m(^), $header_text );
-        my $line = shift(@lines);
+        return 1 if ( $test !~ m{\r\n\r\n} );
+        my ( $remote_addr, $remote_port ) = split m{:}, $message->[FROM], 2;
+        my ( $header_text, $body ) = split m{\r\n\r\n}, ${$payload}, 2;
+        ${$payload} = $body;
+        my @lines = split m{^}, $header_text;
+        my $line = shift @lines;
         if ( not $line ) {
             delete $requests->{$name};
             delete $payloads->{$name};
             return;
         }
-        $line =~ s(\r?\n$)();
-        my ( $method, $uri, $version ) = split( ' ', $line, 3 );
+        $line =~ s{\r?\n$}{};
+        my ( $method, $uri, $version ) = split q{ }, $line, 3;
         if ( not $uri ) {
             delete $requests->{$name};
             delete $payloads->{$name};
             return;
         }
-        $uri =~ s(^http://[^/]+)()i;
-        my ( $script_url, $query_string ) = split( '\?', $uri, 2 );
+        $uri =~ s{^http://[^/]+}{}i;
+        my ( $script_url, $query_string ) = split m{[?]}, $uri, 2;
         $headers = {};
         $request->{server_port}  = $self->{port} || 80;
         $request->{remote_addr}  = $remote_addr;
@@ -109,13 +109,13 @@ sub fill {
         $request->{version}      = $version;
         $request->{path}         = $script_url;
         $request->{script_url}   = $script_url;
-        $request->{query_string} = $query_string || '';
+        $request->{query_string} = $query_string || q{};
 
         for my $line (@lines) {
-            my ( $key, $value ) = split( m(:\s*), $line, 2 );
-            next if ( $key =~ m([^\w-]) );
-            $value =~ s(\r?\n$)() if ( defined $value );
-            $headers->{ lc($key) } = $value;
+            my ( $key, $value ) = split m{:\s*}, $line, 2;
+            next if ( $key =~ m{[^\w-]} );
+            $value =~ s{\r?\n$}{} if ( defined $value );
+            $headers->{ lc $key } = $value;
         }
         $request->{headers} = $headers;
         $requests->{$name} = $request;
@@ -130,48 +130,50 @@ sub fill {
             delete $payloads->{$name};
             return;
         }
-
-        # if ( $length > 131072 ) {
-        #     if ( not $request->{tmp} ) {
-        #         my $tmp_path = join( '/', $self->{tmp_path}, 'post' );
-        #         $self->make_dirs($tmp_path)
-        #             or return $self->stderr(
-        #             "ERROR: couldn't mkdir $tmp_path: $!")
-        #             if ( not -d $tmp_path );
-        #         my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
-        #         $request->{fh} = $fh;
-        #         $request->{tmp} = join( '/', $tmp_path, $template );
-        #     }
-        #     $request->{length} += length($$payload);
-        #     syswrite( $request->{fh}, $$payload )
-        #         or return $self->stderr("ERROR: can't write(): $!")
-        #         if ( length($$payload) );
-        #     $$payload = '';
-        #     return if ( $length > $request->{length} );
-        #     close( $request->{fh} );
-        #     delete $request->{fh};
-        # }
-        # else {
-        #     return if ( $length > length($$payload) );
-        #     $request->{body} = $$payload;
-        # }
-        return if ( $length > length($$payload) );
-        $request->{body} = $$payload;
+        if ( $length > 131072 ) {
+            if ( not $request->{tmp} ) {
+                my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+                $self->make_dirs($tmp_path)
+                    or return $self->stderr(
+                    "ERROR: couldn't mkdir $tmp_path: $!")
+                    if ( not -d $tmp_path );
+                my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
+                $request->{fh} = $fh;
+                $request->{tmp} = join q{/}, $tmp_path, $template;
+            }
+            $request->{length} += length ${$payload};
+            if ( length ${$payload} and not syswrite $request->{fh},
+                ${$payload} )
+            {
+                $self->stderr("ERROR: can't write(): $!");
+            }
+            else {
+                ${$payload} = q{};
+                return if ( $length > $request->{length} );
+            }
+            close $request->{fh} or $self->stderr("ERROR: can't close(): $!");
+            delete $request->{fh};
+        }
+        else {
+            return if ( $length > length ${$payload} );
+            $request->{body} = ${$payload};
+        }
     }
 
     # cleanup and send the request object down the pipe
     delete $requests->{$name};
     delete $payloads->{$name};
     my $request_message = Tachikoma::Message->new;
-    $request_message->[TYPE]   = TM_STORABLE;
-    $request_message->[FROM]   = $message->[FROM];
-    $request_message->[TO]     = $self->{owner};
-    $request_message->[STREAM] = join( '',
-          $headers->{host}
-        ? $request->{uri} =~ m(^http://$headers->{host})
-                ? $request->{uri}
-                : join( '', 'http://', $headers->{host}, $request->{uri} )
-        : join( '', 'http://default', $request->{uri} ) );
+    $request_message->[TYPE] = TM_STORABLE;
+    $request_message->[FROM] = $message->[FROM];
+    $request_message->[TO]   = $self->{owner};
+    $request_message->[STREAM] =
+        join q{},
+        $headers->{host}
+        ? $request->{uri} =~ m{^http://$headers->{host}}
+            ? $request->{uri}
+            : join q{}, 'http://', $headers->{host}, $request->{uri}
+        : join q{}, 'http://default', $request->{uri};
     $request_message->[PAYLOAD] = $request;
     $self->{counter}++;
     return $self->{sink}->fill($request_message);
@@ -180,30 +182,33 @@ sub fill {
 sub fire {
     my $self     = shift;
     my $payloads = $self->{payloads};
-    for my $name ( keys %$payloads ) {
+    for my $name ( keys %{$payloads} ) {
         delete $payloads->{$name} if ( not $Tachikoma::Nodes{$name} );
     }
     my $requests = $self->{requests};
-    for my $name ( keys %$requests ) {
+    for my $name ( keys %{$requests} ) {
         delete $requests->{$name} if ( not $Tachikoma::Nodes{$name} );
     }
+    return;
 }
 
+# e.g. Sun, 25 Feb 2007 11:42:04 GMT
 sub get_time {
     my $header = shift;
     return 0 unless $header;
-    my %m = qw( Jan 1 Feb 2 Mar 3 Apr 4  May 5  Jun 6
+    my $time = 0;
+    my %m    = qw( Jan 1 Feb 2 Mar 3 Apr 4  May 5  Jun 6
         Jul 7 Aug 8 Sep 9 Oct 10 Nov 11 Dec 12 );
-    return 0 unless $header =~ m{^ \s* \w+, \s* (\d+) \s* (\w+) \s* (\d+) \s*
-          (\d+):(\d+):(\d+) \s* (\w+) \s* $}x;
-
-    # e.g. Sun, 25 Feb 2007 11:42:04 GMT
-    my ( $day, $mon, $year, $hour, $min, $sec, $zone ) =
-        ( $1, $m{$2}, $3, $4, $5, $6, $7 );
-    my $time =
-        $zone eq 'GMT'
-        ? timegm( $sec, $min, $hour, $day, $mon - 1, $year - 1900 )
-        : timelocal( $sec, $min, $hour, $day, $mon - 1, $year - 1900 );
+    my $dmy = qr{\w+,\s*(\d+)\s*(\w+)\s*(\d+)}o;
+    my $hms = qr{(\d+):(\d+):(\d+)\s*(\w+)\s*}o;
+    if ( $header =~ m{^\s*$dmy\s*$hms$}o ) {
+        my ( $day, $mon, $year, $hour, $min, $sec, $zone ) =
+            ( $1, $m{$2}, $3, $4, $5, $6, $7 );
+        $time =
+            $zone eq 'GMT'
+            ? timegm( $sec, $min, $hour, $day, $mon - 1, $year - 1900 )
+            : timelocal( $sec, $min, $hour, $day, $mon - 1, $year - 1900 );
+    }
     return $time;
 }
 

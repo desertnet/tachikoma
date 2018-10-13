@@ -20,10 +20,12 @@ use POSIX qw( strftime );
 use URI::Escape;
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{prefix} = '';
+    $self->{prefix} = q{};
     $self->{topics} = {};
     bless $self, $class;
     return $self;
@@ -57,8 +59,27 @@ sub fill {
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
     my $accept_encoding = $headers->{'accept-encoding'} || q{};
-    my ( $topic_name, $escaped ) = split q{/}, $path, 2;
-    my $postdata = $request->{'body'};
+    my ( $topic_name, $escaped ) = split m{/}, $path, 2;
+    my $postdata = undef;
+
+    if ( $request->{tmp} ) {
+        my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+        my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
+        local $/ = undef;
+        my $fh = undef;
+        if ( not open $fh, '<', $tmp ) {
+            $self->stderr("ERROR: open $tmp failed: $!");
+            return $self->send404($message);
+        }
+        $postdata = <$fh>;
+        if ( not close $fh ) {
+            $self->stderr("ERROR: close $tmp failed: $!");
+            return $self->send404($message);
+        }
+    }
+    else {
+        $postdata = $request->{body};
+    }
     return $self->send404($message)
         if ( not length $topic_name
         or not length $escaped
@@ -84,7 +105,7 @@ sub fill {
         "Server: Tachikoma\n",
         "Connection: close\n",
         "Content-Type: application/json; charset=utf8\n",
-        "Content-Length: ",
+        'Content-Length: ',
         length($output),
         "\n\n";
     $self->{sink}->fill($response);

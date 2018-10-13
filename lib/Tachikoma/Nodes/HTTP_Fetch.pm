@@ -38,7 +38,7 @@ my %Types = (
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{prefix} = '';
+    $self->{prefix} = q{};
     $self->{tables} = {};
     bless $self, $class;
     return $self;
@@ -72,9 +72,9 @@ sub fill {
     my $prefix  = $self->{prefix};
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
-    my $type            = ( $path =~ m{\.([^.]+)$} )[0] || 'json';
-    my $accept_encoding = $headers->{'accept-encoding'} || q{};
-    my ( $table_name, $escaped ) = split q{/}, $path, 2;
+    my $type            = ( $path =~ m{[.]([^.]+)$} )[0] || 'json';
+    my $accept_encoding = $headers->{'accept-encoding'}  || q{};
+    my ( $table_name, $escaped ) = split m{/}, $path, 2;
     return $self->send404($message)
         if ( not length $table_name
         or not length $escaped
@@ -97,10 +97,10 @@ sub fill {
         'Date: ', cached_strftime(), "\n",
         "Server: Tachikoma\n",
         "Connection: close\n",
-        "Content-Type: ",
+        'Content-Type: ',
         $Types{$type} || $Types{'json'},
         "\n",
-        "Content-Length: ",
+        'Content-Length: ',
         length($value),
         "\n\n",
         $value;

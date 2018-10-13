@@ -41,12 +41,12 @@ sub fill {
     my $servers      = $self->{servers};
     my $server_class = (
           $servers
-        ? $servers->{ $request->{headers}->{host} || '' }
+        ? $servers->{ $request->{headers}->{host} || q{} }
         : undef
     );
     my $paths = (
           $servers
-        ? $self->{paths}->{ $server_class || '' }
+        ? $self->{paths}->{ $server_class || q{} }
         : $self->{paths}
     );
     if ( not $paths ) {
@@ -54,16 +54,14 @@ sub fill {
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = $message->[FROM];
         $response->[STREAM]  = $message->[STREAM];
-        $response->[PAYLOAD] = join(
-            '',
+        $response->[PAYLOAD] = join q{},
             "HTTP/1.1 404 NOT FOUND\n",
             'Date: ', cached_strftime(), "\n",
             "Server: Tachikoma\n",
             "Connection: close\n",
             "Content-Type: text/plain; charset=utf8\n",
             "\n",
-            "Requested URL not found.\n"
-        );
+            "Requested URL not found.\n";
         $self->{sink}->fill($response);
         log_entry( $self, 404, $message );
         $response->[TYPE] = TM_EOF;
@@ -72,16 +70,16 @@ sub fill {
     }
     my $path        = $request->{path};
     my $destination = undef;
-    my @components  = grep length, split( m(/+), $path );
+    my @components  = grep length, split m{/+}, $path;
     my @new_path    = ();
     while (@components) {
-        my $test_path = '/' . join( '/', @components );
+        my $test_path = q{/} . join q{/}, @components;
         my $test = $paths->{$test_path};
         ( $destination = $test ) and last if ($test);
-        unshift( @new_path, pop(@components) );
+        unshift @new_path, pop @components;
     }
-    $request->{path} = join( '/', '', @new_path );
-    $destination ||= $paths->{'/'};
+    $request->{path} = join q{/}, q{}, @new_path;
+    $destination ||= $paths->{q{/}};
     $message->[TO] = $destination;
     $self->{counter}++;
     return $self->{sink}->fill($message);
@@ -107,13 +105,12 @@ $C{list_servers} = sub {
     my $servers  = $self->servers;
     my $response = undef;
     if ( $command->arguments eq '-a' ) {
-        $response = join( "\n", sort keys %$servers ) . "\n";
+        $response = join( "\n", sort keys %{$servers} ) . "\n";
     }
     else {
-        $response = sprintf( "%-40s %s\n", 'SERVER', 'CLASS' );
-        for my $server ( sort keys %$servers ) {
-            $response
-                .= sprintf( "%-40s %s\n", $server, $servers->{$server} );
+        $response = sprintf "%-40s %s\n", 'SERVER', 'CLASS';
+        for my $server ( sort keys %{$servers} ) {
+            $response .= sprintf "%-40s %s\n", $server, $servers->{$server};
         }
     }
     return $self->response( $envelope, $response );
@@ -123,16 +120,16 @@ $C{add_server} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $server, $server_class ) = split( ' ', $command->arguments, 2 );
+    my ( $server, $server_class ) = split q{ }, $command->arguments, 2;
     if ( not $server_class ) {
         return $self->error( $envelope, "please specify a server class\n" );
     }
     if ( not $self->servers ) {
         return $self->error(
             $envelope,
-            join( '',
-                "if specified, servers must be specified before paths.",
-                "  you can remove the current paths and try again.\n" )
+            join q{},
+            'if specified, servers must be specified before paths.',
+            "  you can remove the current paths and try again.\n"
         ) if ( keys %{ $self->paths } );
         $self->servers( {} );
     }
@@ -168,7 +165,7 @@ $C{list_paths} = sub {
     my $paths    = $self->paths;
     my $response = undef;
     if ( $command->arguments eq '-a' ) {
-        $response = join( "\n", sort keys %$paths ) . "\n";
+        $response = join( "\n", sort keys %{$paths} ) . "\n";
     }
     elsif ( $command->arguments ) {
         if ( not $self->servers ) {
@@ -178,26 +175,26 @@ $C{list_paths} = sub {
         if ( not $server_paths ) {
             return $self->error( $envelope, "no servers in class\n" );
         }
-        $response = sprintf( "%-40s %s\n", 'PATH', 'DESTINATION' );
-        for my $path ( sort keys %$server_paths ) {
-            $response .= sprintf( " %-39s %s\n", $path, $paths->{$path} );
+        $response = sprintf "%-40s %s\n", 'PATH', 'DESTINATION';
+        for my $path ( sort keys %{$server_paths} ) {
+            $response .= sprintf " %-39s %s\n", $path, $paths->{$path};
         }
     }
     elsif ( $self->servers ) {
-        $response =
-            sprintf( "%-10s %-40s %s\n", 'CLASS', 'PATH', 'DESTINATION' );
-        for my $server_class ( sort keys %$paths ) {
+        $response = sprintf "%-10s %-40s %s\n", 'CLASS', 'PATH',
+            'DESTINATION';
+        for my $server_class ( sort keys %{$paths} ) {
             my $server_paths = $paths->{$server_class};
-            for my $path ( sort keys %$server_paths ) {
-                $response .= sprintf( "%-10s %-40s %s\n",
-                    $server_class, $path, $server_paths->{$path} );
+            for my $path ( sort keys %{$server_paths} ) {
+                $response .= sprintf "%-10s %-40s %s\n",
+                    $server_class, $path, $server_paths->{$path};
             }
         }
     }
     else {
-        $response = sprintf( "%-40s %s\n", 'PATH', 'DESTINATION' );
-        for my $path ( sort keys %$paths ) {
-            $response .= sprintf( " %-39s %s\n", $path, $paths->{$path} );
+        $response = sprintf "%-40s %s\n", 'PATH', 'DESTINATION';
+        for my $path ( sort keys %{$paths} ) {
+            $response .= sprintf " %-39s %s\n", $path, $paths->{$path};
         }
     }
     return $self->response( $envelope, $response );
@@ -213,7 +210,7 @@ $C{add_path} = sub {
     my ( $server_class, $path, $destination );
     if ( $self->servers ) {
         ( $server_class, $path, $destination ) =
-            split( ' ', $command->arguments, 3 );
+            split q{ }, $command->arguments, 3;
         if ( not exists $paths->{$server_class} ) {
             $paths->{$server_class} = {};
         }
@@ -222,13 +219,12 @@ $C{add_path} = sub {
     else {
         my $extra;
         ( $path, $destination, $extra ) =
-            split( ' ', $command->arguments, 3 );
+            split q{ }, $command->arguments, 3;
         if ($extra) {
             return $self->error(
-                $envelope,
-                join( '',
-                    "extra arguments to add_path.",
-                    "  did you mean to add servers first?\n" )
+                $envelope, join q{},
+                'extra arguments to add_path.',
+                "  did you mean to add servers first?\n"
             );
         }
     }
@@ -250,13 +246,13 @@ $C{remove_path} = sub {
     my $envelope = shift;
     my $paths    = $self->paths;
     if ( $self->servers ) {
-        my ( $server_class, $path ) = split( ' ', $command->arguments, 2 );
+        my ( $server_class, $path ) = split q{ }, $command->arguments, 2;
         if ( exists $paths->{$server_class} ) {
             my $server_paths = $paths->{$server_class};
             if ( exists $server_paths->{$path} ) {
                 delete $server_paths->{$path};
                 delete $paths->{$server_class}
-                    if ( not keys %$server_paths );
+                    if ( not keys %{$server_paths} );
                 return $self->okay($envelope);
             }
             else {
@@ -290,28 +286,28 @@ sub dump_config {
     my $servers  = $self->{servers};
     my $paths    = $self->{paths};
     if ($servers) {
-        for my $server ( sort keys %$servers ) {
+        for my $server ( sort keys %{$servers} ) {
             my $server_class = $servers->{$server};
-            $response .= join( '',
+            $response .= join q{},
                 "command $self->{name}",
-                " add_server $server $server_class\n" );
+                " add_server $server $server_class\n";
         }
-        for my $server_class ( sort keys %$paths ) {
+        for my $server_class ( sort keys %{$paths} ) {
             my $server_paths = $paths->{$server_class};
-            for my $path ( sort keys %$server_paths ) {
+            for my $path ( sort keys %{$server_paths} ) {
                 my $destination = $server_paths->{$path};
-                $response .= join( '',
+                $response .= join q{},
                     "command $self->{name}",
-                    " add_path $server_class $path $destination\n" );
+                    " add_path $server_class $path $destination\n";
             }
         }
     }
     else {
-        for my $path ( sort keys %$paths ) {
+        for my $path ( sort keys %{$paths} ) {
             my $destination = $paths->{$path};
-            $response .= join( '',
+            $response .= join q{},
                 "command $self->{name}",
-                " add_path $path $destination\n" );
+                " add_path $path $destination\n";
         }
     }
     return $response;
@@ -322,21 +318,21 @@ sub owner {
     my $owners = {};
     my $paths  = $self->{paths};
     if ( $self->{servers} ) {
-        for my $server_class ( sort keys %$paths ) {
+        for my $server_class ( sort keys %{$paths} ) {
             my $server_paths = $paths->{$server_class};
-            for my $path ( sort keys %$server_paths ) {
+            for my $path ( sort keys %{$server_paths} ) {
                 my $destination = $server_paths->{$path};
                 $owners->{$destination} = undef;
             }
         }
     }
     else {
-        for my $path ( sort keys %$paths ) {
+        for my $path ( sort keys %{$paths} ) {
             my $destination = $paths->{$path};
             $owners->{$destination} = undef;
         }
     }
-    return [ sort keys %$owners ];
+    return [ sort keys %{$owners} ];
 }
 
 sub servers {
