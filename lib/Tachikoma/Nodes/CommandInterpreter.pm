@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35085 2018-10-12 05:46:56Z chris $
+# $Id: CommandInterpreter.pm 35144 2018-10-13 22:25:01Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2227,7 +2227,12 @@ $C{initialize} = sub {
     $responder->sink(undef);
     $responder->edge(undef);
     my $okay = eval {
-        Tachikoma->initialize($name);
+        if ( $command->name eq 'initialize' ) {
+            Tachikoma->initialize($name);
+        }
+        else {
+            Tachikoma->daemonize($name);
+        }
         return 1;
     };
     if ( not $okay ) {
@@ -2242,41 +2247,7 @@ $C{initialize} = sub {
 
 $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
-$C{daemonize} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
-    my $name      = $command->arguments || 'tachikoma-server';
-    my $router    = $Tachikoma::Nodes{_router};
-    my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _router\n"    if ( not $router );
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
-    die "ERROR: already daemonized\n"       if ( $router->type ne 'router' );
-    $router->stop_timer;
-    my $node = $responder->sink;
-
-    while ( my $sink = $node->sink ) {
-        $node->remove_node;
-        $node = $sink;
-    }
-    Tachikoma->event_framework->close_filehandle($node);
-    delete( Tachikoma->nodes_by_fd->{ $node->fd } );
-    $responder->client(undef);
-    $responder->sink(undef);
-    $responder->edge(undef);
-    my $okay = eval {
-        Tachikoma->daemonize($name);
-        return 1;
-    };
-    if ( not $okay ) {
-        print {*STDERR} $@ // "ERROR: daemonize: unknown error\n";
-        exit 1;
-    }
-    $router->type('root');
-    $router->register_router_node;
-    $router->set_timer(1000);
-    return;
-};
+$C{daemonize} = $C{initialize};
 
 $H{shutdown} = ["shutdown\n"];
 
