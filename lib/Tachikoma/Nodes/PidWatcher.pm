@@ -86,7 +86,7 @@ sub queue {
         if ($count) {
             my $time = $Check_Interval_Max / $count;
             $time = $Check_Interval_Min if ( $time < $Check_Interval_Min );
-            $self->set_timer( int( $time * 1000 ) );
+            $self->set_timer( $time * 1000 );
         }
         else {
             $self->stop_timer;
