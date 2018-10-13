@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
-    TYPE FROM TO ID PAYLOAD
+    TYPE FROM TO ID STREAM PAYLOAD
     TM_COMMAND TM_PING TM_RESPONSE TM_NOREPLY TM_INFO TM_EOF
 );
 use Sys::Hostname qw( hostname );
@@ -114,7 +114,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
     }
     elsif ( $type & TM_INFO ) {
-        if ( $message->[PAYLOAD] eq "reconnect\n" ) {
+        if ( $message->[STREAM] eq 'reconnect' ) {
             $self->note_reconnect( $message->[FROM] );
         }
         else {
