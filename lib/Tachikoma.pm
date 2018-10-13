@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35148 2018-10-13 23:26:45Z chris $
+# $Id: Tachikoma.pm 35151 2018-10-13 23:44:57Z chris $
 #
 
 package Tachikoma;
@@ -464,6 +464,31 @@ sub initialize {
     return;
 }
 
+sub copy_variables {
+    my $self = shift;
+    for my $name (@CONFIG_VARIABLES) {
+        my $value = undef;
+        if ( ref $Var{$name} ) {
+            $value = join q{}, @{ $Var{$name} };
+        }
+        else {
+            $value = $Var{$name};
+        }
+        $Tachikoma{$name} = $value if ( length $value );
+    }
+    return;
+}
+
+sub check_pid {
+    my $self    = shift;
+    my $old_pid = $self->get_pid;
+    if ( $old_pid and kill 0, $old_pid ) {
+        print {*STDERR} "ERROR: $0 already running as pid $old_pid\n";
+        exit 3;
+    }
+    return;
+}
+
 sub daemonize {               # from perlipc manpage
     my $self = shift;
     open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
@@ -501,70 +526,6 @@ sub open_log_file {
     return 'success';
 }
 
-sub touch_log_file {
-    my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
-    $self->close_log_file;
-    $self->open_log_file;
-    utime $Tachikoma::Now, $Tachikoma::Now, $log
-        or die "ERROR: can't utime $log: $!";
-    return;
-}
-
-sub close_log_file {
-    my $self = shift;
-    untie *STDOUT;
-    untie *STDERR;
-    close $LOG_FILE_HANDLE or die $!;
-    return;
-}
-
-sub reload_config {
-    my $self   = shift;
-    my $config = $Tachikoma{Config};
-    include_conf($config);
-    $Tachikoma{Config} = $config;
-    return;
-}
-
-sub copy_variables {
-    my $self = shift;
-    for my $name (@CONFIG_VARIABLES) {
-        my $value = undef;
-        if ( ref $Var{$name} ) {
-            $value = join q{}, @{ $Var{$name} };
-        }
-        else {
-            $value = $Var{$name};
-        }
-        $Tachikoma{$name} = $value if ( length $value );
-    }
-    return;
-}
-
-sub check_pid {
-    my $self    = shift;
-    my $old_pid = $self->get_pid;
-    if ( $old_pid and kill 0, $old_pid ) {
-        print {*STDERR} "ERROR: $0 already running as pid $old_pid\n";
-        exit 3;
-    }
-    return;
-}
-
-sub get_pid {
-    my $self = shift;
-    my $name = shift;
-    my $file = $self->pid_file($name);
-    my $pid;
-    return if ( not $file or not -f $file );
-    open my $fh, '<', $file or die "ERROR: can't open pid file $file: $!";
-    $pid = <$fh>;
-    close $fh or die $!;
-    chomp $pid if ($pid);
-    return $pid;
-}
-
 sub write_pid {
     my $self = shift;
     my $file = $self->pid_file or die "ERROR: no pid file specified\n";
@@ -599,6 +560,45 @@ sub load_event_framework {
     }
     $self->event_framework($framework);
     return;
+}
+
+sub touch_log_file {
+    my $self = shift;
+    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    $self->close_log_file;
+    $self->open_log_file;
+    utime $Tachikoma::Now, $Tachikoma::Now, $log
+        or die "ERROR: can't utime $log: $!";
+    return;
+}
+
+sub close_log_file {
+    my $self = shift;
+    untie *STDOUT;
+    untie *STDERR;
+    close $LOG_FILE_HANDLE or die $!;
+    return;
+}
+
+sub reload_config {
+    my $self   = shift;
+    my $config = $Tachikoma{Config};
+    include_conf($config);
+    $Tachikoma{Config} = $config;
+    return;
+}
+
+sub get_pid {
+    my $self = shift;
+    my $name = shift;
+    my $file = $self->pid_file($name);
+    my $pid;
+    return if ( not $file or not -f $file );
+    open my $fh, '<', $file or die "ERROR: can't open pid file $file: $!";
+    $pid = <$fh>;
+    close $fh or die $!;
+    chomp $pid if ($pid);
+    return $pid;
 }
 
 sub remove_pid {
