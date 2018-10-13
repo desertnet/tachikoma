@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35146 2018-10-13 23:15:48Z chris $
+# $Id: Tachikoma.pm 35148 2018-10-13 23:26:45Z chris $
 #
 
 package Tachikoma;
@@ -448,20 +448,15 @@ sub close_filehandle {
     return;
 }
 
-sub daemonize {
-    my $self = shift;
-    my $name = shift;
+sub initialize {
+    my $self      = shift;
+    my $name      = shift;
+    my $daemonize = shift;
     $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
     srand;
     $self->copy_variables;
     $self->check_pid;
-    open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
-    open STDOUT, '>', '/dev/null'
-        or die "ERROR: can't write /dev/null: $!";
-    defined( my $pid = fork ) or die "ERROR: can't fork: $!";
-    exit 0 if ($pid);
-    setsid() or die "ERROR: can't start session: $!";
-    open STDERR, '>&', STDOUT or die "ERROR: can't dup STDOUT: $!";
+    $self->daemonize if ($daemonize);
     $self->reset_signal_handlers;
     $self->open_log_file;
     $self->write_pid;
@@ -469,17 +464,15 @@ sub daemonize {
     return;
 }
 
-sub initialize {
+sub daemonize {               # from perlipc manpage
     my $self = shift;
-    my $name = shift;
-    $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
-    srand;
-    $self->copy_variables;
-    $self->check_pid;
-    $self->reset_signal_handlers;
-    $self->open_log_file;
-    $self->write_pid;
-    $self->load_event_framework;
+    open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
+    open STDOUT, '>', '/dev/null'
+        or die "ERROR: can't write /dev/null: $!";
+    defined( my $pid = fork ) or die "ERROR: can't fork: $!";
+    exit 0 if ($pid);
+    setsid() or die "ERROR: can't start session: $!";
+    open STDERR, '>&', STDOUT or die "ERROR: can't dup STDOUT: $!";
     return;
 }
 

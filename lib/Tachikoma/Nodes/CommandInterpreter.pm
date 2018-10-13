@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35144 2018-10-13 22:25:01Z chris $
+# $Id: CommandInterpreter.pm 35148 2018-10-13 23:26:45Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2208,6 +2208,7 @@ $C{initialize} = sub {
     my $self      = shift;
     my $command   = shift;
     my $envelope  = shift;
+    my $daemonize = $command->name eq 'daemonize' ? 1 : undef;
     my $name      = $command->arguments || 'tachikoma-server';
     my $router    = $Tachikoma::Nodes{_router};
     my $responder = $Tachikoma::Nodes{_responder};
@@ -2227,12 +2228,7 @@ $C{initialize} = sub {
     $responder->sink(undef);
     $responder->edge(undef);
     my $okay = eval {
-        if ( $command->name eq 'initialize' ) {
-            Tachikoma->initialize($name);
-        }
-        else {
-            Tachikoma->daemonize($name);
-        }
+        Tachikoma->initialize( $name, $daemonize );
         return 1;
     };
     if ( not $okay ) {
