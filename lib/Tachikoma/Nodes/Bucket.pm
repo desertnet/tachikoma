@@ -71,7 +71,7 @@ sub fire {
     return if ( not $self->{owner} );
     my $now = strftime( '%F-%T', localtime($Tachikoma::Now) );
     my $base = $self->{base};
-    local $/;
+    local $/ = undef;
     opendir( my $dh, $self->{base} );
     for my $date ( sort grep m(^[^.]), readdir($dh) ) {
         last if ( $date gt $now );

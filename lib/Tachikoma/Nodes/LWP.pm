@@ -87,7 +87,7 @@ sub fill {
         if ( $request->{tmp} ) {
             my $tmp_path = join( '/', $self->{tmp_path}, 'post' );
             my $tmp = ( $request->{tmp} =~ m(^($tmp_path/\w+$)) )[0];
-            local $/;
+            local $/ = undef;
             open( *STDIN, '<', $tmp );
             $content = <STDIN>;
             close(STDIN);
