@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 34401 2018-07-05 18:59:35Z chris $
+# $Id: LoadBalancer.pm 35137 2018-10-13 09:19:13Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -35,7 +35,6 @@ sub new {
     $self->{method}         = 'round-robin';
     $self->{mode}           = 'persistent';
     $self->{hash}           = q{};
-    $self->{path}           = q{};
     $self->{interpreter}    = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
@@ -88,11 +87,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        my $path = $self->{path};
-        $message->[TO] =
-              $to
-            ? $path ? join q{/}, $owner, $path, $to : join q{/}, $owner, $to
-            : $path ? join q{/}, $owner, $path : $owner;
+        $message->[TO] = $to ? join q{/}, $owner, $to : $owner;
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -170,7 +165,6 @@ $C{help} = sub {
             . "          set_method <round-robin | preferred | hash>\n"
             . "          set_mode <none | persistent | all>\n"
             . "          set_hash <token>\n"
-            . "          set_path <path>\n"
             . "          kick\n" );
 };
 
@@ -242,14 +236,6 @@ $C{set_hash} = sub {
     my $command  = shift;
     my $envelope = shift;
     $self->patron->hash( $command->arguments );
-    return $self->okay($envelope);
-};
-
-$C{set_path} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->patron->path( $command->arguments );
     return $self->okay($envelope);
 };
 
@@ -434,14 +420,6 @@ sub hash {
         $self->{hash} = shift;
     }
     return $self->{hash};
-}
-
-sub path {
-    my $self = shift;
-    if (@_) {
-        $self->{path} = shift;
-    }
-    return $self->{path};
 }
 
 1;
