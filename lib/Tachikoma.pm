@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35151 2018-10-13 23:44:57Z chris $
+# $Id: Tachikoma.pm 35160 2018-10-14 01:03:52Z chris $
 #
 
 package Tachikoma;
@@ -489,7 +489,7 @@ sub check_pid {
     return;
 }
 
-sub daemonize {               # from perlipc manpage
+sub daemonize {    # from perlipc manpage
     my $self = shift;
     open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
     open STDOUT, '>', '/dev/null'
