@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 34797 2018-09-03 04:56:04Z chris $
+# $Id: Tee.pm 35157 2018-10-14 00:19:18Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -45,7 +45,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self       = shift;
     my $message    = shift;
     my $response   = 0;
@@ -97,16 +97,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $name, $path ) = split m{/}, $owner, 2;
         my $node = $Tachikoma::Nodes{$name} or next;
         my $copy = Tachikoma::Message->new($packed);
-        $copy->[TO] =
-              $node->isa('Tachikoma::Nodes::Router')
-            ? $copy->[TO]
-                ? join q{/}, $owner, $copy->[TO]
-                : $owner
-            : $copy->[TO] ? $path
-                ? join q{/}, $path, $copy->[TO]
-                : $copy->[TO]
-            : $path ? $path
-            :         q{};
+        $copy->[TO] = join q{/}, grep length, $path, $copy->[TO];
         push @keep, $owner;
         if ($persist) {
             $self->stamp_message( $copy, $self->{name} ) or return;
