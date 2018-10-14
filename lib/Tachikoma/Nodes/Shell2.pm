@@ -427,6 +427,25 @@ sub evaluate {
         : [];
 }
 
+sub evaluate_splice {
+    my $self   = shift;
+    my $values = shift;
+    my $rv     = shift;
+    my $i      = shift;
+    my $end    = shift // @{$values};
+    while ( $i < $end ) {
+        if ( ref $values->[$i] ) {
+            my $result = $self->evaluate( $values->[$i] );
+            push @{$rv}, @{$result} if ( defined $result );
+        }
+        elsif ( defined $values->[$i] ) {
+            push @{$rv}, $values->[$i];
+        }
+        $i++;
+    }
+    return;
+}
+
 #############
 # Evaluators
 #############
@@ -444,16 +463,7 @@ $Evaluators{'open_bracket'} = sub {
     push @{$rv}, @{$result} if ( defined $result );
 
     # evaluate statements after the close bracket:
-    ## no critic (ProhibitCStyleForLoops)
-    for ( my $i = 1; $i < @{$values}; $i++ ) {
-        if ( ref $values->[$i] ) {
-            $result = $self->evaluate( $values->[$i] );
-            push @{$rv}, @{$result} if ( defined $result );
-        }
-        elsif ( defined $values->[$i] ) {
-            push @{$rv}, $values->[$i];
-        }
-    }
+    $self->evaluate_splice($values, $rv, 1);
     return $rv;
 };
 
@@ -474,16 +484,7 @@ $Evaluators{'open_brace'} = sub {
     %Local = %old_local;
 
     # evaluate statements after the close bracket:
-    ## no critic (ProhibitCStyleForLoops)
-    for ( my $i = 1; $i < @{$values}; $i++ ) {
-        if ( ref $values->[$i] ) {
-            $result = $self->evaluate( $values->[$i] );
-            push @{$rv}, @{$result} if ( defined $result );
-        }
-        elsif ( defined $values->[$i] ) {
-            push @{$rv}, $values->[$i];
-        }
-    }
+    $self->evaluate_splice($values, $rv, 1);
     return $rv;
 };
 
@@ -531,16 +532,7 @@ $Evaluators{'open_paren'} = sub {
     }
 
     # evaluate statements after the close parenthesis:
-    ## no critic (ProhibitCStyleForLoops)
-    for ( my $i = 1; $i < @{$values}; $i++ ) {
-        if ( ref $values->[$i] ) {
-            my $result = $self->evaluate( $values->[$i] );
-            push @{$rv}, @{$result} if ( defined $result );
-        }
-        elsif ( defined $values->[$i] ) {
-            push @{$rv}, $values->[$i];
-        }
-    }
+    $self->evaluate_splice($values, $rv, 1);
     return $rv;
 };
 
@@ -878,14 +870,15 @@ $Builtins{'if'} = sub {
         $rv = $self->evaluate($then_tree);
     }
     elsif (@elsif_tests) {
-        ## no critic (ProhibitCStyleForLoops)
-        for ( my $i = 0; $i < @elsif_tests; $i++ ) {
+        my $i = 0;
+        while ( $i < @elsif_tests ) {
             $test = join q{}, @{ $self->evaluate( $elsif_tests[$i] ) };
             $test =~ s{^\s*|\s*$}{}g;
             if ($test) {
                 $rv = $self->evaluate( $elsif_trees[$i] );
                 last;
             }
+            $i++;
         }
     }
     return $rv;
@@ -1629,10 +1622,10 @@ sub _call_function {
     }
     pop @values if ( $values[-1] =~ m{^\s+$} );
     $arguments->{$_} = $trimmed[$_] for ( 1 .. $#trimmed );
-    $arguments->{'0'} = shift @values;
+    $arguments->{q{0}} = shift @values;
     shift @values if ( @values and $values[0] =~ m{^\s+$} );
-    $arguments->{'@'}  = \@values;    ## no critic (ProhibitNoisyQuotes)
-    $arguments->{'_C'} = $#trimmed;
+    $arguments->{q{@}}  = \@values;
+    $arguments->{q{_C}} = $#trimmed;
     return $self->call_function( $name, $arguments );
 }
 
@@ -1695,16 +1688,16 @@ sub callback {
         my %arguments = ();
         $arguments{'0'} = $id;
         if ( not $error ) {
-            $arguments{'1'}  = $payload;
-            $arguments{'@'}  = $payload;    ## no critic (ProhibitNoisyQuotes)
-            $arguments{'_C'} = 1;
-            $arguments{'_ERROR'} = q{};
+            $arguments{q{1}}      = $payload;
+            $arguments{q{@}}      = $payload;
+            $arguments{q{_C}}     = 1;
+            $arguments{q{_ERROR}} = q{};
         }
         else {
-            $arguments{'1'}      = q{};
-            $arguments{'@'}      = q{};     ## no critic (ProhibitNoisyQuotes)
-            $arguments{'_C'}     = 0;
-            $arguments{'_ERROR'} = $payload;
+            $arguments{q{1}}      = q{};
+            $arguments{q{@}}      = q{};
+            $arguments{q{_C}}     = 0;
+            $arguments{q{_ERROR}} = $payload;
         }
         my %old_local = %Local;
         $Local{$_} = $arguments{$_} for ( keys %arguments );

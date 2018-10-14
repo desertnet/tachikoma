@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35204 2018-10-14 12:14:36Z chris $
+# $Id: CommandInterpreter.pm 35210 2018-10-14 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -164,14 +164,13 @@ sub call_function {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: couldn't find _responder\n" if ( not $responder );
     my $okay = eval {
-        ## no critic (ProhibitNoisyQuotes)
         $rv = $responder->shell->call_function(
             $name,
-            {   '@'            => $command->arguments,
-                '0'            => $name,
-                '1'            => $command->arguments,
-                '_C'           => 1,
-                'message.from' => $envelope->from
+            {   q{@}            => $command->arguments,
+                q{0}            => $name,
+                q{1}            => $command->arguments,
+                q{_C}           => 1,
+                q{message.from} => $envelope->from
             }
         );
         return 1;
@@ -1856,17 +1855,15 @@ $C{remote_var} = sub {
         my $v = $Var{$key};
         $v = [] if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
-
-        ## no critic (ProhibitNoisyQuotes)
-        if ( $op eq '.=' and @{$v} ) { push @{$v}, q{ }; }
-        if ( $op eq '=' ) { $v = [$value]; }
-        elsif ( $op eq '.=' ) { push @{$v}, $value; }
-        elsif ( $op eq '+=' ) { $v->[0] //= 0; $v->[0] += $value; }
-        elsif ( $op eq '-=' ) { $v->[0] //= 0; $v->[0] -= $value; }
-        elsif ( $op eq '*=' ) { $v->[0] //= 0; $v->[0] *= $value; }
-        elsif ( $op eq '/=' ) { $v->[0] //= 0; $v->[0] /= $value; }
-        elsif ( $op eq '//=' and not @{$v} ) { $v = [$value]; }
-        elsif ( $op eq '||=' and not join q{}, @{$v} ) { $v = [$value]; }
+        if ( $op eq q{.=} and @{$v} ) { push @{$v}, q{ }; }
+        if ( $op eq q{=} ) { $v = [$value]; }
+        elsif ( $op eq q{.=} ) { push @{$v}, $value; }
+        elsif ( $op eq q{+=} ) { $v->[0] //= 0; $v->[0] += $value; }
+        elsif ( $op eq q{-=} ) { $v->[0] //= 0; $v->[0] -= $value; }
+        elsif ( $op eq q{*=} ) { $v->[0] //= 0; $v->[0] *= $value; }
+        elsif ( $op eq q{/=} ) { $v->[0] //= 0; $v->[0] /= $value; }
+        elsif ( $op eq q{//=} and not @{$v} ) { $v = [$value]; }
+        elsif ( $op eq q{||=} and not join q{}, @{$v} ) { $v = [$value]; }
         else { return $self->error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
@@ -2007,11 +2004,10 @@ $C{getrusage} = sub {
         nsignals nvcsw nivcsw
     );
 
-    ## no critic (ProhibitCStyleForLoops)
-    for ( my $i = 0; $i < 2; $i++ ) {
+    for my $i ( 0 .. 1 ) {
         $out .= sprintf "%10s: %20f\n", $labels[$i], $rusage[$i];
     }
-    for ( my $i = 2; $i <= $#rusage; $i++ ) {
+    for my $i ( 2 .. $#rusage ) {
         $out .= sprintf "%10s: %13d\n", $labels[$i], $rusage[$i];
     }
     return $self->response( $envelope, $out );

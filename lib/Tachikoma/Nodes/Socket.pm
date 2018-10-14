@@ -266,9 +266,9 @@ sub register_server_node {
     return $self;
 }
 
-sub accept_connections {    ## no critic (RequireArgUnpacking)
-    my $self = shift;
-    return $Tachikoma::Event_Framework->accept_connections( $self, @_ );
+sub accept_connections {
+    my (@args) = @_;
+    return $Tachikoma::Event_Framework->accept_connections(@args);
 }
 
 sub accept_connection {

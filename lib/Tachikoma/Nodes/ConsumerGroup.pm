@@ -147,11 +147,12 @@ sub determine_mapping {
             or return $self->stderr('ERROR: no partitions');
         my @consumers = sort keys %{ $self->{timestamps}->{$topic} };
         my %mapping   = ();
-        ## no critic (ProhibitCStyleForLoops)
-        for ( my $i = 0; $i <= $#{$partitions}; $i++ ) {
+        my $i         = 0;
+        while ( $i <= $#{$partitions} ) {
             my $consumer = $consumers[ $i % @consumers ];
             $mapping{$consumer} //= {};
             $mapping{$consumer}->{$i} = $partitions->[$i];
+            $i++;
         }
         $self->{mapping}->{$topic} = \%mapping if ( keys %mapping );
     }

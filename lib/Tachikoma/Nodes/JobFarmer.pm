@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 34650 2018-08-31 13:20:21Z chris $
+# $Id: JobFarmer.pm 35210 2018-10-14 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -327,14 +327,15 @@ $C{set_count} = sub {
         return $self->error( $envelope, "count must be an integer\n" );
     }
     if ( $count < $self->patron->job_count ) {
-        ## no critic (ProhibitCStyleForLoops)
-        for ( my $i = $self->patron->job_count; $i > $count; $i-- ) {
+        my $i = $self->patron->job_count;
+        while ( $i > $count ) {
             my $name = $names[ $i - 1 ];
             next if ( not defined $name );
             my $job = $jobs->{$name};
             $self->disconnect_node( $load_balancer->name, $name );
             $self->disconnect_node( $tee->name, $name ) if ($tee);
             $job->{connector}->handle_EOF if ($job);
+            $i--;
         }
     }
     $self->patron->job_count($count);
