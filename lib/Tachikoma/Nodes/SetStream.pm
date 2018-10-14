@@ -14,6 +14,8 @@ use Tachikoma::Message qw( STREAM PAYLOAD );
 use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;

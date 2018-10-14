@@ -16,11 +16,13 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{offset}      = 0;
-    $self->{line_buffer} = '';
+    $self->{line_buffer} = q{};
     bless $self, $class;
     return $self;
 }
@@ -53,13 +55,13 @@ sub fill {
     }
     return if ( not $type & TM_BYTESTREAM );
     my $offset      = $message->[ID];
-    my $line_buffer = '';
+    my $line_buffer = q{};
     $line_buffer = $self->{line_buffer} if ( $offset > $self->{offset} );
     my $payload = $line_buffer . $message->[PAYLOAD];
-    my $part    = '';
+    my $part    = q{};
     if ( substr( $payload, -1, 1 ) ne "\n" ) {
 
-        if ( $payload =~ s(\n(.+)$)(\n)i ) {
+        if ( $payload =~ s{\n(.+)$}{\n} ) {
             $part = $1;
         }
         else {

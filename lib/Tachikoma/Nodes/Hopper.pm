@@ -13,6 +13,8 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_PERSIST TM_RESPONSE );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -46,13 +48,13 @@ sub fill {
     my $delay   = $self->{delay};
     my $queue   = $self->{queue};
     my $span    = $Tachikoma::Right_Now - $self->{last_fire_time};
-    if ( not @$queue and $span > $delay / 1000 ) {
+    if ( not @{$queue} and $span > $delay / 1000 ) {
         $self->{last_fire_time} = $Tachikoma::Right_Now;
         $self->SUPER::fill($message);
     }
     else {
         my $copy = Tachikoma::Message->new( $message->packed );
-        push( @$queue, $copy );
+        push @{$queue}, $copy;
         $span = 0 if ( $span < 0 );
         $delay = $delay - $span * 1000 if ( $delay > $span * 1000 );
         $self->set_timer( $delay, 'oneshot' )
@@ -64,10 +66,10 @@ sub fill {
 sub fire {
     my $self    = shift;
     my $queue   = $self->{queue};
-    my $message = shift(@$queue) or return;
+    my $message = shift @{$queue} or return;
     $self->{last_fire_time} = $Tachikoma::Right_Now;
     $self->SUPER::fill($message);
-    $self->set_timer( $self->{delay}, 'oneshot' ) if (@$queue);
+    $self->set_timer( $self->{delay}, 'oneshot' ) if ( @{$queue} );
     return;
 }
 

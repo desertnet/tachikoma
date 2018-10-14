@@ -13,6 +13,8 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Check_Interval_Min = 0.02;
 my $Check_Interval_Max = 10;
 
@@ -44,7 +46,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $pid = ( $message->[PAYLOAD] =~ m(^(\d+)$) )[0];
+    my $pid = ( $message->[PAYLOAD] =~ m{^(\d+)$} )[0];
     return if ( not $pid );
     $self->{pids}->{$pid} = 1;
     $self->queue if ( not $self->{timer_is_active} );
@@ -53,8 +55,8 @@ sub fill {
 
 sub fire {
     my $self = shift;
-    my $pid = shift( @{ $self->queue } ) or return;
-    return if ( kill( 0, $pid ) or $! ne 'No such process' );
+    my $pid = shift @{ $self->queue } or return;
+    return if ( kill 0, $pid or $! ne 'No such process' );
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_BYTESTREAM;
     $message->[FROM] = $self->{name};
@@ -82,7 +84,7 @@ sub queue {
     if ( not @{ $self->{queue} } ) {
         my $queue = [ sort keys %{ $self->{pids} } ];
         $self->{queue} = $queue;
-        my $count = @$queue;
+        my $count = @{$queue};
         if ($count) {
             my $time = $Check_Interval_Max / $count;
             $time = $Check_Interval_Min if ( $time < $Check_Interval_Min );

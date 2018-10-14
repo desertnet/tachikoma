@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Join
 # ----------------------------------------------------------------------
 #
-# $Id: Join.pm 33259 2018-02-17 15:06:46Z chris $
+# $Id: Join.pm 35165 2018-10-14 04:38:22Z chris $
 #
 
 package Tachikoma::Nodes::Join;
@@ -12,6 +12,8 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TO ID PAYLOAD TM_BYTESTREAM TM_EOF );
 use parent qw( Tachikoma::Nodes::Timer );
+
+use version; our $VERSION = 'v2.0.367';
 
 my $Default_Interval = 1000;
 my $Default_Size     = 65536;
@@ -38,7 +40,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $interval, $bufsize ) = split( ' ', $self->{arguments}, 2 );
+        my ( $interval, $bufsize ) = split q{ }, $self->{arguments}, 2;
         $self->set_timer( $interval || $Default_Interval );
         $self->buffer_size($bufsize) if ($bufsize);
     }
@@ -55,20 +57,20 @@ sub fill {
     }
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     if ( not defined $self->{buffer} ) {
-        my $new_buffer = '';
+        my $new_buffer = q{};
         $self->{buffer} = \$new_buffer;
     }
     my $buffer = $self->{buffer};
-    $$buffer .= $message->[PAYLOAD];
+    ${$buffer} .= $message->[PAYLOAD];
     $self->{offset} = $message->[ID] if ( not defined $self->{offset} );
     $self->{counter}++;
-    if ( length($$buffer) >= $self->{buffer_size} ) {
+    if ( length( ${$buffer} ) >= $self->{buffer_size} ) {
         $self->{last_update} = $Tachikoma::Right_Now;
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[ID]      = $self->{offset};
         $response->[TO]      = $self->{owner};
-        $response->[PAYLOAD] = $$buffer;
+        $response->[PAYLOAD] = ${$buffer};
         $self->{buffer}      = undef;
         $self->{offset}      = undef;
         return $self->{sink}->fill($response);

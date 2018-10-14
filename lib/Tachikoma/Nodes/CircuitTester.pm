@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 34982 2018-09-30 21:21:20Z chris $
+# $Id: CircuitTester.pm 35165 2018-10-14 04:38:22Z chris $
 #
 
 package Tachikoma::Nodes::CircuitTester;
@@ -17,6 +17,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Default_Interval = 0.1;
 my $Default_Timeout  = 900;
 my %C                = ();
@@ -24,14 +26,14 @@ my %C                = ();
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{circuits}    = {};
-    $self->{queue}       = [];
-    $self->{waiting}     = {};
-    $self->{offline}     = {};
-    $self->{times}       = {};
-    $self->{interval}    = $Default_Interval;
-    $self->{timeout}     = $Default_Timeout;
-    $self->{interpreter} = Tachikoma::Nodes::CommandInterpreter->new;
+    $self->{circuits}         = {};
+    $self->{queue}            = [];
+    $self->{waiting}          = {};
+    $self->{offline}          = {};
+    $self->{round_trip_times} = {};
+    $self->{interval}         = $Default_Interval;
+    $self->{timeout}          = $Default_Timeout;
+    $self->{interpreter}      = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
     bless $self, $class;
@@ -50,7 +52,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $interval, $timeout ) =
-            split( ' ', $self->{arguments}, 3 );
+            split q{ }, $self->{arguments}, 3;
         $self->{interval} = $interval || $Default_Interval;
         $self->{timeout}  = $timeout  || $Default_Timeout;
         $self->set_timer( $self->{interval} * 1000 );
@@ -74,7 +76,7 @@ sub fill {
                 if ( $offline->{$path} and $how_many > $self->{timeout} );
             delete $waiting->{$path};
             delete $offline->{$path};
-            $self->{times}->{$path} =
+            $self->{round_trip_times}->{$path} =
                 $Tachikoma::Right_Now - $message->[PAYLOAD];
         }
     }
@@ -94,7 +96,7 @@ sub fire {
             $self->{queue} = [ sort keys %{ $self->{circuits} } ];
             $i++;
         }
-        $path = shift( @{ $self->{queue} } );
+        $path = shift @{ $self->{queue} };
     } while ( $path and not $self->{circuits}->{$path} and $i <= 1 );
     return if ( not $path );
     if ( $waiting->{$path} ) {
@@ -144,9 +146,9 @@ $C{list_circuits} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $glob     = $command->arguments;
-    my $response = '';
+    my $response = q{};
     for my $path ( sort keys %{ $self->patron->circuits } ) {
-        eval { $response .= "$path\n" if ( not $glob or $path =~ $glob ) };
+        $response .= "$path\n" if ( not $glob or $path =~ $glob );
     }
     return $self->response( $envelope, $response );
 };
@@ -171,7 +173,7 @@ $C{remove_circuit} = sub {
     delete $patron->circuits->{ $command->arguments };
     delete $patron->waiting->{ $command->arguments };
     delete $patron->offline->{ $command->arguments };
-    delete $patron->times->{ $command->arguments };
+    delete $patron->round_trip_times->{ $command->arguments };
     return $self->okay;
 };
 
@@ -184,14 +186,12 @@ $C{disable_circuit} = sub {
     my $patron   = $self->patron;
     my $glob     = $command->arguments;
     for my $path ( keys %{ $patron->circuits } ) {
-        eval {
-            if ( $path =~ $glob ) {
-                $patron->circuits->{$path} = 0;
-                delete $patron->waiting->{$path};
-                delete $patron->offline->{$path};
-                delete $patron->times->{$path};
-            }
-        };
+        if ( $path =~ $glob ) {
+            $patron->circuits->{$path} = 0;
+            delete $patron->waiting->{$path};
+            delete $patron->offline->{$path};
+            delete $patron->round_trip_times->{$path};
+        }
     }
     return $self->okay;
 };
@@ -205,7 +205,7 @@ $C{enable_circuit} = sub {
     my $patron   = $self->patron;
     my $glob     = $command->arguments;
     for my $path ( keys %{ $patron->circuits } ) {
-        eval { $patron->circuits->{$path} = 1 if ( $path =~ $glob ) };
+        $patron->circuits->{$path} = 1 if ( $path =~ $glob );
     }
     return $self->okay;
 };
@@ -217,12 +217,12 @@ $C{list_waiting} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $waiting  = $self->patron->waiting;
-    my $response = '';
-    for my $path ( sort keys %$waiting ) {
-        $response .= sprintf( "%-70s %9d\n",
-            $path, $Tachikoma::Now - $waiting->{$path} );
+    my $response = q{};
+    for my $path ( sort keys %{$waiting} ) {
+        $response .= sprintf "%-70s %9d\n",
+            $path, $Tachikoma::Now - $waiting->{$path};
     }
-    $response = "none - all nodes have responded\n" if ( $response eq '' );
+    $response = "none - all nodes have responded\n" if ( $response eq q{} );
     return $self->response( $envelope, $response );
 };
 
@@ -233,12 +233,12 @@ $C{list_offline} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $waiting  = $self->patron->waiting;
-    my $response = '';
+    my $response = q{};
     for my $path ( sort keys %{ $self->patron->offline } ) {
-        $response .= sprintf( "%-70s %9d\n",
-            $path, $Tachikoma::Now - $waiting->{$path} );
+        $response .= sprintf "%-70s %9d\n",
+            $path, $Tachikoma::Now - $waiting->{$path};
     }
-    $response = "none - all nodes are online\n" if ( $response eq '' );
+    $response = "none - all nodes are online\n" if ( $response eq q{} );
     return $self->response( $envelope, $response );
 };
 
@@ -249,11 +249,11 @@ $C{list_disabled} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $circuits = $self->patron->circuits;
-    my $response = '';
-    for my $path ( sort keys %$circuits ) {
+    my $response = q{};
+    for my $path ( sort keys %{$circuits} ) {
         $response .= "$path\n" if ( not $circuits->{$path} );
     }
-    $response = "none - all nodes are enabled\n" if ( $response eq '' );
+    $response = "none - all nodes are enabled\n" if ( $response eq q{} );
     return $self->response( $envelope, $response );
 };
 
@@ -264,15 +264,14 @@ $C{list_times} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $patron   = $self->patron;
-    my $times    = $patron->times;
+    my $times    = $patron->round_trip_times;
     my $glob     = $command->arguments;
-    my $response = '';
-    for my $path ( sort keys %$times ) {
-        $response
-            .= sprintf( "%-70s %6.2f ms\n", $path, $times->{$path} * 1000 )
+    my $response = q{};
+    for my $path ( sort keys %{$times} ) {
+        $response .= sprintf "%-70s %6.2f ms\n", $path, $times->{$path} * 1000
             if ( not $glob or $path =~ $glob );
     }
-    if ( $response ne '' ) {
+    if ( $response ne q{} ) {
         return $self->response( $envelope, $response );
     }
     else {
@@ -286,7 +285,7 @@ sub dump_config {
     my $self     = shift;
     my $response = $self->SUPER::dump_config;
     my $circuits = $self->{circuits};
-    for my $name ( sort keys %$circuits ) {
+    for my $name ( sort keys %{$circuits} ) {
         $response .= "command $self->{name} add $name\n";
     }
     return $response;
@@ -324,12 +323,12 @@ sub offline {
     return $self->{offline};
 }
 
-sub times {
+sub round_trip_times {
     my $self = shift;
     if (@_) {
-        $self->{times} = shift;
+        $self->{round_trip_times} = shift;
     }
-    return $self->{times};
+    return $self->{round_trip_times};
 }
 
 sub interval {
