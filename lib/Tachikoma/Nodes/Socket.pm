@@ -22,7 +22,8 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Tachikoma::Config qw(
-    %Tachikoma $ID $Private_Ed25519_Key %SSL_Config %Var $Wire_Version
+    %Tachikoma $ID $Private_Ed25519_Key %SSL_Config $Secure_Level %Var
+    $Wire_Version
 );
 use Tachikoma::Crypto;
 use Digest::MD5 qw( md5 );
@@ -272,6 +273,7 @@ sub accept_connections {    ## no critic (RequireArgUnpacking)
 sub accept_connection {
     my $self   = shift;
     my $server = $self->{fh};
+    return if ( defined $Secure_Level and $Secure_Level == 0 );
     my $client;
     my $paddr = accept $client, $server;
     if ( not $paddr ) {
@@ -880,6 +882,8 @@ sub fill_buffer_init {
         # sending us the results of the DNS lookup.
         # see also inet_client_async(), dns_lookup(), and init_socket()
         #
+        return $self->close_filehandle('reconnect')
+            if ( defined $Secure_Level and $Secure_Level == 0 );
         my $okay = eval {
             $self->init_socket( $message->[PAYLOAD] );
             return 1;
