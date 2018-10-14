@@ -281,10 +281,10 @@ sub fill {
         $self->process_info($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->stderr(
-            'ERROR: got ', $message->[PAYLOAD],
-            ' from ',      $message->[FROM]
-        );
+        my $error = $message->[PAYLOAD];
+        chomp $error;
+        $self->stderr( "ERROR: got $error from ", $message->[FROM] )
+            if ( not $self->{starting_up} );
     }
     else {
         $self->stderr( 'ERROR: unexpected message type: ',

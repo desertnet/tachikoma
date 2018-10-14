@@ -16,6 +16,7 @@ package Tachikoma::Nodes::Socket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
+use Tachikoma::Nodes::Router;
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_HEARTBEAT TM_ERROR
@@ -892,9 +893,13 @@ sub fill_buffer_init {
             $self->stderr("ERROR: init_socket() failed: $@");
             $self->close_filehandle('reconnect');
         }
-        return;
     }
-    return $self->fill_buffer($message);
+    else {
+        $message->[TO] = join q{/}, grep length, $self->{name},
+            $message->[TO];
+        $Tachikoma::Nodes{_router}->send_error( $message, 'NOT_AVAILABLE' );
+    }
+    return;
 }
 
 sub fill_fh_sync_SSL {
