@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35148 2018-10-13 23:26:45Z chris $
+# $Id: CommandInterpreter.pm 35204 2018-10-14 12:14:36Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -881,6 +881,8 @@ $C{dump_hex} = sub {
     bless $copy, 'main';    # don't call DESTROY()
     return $self->response( $envelope, $response );
 };
+
+$H{dump_dec} = ["dump_dec <node name> <keys>\n"];
 
 $C{dump_dec} = sub {
     my $self     = shift;
