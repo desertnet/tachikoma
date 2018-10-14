@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35179 2018-10-14 09:45:33Z chris $
+# $Id: Scheduler.pm 35185 2018-10-14 09:56:32Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -430,7 +430,7 @@ sub tiedhash {
                 unlink "${path}.clean"
                     or die "ERROR: couldn't unlink ${path}.clean: $!\n";
             }
-            else {
+            elsif ( -e $path ) {
                 unlink $path or die "ERROR: couldn't unlink $path: $!\n";
             }
             if ( $ext eq 'db' ) {

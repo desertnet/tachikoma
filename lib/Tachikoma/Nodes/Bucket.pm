@@ -91,7 +91,7 @@ sub process_dir {
         my $path = join q{/}, $dir, $file;
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_BYTESTREAM;
-        open my $fh, '<', $path or die "ERROR: couldn't open $path: $!";
+        open my $fh, q{<}, $path or die "ERROR: couldn't open $path: $!";
         $message->[PAYLOAD] = <$fh>;
         close $fh or die "ERROR: couldn't close $path: $!";
         unlink $path or die "ERROR: couldn't unlink $path: $!";
