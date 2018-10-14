@@ -35,15 +35,16 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $prefix, @topics ) = split q{ }, $self->{arguments};
+        my ( $tmp_path, $prefix, @topics ) = split q{ }, $self->{arguments};
         my $json = JSON->new;
         $json->canonical(1);
         $json->pretty(1);
         $json->allow_blessed(1);
         $json->convert_blessed(0);
         $self->{topics} = { map { $_ => 1 } @topics };
-        $self->{prefix} = $prefix if ( defined $prefix );
-        $self->{json} = $json;
+        $self->{tmp_path} = $tmp_path if ( defined $tmp_path );
+        $self->{prefix}   = $prefix   if ( defined $prefix );
+        $self->{json}     = $json;
     }
     return $self->{arguments};
 }
@@ -148,6 +149,14 @@ sub send404 {
     $response->[TO]   = $message->[FROM];
     log_entry( $self, 404, $message );
     return $self->{sink}->fill($response);
+}
+
+sub tmp_path {
+    my $self = shift;
+    if (@_) {
+        $self->{tmp_path} = shift;
+    }
+    return $self->{tmp_path};
 }
 
 sub prefix {
