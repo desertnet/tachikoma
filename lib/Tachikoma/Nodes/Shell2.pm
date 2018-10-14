@@ -463,7 +463,7 @@ $Evaluators{'open_bracket'} = sub {
     push @{$rv}, @{$result} if ( defined $result );
 
     # evaluate statements after the close bracket:
-    $self->evaluate_splice($values, $rv, 1);
+    $self->evaluate_splice( $values, $rv, 1 );
     return $rv;
 };
 
@@ -484,7 +484,7 @@ $Evaluators{'open_brace'} = sub {
     %Local = %old_local;
 
     # evaluate statements after the close bracket:
-    $self->evaluate_splice($values, $rv, 1);
+    $self->evaluate_splice( $values, $rv, 1 );
     return $rv;
 };
 
@@ -532,7 +532,7 @@ $Evaluators{'open_paren'} = sub {
     }
 
     # evaluate statements after the close parenthesis:
-    $self->evaluate_splice($values, $rv, 1);
+    $self->evaluate_splice( $values, $rv, 1 );
     return $rv;
 };
 
