@@ -252,7 +252,7 @@ $C{set_count_mode} = sub {
     my $envelope  = shift;
     my $arguments = $command->arguments;
     die 'invalid count mode'
-        if ( $count_mode and not $Count_Modes{$count_mode} );
+        if ( not $arguments or not $Count_Modes{$arguments} );
     $self->patron->count_mode($arguments);
     return $self->okay($envelope);
 };
@@ -263,7 +263,7 @@ $C{set_send_mode} = sub {
     my $envelope  = shift;
     my $arguments = $command->arguments;
     die 'invalid send mode'
-        if ( $send_mode and not $Send_Modes{$send_mode} );
+        if ( not $arguments or not $Send_Modes{$arguments} );
     $self->patron->send_mode($arguments);
     return $self->okay($envelope);
 };
