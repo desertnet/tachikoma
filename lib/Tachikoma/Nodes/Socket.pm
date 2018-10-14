@@ -440,11 +440,15 @@ sub start_SSL_connection {
     $self->register_writer_node;
     if ( $self->{flags} & TK_SYNC ) {
 
-      # my $peer = join q{},
-      #     ' authority: "', $ssl_socket->peer_certificate('authority'), q{"},
-      #     ' owner: "',     $ssl_socket->peer_certificate('owner'),     q{"},
-      #     ' cipher: "', $ssl_socket->get_cipher, q{"}, "\n";
-      # $self->stderr( 'connect_SSL() verified peer:', $peer );
+        # my $peer = join q{},
+        #     'authority: "',
+        #     $fh->peer_certificate('authority'),
+        #     '" owner: "',
+        #     $fh->peer_certificate('owner'),
+        #     '" cipher: "',
+        #     $fh->get_cipher,
+        #     qq{"\n};
+        # $self->stderr( 'connect_SSL() verified peer:', $peer );
         $self->{fill} = \&fill_fh_sync_SSL;
         $self->init_connect;
     }
@@ -480,14 +484,11 @@ sub init_SSL_connection {
         my $peer = join q{},
             'authority: "',
             $fh->peer_certificate('authority'),
-            q{"},
-            ' owner: "',
+            '" owner: "',
             $fh->peer_certificate('owner'),
-            q{"},
-            ' cipher: "',
+            '" cipher: "',
             $fh->get_cipher,
-            q{"},
-            "\n";
+            qq{"\n};
 
         # $self->stderr($method, '() verified peer: ', $peer);
         if ( $type eq 'connect' ) {

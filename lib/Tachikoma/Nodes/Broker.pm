@@ -859,7 +859,7 @@ sub determine_mapping {
     for my $topic_name ( sort keys %{ $self->{topics} } ) {
         my $topic      = $self->{topics}->{$topic_name};
         my @partitions = ();
-        my $i = 0;
+        my $i          = 0;
         while ( $i < $topic->{num_partitions} ) {
             my $log_name = "$topic_name:partition:$i";
             my $leader   = $self->determine_leader(
