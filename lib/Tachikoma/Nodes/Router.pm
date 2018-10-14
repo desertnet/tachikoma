@@ -127,7 +127,7 @@ sub drop_message {
     my $message = shift;
     my $error   = shift;
     $self->print_less_often(
-              "ERROR: $error - "
+              "WARNING: $error - "
             . $message->type_as_string
             . ( $message->from ? ' from: ' . $message->from : q{} )
             . ( $message->to   ? ' to: ' . $message->to     : q{} )
