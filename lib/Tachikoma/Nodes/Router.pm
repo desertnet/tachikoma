@@ -102,6 +102,7 @@ sub send_error {
     my $message = shift;
     my $error   = shift;
     if ( not $message->[TYPE] & TM_ERROR ) {
+        chomp $error;
         if ( $message->[FROM] ) {
             return $self->drop_message( $message, 'breaking recursion' )
                 if ( $self->handling_error );
@@ -111,12 +112,11 @@ sub send_error {
             $response->[TO]      = $message->[FROM];
             $response->[ID]      = $message->[ID];
             $response->[STREAM]  = $message->[STREAM];
-            $response->[PAYLOAD] = $error;
+            $response->[PAYLOAD] = "$error\n";
             $self->handling_error(1);
             $self->fill($response);
             $self->handling_error(undef);
         }
-        chomp $error;
         $self->drop_message( $message, $error );
     }
     return;
@@ -126,15 +126,6 @@ sub drop_message {
     my $self    = shift;
     my $message = shift;
     my $error   = shift;
-    return
-        if (
-        $error eq 'NOT_AVAILABLE'
-        and (
-            $message->type & TM_EOF
-            or (    $message->type & TM_ERROR
-                and $message->payload eq "NOT_AVAILABLE\n" )
-        )
-        );
     $self->print_less_often(
               "ERROR: $error - "
             . $message->type_as_string
@@ -145,7 +136,7 @@ sub drop_message {
             ? ' payload: ' . $message->payload
             : q{}
             )
-    ) if ( $self->{type} ne 'router' );
+    );
     return;
 }
 
