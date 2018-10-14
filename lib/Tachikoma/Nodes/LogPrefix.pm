@@ -13,6 +13,8 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub help {
     my $self = shift;
     return <<'EOF';
@@ -24,7 +26,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $prefix  = Tachikoma->log_prefix;
-    $message->[PAYLOAD] =~ s(^)($prefix)mg
+    $message->[PAYLOAD] =~ s{^}{$prefix}mg
         if ( $message->[TYPE] & TM_BYTESTREAM );
     return $self->SUPER::fill($message);
 }

@@ -95,7 +95,7 @@ for my $field ( keys %width ) {
 $buffer_top->select_fields($select_fields);
 $buffer_top->where( \%where );
 $buffer_top->where_not( \%where_not );
-$buffer_top->sort($sort);
+$buffer_top->sort_by($sort);
 $buffer_top->threshold($threshold);
 $buffer_top->delay($delay);
 

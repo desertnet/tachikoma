@@ -13,6 +13,8 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( TM_BYTESTREAM TYPE TO STREAM );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub help {
     my $self = shift;
     return <<'EOF';
@@ -27,11 +29,11 @@ sub fill {
     my $message = shift;
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     $message->[TO] =
-        ( defined $self->{edge}->lookup( $message->[STREAM] ) )
+        defined $self->{edge}->lookup( $message->[STREAM] )
         ? $self->{owner}
         : $self->{arguments};
     if ( $message->[TO] ) {
-        $self->{sink}->fill($message)
+        $self->{sink}->fill($message);
     }
     else {
         $self->cancel($message);

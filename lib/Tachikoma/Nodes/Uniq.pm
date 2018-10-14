@@ -13,10 +13,12 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( PAYLOAD );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{p} = '';
+    $self->{p} = q{};
     bless $self, $class;
     return $self;
 }

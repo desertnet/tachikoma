@@ -13,6 +13,8 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_EOF );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Default_Timeout = 30;
 
 sub help {
@@ -26,7 +28,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $gate, $timeout ) = split( ' ', $self->{arguments}, 2 );
+        my ( $gate, $timeout ) = split q{ }, $self->{arguments}, 2;
         $self->{gate} = $gate;
         $self->{timeout} = $timeout || $Default_Timeout;
         $self->set_timer( $self->{timeout} * 1000 );
@@ -37,10 +39,10 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $gate    = $self->{gate} or return $self->stderr("ERROR: no gate set");
+    my $gate    = $self->{gate} or return $self->stderr('ERROR: no gate set');
     my $node    = $Tachikoma::Nodes{$gate}
         or return $self->stderr("ERROR: couldn't find $gate");
-    return $self->stderr("ERROR: only Gate nodes are supported")
+    return $self->stderr('ERROR: only Gate nodes are supported')
         if ( not $node->isa('Tachikoma::Nodes::Gate') );
     $node->arguments('closed');
     $self->set_timer( $self->{timeout} * 1000 );
@@ -50,10 +52,10 @@ sub fill {
 
 sub fire {
     my $self = shift;
-    my $gate = $self->{gate} or return $self->stderr("ERROR: no gate set");
+    my $gate = $self->{gate} or return $self->stderr('ERROR: no gate set');
     my $node = $Tachikoma::Nodes{$gate}
         or return $self->stderr("ERROR: couldn't find $gate");
-    return $self->stderr("ERROR: only Gate nodes are supported")
+    return $self->stderr('ERROR: only Gate nodes are supported')
         if ( not $node->isa('Tachikoma::Nodes::Gate') );
     $node->arguments('open');
     return;

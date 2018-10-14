@@ -59,6 +59,8 @@ lib/Tachikoma/Nodes/JobFarmer.pm
 lib/Tachikoma/Nodes/LoadBalancer.pm
 lib/Tachikoma/Nodes/LoadController.pm
 lib/Tachikoma/Nodes/Log.pm
+lib/Tachikoma/Nodes/LogPrefix.pm
+lib/Tachikoma/Nodes/Lookup.pm
 lib/Tachikoma/Nodes/MemorySieve.pm
 lib/Tachikoma/Nodes/Null.pm
 lib/Tachikoma/Nodes/Partition.pm
@@ -84,3 +86,9 @@ lib/Tachikoma/Nodes/Tee.pm
 lib/Tachikoma/Nodes/Timeout.pm
 lib/Tachikoma/Nodes/Timer.pm
 lib/Tachikoma/Nodes/Topic.pm
+lib/Tachikoma/Nodes/TopicProbe.pm
+lib/Tachikoma/Nodes/TopicTop.pm
+lib/Tachikoma/Nodes/Transform.pm
+lib/Tachikoma/Nodes/Uniq.pm
+lib/Tachikoma/Nodes/Watchdog.pm
+lib/Tachikoma/Nodes/Watcher.pm

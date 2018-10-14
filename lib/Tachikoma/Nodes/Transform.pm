@@ -16,6 +16,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -42,13 +44,15 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $package, $transform ) =
-            ( $self->{arguments} =~ m(^([\w':./-]+)\s+(.+)$)s );
-        die "no package specified"   if ( not $package );
-        die "no transform specified" if ( not $transform );
-        $package =~ s(^|$)(')g       if ( $package =~ m(^/) );
+            ( $self->{arguments} =~ m{^([\w':./-]+)\s+(.+)$}s );
+        die "no package specified\n"   if ( not $package );
+        die "no transform specified\n" if ( not $transform );
+        $package =~ s{^|$}{'}g         if ( $package =~ m{^/} );
+
+        ## no critic (ProhibitStringyEval)
         eval "require $package"
             or die "couldn't require $package: $@"
-            if ( $package ne '-' );
+            if ( $package ne q{-} );
         $self->{function} = eval "sub { $transform }";
         die $@ if ($@);
     }

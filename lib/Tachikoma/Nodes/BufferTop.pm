@@ -25,7 +25,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{where}     = {};
     $self->{where_not} = {};
-    $self->{sort}      = 'msg_in_buf';
+    $self->{sort_by}   = 'msg_in_buf';
     $self->{height}    = undef;
     $self->{width}     = undef;
     $self->{threshold} = 1;
@@ -80,7 +80,7 @@ sub fire {
     my $where     = $self->{where};
     my $where_not = $self->{where_not};
     my $threshold = $self->{threshold};
-    my $sort      = $self->{sort};
+    my $sort      = $self->{sort_by};
     my $sorted    = {};
     my $totals    = {};
     my $total     = 0;

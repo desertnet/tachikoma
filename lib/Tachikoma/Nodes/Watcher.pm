@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 34904 2018-09-07 16:35:21Z chris $
+# $Id: Watcher.pm 35162 2018-10-14 02:55:02Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -15,11 +15,14 @@ use IO::KQueue;
 use Config;
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Check_Proc_Interval = 10;
 my $Can_KQueue          = 1;
 if ( $Config{osname} eq 'freebsd' ) {
+    ## no critic (ProhibitBacktickOperators)
     my $version = `/usr/bin/uname -r`;
-    my ( $major, $minor ) = ( $version =~ m(^(\d+)\.(\d+)) );
+    my ( $major, $minor ) = ( $version =~ m{^(\d+)[.](\d+)} );
     $Can_KQueue = undef
         if ( $major >= 10
         or ( $major == 8 and $minor >= 4 ) );
@@ -58,10 +61,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $filter, $id, @notes ) = split( ' ', $arguments );
+        my ( $filter, $id, @notes ) = split q{ }, $arguments;
         $self->{arguments} = $arguments;
         if ( $filter eq 'proc' ) {
-            die "bad pid: $id" if ( $id !~ m(^\d+$) );
+            die "bad pid: $id" if ( $id !~ m{^\d+$} );
             $self->{filter}  = EVFILT_PROC;
             $self->{mapping} = {
                 'exit'     => NOTE_EXIT,
@@ -93,7 +96,7 @@ sub arguments {
             };
             $self->{notes} = [ map { $self->{mapping}->{$_} } @notes ];
             $self->{filename} = $id;
-            if ( open( $fh, '<', $id ) ) {
+            if ( open $fh, '<', $id ) {
                 $self->fh($fh);
                 $self->register_reader_node;
             }
@@ -125,7 +128,7 @@ sub register_reader_node {
 
 sub drain_fh {
     my $self = shift;
-    die "unexpected drain_fh";
+    die 'unexpected drain_fh';
 }
 
 sub fire {
@@ -135,10 +138,10 @@ sub fire {
         $kevent->[KQ_FFLAGS] = NOTE_DELETE;
         return $self->note_fh($kevent);
     }
-    elsif ( not kill( 0, $self->{pid} ) and $! eq 'No such process' ) {
+    elsif ( not kill 0, $self->{pid} and $! eq 'No such process' ) {
         if ( $self->{orly} ) {
             $kevent->[KQ_FFLAGS] = NOTE_EXIT;
-            $kevent->[KQ_DATA]   = '';
+            $kevent->[KQ_DATA]   = q{};
             $self->stderr(
                 "WARNING: KQueue missed process exit, working around...\n")
                 if ($Can_KQueue);
@@ -167,8 +170,8 @@ sub note_fh {
         #              even then it isn't getting set in the KQ_FFLAGS
         $kevent->[KQ_FFLAGS] = NOTE_EXIT;
     }
-    for my $note ( keys %$mapping ) {
-        push( @notes, $note ) if ( $kevent->[KQ_FFLAGS] & $mapping->{$note} );
+    for my $note ( keys %{$mapping} ) {
+        push @notes, $note if ( $kevent->[KQ_FFLAGS] & $mapping->{$note} );
     }
     if ( $self->{filter} == EVFILT_PROC ) {
         $self->stderr("NOTICE: KQueue caught process exit!\n")
@@ -176,7 +179,7 @@ sub note_fh {
             and not $Can_KQueue
             and not $self->{orly} );
         $message->payload( "$self->{name}: process $self->{pid} "
-                . join( ', ', @notes ) . ' '
+                . join( q{, }, @notes ) . q{ }
                 . $kevent->[KQ_DATA]
                 . "\n" );
         $self->{counter}++;
@@ -186,7 +189,7 @@ sub note_fh {
     else {
         if ( $kevent->[KQ_IDENT] ) {
             $message->payload( "$self->{name}: file $self->{filename} "
-                    . join( ', ', @notes ) . ' '
+                    . join( q{, }, @notes ) . q{ }
                     . $kevent->[KQ_DATA]
                     . "\n" );
             $self->{counter}++;
@@ -196,11 +199,15 @@ sub note_fh {
             or $kevent->[KQ_FFLAGS] & NOTE_RENAME )
         {
             if ( defined $self->{fd} ) {
-                eval {
+                my $okay = eval {
                     $self->queue->EV_SET( $self->{fd}, EVFILT_VNODE,
                         EV_DELETE );
+                    return 1;
                 };
-                close( $self->{fh} );
+                $self->stderr( 'ERROR: ', $@ // 'EV_DELETE failed' )
+                    if ( not $okay );
+                close $self->{fh}
+                    or $self->stderr("ERROR: couldn't close: $!");
                 delete Tachikoma->nodes_by_fd->{ $self->{fd} };
                 $self->{fd} = undef;
             }
@@ -209,7 +216,7 @@ sub note_fh {
             $message->[TYPE] = TM_BYTESTREAM;
             $message->[FROM] = $self->{name};
             $message->[TO]   = $self->{owner};
-            if ( open( $fh, '<', $self->{filename} ) ) {
+            if ( open $fh, '<', $self->{filename} ) {
                 $self->fh($fh);
                 $self->register_reader_node;
                 $message->payload(
@@ -254,7 +261,7 @@ sub fh {
     my $self = shift;
     if (@_) {
         my $fh = shift;
-        my $fd = fileno($fh);
+        my $fd = fileno $fh;
         $self->{name} ||= $fd;
         $self->{fd}                    = $fd;
         $self->{fh}                    = $fh;
@@ -271,8 +278,9 @@ sub close_filehandle {
     delete( $Tachikoma::Nodes_By_PID->{ $self->{pid} } )
         if ( defined $self->{pid} );
     undef $!;
-    close( $self->{fh} ) if ( $self->{fh} and fileno( $self->{fh} ) );
-    $self->stderr("WARNING: couldn't close(): $!") if ($!);
+    close $self->{fh}
+        or $self->stderr("WARNING: couldn't close(): $!")
+        if ( $self->{fh} and fileno $self->{fh} );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );
     $self->{fd}  = undef;
     $self->{fh}  = undef;
