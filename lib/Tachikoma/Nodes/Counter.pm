@@ -226,14 +226,11 @@ $C{averages} = sub {
     my $day_avg            = $patron->calculate( 'day',            24 );
     if ( $command->arguments ne '-s' ) {
         $response = join q{},
-            'one minute average:     ', $one_minute_avg,
-            "\n",                       'five minute average:    ',
-            $five_minute_avg, "\n",
-            'fifteen minute average: ', $fifteen_minute_avg,
-            "\n",                       'hour average:           ',
-            $hour_avg, "\n",
-            'day average:            ', $day_avg,
-            "\n";
+            'one minute average:     ', $one_minute_avg,     "\n",
+            'five minute average:    ', $five_minute_avg,    "\n",
+            'fifteen minute average: ', $fifteen_minute_avg, "\n",
+            'hour average:           ', $hour_avg,           "\n",
+            'day average:            ', $day_avg,            "\n";
     }
     else {
         $response = join q{},
