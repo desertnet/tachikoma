@@ -132,7 +132,7 @@ sub drop_message {
             . ( $message->from ? ' from: ' . $message->from : q{} )
             . ( $message->to   ? ' to: ' . $message->to     : q{} )
             . (
-            ( $message->type & TM_INFO or $message->type & TM_ERROR )
+            ( $message->type == TM_INFO or $message->type == TM_ERROR )
             ? ' payload: ' . $message->payload
             : q{}
             )
