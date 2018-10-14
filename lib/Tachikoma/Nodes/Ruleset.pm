@@ -18,6 +18,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.368';
+
 my %C = ();
 my %Exclude_To = map { $_ => 1 } qw( copy redirect rewrite );
 
@@ -39,7 +41,7 @@ make_node Ruleset <node name>
 EOF
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self         = shift;
     my $message      = shift;
     my $message_type = $message->[TYPE];
@@ -48,7 +50,7 @@ sub fill {
     my $message_from = $message->[FROM];
     my $message_to   = $message->[TO];
     my $packed       = $message->packed;
-    for my $id ( sort { $a <=> $b } keys %$rules ) {
+    for my $id ( sort { $a <=> $b } keys %{$rules} ) {
         my ( $type, $from, $to, $field, $re ) = @{ $rules->{$id} };
         next
             if (
@@ -56,13 +58,13 @@ sub fill {
                 and $field eq 'payload'
                 and $message_type & TM_STORABLE
             )
-            or ( defined $from and $message_from !~ m($from) )
+            or ( defined $from and $message_from !~ m{$from} )
             or (    not $Exclude_To{$type}
                 and defined $to
-                and $message_to !~ m($to) )
+                and $message_to !~ m{$to} )
             );
         my $copy = Tachikoma::Message->new($packed);
-        my @matches = $field ? $copy->[$field] =~ m($re) : ();
+        my @matches = $field ? $copy->[$field] =~ m{$re} : ();
         next if ( $field and not @matches );
         if ( $type eq 'deny' ) {
             last;
@@ -71,8 +73,8 @@ sub fill {
             my $destination =
                 (      ( $type eq 'allow' ? $message_to : $to )
                     || $self->{owner}
-                    || '' );
-            my ( $name, $path ) = split( '/', $destination, 2 );
+                    || q{} );
+            my ( $name, $path ) = split m{/}, $destination, 2;
             my $node = $name ? $Tachikoma::Nodes{$name} : $self->{sink};
             if ( not $node ) {
                 Tachikoma::Nodes::Router->drop_message( $message,
@@ -96,17 +98,17 @@ sub fill {
             last if ( $type ne 'copy' );
         }
         elsif ( $type eq 'rewrite' ) {
-            $to =~ s(\$$_(?!\d))($matches[$_ - 1])g for ( 1 .. @matches );
-            $copy->[$field] =~ s($re)($to)s;
+            $to =~ s{\$$_(?!\d)}{$matches[$_ - 1]}g for ( 1 .. @matches );
+            $copy->[$field] =~ s{$re}{$to}s;
             $packed = $copy->packed;
         }
         elsif ( $type eq 'log' ) {
             my $out = "logging under rule $id: " . $copy->type_as_string;
-            $out .= " from " . $copy->[FROM]
-                if ( $from and $message_from =~ m($from) );
-            $out .= " to " . $copy->[TO]
-                if ( $to and $message_to =~ m($to) );
-            if ( $field and $re and $copy->[$field] =~ m($re) ) {
+            $out .= ' from ' . $copy->[FROM]
+                if ( $from and $message_from =~ m{$from} );
+            $out .= ' to ' . $copy->[TO]
+                if ( $to and $message_to =~ m{$to} );
+            if ( $field and $re and $copy->[$field] =~ m{$re} ) {
                 my $field_name =
                     qw( TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD ) [$field];
                 if ( $message->[TYPE] & TM_COMMAND and $field == PAYLOAD ) {
@@ -146,18 +148,18 @@ $C{list_rules} = sub {
     my $rules    = $self->patron->rules;
     my $response = undef;
     if ( $command->arguments eq '-a' ) {
-        $response = join( "\n", sort keys %$rules ) . "\n";
+        $response = join( "\n", sort keys %{$rules} ) . "\n";
     }
     else {
-        $response = '';
+        $response = q{};
         my @enum = qw( type from to id stream timestamp payload );
-        for my $id ( sort { $a <=> $b } keys %$rules ) {
+        for my $id ( sort { $a <=> $b } keys %{$rules} ) {
             my ( $type, $from, $to, $field_id, $regex ) = @{ $rules->{$id} };
             my $field = $field_id ? $enum[$field_id] : undef;
             if ($regex) {
-                $regex =~ s{^\((\?(\^\:?)?)?}{};
-                $regex =~ s{\)$}{};
-                $regex =~ s(')(\\')g;
+                $regex =~ s{^[(]([?]([^][:]?)?)?}{};
+                $regex =~ s{[)]$}{};
+                $regex =~ s{'}{\\'}g;
             }
             if ( $type eq 'rewrite' ) {
                 $response
@@ -189,10 +191,11 @@ $C{add_rule} = sub {
         to      => TO,
         id      => ID,
         stream  => STREAM,
-        payload => PAYLOAD
+        payload => PAYLOAD,
     );
+    ## no critic (ProhibitComplexRegexes)
     my ( $id, $type, $from, $to, $field_id, $regex ) = (
-        $command->arguments =~ m(
+        $command->arguments =~ m{
             ^
                \s* (\S+) \s+ (\S+)
             (?:\s+ from  \s+ (\S+))?
@@ -200,33 +203,32 @@ $C{add_rule} = sub {
             (?:\s+ where \s+ ([^\s=]+) \s* = \s* (.*?))?
                \s*
             $
-        )x
+        }x
     );
     if ( not $type ) {
         ( $id, $type, $field_id, $regex, $to ) = (
-            $command->arguments =~ m(
+            $command->arguments =~ m{
                 ^
                    \s* (\S+) \s+ (\S+)
                    \s+ ([^\s=]+) \s* = \s* (\S+)
                    \s+ to    \s+ (.*?)
                    \s*
                 $
-            )x
+            }x
         );
     }
-    if (   not $type
-        or not grep { $type eq $_ }
-        qw( allow deny copy redirect rewrite log ) )
-    {
+    my %valid_types =
+        map { $_ => 1 } qw( allow deny copy redirect rewrite log );
+    if ( not $type or not $valid_types{$type} ) {
         return $self->error( $envelope, "syntax error\n" );
     }
     if ( not exists $self->patron->rules->{$id} ) {
         $self->patron->rules->{$id} = [
             $type,
-            defined $from ? qr($from) : undef,
-            ( not $Exclude_To{$type} and defined $to ) ? qr($to) : $to,
+            defined $from ? qr{$from} : undef,
+            ( not $Exclude_To{$type} and defined $to ) ? qr{$to} : $to,
             $field_id      ? $enum{$field_id} : undef,
-            defined $regex ? qr($regex)       : undef
+            defined $regex ? qr{$regex}       : undef
         ];
         return $self->okay($envelope);
     }
@@ -258,9 +260,11 @@ $C{rm} = $C{remove_rule};
 sub name {
     my $self = shift;
     if (@_) {
-        $self->{interpreter}->name( $_[0] . ':config' );
+        my $name = shift;
+        $self->{interpreter}->name( $name . ':config' );
+        $self->SUPER::name($name);
     }
-    return $self->SUPER::name(@_);
+    return $self->{name};
 }
 
 sub dump_config {
@@ -268,13 +272,13 @@ sub dump_config {
     my $response = $self->SUPER::dump_config;
     my $rules    = $self->{rules};
     my @enum     = qw( type from to id stream timestamp payload );
-    for my $id ( sort { $a <=> $b } keys %$rules ) {
+    for my $id ( sort { $a <=> $b } keys %{$rules} ) {
         my ( $type, $from, $to, $field_id, $regex ) = @{ $rules->{$id} };
         my $field = $field_id ? $enum[$field_id] : undef;
         if ($regex) {
-            $regex =~ s{^\((\?(\^\:?)?)?}{};
-            $regex =~ s{\)$}{};
-            $regex =~ s(')(\\')g;
+            $regex =~ s{^[(]([?]([^][:]?)?)?}{};
+            $regex =~ s{[)]$}{};
+            $regex =~ s{'}{\\'}g;
         }
         if ( $type eq 'rewrite' ) {
             $response

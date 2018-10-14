@@ -76,6 +76,10 @@ sub fill {
             $self->stderr("ERROR: close $tmp failed: $!");
             return $self->send404($message);
         }
+        if ( not unlink $tmp ) {
+            $self->stderr("ERROR: unlink $tmp failed: $!");
+            return $self->send404($message);
+        }
     }
     else {
         $postdata = $request->{body};

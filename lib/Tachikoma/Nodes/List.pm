@@ -15,6 +15,8 @@ use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use File::MkTemp;
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.368';
+
 my %C = ();
 
 sub new {
@@ -39,9 +41,9 @@ sub arguments {
             my $filename = $self->{arguments};
             my @new_list = ();
             $self->{filename} = $filename;
-            if ( open( my $fh, '<', $filename ) ) {
-                push( @new_list, $_ ) while (<$fh>);
-                close($fh);
+            if ( open my $fh, q{<}, $filename ) {
+                push @new_list, $_ while (<$fh>);
+                close $fh or die "ERROR: couldn't close $filename: $!";
                 $self->{list} = \@new_list;
             }
             else {
@@ -68,7 +70,7 @@ sub add_item {
     my $self = shift;
     my $item = shift;
     $item .= "\n" if ( substr( $item, -1, 1 ) ne "\n" );
-    push( @{ $self->{list} }, $item );
+    push @{ $self->{list} }, $item;
     return;
 }
 
@@ -79,9 +81,10 @@ sub remove_item {
     my @new_list = ();
     for my $old_item ( @{ $self->{list} } ) {
         next if ( $old_item eq $item );
-        push( @new_list, $old_item );
+        push @new_list, $old_item;
     }
     $self->{list} = \@new_list;
+    return;
 }
 
 $C{help} = sub {
@@ -102,10 +105,10 @@ $C{list} = sub {
     my $glob      = $command->arguments;
     my @responses = ();
     for my $item ( @{ $self->patron->list } ) {
-        next if ( length($glob) and $item !~ m($glob) );
-        push( @responses, $item );
+        next if ( length $glob and $item !~ m{$glob} );
+        push @responses, $item;
     }
-    return $self->response( $envelope, join( '', @responses ) );
+    return $self->response( $envelope, join q{}, @responses );
 };
 
 $C{ls} = $C{list};
@@ -115,7 +118,7 @@ $C{add} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $item     = $command->arguments;
-    return $self->error( $envelope, "no item" ) if ( not length($item) );
+    return $self->error( $envelope, 'no item' ) if ( not length $item );
     $self->patron->add_item($item);
     $self->patron->write_list;
     $self->patron->notify( 'add' => "add $item" );
@@ -127,7 +130,7 @@ $C{remove} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $item     = $command->arguments;
-    return $self->error( $envelope, "no pattern" ) if ( not length($item) );
+    return $self->error( $envelope, 'no pattern' ) if ( not length $item );
     $self->patron->remove_item($item);
     $self->patron->write_list;
     $self->patron->notify( 'rm' => "rm $item" );
@@ -142,13 +145,13 @@ $C{clear} = sub {
     my $envelope = shift;
     my $glob     = $command->arguments;
     my @new_list = ();
-    return $self->error( $envelope, "no pattern" ) if ( not length($glob) );
+    return $self->error( $envelope, 'no pattern' ) if ( not length $glob );
     for my $item ( @{ $self->patron->list } ) {
-        if ( $item =~ m($glob) ) {
+        if ( $item =~ m{$glob} ) {
             $self->patron->notify( 'rm' => "rm $item" );
             next;
         }
-        push( @new_list, $item );
+        push @new_list, $item;
     }
     $self->patron->list( \@new_list );
     $self->patron->write_list;
@@ -160,16 +163,21 @@ sub write_list {
     my $path = $self->{filename} or return;
     my $fh;
     my $template;
-    my $parent = ( $path =~ m(^(.*)/[^/]+$) )[0];
-    eval {
+    my $parent = ( $path =~ m{^(.*)/[^/]+$} )[0];
+    my $okay   = eval {
         $self->make_dirs($parent);
         ( $fh, $template ) = mkstempt( '.temp-' . ( 'X' x 16 ), $parent );
+        return 1;
     };
-    return $self->stderr("ERROR: couldn't mkstempt: $@") if ($@);
-    my $tmp = join( '/', $parent, $template );
-    print $fh join( '', @{ $self->{list} } );
-    close($fh);
-    rename( $tmp, $path )
+    if ( not $okay ) {
+        my $error = $@ // 'unknown error';
+        return $self->stderr("ERROR: couldn't mkstempt: $error");
+    }
+    my $tmp = join q{/}, $parent, $template;
+    print {$fh} join q{}, @{ $self->{list} };
+    close $fh
+        or $self->stderr("ERROR: can't close $tmp: $!");
+    rename $tmp, $path
         or $self->stderr("ERROR: can't move $tmp to $path: $!");
     return;
 }

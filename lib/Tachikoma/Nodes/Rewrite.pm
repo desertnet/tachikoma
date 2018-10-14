@@ -13,11 +13,13 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( PAYLOAD );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.368';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{pattern} = qr();
-    $self->{rewrite} = '';
+    $self->{pattern} = qr{};
+    $self->{rewrite} = q{};
     bless $self, $class;
     return $self;
 }
@@ -33,12 +35,12 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $pattern, $rewrite ) = split( ' ', $self->{arguments}, 2 );
-        $pattern ||= '';
-        $rewrite ||= '';
-        $pattern         = ( $pattern =~ m(^(.*)$) )[0];
-        $rewrite         = ( $rewrite =~ m(^(.*)$) )[0];
-        $self->{pattern} = qr($pattern);
+        my ( $pattern, $rewrite ) = split q{ }, $self->{arguments}, 2;
+        $pattern ||= q{};
+        $rewrite ||= q{};
+        $pattern         = ( $pattern =~ m{^(.*)$} )[0];
+        $rewrite         = ( $rewrite =~ m{^(.*)$} )[0];
+        $self->{pattern} = qr{$pattern};
         $self->{rewrite} = $rewrite;
     }
     return $self->{arguments};
@@ -50,11 +52,11 @@ sub fill {
     my $payload = $message->[PAYLOAD];
     my $pattern = $self->{pattern};
     my $rewrite = $self->{rewrite};
-    my @matches = $payload =~ m($pattern);
-    $rewrite =~ s(\$$_(?!\d))($matches[$_ - 1])g for ( 1 .. @matches );
+    my @matches = $payload =~ m{$pattern};
+    $rewrite =~ s{\$$_(?!\d)}{$matches[$_ - 1]}g for ( 1 .. @matches );
     return $self->cancel($message)
-        if ( not $payload =~ s($pattern)($rewrite)s );
-    my $copy = bless( [@$message], ref($message) );
+        if ( not $payload =~ s{$pattern}{$rewrite}s );
+    my $copy = bless [ @{$message} ], ref $message;
     $payload .= "\n" if ( substr( $payload, -1, 1 ) ne "\n" );
     $copy->[PAYLOAD] = $payload;
     return $self->SUPER::fill($copy);

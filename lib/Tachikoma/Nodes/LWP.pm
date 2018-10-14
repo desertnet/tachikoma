@@ -19,6 +19,8 @@ use HTTP::Request::Common qw( GET POST );
 use LWP::UserAgent;
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.368';
+
 my $Default_Timeout = 900;
 my %Exclude_Headers = map { $_ => 1 } qw(
     accept-encoding
@@ -40,9 +42,9 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $timeout, $tmp_path ) = split( ' ', $self->{arguments}, 2 );
+        my ( $timeout, $tmp_path ) = split q{ }, $self->{arguments}, 2;
         my $ua = LWP::UserAgent->new;
-        $ua->agent("Tachikoma (DesNet LWP::UserAgent/1.9)");
+        $ua->agent('Tachikoma (DesertNet LWP::UserAgent/2.0)');
         $ua->timeout( $timeout || $Default_Timeout );
         $self->{user_agent} = $ua;
         $self->{tmp_path}   = $tmp_path;
@@ -50,7 +52,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self        = shift;
     my $message     = shift;
     my $request     = undef;
@@ -59,9 +61,9 @@ sub fill {
     my $to          = undef;
     if ( $message->[TYPE] & TM_STORABLE ) {
         $request     = $message->payload;
-        $request_uri = join( '',
+        $request_uri = join q{},
             'http://', $request->{headers}->{host},
-            $request->{uri} );
+            $request->{uri};
         $to = $message->[FROM];
     }
     elsif ( $message->[TYPE] & TM_BYTESTREAM ) {
@@ -77,6 +79,7 @@ sub fill {
     my $ua     = $self->{user_agent};
     my $method = $request->{method};
     my $req;
+    ## no critic (RequireInitializationForLocalVars)
     local *STDIN;
     if ( $method eq 'POST' ) {
 
@@ -85,13 +88,13 @@ sub fill {
         # to a true value and then do something with a callback.
         my $content = undef;
         if ( $request->{tmp} ) {
-            my $tmp_path = join( '/', $self->{tmp_path}, 'post' );
-            my $tmp = ( $request->{tmp} =~ m(^($tmp_path/\w+$)) )[0];
+            my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+            my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             local $/ = undef;
-            open( *STDIN, '<', $tmp );
-            $content = <STDIN>;
-            close(STDIN);
-            unlink($tmp);
+            open my $fh, q{<}, $tmp or die "ERROR: couldn't open $tmp: $!";
+            $content = <$fh>;
+            close $fh   or die "ERROR: couldn't close $tmp: $!";
+            unlink $tmp or die "ERROR: couldn't unlink $tmp: $!";
         }
         else {
             $content = $request->{body};
@@ -126,16 +129,13 @@ sub fill {
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $to;
             $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
-            $header->[PAYLOAD] = join( '',
+            $header->[PAYLOAD] = join q{},
                 "HTTP/1.1 501 NOT IMPLEMENTED\n\n",
-                "Sorry, this method is not yet implemented.\n" );
+                "Sorry, this method is not yet implemented.\n";
             $self->{sink}->fill($header);
             log_entry( $self, 501, $message );
         }
-
-        # use Data::Dumper;
-        # $self->stderr("method not implemented: ", Dumper($request));
-        $self->stderr( "WARNING: method not implemented: ", $method );
+        $self->stderr( 'WARNING: method not implemented: ', $method );
     }
 
     # $req->authorization_basic($user, $pasword);
@@ -153,13 +153,13 @@ sub fill {
                 $header->[TYPE]    = TM_BYTESTREAM;
                 $header->[TO]      = $to;
                 $header->[STREAM]  = $message->[STREAM] . "\n"; # XXX: LB hack
-                $header->[PAYLOAD] = join( '',
-                    "HTTP/1.1 ", $r->{_rc}, ' ', $r->{_msg}, "\n",
-                    $r->{_headers}->as_string, "\n" );
+                $header->[PAYLOAD] = join q{},
+                    'HTTP/1.1 ', $r->{_rc}, q{ }, $r->{_msg}, "\n",
+                    $r->{_headers}->as_string, "\n";
                 $self->{sink}->fill($header);
                 $sent_header = 'true';
             }
-            return $self->stderr("no content") if ( $payload eq '' );
+            return $self->stderr('no content') if ( $payload eq q{} );
             if ($to) {
                 my $response = Tachikoma::Message->new;
                 $response->[TYPE] = TM_BYTESTREAM;
@@ -183,15 +183,13 @@ sub fill {
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $to;
             $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
-            $header->[PAYLOAD] = join(
-                '',
-                join( ' ',
-                    $res->protocol || 'HTTP/1.1', $res->code,
-                    $res->message ),
+            $header->[PAYLOAD] = join q{},
+                join( q{ },
+                $res->protocol || 'HTTP/1.1',
+                $res->code, $res->message ),
                 "\n",
                 $res->headers->as_string,
-                "\n"
-            );
+                "\n";
             $self->{sink}->fill($header);
             $sent_header = 'true';
         }
@@ -215,11 +213,8 @@ sub fill {
         #     }));
         # }
         if ( $res->code >= 400 and $res->content ) {
-            $self->stderr(
-                join( ' ',
-                    $res->protocol || 'HTTP/1.1', $res->code,
-                    $res->message )
-            );
+            $self->stderr( join q{ }, $res->protocol || 'HTTP/1.1',
+                $res->code, $res->message );
         }
     }
     elsif ($to) {

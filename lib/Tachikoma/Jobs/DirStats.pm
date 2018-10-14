@@ -20,12 +20,15 @@ use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Job );
 @EXPORT_OK = qw( stat_directory );
 
+use version; our $VERSION = 'v2.0.368';
+
 my $Router_Timeout    = 900;
 my $Default_Max_Files = 256;
 my $Default_Port      = 5600;
-# my $Separator         = chr(0);
-my $Separator         = join( '', chr(30), ' -> ', chr(30) );
-my %Dot_Include       = map { $_ => 1 } qw(
+
+# my $Separator         = chr 0;
+my $Separator = join q{}, chr 30, q{ -> }, chr 30;
+my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
 );
@@ -37,10 +40,10 @@ my %SVN_Include = map { $_ => 1 } qw(
 sub initialize_graph {
     my $self = shift;
     my ( $prefix, $target_settings, $max_files, $pedantic ) =
-        ( split( ' ', $self->arguments, 4 ) );
-    my ( $host, $port ) = split( ':', $target_settings, 2 );
-    $prefix ||= '';
-    $prefix =~ s(^'|'$)()g;
+        split q{ }, $self->arguments, 4;
+    my ( $host, $port ) = split m{:}, $target_settings, 2;
+    $prefix ||= q{};
+    $prefix =~ s{^'|'$}{}g;
     $host      ||= 'localhost';
     $port      ||= $Default_Port;
     $max_files ||= $Default_Max_Files;
@@ -58,17 +61,17 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     return if ( not $message->type & TM_BYTESTREAM );
-    my ( $path, $withsums ) = split( ' ', $message->payload, 3 );
-    chomp($path);
-    $path =~ s(^'|'$)()g;
-    $path =~ s(/+$)();
+    my ( $path, $withsums ) = split q{ }, $message->payload, 3;
+    chomp $path;
+    $path =~ s{^'|'$}{}g;
+    $path =~ s{/+$}{};
     my $prefix = $self->prefix;
 
-    if ( $path ne $prefix and $path !~ m(^$prefix/) ) {
+    if ( $path ne $prefix and $path !~ m{^$prefix/} ) {
         $self->stderr( "ERROR: bad path: $path from ", $message->from );
         return $self->cancel($message);
     }
-    $self->send_stats( $_, $withsums ) for ( glob($path) );
+    $self->send_stats( $_, $withsums ) for ( glob $path );
     return $self->SUPER::fill($message);
 }
 
@@ -124,7 +127,6 @@ sub send_stats {
             my $message = shift;
             my $type    = $message->[TYPE];
             if ( $type & TM_RESPONSE ) {
-                my $path = ( split( ':', $message->[STREAM], 2 ) )[1];
                 $count--;
             }
             elsif ( $type & TM_EOF ) {
@@ -139,20 +141,18 @@ sub send_stats {
     );
     my $prefix = $self->{prefix};
     while (@updates) {
-        my $update = shift(@updates);
+        my $update = shift @updates;
         if ($update) {
-            my $relative = ( split( ':', $update, 2 ) )[1];
-            $self->send_update(
-                join( '', 'update:', $prefix, '/', $relative ) );
+            my $relative = ( split m{:}, $update, 2 )[1];
+            $self->send_update( join q{}, 'update:', $prefix, q{/},
+                $relative );
             $count++;
         }
         $target->drain if ( $count >= $upper );
     }
     $target->drain if ($count);
-    $self->stderr(
-        sprintf( "$total broadcasts under $path in %.2f seconds",
-            Time::HiRes::time - $start )
-    );
+    $self->stderr( sprintf "$total broadcasts under $path in %.2f seconds",
+        Time::HiRes::time - $start );
     return;
 }
 
@@ -166,13 +166,14 @@ sub explore_path {
     my $target   = $self->{target};
     my $pedantic = $self->{pedantic};
     my ( $out, $directories );
-    eval {
+    my $okay = eval {
         ( $out, $directories ) =
             stat_directory( $prefix, $path, $withsums, $pedantic );
+        return 1;
     };
 
-    if ($@) {
-        if ( $@ =~ m(can't open) ) {
+    if ( not $okay ) {
+        if ( $@ =~ m{can't open} ) {
             return 0;
         }
         else {
@@ -183,13 +184,13 @@ sub explore_path {
     $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
     $message->[TO]      = 'DirStats:tee';
     $message->[STREAM]  = $path;
-    $message->[PAYLOAD] = join( '', @$out );
+    $message->[PAYLOAD] = join q{}, @{$out};
     $target->fill($message);
-    $$count++;
+    ${$count}++;
     $total++;
-    $target->drain if ( $$count >= $self->{max_files} );
+    $target->drain if ( ${$count} >= $self->{max_files} );
     $total += $self->explore_path( $_, $withsums, $count )
-        for (@$directories);
+        for ( @{$directories} );
     return $total;
 }
 
@@ -197,7 +198,7 @@ sub send_update {
     my $self   = shift;
     my $update = shift;
     my $stream = $update;
-    chomp($stream);
+    chomp $stream;
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
     $message->[TO]      = 'FileController';
@@ -207,64 +208,62 @@ sub send_update {
     return;
 }
 
-sub stat_directory {
+sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     my $prefix   = shift;
     my $path     = shift;
     my $withsums = shift;
     my $pedantic = shift;
     my $relative = undef;
-    my $is_svn   = ( $path =~ m(/.svn$) );
+    my $is_svn   = ( $path =~ m{/.svn$} );
     if ( $path eq $prefix ) {
-        $relative = '';
+        $relative = q{};
     }
-    elsif ( $path =~ m(^$prefix/(.*)$) ) {
+    elsif ( $path =~ m{^$prefix/(.*)$} ) {
         $relative = $1;
     }
     else {
         die "ERROR: bad path: $path";
     }
-    opendir( my $dh, $path ) or die "ERROR: can't opendir $path: $!";
-    my @entries = readdir($dh);
-    closedir $dh;
-    my @out = ( join( '', $relative, "\n" ) );
+    opendir my $dh, $path or die "ERROR: can't opendir $path: $!";
+    my @entries = readdir $dh;
+    closedir $dh or die "ERROR: can't closedir $path: $!";
+    my @out = ( join q{}, $relative, "\n" );
     my @directories = ();
     for my $entry (@entries) {
         next
-            if ( ( $entry =~ m(^\.) and not $Dot_Include{$entry} )
+            if ( ( $entry =~ m{^[.]} and not $Dot_Include{$entry} )
             or ( $is_svn and not $pedantic and not $SVN_Include{$entry} ) );
-        if ( $entry =~ m([\r\n]) ) {
-            $entry =~ s(\n)(\\n)g;
-            $entry =~ s(\r)(\\r)g;
-            print STDERR "LMAO: $path/$entry\n";
+        if ( $entry =~ m{[\r\n]} ) {
+            $entry =~ s{\n}{\\n}g;
+            $entry =~ s{\r}{\\r}g;
+            print {STDERR} "LMAO: $path/$entry\n";
             next;
         }
-        my $path_entry = join( '/', $path, $entry );
-        my @lstat = lstat($path_entry);
+        my $path_entry = join q{/}, $path, $entry;
+        my @lstat = lstat $path_entry;
         next if ( not @lstat );
         my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
-        my $size = ( $stat eq 'F' ) ? $lstat[7] : '-';
-        my $perms         = sprintf( '%04o', $lstat[2] & 07777 );
+        my $size = ( $stat eq 'F' ) ? $lstat[7] : q{-};
+        my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $last_modified = $lstat[9];
-        my $digest        = '-';
+        my $digest        = q{-};
 
         if ( $withsums and $stat eq 'F' ) {
             my $md5 = Digest::MD5->new;
-            open( my $fh, '<', $path_entry )
+            open my $fh, q{<}, $path_entry
                 or die "ERROR: can't open $path_entry: $!";
             $md5->addfile($fh);
             $digest = $md5->hexdigest;
-            close($fh);
+            close $fh
+                or die "ERROR: can't close $path_entry: $!";
         }
-        $entry = join( '', $entry, $Separator, readlink($path_entry) )
+        $entry = join q{}, $entry, $Separator, readlink $path_entry
             if ( $stat eq 'L' );
-        push(
-            @out,
-            join(
-                ' ', $stat, $size, $perms, $last_modified, $digest, $entry
-                )
-                . "\n"
-        );
-        push( @directories, $path_entry ) if ( $stat eq 'D' );
+        push @out,
+            join( q{ },
+            $stat, $size, $perms, $last_modified, $digest, $entry )
+            . "\n";
+        push @directories, $path_entry if ( $stat eq 'D' );
     }
     return ( \@out, \@directories );
 }
