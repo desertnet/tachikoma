@@ -144,6 +144,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{cwd}           = undef;
+    $self->{path}          = undef;
     $self->{mode}          = 'command';
     $self->{isa_tty}       = undef;
     $self->{should_reply}  = undef;
