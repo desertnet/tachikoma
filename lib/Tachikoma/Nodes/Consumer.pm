@@ -419,7 +419,7 @@ sub commit_offset_async {
             $tmp
         );
         rename $tmp, $file
-            or die "ERROR: couldn't rename cache file $tmp: $!\n";
+            or $self->stderr("ERROR: couldn't rename cache file $tmp: $!");
         $self->{cache_size} = ( stat $file )[7];
     }
     else {
@@ -958,7 +958,7 @@ sub remove_target {
     my $self = shift;
     if ( $self->{target} ) {
         if ( $self->{target}->{fh} ) {
-            close $self->{target}->{fh} or die $!;
+            close $self->{target}->{fh} or die "couldn't close: $!";
             $self->{target}->{fh} = undef;
         }
         $self->{target} = undef;

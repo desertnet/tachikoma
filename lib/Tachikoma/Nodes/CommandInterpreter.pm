@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35210 2018-10-14 21:04:44Z chris $
+# $Id: CommandInterpreter.pm 35220 2018-10-15 06:55:10Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2172,7 +2172,7 @@ $C{secure} = sub {
             die "ERROR: already at secure level $Secure_Level\n";
         }
         elsif ( $num < $Secure_Level ) {
-            die "ERROR: can't lower secure level.\n";
+            die "ERROR: couldn't lower secure level.\n";
         }
         elsif ( $num > 3 ) {
             $Secure_Level = 3;

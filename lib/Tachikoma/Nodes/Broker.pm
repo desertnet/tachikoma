@@ -142,18 +142,18 @@ sub load_topics {
     my $broker_id  = $self->{broker_id};
     my $path       = $self->{path};
     my $broker_lco = {};
-    opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!\n";
+    opendir my $dh, $path or die "couldn't opendir $path: $!";
     my @topics = grep m{^[^.]}, readdir $dh;
-    closedir $dh or die $!;
+    closedir $dh or die "couldn't closedir $path: $!";
 
     for my $topic_name (@topics) {
         my $partitions_path = "$path/$topic_name/partition";
         my $cache_path      = "$path/$topic_name/cache";
         if ( -d $partitions_path ) {
             opendir $dh, $partitions_path
-                or die "ERROR: couldn't opendir $partitions_path: $!\n";
+                or die "couldn't opendir $partitions_path: $!";
             my @partitions = grep m{^[^.]}, readdir $dh;
-            closedir $dh or die $!;
+            closedir $dh or die "couldn't closedir $partitions_path: $!";
             for my $i (@partitions) {
                 my $log_name = "$topic_name:partition:$i";
                 my $filename = "$partitions_path/$i";
@@ -161,7 +161,7 @@ sub load_topics {
             }
             if ( opendir $dh, $cache_path ) {
                 my @caches = grep m{^[^.]}, readdir $dh;
-                closedir $dh or die $!;
+                closedir $dh or die "couldn't closedir $cache_path: $!";
                 for my $group_name (@caches) {
                     for my $i (@partitions) {
                         my $log_name = "$topic_name:partition:$i:$group_name";
@@ -173,7 +173,7 @@ sub load_topics {
             }
         }
         else {
-            $self->stderr("ERROR: couldn't find $partitions_path");
+            $self->stderr("couldn't find $partitions_path");
         }
     }
     $self->{last_commit_offsets}->{$broker_id} = $broker_lco;
@@ -183,9 +183,9 @@ sub load_topics {
 sub load_configs {
     my $self = shift;
     my $path = $self->{path};
-    opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!\n";
+    opendir my $dh, $path or die "couldn't opendir $path: $!";
     my @topics = grep m{^[^.]}, readdir $dh;
-    closedir $dh or die $!;
+    closedir $dh or die "couldn't closedir $path: $!";
 
     for my $topic_name (@topics) {
         $self->load_topic_config($topic_name);
@@ -201,9 +201,9 @@ sub load_topic_config {
     my $config_file = "$path/$topic_name/brokers/$broker_id/config";
     if ( -e $config_file ) {
         open my $fh, '<', $config_file
-            or die "ERROR: couldn't open $config_file: $!\n";
+            or die "couldn't open $config_file: $!";
         my $args = <$fh>;
-        close $fh or die $!;
+        close $fh or die "couldn't close $config_file: $!";
         chomp $args;
         $self->add_topic($args);
     }
@@ -224,9 +224,9 @@ sub determine_lco {
     };
     if ( -d $offsets_dir ) {
         opendir my $dh, $offsets_dir
-            or die "ERROR: couldn't open offset directory $offsets_dir: $!\n";
+            or die "couldn't opendir $offsets_dir: $!";
         my @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
-        closedir $dh or die $!;
+        closedir $dh or die "couldn't closedir $offsets_dir: $!";
         my $last_commit_offset = pop @offsets // 0;
         $stats->{lco} = $last_commit_offset;
     }
@@ -1551,9 +1551,9 @@ sub save_topic_state {
     my $tmp_file    = "$config_file.tmp";
     $self->make_parent_dirs($config_file);
     open my $fh, '>', $tmp_file
-        or die "ERROR: couldn't open temporary config file $tmp_file: $!\n";
+        or die "ERROR: couldn't open $tmp_file: $!";
     my $topic = $self->topics->{$topic_name}
-        or die "ERROR: save_topic_state couldn't find topic: $topic_name\n";
+        or die "ERROR: save_topic_state couldn't find topic: $topic_name";
     my $groups          = $self->{consumer_groups};
     my @consumer_groups = ();
 
@@ -1571,9 +1571,9 @@ sub save_topic_state {
         map "--group=$_",
         @consumer_groups ),
         "\n";
-    close $fh or die $!;
+    close $fh or die "ERROR: couldn't close $tmp_file: $!";
     rename $tmp_file, $config_file
-        or die "ERROR: couldn't rename config file $tmp_file: $!\n";
+        or die "ERROR: couldn't rename $tmp_file: $!";
     return;
 }
 

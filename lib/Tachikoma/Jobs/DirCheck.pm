@@ -54,10 +54,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $payload = q{};
         if ( open $fh, q{<}, $my_path ) {
             $payload .= $_ while (<$fh>);
-            close $fh or $self->stderr("ERROR: can't close $my_path: $!");
+            close $fh or $self->stderr("ERROR: couldn't close $my_path: $!");
         }
         else {
-            $payload = "can't open $my_path: $!";
+            $payload = "couldn't open $my_path: $!";
         }
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
@@ -96,13 +96,13 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
         }
         else {
-            $self->stderr("ERROR: can't opendir $my_path: $!");
+            $self->stderr("ERROR: couldn't opendir $my_path: $!");
         }
         return $self->cancel($message);
     }
     my $recent  = $message->[TIMESTAMP] - $delete_threshold;
     my @entries = readdir $dh;
-    closedir $dh or $self->stderr("ERROR: can't closedir $my_path: $!");
+    closedir $dh or $self->stderr("ERROR: couldn't closedir $my_path: $!");
     my %checked = ();
     while (@entries) {
         my $entry = shift @entries;
@@ -210,10 +210,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     $digest = $md5->hexdigest;
                     close $fh
                         or $self->stderr(
-                        "ERROR: can't close $my_path_entry: $!");
+                        "ERROR: couldn't close $my_path_entry: $!");
                 }
                 else {
-                    $self->stderr("ERROR: can't open $my_path_entry: $!");
+                    $self->stderr("ERROR: couldn't open $my_path_entry: $!");
                     $digest = $their_digest;
                 }
             }

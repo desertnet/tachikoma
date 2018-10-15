@@ -41,13 +41,14 @@ sub arguments {
             my $filename = $self->{arguments};
             my @new_list = ();
             $self->{filename} = $filename;
-            if ( open my $fh, q{<}, $filename ) {
-                push @new_list, $_ while (<$fh>);
-                close $fh or die "ERROR: couldn't close $filename: $!";
-                $self->{list} = \@new_list;
+            my $fh = undef;
+            if ( not open $fh, '<', $filename ) {
+                $self->stderr("WARNING: couldn't open: $!");
             }
             else {
-                $self->stderr("WARNING: couldn't open: $!");
+                push @new_list, $_ while (<$fh>);
+                close $fh or die "couldn't close $filename: $!";
+                $self->{list} = \@new_list;
             }
         }
     }
@@ -176,9 +177,9 @@ sub write_list {
     my $tmp = join q{/}, $parent, $template;
     print {$fh} join q{}, @{ $self->{list} };
     close $fh
-        or $self->stderr("ERROR: can't close $tmp: $!");
+        or $self->stderr("ERROR: couldn't close $tmp: $!");
     rename $tmp, $path
-        or $self->stderr("ERROR: can't move $tmp to $path: $!");
+        or $self->stderr("ERROR: couldn't move $tmp to $path: $!");
     return;
 }
 

@@ -688,7 +688,7 @@ sub auto_commit {
     my $self = shift;
     if (@_) {
         $self->{auto_commit} = shift;
-        die "ERROR: can't auto_commit without a group\n"
+        die "ERROR: couldn't auto_commit without a group\n"
             if ( $self->{auto_commit} and not $self->{group} );
         $self->auto_offset(1) if ( $self->{auto_commit} );
         for my $partition_id ( keys %{ $self->{consumers} } ) {
@@ -703,7 +703,7 @@ sub auto_offset {
     my $self = shift;
     if (@_) {
         $self->{auto_offset} = shift;
-        die "ERROR: can't auto_offset without a group\n"
+        die "ERROR: couldn't auto_offset without a group\n"
             if ( $self->{auto_offset} and not $self->{group} );
         $self->auto_commit(undef)
             if ( not $self->{auto_offset} and $self->{auto_commit} );

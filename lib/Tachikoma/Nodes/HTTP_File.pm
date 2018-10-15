@@ -150,12 +150,13 @@ sub fill {
     $self->{sink}->fill($response);
     local $/ = undef;
     my $fh = undef;
-    open $fh, '<', $filename or die "ERROR: couldn't open $filename: $!";
+    open $fh, '<', $filename
+        or return $self->stderr("ERROR: couldn't open $filename: $!");
     $response            = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[PAYLOAD] = <$fh>;
-    close $fh or die $!;
+    close $fh or $self->stderr("ERROR: couldn't close $filename: $!");
     $self->{sink}->fill($response);
     $response         = Tachikoma::Message->new;
     $response->[TYPE] = TM_EOF;

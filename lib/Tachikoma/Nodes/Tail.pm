@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35210 2018-10-14 21:04:44Z chris $
+# $Id: Tail.pm 35220 2018-10-15 06:55:10Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -127,7 +127,7 @@ sub arguments {
         $self->{on_ENOENT}      = $on_enoent if ($on_enoent);
         $self->{timeout}        = $timeout if ($timeout);
 
-        if ( not open $fh, q{<}, $path ) {
+        if ( not open $fh, '<', $path ) {
             $self->{on_EOF} = $on_eof if ($on_eof);
             $self->process_enoent;
             return $self->{arguments};
@@ -248,13 +248,13 @@ sub note_fh {
     if ( defined $self->{fd} ) {
         return $self->reattempt if ( not $self->finished );
         $self->unregister_reader_node;
-        close $self->{fh} or die $!;
+        close $self->{fh} or $self->stderr("ERROR: couldn't close: $!");
         delete Tachikoma->nodes_by_fd->{ $self->{fd} };
         $self->{fd}        = undef;
         $self->{reattempt} = undef;
     }
     my $fh;
-    if ( not open $fh, q{<}, $self->{filename} ) {
+    if ( not open $fh, '<', $self->{filename} ) {
         $self->process_enoent;
         return;
     }
@@ -286,7 +286,7 @@ sub file_shrank {
     }
 
     # $self->stderr("WARNING: $self->{filename} has shrunk");
-    sysseek $self->{fh}, 0, SEEK_SET or die $!;
+    sysseek $self->{fh}, 0, SEEK_SET or die "ERROR: couldn't seek: $!";
     $self->{bytes_read}     = 0;
     $self->{bytes_answered} = 0;
     return;
@@ -357,7 +357,7 @@ sub process_enoent {
         return;
     }
     else {
-        die "ERROR: can't open $self->{filename}: $!\n";
+        die "ERROR: couldn't open $self->{filename}: $!\n";
     }
     return;
 }

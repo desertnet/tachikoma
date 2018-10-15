@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 34813 2018-09-03 13:37:01Z chris $
+# $Id: Job.pm 35220 2018-10-15 06:55:10Z chris $
 #
 
 package Tachikoma::Job;
@@ -114,7 +114,7 @@ sub spawn {
     };
     $self->init_filehandles($filehandles);
     my $pid = fork;
-    return $self->stderr("ERROR: can't fork: $!") if ( not defined $pid );
+    return $self->stderr("ERROR: couldn't fork: $!") if ( not defined $pid );
 
     if ($pid) {
 

@@ -48,7 +48,7 @@ sub fill {
     my $target   = $self->{owner} or return $self->stderr('ERROR: no owner');
     my $name     = ( split m{/}, $target, 2 )[0];
     my $node     = $Tachikoma::Nodes{$name}
-        or return $self->print_less_often(q{ERROR: can't find node});
+        or return $self->print_less_often(q{ERROR: couldn't find node});
     if (   $node->isa('Tachikoma::Nodes::Tee')
         or $node->isa('Tachikoma::Nodes::LoadBalancer') )
     {

@@ -414,7 +414,7 @@ sub send_alerts {
         ## no critic (ProhibitBacktickOperators)
         my $server_logs = `$grep`;
         my $system_logs = `$grep2`;
-        open my $mail, q{|-}, qq(/usr/bin/mail -s "$subject" $email)
+        open my $mail, '|-', qq(/usr/bin/mail -s "$subject" $email)
             or die "couldn't open mail: $!";
         print {$mail} scalar( localtime time ),
             qq(\n\n),

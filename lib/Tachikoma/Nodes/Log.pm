@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35049 2018-10-10 22:02:12Z chris $
+# $Id: Log.pm 35220 2018-10-15 06:55:10Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -46,7 +46,7 @@ sub arguments {
         my $fh;
         $self->close_filehandle if ( $self->{fh} );
         open $fh, $mode eq 'append' ? '>>' : '>', $filename
-            or die "can't open $filename: $!";
+            or die "couldnt open $filename: $!";
         $self->{arguments} = $arguments;
         $self->{filename}  = $filename;
         $self->{mode}      = $mode;
@@ -78,7 +78,7 @@ sub fill {
     }
     elsif ( not $message->[FROM] and $message->[STREAM] eq 'utimer' ) {
         utime $Tachikoma::Now, $Tachikoma::Now, $self->{filename}
-            or $self->stderr("ERROR: can't utime $self->{filename}: $!");
+            or $self->stderr("ERROR: couldn't utime $self->{filename}: $!");
         return;
     }
     $self->{size} += length( $message->[PAYLOAD] );

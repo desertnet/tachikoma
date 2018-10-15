@@ -225,7 +225,7 @@ sub fire {
     if ( @{$batch} and $segment ) {
         my $fh    = $segment->[LOG_FH];
         my $wrote = 0;
-        sysseek $fh, 0, SEEK_END or die $!;
+        sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
         for my $message ( @{$batch} ) {
             $wrote +=
                 syswrite $fh,
@@ -351,8 +351,8 @@ sub write_offset {
         my $new_file = join q{/}, $self->{filename}, 'offsets', $offset;
         my $fh = undef;
         open $fh, '>', $new_file
-            or die "ERROR: couldn't touch new offset file $new_file: $!\n";
-        close $fh or die $!;
+            or die "ERROR: couldn't open $new_file: $!";
+        close $fh or die "ERROR: couldn't close $new_file: $!";
         $self->{last_commit_offset} = $offset;
     }
     return;
@@ -429,14 +429,15 @@ sub process_get {
         }
     }
     if ( not defined $segment ) {
-        $self->stderr("ERROR: can't find offset: $offset")
+        $self->stderr("ERROR: couldn't find offset: $offset")
             if ( $self->{filename} );
         return;
     }
     $offset = $segment->[LOG_OFFSET] if ( $offset < $segment->[LOG_OFFSET] );
     $offset = $self->{offset}        if ( $offset > $self->{offset} );
     my $fh = $segment->[LOG_FH];
-    sysseek $fh, $offset - $segment->[LOG_OFFSET], SEEK_SET or die $!;
+    sysseek $fh, $offset - $segment->[LOG_OFFSET], SEEK_SET
+        or die "ERROR: couldn't seek: $!";
     my $buffer = undef;
     my $to     = $message->[FROM];
     my ( $name, $path ) = split m{/}, $to, 2;
@@ -573,9 +574,9 @@ sub unlink_segment {
     my $self    = shift;
     my $segment = shift;
     my $path    = $self->{filename} or return;
-    flock $segment->[LOG_FH], LOCK_UN or die $!;
+    flock $segment->[LOG_FH], LOCK_UN or die "ERROR: couldn't unlock: $!";
     if ( $segment->[LOG_FH] ) {
-        close $segment->[LOG_FH] or die $!;
+        close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
     }
     my $log_file = join q{}, $path, q{/}, $segment->[LOG_OFFSET], '.log';
     if ( not unlink $log_file ) {
@@ -592,9 +593,9 @@ sub update_offsets {
     my $valid_offsets = $self->{valid_offsets};
     my $dh            = undef;
     opendir $dh, $offsets_dir
-        or die "ERROR: can't opendir $offsets_dir: $!\n";
+        or die "ERROR: couldn't opendir $offsets_dir: $!";
     my @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
-    closedir $dh or die $!;
+    closedir $dh or die "ERROR: couldn't closedir $offsets_dir: $!";
 
     while ( @offsets > $Num_Offsets
         or ( @offsets and $offsets[0] < $lowest_offset ) )
@@ -602,7 +603,7 @@ sub update_offsets {
         my $old_offset  = shift @offsets;
         my $offset_file = "$offsets_dir/$old_offset";
         unlink $offset_file
-            or die "ERROR: couldn't unlink $offset_file: $!\n";
+            or die "ERROR: couldn't unlink $offset_file: $!";
     }
     shift @{$valid_offsets}
         while ( @{$valid_offsets} and $valid_offsets->[0] < $lowest_offset );
@@ -616,8 +617,9 @@ sub update_offsets {
             next if ( -e $new_file );
             my $fh = undef;
             open $fh, '>', $new_file
-                or die "ERROR: couldn't touch offset file $new_file: $!\n";
-            close $fh or die $!;
+                or die "ERROR: couldn't open $new_file: $!";
+            close $fh
+                or die "ERROR: couldn't close $new_file: $!";
         }
 
         # synchronize and preserve valid offset
@@ -675,14 +677,14 @@ sub purge_offsets {
     if ( -d $offsets_dir ) {
         my $dh = undef;
         opendir $dh, $offsets_dir
-            or die "ERROR: can't opendir $offsets_dir: $!\n";
+            or die "ERROR: couldn't opendir $offsets_dir: $!";
         @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
-        closedir $dh or die $!;
+        closedir $dh or die "ERROR: couldn't closedir $offsets_dir: $!";
         while ( @offsets and $offsets[-1] > $truncate_offset ) {
             my $old_offset  = pop @offsets;
             my $offset_file = "$offsets_dir/$old_offset";
             unlink $offset_file
-                or die "ERROR: couldn't unlink $offset_file: $!\n";
+                or die "ERROR: couldn't unlink $offset_file: $!";
             $self->stderr("DEBUG: unlinked $offset_file");
         }
     }
@@ -696,7 +698,7 @@ sub open_segments {
     my $path               = $self->{filename};
     $self->close_segments;
     $self->make_dirs( join q{/}, $path, 'offsets' );
-    opendir $dh, $path or die "ERROR: can't opendir $path: $!\n";
+    opendir $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @unsorted = ();
 
     for my $file ( readdir $dh ) {
@@ -705,25 +707,25 @@ sub open_segments {
         if ( $offset > $last_commit_offset ) {
             $self->stderr("WARNING: unlinking $path/$file");
             unlink "$path/$file"
-                or die "ERROR: couldn't unlink $path/$file: $!\n";
+                or die "ERROR: couldn't unlink $path/$file: $!";
             next;
         }
         my $size = ( stat "$path/$file" )[7];
         my $fh   = undef;
         open $fh, '+<', "$path/$file"
-            or die "can't open $path/$file: $!";
+            or die "ERROR: couldn't open $path/$file: $!";
         $self->get_lock($fh);
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
             $self->stderr(
                 'WARNING: truncating ' . ( $size - $new_size ) . ' bytes' );
             $size = $new_size;
-            truncate $fh, $size or die $!;
-            sysseek $fh, 0, SEEK_END or die $!;
+            truncate $fh, $size or die "ERROR: couldn't truncate: $!";
+            sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
         }
         push @unsorted, [ $offset, $size, $fh ];
     }
-    closedir $dh or die $!;
+    closedir $dh or die "ERROR: couldn't closedir $path: $!";
     $self->{segments} = [ sort { $a->[0] <=> $b->[0] } @unsorted ];
     my $segment = $self->{segments}->[-1];
     if ($segment) {
@@ -745,8 +747,9 @@ sub close_segments {
     my $self = shift;
     if ( @{ $self->{segments} } ) {
         for my $segment ( @{ $self->{segments} } ) {
-            flock $segment->[LOG_FH], LOCK_UN or die $!;
-            close $segment->[LOG_FH] or die $!;
+            flock $segment->[LOG_FH], LOCK_UN
+                or die "ERROR: couldn't unlock: $!";
+            close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
         }
     }
     $self->{segments} = [];
@@ -759,10 +762,11 @@ sub create_segment {
     my $offset = $self->{offset};
     my $fh     = undef;
     open $fh, '>', "$path/$offset.log"
-        or die "can't open $path/$offset.log: $!";
-    close $fh or die $!;
+        or die "ERROR: couldn't open $path/$offset.log: $!";
+    close $fh
+        or die "ERROR: couldn't close $path/$offset.log: $!";
     open $fh, '+<', "$path/$offset.log"
-        or die "can't open $path/$offset.log: $!";
+        or die "ERROR: couldn't open $path/$offset.log: $!";
     $self->get_lock($fh);
     push @{ $self->{segments} }, [ $offset, 0, $fh ];
     $self->process_delete if ( $self->{arguments} );
@@ -777,9 +781,9 @@ sub touch_files {
     my $offset_file = join q{/}, $path, 'offsets',
         $self->{last_commit_offset};
     utime $Tachikoma::Now, $Tachikoma::Now, $log_file
-        or $self->stderr("ERROR: can't utime $log_file: $!");
+        or $self->stderr("ERROR: couldn't utime $log_file: $!");
     utime $Tachikoma::Now, $Tachikoma::Now, $offset_file
-        or $self->stderr("ERROR: can't utime $offset_file: $!");
+        or $self->stderr("ERROR: couldn't utime $offset_file: $!");
     return;
 }
 
@@ -792,7 +796,7 @@ sub purge_tree {
     my $dh        = undef;
     if ( opendir $dh, $path ) {
         @filenames = grep m{^[^.]}, readdir $dh;
-        closedir $dh or die $!;
+        closedir $dh or die "ERROR: couldn't closedir $path: $!";
     }
     for my $filename (@filenames) {
         if ( -d "$path/$filename" ) {
@@ -815,7 +819,7 @@ sub get_last_commit_offset {
     if ( -d $offsets_dir ) {
         my $dh   = undef;
         my $path = $self->{filename};
-        opendir $dh, $path or die "ERROR: can't opendir $path: $!\n";
+        opendir $dh, $path or die "ERROR: couldn't opendir $path: $!";
         my $log_offset = 0;
         for my $file ( readdir $dh ) {
             $file =~ m{^(\d+)[.]log$} or next;
@@ -824,7 +828,7 @@ sub get_last_commit_offset {
             $log_offset = $offset + $size
                 if ( $offset + $size > $log_offset );
         }
-        closedir $dh or die $!;
+        closedir $dh or die "ERROR: couldn't closedir $path: $!";
         $valid_offsets      = $self->purge_offsets($log_offset);
         $last_commit_offset = $valid_offsets->[-1];
     }
@@ -837,8 +841,8 @@ sub get_last_commit_offset {
         my $new_file = join q{/}, $offsets_dir, $last_commit_offset;
         my $fh = undef;
         open $fh, '>', $new_file
-            or die "ERROR: couldn't retouch offset file $new_file: $!\n";
-        close $fh or die $!;
+            or die "ERROR: couldn't open $new_file: $!\n";
+        close $fh or die "ERROR: couldn't close $new_file: $!";
     }
     $self->{last_commit_offset} = $last_commit_offset;
     $self->{valid_offsets}      = $valid_offsets;

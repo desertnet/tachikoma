@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35185 2018-10-14 09:56:32Z chris $
+# $Id: Scheduler.pm 35220 2018-10-15 06:55:10Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -418,7 +418,7 @@ sub tiedhash {
             my $ext  = ( $path =~ m{[.](tcb|tch|db|hash)$} )[0] || 'db';
             $self->make_parent_dirs($path);
             if ( -e "${path}.clean" ) {
-                open my $fh, q{<}, "${path}.clean"
+                open my $fh, '<', "${path}.clean"
                     or die "ERROR: couldn't open ${path}.clean: $!\n";
                 my $count = <$fh>;
                 close $fh
@@ -461,7 +461,7 @@ sub untie_hash {
     untie %{ $self->{tiedhash} } if ( $self->{tiedhash} );
     if ( $self->{filename} ) {
         my $path = join q{/}, $self->db_dir, $self->{filename};
-        open my $fh, q{>>}, "${path}.clean"
+        open my $fh, '>>', "${path}.clean"
             or $self->stderr("ERROR: couldn't open ${path}.clean: $!");
         print {$fh} $self->{buffer_size}, "\n"
             if ( $fh and defined $self->{buffer_size} );
