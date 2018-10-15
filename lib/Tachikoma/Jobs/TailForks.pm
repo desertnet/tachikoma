@@ -25,7 +25,9 @@ use BerkeleyDB;
 use Digest::MD5 qw( md5 );
 use parent qw( Tachikoma::Job );
 
-my $Home          = $Tachikoma{Home} || ( getpwuid($<) )[7];
+use version; our $VERSION = 'v2.0.368';
+
+my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/Tails";
 my $Max_Forking   = 8;
 my $Scan_Interval = 30;
@@ -39,7 +41,7 @@ sub initialize_graph {
     my $load_controller = Tachikoma::Nodes::LoadController->new;
     my $collector       = Tachikoma::Nodes::Tee->new;
     my $arguments       = $self->arguments;
-    my @destinations    = split( ' ', $arguments );
+    my @destinations    = split q{ }, $arguments;
     $self->connector->sink($interpreter);
     $interpreter->name('command_interpreter');
     $interpreter->sink($self);
@@ -59,28 +61,28 @@ sub initialize_graph {
     $self->forking( {} );
     $self->sink( $self->router );
     $interpreter->commands->{'add_tail'} = sub {
-        my $interpreter = shift;
-        my $command     = shift;
-        my $envelope    = shift;
-        my ( $file, $node_path ) = split( ' ', $command->arguments, 2 );
-        for my $expanded ( glob($file) ) {
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
+        my ( $file, $node_path ) = split q{ }, $command->arguments, 2;
+        for my $expanded ( glob $file ) {
             my $quoted = $expanded;
-            $quoted =~ s(/)(:)g;
+            $quoted =~ s{/}{:}g;
             $self->files->{$quoted} = [ $expanded => $node_path ];
         }
         $self->timer->set_timer(0) if ( $self->{timer} );
-        return $interpreter->okay($envelope);
+        return $this->okay($envelope);
     };
     $interpreter->commands->{'add'} = $interpreter->commands->{'add_tail'};
     $interpreter->commands->{'rm_tail'} = sub {
-        my $interpreter = shift;
-        my $command     = shift;
-        my $envelope    = shift;
-        my $regex       = $command->arguments;
-        my $files       = $self->files;
-        my $found       = undef;
-        for my $file ( keys %$files ) {
-            next if ( $file !~ m($regex) );
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
+        my $regex    = $command->arguments;
+        my $files    = $self->files;
+        my $found    = undef;
+        for my $file ( keys %{$files} ) {
+            next if ( $file !~ m{$regex} );
             delete $self->files->{$file};
             $self->finish_file( $file, "delete\n" );
             my $watcher = $Tachikoma::Nodes{"$file:watcher"};
@@ -88,19 +90,19 @@ sub initialize_graph {
             $found = 1;
         }
         die "no files matching: $regex\n" if ( not $found );
-        return $interpreter->okay($envelope);
+        return $this->okay($envelope);
     };
     $interpreter->commands->{'start_tail'} = sub {
-        my $interpreter = shift;
-        my $command     = shift;
-        my $envelope    = shift;
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
         $self->timer->set_timer(0);
-        return $interpreter->okay($envelope);
+        return $this->okay($envelope);
     };
     $interpreter->commands->{'stop_tail'} = sub {
-        my $interpreter = shift;
-        my $command     = shift;
-        my $envelope    = shift;
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
         for my $file ( keys %{ $self->tails } ) {
             $self->close_tail($file);
             my $watcher = $Tachikoma::Nodes{"$file:watcher"};
@@ -108,29 +110,28 @@ sub initialize_graph {
         }
         $self->timer->remove_node if ( $self->{timer} );
         $self->{timer} = undef;
-        return $interpreter->okay($envelope);
+        return $this->okay($envelope);
     };
     $interpreter->commands->{'list_files'} = sub {
-        my $interpreter = shift;
-        my $command     = shift;
-        my $envelope    = shift;
-        my $files       = $self->files;
-        my $response    = [ [ [ 'FILE' => 'right' ], [ 'NODE' => 'left' ] ] ];
-        for my $file ( sort keys %$files ) {
-            push( @$response, $files->{$file} );
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
+        my $files    = $self->files;
+        my $response = [ [ [ 'FILE' => 'right' ], [ 'NODE' => 'left' ] ] ];
+        for my $file ( sort keys %{$files} ) {
+            push @{$response}, $files->{$file};
         }
-        return $interpreter->response( $envelope,
-            $interpreter->tabulate($response) );
+        return $this->response( $envelope, $this->tabulate($response) );
     };
     $interpreter->commands->{'list_tails'} = sub {
-        my $interpreter = shift;
-        my $command     = shift;
-        my $envelope    = shift;
-        my $response    = '';
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
+        my $response = q{};
         for my $file ( sort keys %{ $self->tails } ) {
             $response .= "$file\n";
         }
-        return $interpreter->response( $envelope, $response );
+        return $this->response( $envelope, $response );
     };
     return;
 }
@@ -144,16 +145,16 @@ sub fill {
         $self->rescan_files;
         return;
     }
-    elsif ( $message->[FROM] =~ m(^(.*):watcher$) ) {
+    elsif ( $message->[FROM] =~ m{^(.*):watcher$} ) {
         my $file = $1;
-        if ( $message->[PAYLOAD] =~ m(file .* (delete|rename)) ) {
+        if ( $message->[PAYLOAD] =~ m{file .* (delete|rename)} ) {
             my $event = $1;
             $self->finish_file( $file, $event );
         }
-        $self->rescan_files if ( $message->[PAYLOAD] !~ m(file .* missing) );
+        $self->rescan_files if ( $message->[PAYLOAD] !~ m{file .* missing} );
         return $self->{collector}->fill($message);
     }
-    elsif ( $message->[FROM] =~ m(^(.*):tail$) ) {
+    elsif ( $message->[FROM] =~ m{^(.*):tail$} ) {
         my $file = $1;
         return $self->{sink}->fill($message) if ( $message->[TO] );
         my $forking = $self->{forking};
@@ -163,13 +164,13 @@ sub fill {
             delete $self->{tails}->{$file};
             return;
         }
-        elsif ( keys(%$forking) >= $Max_Forking ) {
+        elsif ( keys( %{$forking} ) >= $Max_Forking ) {
             $self->timer->set_timer(10);
         }
         delete $forking->{$file};
         return $self->{collector}->fill($message);
     }
-    elsif ( $message->[FROM] =~ m(^(.*):tail-\d+$) ) {
+    elsif ( $message->[FROM] =~ m{^(.*):tail-\d+$} ) {
         my $file = $1;
         $message->[STREAM] = $file;
         return if ( $type & TM_EOF );
@@ -184,23 +185,17 @@ sub rescan_files {
     my $tails   = $self->{tails};
     my $files   = $self->{files};
     my $forking = $self->{forking};
-    for my $file ( keys %$files ) {
+    for my $file ( keys %{$files} ) {
         my $path = $files->{$file}->[0];
         next if ( not -e $path );
         if ( not $Tachikoma::Nodes{"$file:watcher"} ) {
-            eval {
-                my $file_watcher = Tachikoma::Nodes::Watcher->new;
-                $file_watcher->name("$file:watcher");
-                $file_watcher->arguments("vnode $path delete rename");
-                $file_watcher->sink($self);
-            };
-            if ($@) {
-                $self->stderr("ERROR: $@");
-                exit 1;
-            }
+            my $file_watcher = Tachikoma::Nodes::Watcher->new;
+            $file_watcher->name("$file:watcher");
+            $file_watcher->arguments("vnode $path delete rename");
+            $file_watcher->sink($self);
         }
         if ( not $Tachikoma::Nodes{"$file:tail"} ) {
-            next if ( keys(%$forking) >= $Max_Forking );
+            next if ( keys( %{$forking} ) >= $Max_Forking );
             my $tiedhash    = $self->tiedhash;
             my $filepos     = $tiedhash->{$file} || 0;
             my $destination = $self->get_destination($file);
@@ -214,7 +209,7 @@ sub rescan_files {
         }
     }
     my $tiedhash = $self->tiedhash;
-    for my $file ( keys %$tiedhash ) {
+    for my $file ( keys %{$tiedhash} ) {
         delete $tiedhash->{$file} if ( not $files->{$file} );
     }
     $self->timer->set_timer( $Scan_Interval * 1000 );
@@ -226,7 +221,7 @@ sub connect_list {
     if (@_) {
         $self->{connect_list} = shift;
         for my $host_port ( @{ $self->{connect_list} } ) {
-            my ( $host, $port, $use_SSL ) = split( ':', $host_port, 3 );
+            my ( $host, $port, $use_SSL ) = split m{:}, $host_port, 3;
             my $connection =
                 Tachikoma::Nodes::Socket->inet_client( $host, $port, undef,
                 $use_SSL );
@@ -243,10 +238,10 @@ sub get_destination {
     my $file         = shift;
     my $connect_list = $self->{connect_list};
     my $offline      = $self->{load_controller}->{offline};
-    my @destinations = grep not( $offline->{$_} ), @$connect_list;
+    my @destinations = grep not( $offline->{$_} ), @{$connect_list};
     return if ( not @destinations );
     my $i = 0;
-    $i += $_ for ( unpack "C*", md5($file) );
+    $i += $_ for ( unpack 'C*', md5($file) );
     return $destinations[ $i % @destinations ];
 }
 
@@ -288,10 +283,13 @@ sub finish_file {
         $self->{sink}->fill($message);
         delete $tails->{$file};
         my $old_name = "$file:tail";
-        my $new_name = sprintf( '%s-%06d',
-            $old_name, $self->job_controller->job_counter );
-        eval { $self->job_controller->rename_job( $old_name, $new_name ) };
-        $self->stderr( 'ERROR: ', $@ ) if ($@);
+        my $new_name = sprintf '%s-%06d',
+            $old_name, $self->job_controller->job_counter;
+        my $okay = eval {
+            $self->job_controller->rename_job( $old_name, $new_name );
+            return 1;
+        };
+        $self->stderr("ERROR: $@") if ( not $okay );
         delete $self->tiedhash->{$file};
     }
     return;
@@ -343,28 +341,27 @@ sub tiedhash {
         $self->{tiedhash} = shift;
     }
     if ( not defined $self->{tiedhash} ) {
+        ## no critic (ProhibitTie)
         my %h    = ();
         my %copy = ();
-        my $path = $self->db_dir . '/' . $self->filename;
+        my $path = $self->db_dir . q{/} . $self->filename;
         $self->make_parent_dirs($path);
         if ( -f $path ) {
 
             # defunk
-            tie(%h,
-                'BerkeleyDB::Btree',
+            tie %h, 'BerkeleyDB::Btree',
                 -Filename => $path,
                 -Mode     => 0600
-            );
+                or warn "couldn't tie $path: $!";
             %copy = %h;
-            untie(%h);
-            unlink($path);
+            untie %h or warn "couldn't untie $path: $!";
+            unlink $path or warn "couldn't unlink $path: $!";
         }
-        tie(%h,
-            'BerkeleyDB::Btree',
+        tie %h, 'BerkeleyDB::Btree',
             -Filename => $path,
             -Flags    => DB_CREATE,
             -Mode     => 0600
-        ) or die "couldn't tie $path: $!\n";
+            or die "couldn't tie $path: $!\n";
         %h = %copy if ( keys %copy );
         return $self->{tiedhash} = \%h;
     }

@@ -13,6 +13,8 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE TM_BYTESTREAM TM_INFO TM_PERSIST );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;

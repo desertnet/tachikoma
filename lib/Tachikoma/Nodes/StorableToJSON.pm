@@ -15,6 +15,8 @@ use Encode qw( encode );
 use JSON -support_by_pp;
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub fill {
     my $self    = shift;
     my $message = shift;
@@ -27,7 +29,7 @@ sub fill {
     $json->pretty(1);
     $json->allow_blessed(1);
     $json->convert_blessed(0);
-    my $response = bless( [@$message], ref($message) );
+    my $response = bless [ @{$message} ], ref $message;
     $response->[TYPE] = TM_BYTESTREAM;
     $response->[PAYLOAD] =
         encode( 'utf8', $json->encode( $message->payload ) );

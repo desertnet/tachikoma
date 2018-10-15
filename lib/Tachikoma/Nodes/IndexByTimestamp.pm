@@ -16,6 +16,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub fill {
     my $self    = shift;
     my $message = shift;
@@ -36,7 +38,7 @@ sub fill {
     $response->[PAYLOAD] =
         length( $message->[PAYLOAD] )
         ? "$partition:$offset\n"
-        : '';
+        : q{};
     return $self->{sink}->fill($response);
 }
 

@@ -281,10 +281,10 @@ sub fill {
         $self->process_info($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->stderr(
-            'ERROR: got ', $message->[PAYLOAD],
-            ' from ',      $message->[FROM]
-        );
+        my $error = $message->[PAYLOAD];
+        chomp $error;
+        $self->stderr( "ERROR: got $error from ", $message->[FROM] )
+            if ( not $self->{starting_up} );
     }
     else {
         $self->stderr( 'ERROR: unexpected message type: ',
@@ -859,8 +859,8 @@ sub determine_mapping {
     for my $topic_name ( sort keys %{ $self->{topics} } ) {
         my $topic      = $self->{topics}->{$topic_name};
         my @partitions = ();
-        ## no critic (ProhibitCStyleForLoops)
-        for ( my $i = 0; $i < $topic->{num_partitions}; $i++ ) {
+        my $i          = 0;
+        while ( $i < $topic->{num_partitions} ) {
             my $log_name = "$topic_name:partition:$i";
             my $leader   = $self->determine_leader(
                 {   topic_name     => $topic_name,
@@ -883,8 +883,8 @@ sub determine_mapping {
                 }
             ) if ( $topic->{replication_factor} > 1 );
             $partitions[$i] = $leader;
+            $i++;
         }
-        ## use critic
         $self->{partitions}->{$topic_name} = \@partitions;
     }
     $self->{mapping} = $mapping;

@@ -13,6 +13,8 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub help {
     my $self = shift;
     return <<'EOF';
@@ -24,9 +26,10 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     $self->{edge}->activate( \$message->[PAYLOAD] );
+    return;
 }
 
-sub activate {
+sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[FROM]    = $_[0]->{name};

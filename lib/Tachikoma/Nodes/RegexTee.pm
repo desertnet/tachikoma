@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 32955 2018-02-09 10:25:57Z chris $
+# $Id: RegexTee.pm 35179 2018-10-14 09:45:33Z chris $
 #
 
 package Tachikoma::Nodes::RegexTee;
@@ -12,6 +12,8 @@ use warnings;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw( TYPE TO PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::CommandInterpreter );
+
+use version; our $VERSION = 'v2.0.368';
 
 my %C = ();
 
@@ -32,12 +34,12 @@ sub fill {
     }
     my $response = 0;
     my $branches = $self->{branches};
-    for my $name ( keys %$branches ) {
+    for my $name ( keys %{$branches} ) {
         my ( $destination, $regex ) = @{ $branches->{$name} };
-        my ( $name, $path ) = split( '/', $destination, 2 );
+        my ( $name, $path ) = split m{/}, $destination, 2;
         my $node = $Tachikoma::Nodes{$name} or next;
-        if ( not defined $regex or $message->[PAYLOAD] =~ m($regex) ) {
-            my $copy = bless( [@$message], ref($message) );
+        if ( not defined $regex or $message->[PAYLOAD] =~ m{$regex} ) {
+            my $copy = bless [ @{$message} ], ref $message;
             $copy->[TO] = (
                   $node->isa('Tachikoma::Nodes::Router')
                 ? $destination
@@ -73,7 +75,7 @@ $C{list_branches} = sub {
     my $branches = $self->branches;
     my $response = undef;
     if ( $command->arguments eq '-a' ) {
-        $response = join( "\n", sort keys %$branches ) . "\n";
+        $response = join( "\n", sort keys %{$branches} ) . "\n";
     }
     else {
         my $table = [
@@ -82,8 +84,8 @@ $C{list_branches} = sub {
                 [ 'REGEX'       => 'right' ]
             ]
         ];
-        for my $name ( sort keys %$branches ) {
-            push( @$table, [ $name, @{ $branches->{$name} } ] );
+        for my $name ( sort keys %{$branches} ) {
+            push @{$table}, [ $name, @{ $branches->{$name} } ];
         }
         $response = $self->tabulate($table);
     }
@@ -98,10 +100,10 @@ $C{add_branch} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $destination, $regex ) = split( ' ', $command->arguments, 3 );
+    my ( $name, $destination, $regex ) = split q{ }, $command->arguments, 3;
     if ( not exists $self->branches->{$name} ) {
         $self->branches->{$name} =
-            [ $destination, $regex ? qr($regex) : undef ];
+            [ $destination, $regex ? qr{$regex} : undef ];
         return $self->okay($envelope);
     }
     else {
@@ -135,7 +137,7 @@ sub dump_config {
     my $self     = shift;
     my $response = $self->SUPER::dump_config;
     my $branches = $self->{branches};
-    for my $name ( sort keys %$branches ) {
+    for my $name ( sort keys %{$branches} ) {
         my ( $destination, $regex ) = @{ $branches->{$name} };
         $response .= "command $self->{name} add_branch"
             . " $name $destination $regex\n";

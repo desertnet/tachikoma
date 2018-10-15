@@ -16,9 +16,11 @@ use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Nodes::Timer );
 @EXPORT_OK = qw( smart_sort );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Topic_Timeout           = 10;
-my $Default_Output_Interval = 4.0;                               # seconds
-my $Numeric                 = qr/^-?(?:\d+(?:\.\d*)?|\.\d+)$/;
+my $Default_Output_Interval = 4.0;                                 # seconds
+my $Numeric                 = qr/^-?(?:\d+(?:[.]\d*)?|[.]\d+)$/;
 my $Winch                   = undef;
 
 sub new {
@@ -26,7 +28,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{where}     = {};
     $self->{where_not} = {};
-    $self->{sort}      = '_distance';
+    $self->{sort_by}   = '_distance';
     $self->{height}    = undef;
     $self->{width}     = undef;
     $self->{threshold} = 1;
@@ -43,8 +45,8 @@ sub new {
         max_unanswered => { label => 'MAX',       size => '6',   pad => 0 },
         cache          => { label => 'CACHE',     size => '9',   pad => 0 },
         recv_rate      => { label => 'RX/s',      size => '9',   pad => 0 },
-        direction      => { label => '',          size => '1',   pad => 0 },
-        direction2     => { label => '',          size => '1',   pad => 0 },
+        direction      => { label => q{},         size => '1',   pad => 0 },
+        direction2     => { label => q{},         size => '1',   pad => 0 },
         send_rate      => { label => 'TX/s',      size => '9',   pad => 0 },
         msg_rate       => { label => 'MSG/s',     size => '11',  pad => 0 },
         eta            => { label => 'ETA',       size => '11',  pad => 0 },
@@ -57,10 +59,12 @@ sub new {
     $self->{consumers}                      = {};
     bless $self, $class;
     $self->set_timer( $Default_Output_Interval * 1000 );
+    ## no critic (RequireLocalizedPunctuationVars)
     $SIG{WINCH} = sub { $Winch = 1 };
     $SIG{INT} = sub {
         print "\e[0m\e[?25h";
-        system( '/bin/stty', 'echo', '-cbreak' );
+        ## no critic (RequireCheckedSyscalls)
+        system '/bin/stty', 'echo', '-cbreak';
         exit 1;
     };
     return $self;
@@ -73,8 +77,8 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $partitions = $self->{partitions};
     my $consumers  = $self->{consumers};
-    for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
-        my $stats = { map { split q{:}, $_, 2 } split q{ }, $line };
+    for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        my $stats = { map { split m{:}, $_, 2 } split q{ }, $line };
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];
         my $row = undef;
@@ -87,7 +91,7 @@ sub fill {
             $partitions->{ $stats->{partition} } //= {};
             $row = $partitions->{ $stats->{partition} };
         }
-        $row->{$_} = $stats->{$_} for ( keys %$stats );
+        $row->{$_} = $stats->{$_} for ( keys %{$stats} );
     }
     return 1;
 }
@@ -97,14 +101,14 @@ sub fire {
     my $partitions = $self->{partitions};
     my $consumers  = $self->{consumers};
     my $threshold  = $self->{threshold};
-    my $sort       = $self->{sort};
+    my $sort       = $self->{sort_by};
     my $sorted     = {};
     my $totals     = {};
-    for my $id ( keys %$partitions ) {
+    for my $id ( keys %{$partitions} ) {
         $self->calculate_partition_row( $partitions->{$id} );
         $self->calculate_partition_totals( $partitions->{$id}, $totals );
     }
-    for my $id ( keys %$consumers ) {
+    for my $id ( keys %{$consumers} ) {
         $self->calculate_row( $consumers->{$id} );
         $self->calculate_totals( $consumers->{$id}, $totals );
     }
@@ -117,24 +121,25 @@ sub fire {
     my $color    = "\e[90m";
     my $reset    = "\e[0m";
     my $output   = sprintf
-        "%3d consumers; key: AGE > %d DISTANCE > 10M UNANSWERED >= MAX",
+        '%3d consumers; key: AGE > %d DISTANCE > 10M UNANSWERED >= MAX',
         $total, $Topic_Timeout;
     $output =
           sprintf "\e[H%3d consumers; key:"
         . " \e[41mAGE > %d\e[0m \e[91mDISTANCE > 10M\e[0m"
         . " \e[93mUNANSWERED >= MAX\e[0m%s\n",
-        $total, $Topic_Timeout, ' ' x ( $width - length($output) );
+        $total, $Topic_Timeout, q{ } x ( $width - length $output );
     $totals->{$_} = human( $totals->{"_$_"} )
         for (qw( p_offset c_offset distance recv_rate send_rate cache ));
     $totals->{msg_rate} = sprintf '%.2f', $totals->{_msg_rate} // 0;
     $output .= join q{},
         sprintf(
         join( q{}, $color, $self->{format}, $reset, "\n" ),
-        map substr( $totals->{$_} // '', 0, abs( $fields->{$_}->{size} ) ),
-        map $_ || '', @$selected
+        map substr( $totals->{$_} // q{}, 0, abs $fields->{$_}->{size} ),
+        map $_ || q{},
+        @{$selected}
         ),
         $self->{header};
-OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %$sorted ) {
+OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
 
         for my $id ( sort keys %{ $sorted->{$key} } ) {
             my $consumer = $sorted->{$key}->{$id};
@@ -142,7 +147,7 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %$sorted ) {
                 if ($sort eq '_distance'
                 and $key < $threshold
                 and $consumer->{age} < $Topic_Timeout );
-            $color = '';
+            $color = q{};
             if ( $consumer->{age} > $Topic_Timeout ) {
                 $color = "\e[41m";
             }
@@ -154,31 +159,27 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %$sorted ) {
             {
                 $color = "\e[93m";
             }
-            $consumer->{hostname} =~ s(\..*)();
+            $consumer->{hostname} =~ s{[.].*}{};
             $consumer->{cache} = human( $consumer->{cache_size} );
             $consumer->{$_} = human( $consumer->{"_$_"} )
                 for (qw( distance recv_rate send_rate ));
             $consumer->{msg_rate} = sprintf '%.2f', $consumer->{_msg_rate};
             $consumer->{direction} = (
-                  ( $consumer->{_recv_rate} == $consumer->{_send_rate} ) ? '='
-                : ( $consumer->{_recv_rate} > $consumer->{_send_rate} )  ? '>'
-                :                                                          '<'
+                ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q{=}
+                : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q{>}
+                :                                                         q{<}
             );
             $consumer->{direction2} = (
                 ( $consumer->{_recv_rate} > $consumer->{_send_rate} )
-                ? '>'
-                : ''
+                ? q{>}
+                : q{}
             );
-            $output .= sprintf(
+            $output .= sprintf
                 join( q{}, $color, $self->{format}, $reset ),
-                map substr(
-                    $consumer->{$_} // '',
-                    0,
-                    abs( $fields->{$_}->{size} )
-                ),
-                map $_ || '',
-                @$selected
-            );
+                map substr( $consumer->{$_} // q{}, 0,
+                abs $fields->{$_}->{size} ),
+                map $_ || q{},
+                @{$selected};
             last OUTPUT if ( $count++ > $height );
             $output .= "\n";
         }
@@ -196,22 +197,22 @@ sub human {
     my $value = shift // 0;
     return $value if ( $value !~ m{^[\d.]+$} );
     if ( $value >= 1000 * 1024**4 ) {
-        $value = sprintf( "%0.2fP", $value / 1024**4 );
+        $value = sprintf '%0.2fP', $value / 1024**4;
     }
     elsif ( $value >= 1000 * 1024**3 ) {
-        $value = sprintf( "%0.2fT", $value / 1024**4 );
+        $value = sprintf '%0.2fT', $value / 1024**4;
     }
     elsif ( $value >= 1000 * 1024**2 ) {
-        $value = sprintf( "%0.2fG", $value / 1024**3 );
+        $value = sprintf '%0.2fG', $value / 1024**3;
     }
     elsif ( $value >= 1000 * 1024 ) {
-        $value = sprintf( "%0.2fM", $value / 1024**2 );
+        $value = sprintf '%0.2fM', $value / 1024**2;
     }
     elsif ( $value >= 1000 ) {
-        $value = sprintf( "%0.2fK", $value / 1024 );
+        $value = sprintf '%0.2fK', $value / 1024;
     }
     else {
-        $value = sprintf( "%0.2f ", $value );
+        $value = sprintf '%0.2f ', $value;
     }
     return $value;
 }
@@ -297,8 +298,8 @@ sub calculate_row {
     }
     if ( $rate > 0 ) {
         my $eta = $row->{_distance} / $rate;
-        my $hours = sprintf( "%02d", $eta / 3600 );
-        $row->{eta} = strftime( "$hours:%M:%S", localtime($eta) );
+        my $hours = sprintf '%02d', $eta / 3600;
+        $row->{eta} = strftime( "$hours:%M:%S", localtime $eta );
     }
 
     $row->{last_timestamp} = $row->{timestamp};
@@ -326,27 +327,27 @@ sub calculate_totals {
 
 sub sort_rows {
     my ( $self, $sorted ) = @_;
-    my $sort      = $self->{sort};
+    my $sort      = $self->{sort_by};
     my $consumers = $self->{consumers};
     my $where     = $self->{where};
     my $where_not = $self->{where_not};
     my $total     = 0;
-COLLECT: for my $id ( keys %$consumers ) {
+COLLECT: for my $id ( keys %{$consumers} ) {
         my $consumer = $consumers->{$id};
-        $consumer->{lag} = sprintf( "%.1f",
-            $consumer->{last_update} - $consumer->{timestamp} );
-        $consumer->{age} = sprintf( "%.1f",
-            $Tachikoma::Right_Now - $consumer->{last_update} );
-        for my $field ( keys %$where ) {
+        $consumer->{lag} = sprintf '%.1f',
+            $consumer->{last_update} - $consumer->{timestamp};
+        $consumer->{age} = sprintf '%.1f',
+            $Tachikoma::Right_Now - $consumer->{last_update};
+        for my $field ( keys %{$where} ) {
             my $regex = $where->{$field};
-            if ( $consumer->{$field} !~ m($regex) ) {
+            if ( $consumer->{$field} !~ m{$regex} ) {
                 delete $consumers->{$id};
                 next COLLECT;
             }
         }
-        for my $field ( keys %$where_not ) {
+        for my $field ( keys %{$where_not} ) {
             my $regex = $where_not->{$field};
-            if ( $consumer->{$field} =~ m($regex) ) {
+            if ( $consumer->{$field} =~ m{$regex} ) {
                 delete $consumers->{$id};
                 next COLLECT;
             }
@@ -364,8 +365,8 @@ sub smart_sort {
     my $b       = shift;
     my $reverse = shift;
     return $reverse ? $a <=> $b : $b <=> $a
-        if ( $a =~ m($Numeric) and $b =~ m($Numeric) );
-    return $reverse ? lc($b) cmp lc($a) : lc($a) cmp lc($b);
+        if ( $a =~ m{$Numeric} and $b =~ m{$Numeric} );
+    return $reverse ? lc $b cmp lc $a : lc $a cmp lc $b;
 }
 
 sub select_fields {
@@ -376,9 +377,9 @@ sub select_fields {
         my $width    = $self->width;
         my $fields   = $self->{fields};
         my @selected = ();
-        for my $field ( split( m(,\s*), $self->{select_fields} ) ) {
+        for my $field ( split m{,\s*}, $self->{select_fields} ) {
             die "no such field: $field\n" if ( not exists $fields->{$field} );
-            push( @selected, $field );
+            push @selected, $field;
         }
         my $total = -1;
         $total += 2 * $fields->{$_}->{pad} + abs( $fields->{$_}->{size} ) + 1
@@ -401,9 +402,9 @@ sub select_fields {
             q{ } x $fields->{$_}->{pad}, q{%}, $fields->{$_}->{size},
             's', q{ } x $fields->{$_}->{pad} ),
             @selected;
-        $self->{format} .= ' ' x ( $width - $total );
-        $self->{header} = sprintf( $self->{format} . "\n",
-            map $fields->{$_}->{label}, @selected );
+        $self->{format} .= q{ } x ( $width - $total );
+        $self->{header} = sprintf $self->{format} . "\n",
+            map $fields->{$_}->{label}, @selected;
         $self->{selected} = \@selected;
     }
     return $self->{select_fields};
@@ -412,19 +413,22 @@ sub select_fields {
 sub update_window_size {
     my $self = shift;
     $Winch = undef;
+    ## no critic (ProhibitBacktickOperators)
     my $height = `tput lines`;
     my $width  = `tput cols`;
-    chomp($height);
-    chomp($width);
+    chomp $height;
+    chomp $width;
     $self->{height} = $height;
     $self->{width}  = $width;
     $self->select_fields(undef);
+    return;
 }
 
 sub remove_node {
     my $self = shift;
     print "\e[0m\e[?25h";
-    system( '/bin/stty', 'echo', '-cbreak' );
+    ## no critic (RequireCheckedSyscalls)
+    system '/bin/stty', 'echo', '-cbreak';
     $self->SUPER::remove_node;
     return;
 }
@@ -445,12 +449,12 @@ sub where_not {
     return $self->{where_not};
 }
 
-sub sort {
+sub sort_by {
     my $self = shift;
     if (@_) {
-        $self->{sort} = shift;
+        $self->{sort_by} = shift;
     }
-    return $self->{sort};
+    return $self->{sort_by};
 }
 
 sub height {

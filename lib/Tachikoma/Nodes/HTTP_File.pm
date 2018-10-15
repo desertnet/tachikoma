@@ -17,6 +17,8 @@ use Tachikoma::Message qw(
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 my $Default_Expires = 900;
 
 # TODO: configurate mime types
@@ -60,12 +62,12 @@ sub fill {
     my $request = $message->payload;
     my $headers = $request->{headers};
     my $uri     = $request->{path};
-    my $path    = ( $uri =~ m(^(/[\w:./~-]*)) )[0] || q{};
-    $path =~ s(/\.\.(?=/))()g;
-    $path =~ s(/+)(/)g;
+    my $path    = ( $uri =~ m{^(/[\w:./~-]*)} )[0] || q{};
+    $path =~ s{/[.][.](?=/)}{}g;
+    $path =~ s{/+}{/}g;
     my $url    = $path;
     my $prefix = $self->{prefix};
-    $path =~ s(^$prefix)();
+    $path =~ s{^$prefix}{};
     my $filename        = join q{}, $self->{path}, $path;
     my $if_modified     = $headers->{'if-modified-since'};
     my $accept_encoding = $headers->{'accept-encoding'} || q{};
@@ -75,7 +77,7 @@ sub fill {
     $response->[STREAM] = $message->[STREAM];
 
     if ( -d $filename ) {
-        $url =~ s(/$)();
+        $url =~ s{/$}{};
         $response->[PAYLOAD] = join q{},
             "HTTP/1.1 302 FOUND\n",
             'Date: ', cached_strftime(), "\n",
@@ -109,7 +111,7 @@ sub fill {
         return $self->{sink}->fill($response);
     }
     elsif ($if_modified) {
-        my $last_modified = ( stat(_) )[9];
+        my $last_modified = ( stat _ )[9];
         my $date          = get_time($if_modified);
         if ( $last_modified <= $date ) {
             $response->[PAYLOAD] = join q{}, "HTTP/1.1 304 Not Modified\n",
@@ -125,25 +127,24 @@ sub fill {
             return $self->{sink}->fill($response);
         }
     }
-    my $type = ( $path =~ m(\.([^.]+)$) )[0] || 'txt';
+    my $type = ( $path =~ m{[.]([^.]+)$} )[0] || 'txt';
     $self->stderr("WARNING: no mime type set for $type")
         if ( not $Types{$type} );
-    my @stat = stat($filename);
+    my @stat = stat $filename;
     $response->[PAYLOAD] = join q{},
         "HTTP/1.1 200 OK\n",
         'Date: ', cached_strftime(), "\n",
-        strftime( "Last-Modified: %a, %d %b %Y %T GMT\n",
-        gmtime( $stat[9] ) ),
+        strftime( "Last-Modified: %a, %d %b %Y %T GMT\n", gmtime $stat[9] ),
         strftime(
         "Expires: %a, %d %b %Y %T GMT\n",
-        gmtime( $Tachikoma::Now + $Default_Expires )
+        gmtime $Tachikoma::Now + $Default_Expires
         ),
         "Server: Tachikoma\n",
         "Connection: close\n",
-        "Content-Type: ",
+        'Content-Type: ',
         $Types{$type} || $Types{'txt'},
         "\n",
-        "Content-Length: ",
+        'Content-Length: ',
         $stat[7],
         "\n\n";
     $self->{sink}->fill($response);

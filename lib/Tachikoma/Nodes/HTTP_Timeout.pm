@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Timeout
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Timeout.pm 32984 2018-02-10 11:36:28Z chris $
+# $Id: HTTP_Timeout.pm 35142 2018-10-13 12:13:24Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Timeout;
@@ -11,6 +11,8 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use parent qw( Tachikoma::Nodes::Timer );
+
+use version; our $VERSION = 'v2.0.367';
 
 my $Default_Request_Timeout = 300;
 
@@ -65,7 +67,7 @@ sub fire {
             }
         }
     }
-    for my $name ( keys %$watched ) {
+    for my $name ( keys %{$watched} ) {
         delete $watched->{$name} if ( not $Tachikoma::Nodes{$name} );
     }
     return;

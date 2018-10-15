@@ -98,7 +98,7 @@ for my $field ( keys %width ) {
 $topic_top->select_fields($select_fields);
 $topic_top->where( \%where );
 $topic_top->where_not( \%where_not );
-$topic_top->sort($sort);
+$topic_top->sort_by($sort);
 $topic_top->threshold($threshold);
 $topic_top->delay($delay);
 

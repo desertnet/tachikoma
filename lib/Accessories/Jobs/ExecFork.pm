@@ -3,7 +3,7 @@
 # Accessories::Jobs::ExecFork
 # ----------------------------------------------------------------------
 #
-# $Id: ExecFork.pm 33259 2018-02-17 15:06:46Z chris $
+# $Id: ExecFork.pm 35142 2018-10-13 12:13:24Z chris $
 #
 
 package Accessories::Jobs::ExecFork;
@@ -24,7 +24,7 @@ sub initialize_graph {
         $SIG{PIPE} = sub { die $! };
         my ( $read, $write );
         open3( $write, $read, $read, $self->arguments ) or die "$!";
-        local $/;
+        local $/ = undef;
         my $output = <$read>;
         close($read);
         my $message = Tachikoma::Message->new;

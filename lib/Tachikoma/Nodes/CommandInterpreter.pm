@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35085 2018-10-12 05:46:56Z chris $
+# $Id: CommandInterpreter.pm 35210 2018-10-14 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -164,14 +164,13 @@ sub call_function {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: couldn't find _responder\n" if ( not $responder );
     my $okay = eval {
-        ## no critic (ProhibitNoisyQuotes)
         $rv = $responder->shell->call_function(
             $name,
-            {   '@'            => $command->arguments,
-                '0'            => $name,
-                '1'            => $command->arguments,
-                '_C'           => 1,
-                'message.from' => $envelope->from
+            {   q{@}            => $command->arguments,
+                q{0}            => $name,
+                q{1}            => $command->arguments,
+                q{_C}           => 1,
+                q{message.from} => $envelope->from
             }
         );
         return 1;
@@ -881,6 +880,8 @@ $C{dump_hex} = sub {
     bless $copy, 'main';    # don't call DESTROY()
     return $self->response( $envelope, $response );
 };
+
+$H{dump_dec} = ["dump_dec <node name> <keys>\n"];
 
 $C{dump_dec} = sub {
     my $self     = shift;
@@ -1854,17 +1855,15 @@ $C{remote_var} = sub {
         my $v = $Var{$key};
         $v = [] if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
-
-        ## no critic (ProhibitNoisyQuotes)
-        if ( $op eq '.=' and @{$v} ) { push @{$v}, q{ }; }
-        if ( $op eq '=' ) { $v = [$value]; }
-        elsif ( $op eq '.=' ) { push @{$v}, $value; }
-        elsif ( $op eq '+=' ) { $v->[0] //= 0; $v->[0] += $value; }
-        elsif ( $op eq '-=' ) { $v->[0] //= 0; $v->[0] -= $value; }
-        elsif ( $op eq '*=' ) { $v->[0] //= 0; $v->[0] *= $value; }
-        elsif ( $op eq '/=' ) { $v->[0] //= 0; $v->[0] /= $value; }
-        elsif ( $op eq '//=' and not @{$v} ) { $v = [$value]; }
-        elsif ( $op eq '||=' and not join q{}, @{$v} ) { $v = [$value]; }
+        if ( $op eq q{.=} and @{$v} ) { push @{$v}, q{ }; }
+        if ( $op eq q{=} ) { $v = [$value]; }
+        elsif ( $op eq q{.=} ) { push @{$v}, $value; }
+        elsif ( $op eq q{+=} ) { $v->[0] //= 0; $v->[0] += $value; }
+        elsif ( $op eq q{-=} ) { $v->[0] //= 0; $v->[0] -= $value; }
+        elsif ( $op eq q{*=} ) { $v->[0] //= 0; $v->[0] *= $value; }
+        elsif ( $op eq q{/=} ) { $v->[0] //= 0; $v->[0] /= $value; }
+        elsif ( $op eq q{//=} and not @{$v} ) { $v = [$value]; }
+        elsif ( $op eq q{||=} and not join q{}, @{$v} ) { $v = [$value]; }
         else { return $self->error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
@@ -2005,11 +2004,10 @@ $C{getrusage} = sub {
         nsignals nvcsw nivcsw
     );
 
-    ## no critic (ProhibitCStyleForLoops)
-    for ( my $i = 0; $i < 2; $i++ ) {
+    for my $i ( 0 .. 1 ) {
         $out .= sprintf "%10s: %20f\n", $labels[$i], $rusage[$i];
     }
-    for ( my $i = 2; $i <= $#rusage; $i++ ) {
+    for my $i ( 2 .. $#rusage ) {
         $out .= sprintf "%10s: %13d\n", $labels[$i], $rusage[$i];
     }
     return $self->response( $envelope, $out );
@@ -2208,6 +2206,7 @@ $C{initialize} = sub {
     my $self      = shift;
     my $command   = shift;
     my $envelope  = shift;
+    my $daemonize = $command->name eq 'daemonize' ? 1 : undef;
     my $name      = $command->arguments || 'tachikoma-server';
     my $router    = $Tachikoma::Nodes{_router};
     my $responder = $Tachikoma::Nodes{_responder};
@@ -2227,7 +2226,7 @@ $C{initialize} = sub {
     $responder->sink(undef);
     $responder->edge(undef);
     my $okay = eval {
-        Tachikoma->initialize($name);
+        Tachikoma->initialize( $name, $daemonize );
         return 1;
     };
     if ( not $okay ) {
@@ -2242,41 +2241,7 @@ $C{initialize} = sub {
 
 $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
-$C{daemonize} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
-    my $name      = $command->arguments || 'tachikoma-server';
-    my $router    = $Tachikoma::Nodes{_router};
-    my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _router\n"    if ( not $router );
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
-    die "ERROR: already daemonized\n"       if ( $router->type ne 'router' );
-    $router->stop_timer;
-    my $node = $responder->sink;
-
-    while ( my $sink = $node->sink ) {
-        $node->remove_node;
-        $node = $sink;
-    }
-    Tachikoma->event_framework->close_filehandle($node);
-    delete( Tachikoma->nodes_by_fd->{ $node->fd } );
-    $responder->client(undef);
-    $responder->sink(undef);
-    $responder->edge(undef);
-    my $okay = eval {
-        Tachikoma->daemonize($name);
-        return 1;
-    };
-    if ( not $okay ) {
-        print {*STDERR} $@ // "ERROR: daemonize: unknown error\n";
-        exit 1;
-    }
-    $router->type('root');
-    $router->register_router_node;
-    $router->set_timer(1000);
-    return;
-};
+$C{daemonize} = $C{initialize};
 
 $H{shutdown} = ["shutdown\n"];
 

@@ -12,6 +12,8 @@ use warnings;
 use Tachikoma::Nodes::Echo;
 use parent qw( Tachikoma::Nodes::Echo );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub help {
     my $self = shift;
     return <<'EOF';
@@ -22,8 +24,8 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments = shift || '';
-        my $old_arguments = $self->{arguments} || '';
+        my $arguments = shift || q{};
+        my $old_arguments = $self->{arguments} || q{};
         $self->stderr($arguments) if ( $arguments ne $old_arguments );
         $self->{arguments} = $arguments;
     }

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::SerialPort
 # ----------------------------------------------------------------------
 #
-# $Id: SerialPort.pm 32955 2018-02-09 10:25:57Z chris $
+# $Id: SerialPort.pm 35179 2018-10-14 09:45:33Z chris $
 #
 
 package Tachikoma::Nodes::SerialPort;
@@ -19,6 +19,8 @@ use Tachikoma::Message qw(
 use Device::SerialPort;
 use POSIX qw( F_SETFL O_NONBLOCK );
 use parent qw( Tachikoma::Nodes::STDIO );
+
+use version; our $VERSION = 'v2.0.368';
 
 my %C = ();
 
@@ -48,14 +50,15 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $filename, $delay, $max_unanswered ) =
-            split( ' ', $arguments, 3 );
-        $filename = ( $filename =~ m(^(.*)$) )[0];
+        my ( $filename, $delay, $max_unanswered ) = split q{ }, $arguments, 3;
+        $filename = ( $filename =~ m{^(.*)$} )[0];
         $self->close_filehandle if ( $self->{fh} );
+        ## no critic (ProhibitLocalVars)
+        ## no critic (RequireInitializationForLocalVars)
+        ## no critic (ProhibitTies)
         local *FH;
-        tie( *FH, 'Device::SerialPort', $filename )
-            or die
-            "couldn't create Device::SerialPort with port $filename: $!";
+        tie *FH, 'Device::SerialPort', $filename
+            or die "couldn't create Device::SerialPort for $filename: $!";
         $self->{arguments}      = $arguments;
         $self->{filename}       = $filename;
         $self->{delay}          = $delay;
@@ -63,11 +66,9 @@ sub arguments {
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered;
         $self->{fh}             = *FH;
-        $self->{fd}             = fileno(FH);
+        $self->{fd}             = fileno FH;
         $self->apply_settings;
         Tachikoma->nodes_by_fd->{ $self->{fd} } = $self;
-
-        # fcntl(FH, F_SETFL, O_NONBLOCK) or die "fcntl: $!";
         $self->register_reader_node;
     }
     return $self->{arguments};
@@ -75,10 +76,11 @@ sub arguments {
 
 sub apply_settings {
     my $self = shift;
+    ## no critic (ProhibitLocalVars)
     local *FH = $self->{fh};
-    my $portobj  = tied(*FH);
+    my $portobj  = tied *FH;
     my $settings = $self->{settings};
-    for my $key ( keys %$settings ) {
+    for my $key ( keys %{$settings} ) {
         my $value = $settings->{$key};
         next if ( not defined $value );
         $portobj->$key($value);
@@ -130,10 +132,10 @@ $C{list_settings} = sub {
     my $envelope = shift;
     my $settings = $self->patron->settings;
     my $response = [ [ [ 'SETTING' => 'left' ], [ 'VALUE' => 'right' ] ] ];
-    for my $key ( keys %$settings ) {
+    for my $key ( keys %{$settings} ) {
         my $value = $settings->{$key};
         $value = 'undef' if ( not defined $value );
-        push( @$response, [ $key, $value ] );
+        push @{$response}, [ $key, $value ];
     }
     return $self->response( $envelope, $self->tabulate($response) );
 };
@@ -145,9 +147,10 @@ $C{set} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $settings = $self->patron->settings;
+    ## no critic (ProhibitLocalVars)
     local *FH = $self->patron->{fh};
-    my $portobj = tied(*FH);
-    my ( $key, $value ) = split( ' ', $command->arguments, 2 );
+    my $portobj = tied *FH;
+    my ( $key, $value ) = split q{ }, $command->arguments, 2;
     if ( not exists $settings->{$key} ) {
         return $self->error( $envelope, "no such setting: $key\n" );
     }

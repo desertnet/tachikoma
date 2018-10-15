@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35113 2018-10-12 21:04:44Z chris $
+# $Id: Timer.pm 35134 2018-10-13 07:23:20Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -59,7 +59,7 @@ sub set_timer {
     my $time    = shift;
     my $oneshot = shift;
     die "ERROR: invalid time requested by $self->{name}\n"
-        if ( defined $time and $time =~ m{\D} );
+        if ( defined $time and $time =~ m{[^\d.]} );
     if ( not $self->{id} ) {
         do {
             $self->{id} = Tachikoma->counter;

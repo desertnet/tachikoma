@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35049 2018-10-10 22:02:12Z chris $
+# $Id: Tail.pm 35210 2018-10-14 21:04:44Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -412,12 +412,14 @@ sub handle_EOF {
     return;
 }
 
-sub wait_to_send_EOF {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::wait_to_send_EOF(@_);
+sub wait_to_send_EOF {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::wait_to_send_EOF(@args);
 }
 
-sub wait_to_close_EOF {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::wait_to_close_EOF(@_);
+sub wait_to_close_EOF {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::wait_to_close_EOF(@args);
 }
 
 sub wait_to_delete_EOF {
@@ -425,24 +427,26 @@ sub wait_to_delete_EOF {
     if ( not $self->{msg_unanswered} ) {
         $self->send_EOF;
         $self->remove_node;
-
-        # unlink $self->{filename} or warn;
-        ## no critic (RequireCheckedSyscalls)
-        unlink $self->{filename};
+        unlink $self->{filename}
+            or
+            $self->stderr("WARNING: couldn't unlink $self->{filename}: $!");
     }
     return;
 }
 
-sub send_EOF {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::send_EOF(@_);
+sub send_EOF {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::send_EOF(@args);
 }
 
-sub edge {        ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::edge(@_);
+sub edge {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::edge(@args);
 }
 
-sub set_drain_buffer {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::set_drain_buffer(@_);
+sub set_drain_buffer {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::set_drain_buffer(@args);
 }
 
 sub filename {
@@ -469,24 +473,29 @@ sub stream {
     return $self->{stream};
 }
 
-sub line_buffer {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::line_buffer(@_);
+sub line_buffer {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::line_buffer(@args);
 }
 
-sub buffer_mode {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::buffer_mode(@_);
+sub buffer_mode {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::buffer_mode(@args);
 }
 
-sub msg_unanswered {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::msg_unanswered(@_);
+sub msg_unanswered {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::msg_unanswered(@args);
 }
 
-sub max_unanswered {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::max_unanswered(@_);
+sub max_unanswered {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::max_unanswered(@args);
 }
 
-sub bytes_answered {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::bytes_answered(@_);
+sub bytes_answered {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::bytes_answered(@args);
 }
 
 sub on_EOF {
@@ -518,12 +527,14 @@ sub on_ENOENT {
     return $self->{on_ENOENT};
 }
 
-sub on_timeout {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::on_timeout(@_);
+sub on_timeout {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::on_timeout(@args);
 }
 
-sub timeout {       ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::timeout(@_);
+sub timeout {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::timeout(@args);
 }
 
 sub finished {
@@ -544,8 +555,9 @@ sub finished {
     return $pos >= $size;
 }
 
-sub msg_timer {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::msg_timer(@_);
+sub msg_timer {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::msg_timer(@args);
 }
 
 sub poll_timer {
@@ -587,8 +599,9 @@ sub wait_timer {
     return $self->{wait_timer};
 }
 
-sub sent_EOF {    ## no critic (RequireArgUnpacking)
-    return Tachikoma::Nodes::STDIO::sent_EOF(@_);
+sub sent_EOF {
+    my (@args) = @_;
+    return Tachikoma::Nodes::STDIO::sent_EOF(@args);
 }
 
 sub remove_node {

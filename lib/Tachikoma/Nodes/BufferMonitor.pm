@@ -17,6 +17,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.368';
+
 my $Timer_Interval = 60;
 my $Alert_Delay    = 600;
 my $Alert_Interval = 3600;
@@ -33,12 +35,12 @@ sub new {
     $self->{hosts}            = {};
     $self->{email_alerts}     = {};
     $self->{trap_alerts}      = {};
-    $self->{email}            = '';
-    $self->{trap}             = '';
+    $self->{email}            = q{};
+    $self->{trap}             = q{};
     $self->{last_email}       = 0;
     $self->{last_trap}        = 0;
-    $self->{email_address}    = '';
-    $self->{mon_path}         = '';
+    $self->{email_address}    = q{};
+    $self->{mon_path}         = q{};
     $self->{interpreter}      = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
@@ -58,13 +60,13 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {
+sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
         return
             if ($message->[TYPE] & TM_EOF
-            and $message->[FROM] =~ m(^(?:_parent/)?[^/]+$) );
+            and $message->[FROM] =~ m{^(?:_parent/)?[^/]+$} );
         return $self->interpreter->fill($message);
     }
     if ( $message->[TYPE] & TM_INFO ) {
@@ -75,10 +77,9 @@ sub fill {
     my $thresholds  = $self->{email_thresholds};
     my $buffers     = $self->{buffers};
     my $new_buffers = {};
-LINE: for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
-        my $buffer = { map { split( ':', $_ ) } split( ' ', $line ) };
-        my $buffer_id =
-            join( ':', $buffer->{hostname}, $buffer->{buff_name} );
+LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        my $buffer = { map { split m{:}, $_, 2 } split q{ }, $line };
+        my $buffer_id = join q{:}, $buffer->{hostname}, $buffer->{buff_name};
         my $old_buffer = $buffers->{$buffer_id};
         $new_buffers->{$buffer_id} = $buffer;
         $buffer->{id}              = $buffer_id;
@@ -86,8 +87,8 @@ LINE: for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
         $buffer->{last_timestamp}  = $message->[TIMESTAMP];
         $buffer->{last_email} = $old_buffer->{last_email} || 0;
         $buffer->{last_trap}  = $old_buffer->{last_trap}  || 0;
-        $buffer->{lag}        = sprintf( "%.1f",
-            $buffer->{last_update} - $buffer->{last_timestamp} );
+        $buffer->{lag}        = sprintf '%.1f',
+            $buffer->{last_update} - $buffer->{last_timestamp};
         $buffer->{age} ||= 0;
 
         if ( $buffer->{lag} > $Email_After ) {
@@ -98,8 +99,8 @@ LINE: for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
             );
             next LINE;
         }
-        for my $regex ( keys %$thresholds ) {
-            next if ( $buffer_id !~ m($regex) );
+        for my $regex ( keys %{$thresholds} ) {
+            next if ( $buffer_id !~ m{$regex} );
             my $threshold = $thresholds->{$regex};
             if ( $buffer->{msg_in_buf} > $threshold ) {
                 $self->alert(
@@ -113,14 +114,14 @@ LINE: for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
         if ( $buffer->{msg_in_buf} > 1000 ) {
             $self->alert(
                 'email', $buffer,
-                "msg_in_buf exceeded 1000",
+                'msg_in_buf exceeded 1000',
                 sub { $_[0]->{msg_in_buf} > 1000 }
             );
             next LINE;
         }
     }
     $thresholds = $self->{trap_thresholds};
-AGAIN: for my $buffer_id ( keys %$new_buffers ) {
+AGAIN: for my $buffer_id ( keys %{$new_buffers} ) {
         my $buffer = $new_buffers->{$buffer_id};
         $buffers->{$buffer_id} = $buffer;
         if ( $buffer->{lag} > $Trap_After ) {
@@ -131,8 +132,8 @@ AGAIN: for my $buffer_id ( keys %$new_buffers ) {
             );
             next AGAIN;
         }
-        for my $regex ( keys %$thresholds ) {
-            next if ( $buffer_id !~ m($regex) );
+        for my $regex ( keys %{$thresholds} ) {
+            next if ( $buffer_id !~ m{$regex} );
             my $threshold = $thresholds->{$regex};
             if ( $buffer->{msg_in_buf} > $threshold ) {
                 $self->alert(
@@ -146,7 +147,7 @@ AGAIN: for my $buffer_id ( keys %$new_buffers ) {
         if ( $buffer->{msg_in_buf} > 100000 ) {
             $self->alert(
                 'trap', $buffer,
-                "msg_in_buf exceeded 100000",
+                'msg_in_buf exceeded 100000',
                 sub { $_[0]->{msg_in_buf} > 100000 }
             );
             next AGAIN;
@@ -158,7 +159,7 @@ AGAIN: for my $buffer_id ( keys %$new_buffers ) {
 sub fire {
     my $self    = shift;
     my $buffers = $self->{buffers};
-    for my $buffer_id ( keys %$buffers ) {
+    for my $buffer_id ( keys %{$buffers} ) {
         my $buffer = $buffers->{$buffer_id};
         $buffer->{age} = $Tachikoma::Right_Now - $buffer->{last_update};
         if ( $buffer->{age} > $Email_After ) {
@@ -212,12 +213,10 @@ $C{list_email_thresholds} = sub {
     my $envelope   = shift;
     my $glob       = $command->arguments;
     my $thresholds = $self->patron->email_thresholds;
-    my $response   = '';
-    for my $path ( sort keys %$thresholds ) {
-        eval {
-            $response .= sprintf( "%30s %10d\n", $path, $thresholds->{$path} )
-                if ( not $glob or $path =~ $glob );
-        };
+    my $response   = q{};
+    for my $path ( sort keys %{$thresholds} ) {
+        $response .= sprintf "%30s %10d\n", $path, $thresholds->{$path}
+            if ( not $glob or $path =~ m{$glob} );
     }
     return $self->response( $envelope, $response );
 };
@@ -228,7 +227,7 @@ $C{add_email_threshold} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $regex, $threshold ) = split( ' ', $command->arguments, 2 );
+    my ( $regex, $threshold ) = split q{ }, $command->arguments, 2;
     $self->patron->email_thresholds->{$regex} = $threshold;
     $self->patron->email_alerts( {} );
     return $self->okay;
@@ -262,12 +261,10 @@ $C{list_trap_thresholds} = sub {
     my $envelope   = shift;
     my $glob       = $command->arguments;
     my $thresholds = $self->patron->trap_thresholds;
-    my $response   = '';
-    for my $path ( sort keys %$thresholds ) {
-        eval {
-            $response .= sprintf( "%30s %10d\n", $path, $thresholds->{$path} )
-                if ( not $glob or $path =~ $glob );
-        };
+    my $response   = q{};
+    for my $path ( sort keys %{$thresholds} ) {
+        $response .= sprintf "%30s %10d\n", $path, $thresholds->{$path}
+            if ( not $glob or $path =~ m{$glob} );
     }
     return $self->response( $envelope, $response );
 };
@@ -278,7 +275,7 @@ $C{add_trap_threshold} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $regex, $threshold ) = split( ' ', $command->arguments, 2 );
+    my ( $regex, $threshold ) = split q{ }, $command->arguments, 2;
     $self->patron->trap_thresholds->{$regex} = $threshold;
     $self->patron->trap_alerts( {} );
     return $self->okay;
@@ -303,27 +300,23 @@ $C{rm_trap} = $C{remove_trap_threshold};
 #     my $type       = shift;
 #     my $buffer     = shift;
 #     my $warning    = shift;
-#     my $short_host = ($buffer->{hostname} =~ m(^([^.]+)))[0];
-#     my $subject    = join(' ',
-#         $warning, 'on', $short_host, $buffer->{buff_name}
-#     );
+#     my $short_host = ( $buffer->{hostname} =~ m{^([^.]+)} )[0];
+#     my $subject    = join q{ },
+#         $warning, 'on', $short_host, $buffer->{buff_name};
 #     return
 #         if ($Tachikoma::Now - $buffer->{"last_$type"} < $Alert_Interval);
 #     $buffer->{"last_$type"} = $Tachikoma::Now;
 #     if ($type eq 'email') {
-#         my $body = '';
+#         my $body = q{};
 #         $body .= sprintf("%20s: %s\n", 'hostname', $buffer->{hostname});
 #         $body .= sprintf("%20s: %s\n", 'buff_name', $buffer->{buff_name});
-#         for my $field (sort keys %$buffer) {
+#         for my $field ( sort keys %{$buffer} ) {
 #             next if ($field eq 'hostname'
 #                   or $field eq 'buff_name'
-#                   or $field =~ m(^last_));
+#                   or $field =~ m{^last_});
 #             $body .= sprintf("%20s: %12d\n", $field, $buffer->{$field});
 #         }
-#         $self->{$type} .= join('',
-#             $subject, qq(\n),
-#             $body, qq(\n\n)
-#         );
+#         $self->{$type} .= join q{}, $subject, qq(\n), $body, qq(\n\n);
 #     }
 #     else {
 #         $self->{$type} .= "$subject\n";
@@ -340,9 +333,9 @@ sub alert {
     my $callback   = shift;
     my $alerts     = $self->{"${type}_alerts"};
     my $id         = $buffer->{id};
-    my $short_host = ( $buffer->{hostname} =~ m(^([^.]+)) )[0];
-    my $subject =
-        join( ' ', $warning, 'on', $short_host, $buffer->{buff_name} );
+    my $short_host = ( $buffer->{hostname} =~ m{^([^.]+)} )[0];
+    my $subject    = join q{ }, $warning, 'on', $short_host,
+        $buffer->{buff_name};
     $alerts->{$id} ||= {};
     $alerts->{$id}->{$subject} ||= [ $Tachikoma::Now => $callback ];
     return;
@@ -354,23 +347,23 @@ sub get_alerts {
     my $buffers = $self->{buffers};
     my $alerts  = $self->{"${type}_alerts"};
     my %hosts   = ();
-    my $body    = '';
-    for my $id ( sort keys %$alerts ) {
+    my $body    = q{};
+    for my $id ( sort keys %{$alerts} ) {
         my $subjects = $alerts->{$id};
         my $buffer   = $buffers->{$id};
-        my $chunk    = '';
-        for my $subject ( sort keys %$subjects ) {
+        my $chunk    = q{};
+        for my $subject ( sort keys %{$subjects} ) {
             my ( $timestamp, $callback ) = @{ $subjects->{$subject} };
             next if ( $Tachikoma::Now - $timestamp < $Alert_Delay );
-            if ( not &$callback($buffer) ) {
+            if ( not &{$callback}($buffer) ) {
                 delete $subjects->{$subject};
                 next;
             }
-            my $short_host = ( $buffer->{hostname} =~ m(^([^.]+)) )[0];
+            my $short_host = ( $buffer->{hostname} =~ m{^([^.]+)} )[0];
             $hosts{$short_host} = 1;
             $chunk .= $subject . "\n";
         }
-        delete $alerts->{$id} if ( not keys %$subjects );
+        delete $alerts->{$id} if ( not keys %{$subjects} );
         next if ( not $chunk );
         $chunk .= $self->get_details($buffer) . "\n\n"
             if ( $type eq 'email' );
@@ -384,16 +377,16 @@ sub get_alerts {
 sub get_details {
     my $self    = shift;
     my $buffer  = shift;
-    my $details = '';
-    $details .= sprintf( "%20s: %s\n", 'hostname',  $buffer->{hostname} );
-    $details .= sprintf( "%20s: %s\n", 'buff_name', $buffer->{buff_name} );
-    for my $field ( sort keys %$buffer ) {
+    my $details = q{};
+    $details .= sprintf "%20s: %s\n", 'hostname',  $buffer->{hostname};
+    $details .= sprintf "%20s: %s\n", 'buff_name', $buffer->{buff_name};
+    for my $field ( sort keys %{$buffer} ) {
         next
             if ( $field eq 'id'
             or $field eq 'hostname'
             or $field eq 'buff_name'
-            or $field =~ m(^last_) );
-        $details .= sprintf( "%20s: %12d\n", $field, $buffer->{$field} );
+            or $field =~ m{^last_} );
+        $details .= sprintf "%20s: %12d\n", $field, $buffer->{$field};
     }
     return $details;
 }
@@ -404,11 +397,11 @@ sub send_alerts {
     if ( $type eq 'email' ) {
         return
             if ( not $self->{email}
-            or $Tachikoma::Now - $self->{"last_email"} < $Alert_Interval );
-        $self->{"last_email"} = $Tachikoma::Now;
-        my $email = $self->{"email_address"};
+            or $Tachikoma::Now - $self->{last_email} < $Alert_Interval );
+        $self->{'last_email'} = $Tachikoma::Now;
+        my $email = $self->{email_address};
         delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};
-        $ENV{PATH} = '';
+        local $ENV{PATH} = q{};
         my $subject = 'WARNING: BufferMonitor threshold(s) exceeded';
         my $grep    = '/usr/bin/grep';
         for my $host ( keys %{ $self->{hosts} } ) {
@@ -418,13 +411,15 @@ sub send_alerts {
         $grep .= ' /logs/tachikoma/servers/servers.log | /usr/bin/tail -n100';
         $grep2
             .= ' /logs/tachikoma/systems/systems.log | /usr/bin/tail -n100';
+        ## no critic (ProhibitBacktickOperators)
         my $server_logs = `$grep`;
         my $system_logs = `$grep2`;
-        open( my $mail, '|-', qq(/usr/bin/mail -s "$subject" $email) )
+        open my $mail, q{|-}, qq(/usr/bin/mail -s "$subject" $email)
             or die "couldn't open mail: $!";
-        print $mail scalar( localtime(time) ),
+        print {$mail} scalar( localtime time ),
             qq(\n\n),
-            qq(Affected hosts: ), join( ', ', sort keys %{ $self->{hosts} } ),
+            q(Affected hosts: ),
+            join( q{, }, sort keys %{ $self->{hosts} } ),
             qq(\n\n),
             $self->{email},
             qq(\n\n),
@@ -433,16 +428,16 @@ sub send_alerts {
             qq(\n\n),
             qq(Last 100 system log entries from affected hosts:\n\n),
             $system_logs;
-        close($mail);
+        close $mail or $self->stderr("ERROR: couldn't close mail: $!");
     }
     elsif ( $self->{mon_path} ) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_BYTESTREAM;
         $message->[TO]   = $self->{mon_path};
         if ( $self->{trap} ) {
-            $message->[PAYLOAD] = join( '',
+            $message->[PAYLOAD] = join q{},
                 "BufferMonitor threshold(s) exceeded\n",
-                $self->{trap} );
+                $self->{trap};
         }
         else {
             $message->[PAYLOAD] = $Tachikoma::Now . "\n";
@@ -450,7 +445,7 @@ sub send_alerts {
         $self->SUPER::fill($message);
     }
     $self->{hosts} = {};
-    $self->{$type} = '';
+    $self->{$type} = q{};
     return;
 }
 

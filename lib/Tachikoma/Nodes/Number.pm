@@ -14,6 +14,8 @@ use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use File::MkTemp;
 use parent qw( Tachikoma::Nodes::Echo );
 
+use version; our $VERSION = 'v2.0.368';
+
 my $Default_Start_Offset = 0;
 my %C                    = ();
 

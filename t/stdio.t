@@ -9,12 +9,12 @@ use strict;
 use warnings;
 use Test::More tests => 5;
 
+use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::STDIO;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
-use Tachikoma;
 
 Tachikoma->event_framework(
     Tachikoma::EventFrameworks::Select->new

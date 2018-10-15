@@ -75,9 +75,9 @@ func add_hub {
         cd ..;
         topic_probe;
         listen_inet <broker_id>;
-        if ( <broker_id> =~ ":(\\d+)\$" ) {
-           # listen_inet localhost:<_1>;
-        };
+        # if ( <broker_id> =~ ":(\d+)$" ) {
+        #     listen_inet localhost:<_1>;
+        # };
         secure 3;
     cd ..;
 }

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 34980 2018-09-30 20:45:19Z chris $
+# $Id: HTTP_Auth.pm 35142 2018-10-13 12:13:24Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -17,6 +17,8 @@ use Tachikoma::Message qw(
 );
 use MIME::Base64;
 use parent qw( Tachikoma::Node );
+
+use version; our $VERSION = 'v2.0.367';
 
 sub new {
     my $class = shift;
@@ -32,7 +34,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $filename, $realm ) = split( ' ', $self->{arguments}, 2 );
+        my ( $filename, $realm ) = split q{ }, $self->{arguments}, 2;
         $self->{filename} = $filename;
         $self->{realm}    = $realm;
         $self->reload_htpasswd;
@@ -46,9 +48,9 @@ sub fill {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request = $message->payload;
     my $auth    = $request->{headers}->{'authorization'};
-    my $encoded = $auth ? ( split( ' ', $auth, 2 ) )[1] : undef;
+    my $encoded = $auth ? ( split q{ }, $auth, 2 )[1] : undef;
     my $decoded = $encoded ? decode_base64($encoded) : undef;
-    my ( $user, $passwd ) = $decoded ? split( ':', $decoded, 2 ) : undef;
+    my ( $user, $passwd ) = $decoded ? split m{:}, $decoded, 2 : undef;
     $self->{counter}++;
 
     if ($user) {
@@ -67,13 +69,13 @@ sub fill {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join( '',
+    $response->[PAYLOAD] = join q{},
         "HTTP/1.1 401 UNAUTHORIZED\n",
         "Content-Type: text/plain\n",
         'WWW-Authenticate: Basic realm="',
         $realm,
         "\"\n\n",
-        "Authorization required.\n" );
+        "Authorization required.\n";
     $self->{sink}->fill($response);
     $response         = Tachikoma::Message->new;
     $response->[TYPE] = TM_EOF;
@@ -88,7 +90,7 @@ sub authenticate {
     my $user   = shift;
     my $passwd = shift;
     my $salt   = $self->{htpasswd}->{$user} or return;
-    my $hash   = crypt( $passwd, $salt );
+    my $hash   = crypt $passwd, $salt;
     return $hash eq $salt;
 }
 
@@ -97,14 +99,15 @@ sub reload_htpasswd {
     my $filename = $self->{filename};
     my %htpasswd = ();
     my $fh;
-    open( $fh, '<', $filename )
+    open $fh, '<', $filename
         or die "can't open htpasswd file $filename: $!\n";
     while ( my $line = <$fh> ) {
-        my ( $user, $passwd ) = split( ':', $line, 2 );
-        chomp($passwd);
+        my ( $user, $passwd ) = split m{:}, $line, 2;
+        chomp $passwd;
         $htpasswd{$user} = $passwd;
     }
-    close($fh);
+    close $fh
+        or die "can't close htpasswd file $filename: $!\n";
     $self->{htpasswd} = \%htpasswd;
     return 'success';
 }

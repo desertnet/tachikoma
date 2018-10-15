@@ -15,13 +15,16 @@ my $messages             = '';
 my $total                = 0;
 my $message_payload_size = 0;
 my $count                = 0;
+my $batch_size           = 65400;
+my $message_size         = 1048000; # 99;
+my $num_messages         = 1024; # 50000000;
 
 # serialization is expensive, do this part once
 my $targets = $broker->targets;
-while ( length($messages) < 65400 ) {
+while ( length $messages < $batch_size ) {
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
-    $message->payload( ( "." x 99 ) . "\n" );
+    $message->payload( ( q{.} x $message_size ) . "\n" );
     $messages .= ${ $message->packed };
     $message_payload_size ||= length $message->payload;
     $count++;
@@ -48,7 +51,7 @@ for ( @{$partitions} ) {
 
 # light it up
 my $start = time;
-while ( ( $total * $count ) < 50000000 ) {
+while ( ( $total * $count ) < $num_messages ) {
     my $broker_id = $partitions->[ $i % @{$partitions} ] or die;
     my $target = $targets->{$broker_id} or die;
     $batch->[TO] = "$topic:partition:$i";

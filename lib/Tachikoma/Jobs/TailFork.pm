@@ -20,6 +20,8 @@ use Tachikoma::Message qw(
 use Data::Dumper;
 use parent qw( Tachikoma::Job );
 
+use version; our $VERSION = 'v2.0.368';
+
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
@@ -30,10 +32,10 @@ my $Update_Interval = 1;
 sub initialize_graph {
     my $self = shift;
     my ( $destination_settings, $node_path, $tail_settings ) =
-        split( ' ', $self->arguments, 3 );
+        split q{ }, $self->arguments, 3;
     my $tail  = Tachikoma::Nodes::Tail->new;
     my $timer = Tachikoma::Nodes::Timer->new;
-    my ( $host, $port, $use_SSL ) = split( ':', $destination_settings, 3 );
+    my ( $host, $port, $use_SSL ) = split m{:}, $destination_settings, 3;
     $self->destination_host($host);
     $self->destination_port($port);
     $self->use_SSL($use_SSL);
@@ -88,18 +90,19 @@ sub fill {
         $tail->on_EOF('close');
         $self->{timer}->remove_node;
     }
-    elsif ( $message->[PAYLOAD] =~ m(^dump(?:\s+(\S+))?\n$) ) {
+    elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\n$} ) {
         my $name     = $1;
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_BYTESTREAM;
         $response->[TO]   = $message->[FROM];
         if ($name) {
-            my $copy = bless( { %{ $Tachikoma::Nodes{$name} } }, 'main' );
+            my $copy = bless { %{ $Tachikoma::Nodes{$name} } }, 'main';
             my %normal = map { $_ => 1 } qw( SCALAR ARRAY HASH );
-            for my $key ( keys %$copy ) {
-                my $value = $copy->{$key};
-                my $type  = ref($value);
-                $copy->{$key} = $type if ( $type and not $normal{$type} );
+            for my $key ( keys %{$copy} ) {
+                my $value    = $copy->{$key};
+                my $ref_type = ref $value;
+                $copy->{$key} = $ref_type
+                    if ( $ref_type and not $normal{$ref_type} );
             }
             $response->[PAYLOAD] = Dumper($copy);
         }
@@ -117,7 +120,7 @@ sub send_offset {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]     = TM_BYTESTREAM;
     $message->[ID]       = $self->{offset};
-    $message->[PAYLOAD]  = join( '', $self->{offset}, "\n" );
+    $message->[PAYLOAD]  = join q{}, $self->{offset}, "\n";
     $self->{last_offset} = $self->{offset};
     return $self->SUPER::fill($message);
 }

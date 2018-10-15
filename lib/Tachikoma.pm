@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35120 2018-10-12 23:17:11Z chris $
+# $Id: Tachikoma.pm 35160 2018-10-14 01:03:52Z chris $
 #
 
 package Tachikoma;
@@ -448,89 +448,19 @@ sub close_filehandle {
     return;
 }
 
-sub daemonize {
-    my $self = shift;
-    my $name = shift;
-    $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
-    $self->copy_variables;
-    $self->check_pid;
-    open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
-    open STDOUT, '>', '/dev/null'
-        or die "ERROR: can't write /dev/null: $!";
-    defined( my $pid = fork ) or die "ERROR: can't fork: $!";
-    exit 0 if ($pid);
-    setsid() or die "ERROR: can't start session: $!";
-    open STDERR, '>&', STDOUT or die "ERROR: can't dup STDOUT: $!";
-    $self->reset_signal_handlers;
-    $self->open_log_file;
-    $self->write_pid;
-    srand;
-    $self->load_event_framework;
-    return;
-}
-
 sub initialize {
-    my $self = shift;
-    my $name = shift;
+    my $self      = shift;
+    my $name      = shift;
+    my $daemonize = shift;
     $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
     srand;
     $self->copy_variables;
     $self->check_pid;
+    $self->daemonize if ($daemonize);
     $self->reset_signal_handlers;
     $self->open_log_file;
     $self->write_pid;
     $self->load_event_framework;
-    return;
-}
-
-sub reset_signal_handlers {
-    my $self = shift;
-    ## no critic (RequireLocalizedPunctuationVars)
-    $SIG{TERM} = 'IGNORE';
-    $SIG{INT}  = 'IGNORE';
-    $SIG{PIPE} = 'IGNORE';
-    $SIG{HUP}  = 'IGNORE';
-    $SIG{USR1} = 'IGNORE';
-    return;
-}
-
-sub open_log_file {
-    my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
-    chdir q{/} or die "ERROR: can't chdir /: $!";
-    open $LOG_FILE_HANDLE, '>>', $log
-        or die "ERROR: can't open log file $log: $!\n";
-    $LOG_FILE_HANDLE->autoflush(1);
-    ## no critic (ProhibitTies)
-    tie *STDOUT, 'Tachikoma', $self or die "ERROR: can't tie STDOUT: $!";
-    tie *STDERR, 'Tachikoma', $self or die "ERROR: can't tie STDERR: $!";
-    ## use critic
-    return 'success';
-}
-
-sub touch_log_file {
-    my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
-    $self->close_log_file;
-    $self->open_log_file;
-    utime $Tachikoma::Now, $Tachikoma::Now, $log
-        or die "ERROR: can't utime $log: $!";
-    return;
-}
-
-sub close_log_file {
-    my $self = shift;
-    untie *STDOUT;
-    untie *STDERR;
-    close $LOG_FILE_HANDLE or die $!;
-    return;
-}
-
-sub reload_config {
-    my $self   = shift;
-    my $config = $Tachikoma{Config};
-    include_conf($config);
-    $Tachikoma{Config} = $config;
     return;
 }
 
@@ -559,17 +489,41 @@ sub check_pid {
     return;
 }
 
-sub get_pid {
+sub daemonize {    # from perlipc manpage
     my $self = shift;
-    my $name = shift;
-    my $file = $self->pid_file($name);
-    my $pid;
-    return if ( not $file or not -f $file );
-    open my $fh, '<', $file or die "ERROR: can't open pid file $file: $!";
-    $pid = <$fh>;
-    close $fh or die $!;
-    chomp $pid if ($pid);
-    return $pid;
+    open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
+    open STDOUT, '>', '/dev/null'
+        or die "ERROR: can't write /dev/null: $!";
+    defined( my $pid = fork ) or die "ERROR: can't fork: $!";
+    exit 0 if ($pid);
+    setsid() or die "ERROR: can't start session: $!";
+    open STDERR, '>&', STDOUT or die "ERROR: can't dup STDOUT: $!";
+    return;
+}
+
+sub reset_signal_handlers {
+    my $self = shift;
+    ## no critic (RequireLocalizedPunctuationVars)
+    $SIG{TERM} = 'IGNORE';
+    $SIG{INT}  = 'IGNORE';
+    $SIG{PIPE} = 'IGNORE';
+    $SIG{HUP}  = 'IGNORE';
+    $SIG{USR1} = 'IGNORE';
+    return;
+}
+
+sub open_log_file {
+    my $self = shift;
+    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    chdir q{/} or die "ERROR: can't chdir /: $!";
+    open $LOG_FILE_HANDLE, '>>', $log
+        or die "ERROR: can't open log file $log: $!\n";
+    $LOG_FILE_HANDLE->autoflush(1);
+    ## no critic (ProhibitTies)
+    tie *STDOUT, 'Tachikoma', $self or die "ERROR: can't tie STDOUT: $!";
+    tie *STDERR, 'Tachikoma', $self or die "ERROR: can't tie STDERR: $!";
+    ## use critic
+    return 'success';
 }
 
 sub write_pid {
@@ -606,6 +560,45 @@ sub load_event_framework {
     }
     $self->event_framework($framework);
     return;
+}
+
+sub touch_log_file {
+    my $self = shift;
+    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    $self->close_log_file;
+    $self->open_log_file;
+    utime $Tachikoma::Now, $Tachikoma::Now, $log
+        or die "ERROR: can't utime $log: $!";
+    return;
+}
+
+sub close_log_file {
+    my $self = shift;
+    untie *STDOUT;
+    untie *STDERR;
+    close $LOG_FILE_HANDLE or die $!;
+    return;
+}
+
+sub reload_config {
+    my $self   = shift;
+    my $config = $Tachikoma{Config};
+    include_conf($config);
+    $Tachikoma{Config} = $config;
+    return;
+}
+
+sub get_pid {
+    my $self = shift;
+    my $name = shift;
+    my $file = $self->pid_file($name);
+    my $pid;
+    return if ( not $file or not -f $file );
+    open my $fh, '<', $file or die "ERROR: can't open pid file $file: $!";
+    $pid = <$fh>;
+    close $fh or die $!;
+    chomp $pid if ($pid);
+    return $pid;
 }
 
 sub remove_pid {

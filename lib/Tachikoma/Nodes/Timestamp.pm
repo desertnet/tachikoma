@@ -13,6 +13,8 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -32,10 +34,8 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments = shift;
-        $arguments = ( $arguments =~ m(^(.*)$) )[0];
-        $self->{arguments} = $arguments;
-        my ( $position, $offset ) = split( ' ', $arguments, 2 );
+        $self->{arguments} = shift;
+        my ( $position, $offset ) = split q{ }, $self->{arguments}, 2;
         $self->{position} = $position // 'prefix';
         $self->{offset}   = $offset // 0;
     }
@@ -47,19 +47,19 @@ sub fill {
     my $message = shift;
     return $self->SUPER::fill($message)
         if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $copy   = bless( [@$message], ref($message) );
+    my $copy   = bless [ @{$message} ], ref $message;
     my $offset = $self->{offset};
-    my $out    = '';
+    my $out    = q{};
     if ( $self->{position} eq 'prefix' ) {
-        for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
-            chomp($line);
-            $out .= join( '', $Tachikoma::Now + $offset, ' ', $line, "\n" );
+        for my $line ( split m{^}, $message->[PAYLOAD] ) {
+            chomp $line;
+            $out .= join q{}, $Tachikoma::Now + $offset, q{ }, $line, "\n";
         }
     }
     else {
-        for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
-            chomp($line);
-            $out .= join( '', $line, ' ', $Tachikoma::Now + $offset, "\n" );
+        for my $line ( split m{^}, $message->[PAYLOAD] ) {
+            chomp $line;
+            $out .= join q{}, $line, q{ }, $Tachikoma::Now + $offset, "\n";
         }
     }
     $copy->[PAYLOAD] = $out;

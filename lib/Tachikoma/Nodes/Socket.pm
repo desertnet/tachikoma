@@ -16,13 +16,15 @@ package Tachikoma::Nodes::Socket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
+use Tachikoma::Nodes::Router;
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_HEARTBEAT TM_ERROR
     VECTOR_SIZE
 );
 use Tachikoma::Config qw(
-    %Tachikoma $ID $Private_Ed25519_Key %SSL_Config %Var $Wire_Version
+    %Tachikoma $ID $Private_Ed25519_Key %SSL_Config $Secure_Level %Var
+    $Wire_Version
 );
 use Tachikoma::Crypto;
 use Digest::MD5 qw( md5 );
@@ -264,14 +266,15 @@ sub register_server_node {
     return $self;
 }
 
-sub accept_connections {    ## no critic (RequireArgUnpacking)
-    my $self = shift;
-    return $Tachikoma::Event_Framework->accept_connections( $self, @_ );
+sub accept_connections {
+    my (@args) = @_;
+    return $Tachikoma::Event_Framework->accept_connections(@args);
 }
 
 sub accept_connection {
     my $self   = shift;
     my $server = $self->{fh};
+    return if ( defined $Secure_Level and $Secure_Level == 0 );
     my $client;
     my $paddr = accept $client, $server;
     if ( not $paddr ) {
@@ -437,11 +440,15 @@ sub start_SSL_connection {
     $self->register_writer_node;
     if ( $self->{flags} & TK_SYNC ) {
 
-      # my $peer = join q{},
-      #     ' authority: "', $ssl_socket->peer_certificate('authority'), q{"},
-      #     ' owner: "',     $ssl_socket->peer_certificate('owner'),     q{"},
-      #     ' cipher: "', $ssl_socket->get_cipher, q{"}, "\n";
-      # $self->stderr( 'connect_SSL() verified peer:', $peer );
+        # my $peer = join q{},
+        #     'authority: "',
+        #     $fh->peer_certificate('authority'),
+        #     '" owner: "',
+        #     $fh->peer_certificate('owner'),
+        #     '" cipher: "',
+        #     $fh->get_cipher,
+        #     qq{"\n};
+        # $self->stderr( 'connect_SSL() verified peer:', $peer );
         $self->{fill} = \&fill_fh_sync_SSL;
         $self->init_connect;
     }
@@ -477,14 +484,11 @@ sub init_SSL_connection {
         my $peer = join q{},
             'authority: "',
             $fh->peer_certificate('authority'),
-            q{"},
-            ' owner: "',
+            '" owner: "',
             $fh->peer_certificate('owner'),
-            q{"},
-            ' cipher: "',
+            '" cipher: "',
             $fh->get_cipher,
-            q{"},
-            "\n";
+            qq{"\n};
 
         # $self->stderr($method, '() verified peer: ', $peer);
         if ( $type eq 'connect' ) {
@@ -880,6 +884,8 @@ sub fill_buffer_init {
         # sending us the results of the DNS lookup.
         # see also inet_client_async(), dns_lookup(), and init_socket()
         #
+        return $self->close_filehandle('reconnect')
+            if ( defined $Secure_Level and $Secure_Level == 0 );
         my $okay = eval {
             $self->init_socket( $message->[PAYLOAD] );
             return 1;
@@ -888,9 +894,13 @@ sub fill_buffer_init {
             $self->stderr("ERROR: init_socket() failed: $@");
             $self->close_filehandle('reconnect');
         }
-        return;
     }
-    return $self->fill_buffer($message);
+    else {
+        $message->[TO] = join q{/}, grep length, $self->{name},
+            $message->[TO];
+        $Tachikoma::Nodes{_router}->send_error( $message, 'NOT_AVAILABLE' );
+    }
+    return;
 }
 
 sub fill_fh_sync_SSL {

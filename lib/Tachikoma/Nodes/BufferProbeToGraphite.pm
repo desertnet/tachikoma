@@ -13,6 +13,8 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::Timer );
 
+use version; our $VERSION = 'v2.0.368';
+
 my $Default_Interval = 60;
 my @Fields           = qw(
     buff_fills
@@ -53,16 +55,16 @@ sub fill {
     my $output    = $self->{output};
     my $prefix    = $self->{prefix};
     my $timestamp = $message->[TIMESTAMP];
-    for my $line ( split( m(^), $message->[PAYLOAD] ) ) {
-        my $buffer    = { map { split( ':', $_ ) } split( ' ', $line ) };
+    for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        my $buffer    = { map { split m{:}, $_, 2 } split q{ }, $line };
         my $hostname  = $buffer->{hostname};
         my $buff_name = $buffer->{buff_name};
-        $hostname =~ s(\..*)();
-        $buff_name =~ s([^\w\d]+)(_)g;
+        $hostname =~ s{[.].*}{};
+        $buff_name =~ s{[^\w\d]+}{_}g;
         for my $field (@Fields) {
-            my $key = join( '.',
-                $prefix,   $hostname,  'tachikoma',
-                'buffers', $buff_name, $field );
+            my $key = join q{.},
+                $prefix, $hostname, 'tachikoma',
+                'buffers', $buff_name, $field;
             $output->{$key} = "$key $buffer->{$field} $timestamp\n";
         }
     }
@@ -71,12 +73,12 @@ sub fill {
 
 sub fire {
     my $self   = shift;
-    my @output = values( %{ $self->output } );
+    my @output = values %{ $self->output };
     while (@output) {
-        my (@seg) = splice( @output, 0, 16 );
+        my (@seg) = splice @output, 0, 16;
         my $response = Tachikoma::Message->new;
         $response->type(TM_BYTESTREAM);
-        $response->payload( join( '', @seg ) );
+        $response->payload( join q{}, @seg );
         $self->SUPER::fill($response);
     }
     $self->output( {} );

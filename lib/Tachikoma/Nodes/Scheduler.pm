@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 34618 2018-08-26 01:34:04Z chris $
+# $Id: Scheduler.pm 35185 2018-10-14 09:56:32Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -23,9 +23,12 @@ use BerkeleyDB;
 use Data::Dumper;
 use parent qw( Tachikoma::Nodes::Timer );
 
-my $Home   = $Tachikoma{Home} || ( getpwuid($<) )[7];
-my $DB_Dir = "$Home/.tachikoma/schedules";
-my %C      = ();
+use version; our $VERSION = 'v2.0.368';
+
+my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
+my $DB_Dir        = "$Home/.tachikoma/schedules";
+my %Safe_Commands = map { $_ => 1 } qw( list_events events ls );
+my %C             = ();
 
 sub new {
     my $class = shift;
@@ -67,7 +70,7 @@ sub fill {
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             return $self->stderr($@) if ($@);
             my $cmd_name = $command->{name};
-            if ( not grep $cmd_name eq $_, qw( list_events events ls ) ) {
+            if ( $Safe_Commands{$cmd_name} ) {
                 my $interpreter = $self->interpreter;
                 $interpreter->verify_key( $message, ['meta'], 'schedule' )
                     or return $interpreter->send_response( $message,
@@ -84,13 +87,13 @@ sub fire {
     my $next_when = 30;
     for my $message_id ( sort { $a <=> $b } keys %{ $self->tiedhash } ) {
         my ( $time, $repeat, $enabled, $text, $packed ) =
-            unpack( 'N N N Z* a*', $self->tiedhash->{$message_id} );
+            unpack 'N N N Z* a*', $self->tiedhash->{$message_id};
         my $when = $time - $Tachikoma::Now;
         $next_when = $when if ( $when < $next_when );
         next if ( $when > 0 or not $enabled );
         my $message = eval { Tachikoma::Message->new( \$packed ) };
         if ($message) {
-            my $name = ( split( '/', $message->[FROM], 2 ) )[0] || '';
+            my $name = ( split m{/}, $message->[FROM], 2 )[0] || q{};
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             if ($@) {
                 $self->stderr($@);
@@ -114,8 +117,8 @@ sub fire {
 
             # $self->stderr("repeating $message_id in $repeat seconds");
             do { $time += $repeat } while ( $time < $Tachikoma::Now );
-            $self->tiedhash->{$message_id} = pack( 'N N N Z* a*',
-                $time, $repeat, $enabled, $text, $packed );
+            $self->tiedhash->{$message_id} = pack 'N N N Z* a*',
+                $time, $repeat, $enabled, $text, $packed;
             $next_when = 0;
         }
         else {
@@ -149,46 +152,41 @@ $C{list_events} = sub {
     my $tiedhash  = $self->patron->tiedhash;
     my @responses = ();
     if ( $glob eq '-a' ) {
-        for my $key ( keys %$tiedhash ) {
-            push( @responses, "$key\n" );
+        for my $key ( keys %{$tiedhash} ) {
+            push @responses, "$key\n";
         }
     }
     else {
         my %by_time = ();
-        for my $key ( keys %$tiedhash ) {
+        for my $key ( keys %{$tiedhash} ) {
             my ( $time, $repeat, $enabled, $text, $packed ) =
-                unpack( 'N N N Z* a*', $tiedhash->{$key} );
+                unpack 'N N N Z* a*', $tiedhash->{$key};
             $by_time{$time} ||= [];
-            push(
-                @{ $by_time{$time} },
-                {   key     => $key,
-                    enabled => $enabled,
-                    text    => $text
-                }
-            );
+            push @{ $by_time{$time} },
+                {
+                key     => $key,
+                enabled => $enabled,
+                text    => $text
+                };
         }
         for my $time ( sort { $a <=> $b } keys %by_time ) {
             for my $event ( @{ $by_time{$time} } ) {
-                next if ( length($glob) and $event->{text} !~ m($glob) );
+                next if ( length $glob and $event->{text} !~ m{$glob} );
                 if ( $event->{enabled} ) {
-                    push(
-                        @responses,
-                        sprintf( "%s (%d) %s\n",
-                            strftime( '%F %T %Z', localtime($time) ),
-                            $event->{key}, $event->{text} )
-                    );
+                    push @responses,
+                        sprintf "%s (%d) %s\n",
+                        strftime( '%F %T %Z', localtime $time ),
+                        $event->{key}, $event->{text};
                 }
                 else {
-                    push(
-                        @responses,
-                        sprintf( "%23s (%d) %s\n",
-                            'disabled', $event->{key}, $event->{text} )
-                    );
+                    push @responses,
+                        sprintf "%23s (%d) %s\n",
+                        'disabled', $event->{key}, $event->{text};
                 }
             }
         }
     }
-    return $self->response( $envelope, join( '', @responses ) );
+    return $self->response( $envelope, join q{}, @responses );
 };
 
 $C{events} = $C{list_events};
@@ -199,27 +197,27 @@ $C{in} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join( ' ', $command->name, $command->arguments );
-    if ( $command->arguments =~ m(^(\d+[dhms]+)(?:/(\d+))? (.+))s ) {
+    my $text     = join q{ }, $command->name, $command->arguments;
+    if ( $command->arguments =~ m{^(\d+[dhms]+)(?:/(\d+))? (.+)}s ) {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
-        my ( $name, $arguments ) = split( ' ', $imperative, 2 );
+        my ( $name, $arguments ) = split q{ }, $imperative, 2;
         my $message = $self->command( $name, $arguments );
         my $time = 0;
-        if ( $spec =~ m((\d+)d) ) {
+        if ( $spec =~ m{(\d+)d} ) {
             $time += $1 * 60 * 60 * 24;
-            $spec =~ s(\d+d)();
+            $spec =~ s{\d+d}{};
         }
-        if ( $spec =~ m((\d+)h) ) {
+        if ( $spec =~ m{(\d+)h} ) {
             $time += $1 * 60 * 60;
-            $spec =~ s(\d+h)();
+            $spec =~ s{\d+h}{};
         }
-        if ( $spec =~ m((\d+)m) ) {
+        if ( $spec =~ m{(\d+)m} ) {
             $time += $1 * 60;
-            $spec =~ s(\d+m)();
+            $spec =~ s{\d+m}{};
         }
-        if ( $spec =~ m((\d+)s) ) {
+        if ( $spec =~ m{(\d+)s} ) {
             $time += $1;
-            $spec =~ s(\d+s)();
+            $spec =~ s{\d+s}{};
         }
         $time /= $divisor if ($divisor);
         my $own_name = $self->patron->name;
@@ -238,18 +236,18 @@ $C{at} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join( ' ', $command->name, $command->arguments );
-    my $pattern  = qr(^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+))s;
-    if ( $command->arguments =~ m($pattern) ) {
+    my $text     = join q{ }, $command->name, $command->arguments;
+    my $pattern  = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+)}s;
+    if ( $command->arguments =~ m{$pattern} ) {
         my ( $year, $month, $day, $hour, $min, $sec, $imperative ) =
             ( $1, $2, $3, $4, $5, $6, $7 );
         $year -= 1900 if ($year);
         $month-- if ($month);
         $sec ||= 0;
-        my ( $name, $arguments ) = split( ' ', $imperative, 2 );
+        my ( $name, $arguments ) = split q{ }, $imperative, 2;
         my $message = $self->command( $name, $arguments );
         my ( $nsec, $nmin, $nhour, $nday, $nmonth, $nyear ) =
-            localtime($Tachikoma::Now);
+            localtime $Tachikoma::Now;
         $year  ||= $nyear;
         $month ||= $nmonth;
         $day   ||= $nday;
@@ -270,27 +268,27 @@ $C{every} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join( ' ', $command->name, $command->arguments );
-    if ( $command->arguments =~ m(^(\d+[dhms]+)(?:/(\d+))? (.+))s ) {
+    my $text     = join q{ }, $command->name, $command->arguments;
+    if ( $command->arguments =~ m{^(\d+[dhms]+)(?:/(\d+))? (.+)}s ) {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
-        my ( $name, $arguments ) = split( ' ', $imperative, 2 );
+        my ( $name, $arguments ) = split q{ }, $imperative, 2;
         my $message = $self->command( $name, $arguments );
         my $time = 0;
-        if ( $spec =~ m((\d+)d) ) {
+        if ( $spec =~ m{(\d+)d} ) {
             $time += $1 * 60 * 60 * 24;
-            $spec =~ s(\d+d)();
+            $spec =~ s{\d+d}{};
         }
-        if ( $spec =~ m((\d+)h) ) {
+        if ( $spec =~ m{(\d+)h} ) {
             $time += $1 * 60 * 60;
-            $spec =~ s(\d+h)();
+            $spec =~ s{\d+h}{};
         }
-        if ( $spec =~ m((\d+)m) ) {
+        if ( $spec =~ m{(\d+)m} ) {
             $time += $1 * 60;
-            $spec =~ s(\d+m)();
+            $spec =~ s{\d+m}{};
         }
-        if ( $spec =~ m((\d+)s) ) {
+        if ( $spec =~ m{(\d+)s} ) {
             $time += $1;
-            $spec =~ s(\d+s)();
+            $spec =~ s{\d+s}{};
         }
         $time /= $divisor if ($divisor);
         my $own_name = $self->patron->name;
@@ -315,11 +313,11 @@ $C{enable_event} = sub {
     if ( not $event ) {
         return $self->error( $envelope, qq(can't find event "$key"\n) );
     }
-    my ( $time, $repeat, $enabled, $text, $packed ) =
-        unpack( 'N N N Z* a*', $event );
+    my ( $time, $repeat, $enabled, $text, $packed ) = unpack 'N N N Z* a*',
+        $event;
     $enabled = 1;
-    $tiedhash->{$key} =
-        pack( 'N N N Z* a*', $time, $repeat, $enabled, $text, $packed );
+    $tiedhash->{$key} = pack 'N N N Z* a*', $time, $repeat, $enabled, $text,
+        $packed;
     return $self->okay($envelope);
 };
 
@@ -335,11 +333,11 @@ $C{disable_event} = sub {
     if ( not $event ) {
         return $self->error( $envelope, qq(can't find event "$key"\n) );
     }
-    my ( $time, $repeat, $enabled, $text, $packed ) =
-        unpack( 'N N N Z* a*', $event );
+    my ( $time, $repeat, $enabled, $text, $packed ) = unpack 'N N N Z* a*',
+        $event;
     $enabled = 0;
-    $tiedhash->{$key} =
-        pack( 'N N N Z* a*', $time, $repeat, $enabled, $text, $packed );
+    $tiedhash->{$key} = pack 'N N N Z* a*', $time, $repeat, $enabled, $text,
+        $packed;
     return $self->okay($envelope);
 };
 
@@ -372,17 +370,17 @@ $C{dump_event} = sub {
     if ( not $event ) {
         return $self->error( $envelope, qq(can't find event "$key"\n) );
     }
-    my $packed  = ( unpack( 'N N N Z* a*', $event ) )[4];
+    my $packed  = ( unpack 'N N N Z* a*', $event )[4];
     my $message = Tachikoma::Message->new( \$packed );
     my $payload = Tachikoma::Command->new( $message->payload );
-    $payload->{signature} = '';
+    $payload->{signature} = q{};
     $message->payload($payload);
     return $self->response( $envelope, Dumper $message);
 };
 
 $C{dump} = $C{dump_event};
 
-sub schedule {
+sub schedule {    ## no critic (ProhibitManyArgs)
     my $self       = shift;
     my $time       = shift;
     my $repeat     = shift;
@@ -394,9 +392,10 @@ sub schedule {
     do {
         $message_id = $self->{counter}++;
     } while ( exists $tiedhash->{$message_id} );
-    $tiedhash->{$message_id} = pack( 'N N N Z* a*',
-        $time, $repeat, $enabled, $text, ${ $message->packed } );
+    $tiedhash->{$message_id} = pack 'N N N Z* a*',
+        $time, $repeat, $enabled, $text, ${ $message->packed };
     $self->set_timer(0);
+    return;
 }
 
 sub remove_node {
@@ -413,39 +412,40 @@ sub tiedhash {
     }
     if ( not defined $self->{tiedhash} ) {
         if ( $self->{filename} ) {
+            ## no critic (ProhibitTies)
             my %h    = ();
-            my $path = join( '/', $self->db_dir, $self->{filename} );
-            my $ext  = ( $path =~ m(\.(tcb|tch|db|hash)$) )[0] || 'db';
+            my $path = join q{/}, $self->db_dir, $self->{filename};
+            my $ext  = ( $path =~ m{[.](tcb|tch|db|hash)$} )[0] || 'db';
             $self->make_parent_dirs($path);
             if ( -e "${path}.clean" ) {
-                open( my $fh, '<', "${path}.clean" )
+                open my $fh, q{<}, "${path}.clean"
                     or die "ERROR: couldn't open ${path}.clean: $!\n";
                 my $count = <$fh>;
-                close($fh);
+                close $fh
+                    or die "ERROR: couldn't close ${path}.clean: $!\n";
                 if ( length $count ) {
-                    chomp($count);
+                    chomp $count;
                     $self->{buffer_size} = $count;
                 }
-                unlink("${path}.clean");
+                unlink "${path}.clean"
+                    or die "ERROR: couldn't unlink ${path}.clean: $!\n";
             }
-            else {
-                unlink($path);
+            elsif ( -e $path ) {
+                unlink $path or die "ERROR: couldn't unlink $path: $!\n";
             }
             if ( $ext eq 'db' ) {
-                tie(%h,
-                    'BerkeleyDB::Btree',
+                tie %h, 'BerkeleyDB::Btree',
                     -Filename => $path,
                     -Flags    => DB_CREATE,
                     -Mode     => 0600
-                ) or die "couldn't tie $path: $!\n";
+                    or die "couldn't tie $path: $!\n";
             }
             elsif ( $ext eq 'hash' ) {
-                tie(%h,
-                    'BerkeleyDB::Hash',
+                tie %h, 'BerkeleyDB::Hash',
                     -Filename => $path,
                     -Flags    => DB_CREATE,
                     -Mode     => 0600
-                ) or die "couldn't tie $path: $!\n";
+                    or die "couldn't tie $path: $!\n";
             }
             $self->{tiedhash} = \%h;
         }
@@ -458,13 +458,15 @@ sub tiedhash {
 
 sub untie_hash {
     my $self = shift;
-    untie( %{ $self->{tiedhash} } ) if ( $self->{tiedhash} );
+    untie %{ $self->{tiedhash} } if ( $self->{tiedhash} );
     if ( $self->{filename} ) {
-        my $path = join( '/', $self->db_dir, $self->{filename} );
-        open( my $fh, '>>', "${path}.clean" );
-        print $fh $self->{buffer_size}, "\n"
-            if ( defined $self->{buffer_size} );
-        close($fh);
+        my $path = join q{/}, $self->db_dir, $self->{filename};
+        open my $fh, q{>>}, "${path}.clean"
+            or $self->stderr("ERROR: couldn't open ${path}.clean: $!");
+        print {$fh} $self->{buffer_size}, "\n"
+            if ( $fh and defined $self->{buffer_size} );
+        close $fh
+            or $self->stderr("ERROR: couldn't close ${path}.clean: $!");
     }
     $self->{tiedhash} = undef;
     return;

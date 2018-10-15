@@ -17,6 +17,8 @@ use Tachikoma::Message qw(
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = 'v2.0.367';
+
 # e.g.:
 # make_node Date
 # listen_inet --io 0.0.0.0:5432
@@ -30,7 +32,7 @@ sub fill {
     $response->[TYPE] = TM_BYTESTREAM;
     $response->[TO] = $self->{owner} ? $self->{owner} : $message->[FROM];
     $response->[PAYLOAD] =
-        strftime( "%F %T %Z\n", localtime($Tachikoma::Now) );
+        strftime( "%F %T %Z\n", localtime $Tachikoma::Now );
     my $rv = $self->{sink}->fill($response);
 
     if ( $message->[TYPE] & TM_INFO ) {
