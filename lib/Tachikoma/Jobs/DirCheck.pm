@@ -37,7 +37,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     return if ( not $message->type & TM_BYTESTREAM );
     my ( $relative, $stats ) = split m{\n}, $message->payload, 2;
     chomp $relative;
-    die "ERROR: bad path: $relative"
+    return $self->stderr("ERROR: bad path: $relative")
         if ( $relative =~ m{^[.][.]$|^[.][.]/|/[.][.](?=/)|/[.][.]$} );
     my ( $prefix, $delete_threshold, $mode ) =
         split q{ }, $self->{arguments}, 3;
@@ -54,7 +54,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $payload = q{};
         if ( open $fh, q{<}, $my_path ) {
             $payload .= $_ while (<$fh>);
-            close $fh or warn "can't close $my_path: $!";
+            close $fh or $self->stderr("ERROR: can't close $my_path: $!");
         }
         else {
             $payload = "can't open $my_path: $!";
@@ -205,12 +205,17 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             my $their_digest = $other_entry->[4];
             if ( $stat eq 'F' and $their_digest ne q{-} ) {
                 my $md5 = Digest::MD5->new;
-                open my $fh, q{<}, $my_path_entry
-                    or die "ERROR: can't open $my_path_entry: $!";
-                $md5->addfile($fh);
-                $digest = $md5->hexdigest;
-                close $fh
-                    or die "ERROR: can't close $my_path_entry: $!";
+                if ( open my $fh, q{<}, $my_path_entry ) {
+                    $md5->addfile($fh);
+                    $digest = $md5->hexdigest;
+                    close $fh
+                        or $self->stderr(
+                        "ERROR: can't close $my_path_entry: $!");
+                }
+                else {
+                    $self->stderr("ERROR: can't open $my_path_entry: $!");
+                    $digest = $their_digest;
+                }
             }
             next if ( $their_digest ne $digest );
             $checked{$entry} = 1;

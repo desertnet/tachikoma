@@ -60,9 +60,9 @@ sub fill {
     syswrite $fh, $message->[PAYLOAD]
         or return $self->stderr("ERROR: couldn't write $tmp: $!");
     close $fh
-        or return $self->stderr("ERROR: couldnt close $tmp: $!");
+        or return $self->stderr("ERROR: couldn't close $tmp: $!");
     chmod 0644, $tmp
-        or return $self->stderr("ERROR: couldnt chmod $tmp: $!");
+        or return $self->stderr("ERROR: couldn't chmod $tmp: $!");
     rename $tmp, $path
         or return $self->stderr("ERROR: couldn't move $tmp to $path: $!");
     return;
