@@ -796,17 +796,18 @@ sub purge_tree {
     my $dh        = undef;
     if ( opendir $dh, $path ) {
         @filenames = grep m{^[^.]}, readdir $dh;
-        closedir $dh or die "ERROR: couldn't closedir $path: $!";
+        closedir $dh or $self->stderr("ERROR: couldn't closedir $path: $!");
     }
+    ## no critic (RequireCheckedSyscalls)
     for my $filename (@filenames) {
         if ( -d "$path/$filename" ) {
             Tachikoma::Nodes::Partition->purge_tree("$path/$filename");
         }
         else {
-            unlink "$path/$filename" or 1;
+            unlink "$path/$filename";
         }
     }
-    rmdir $path or 1;
+    rmdir $path;
     return;
 }
 
