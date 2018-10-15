@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35236 2018-10-15 11:19:12Z chris $
+# $Id: Tachikoma.pm 35247 2018-10-15 21:52:49Z chris $
 #
 
 package Tachikoma;
@@ -191,7 +191,7 @@ sub reply_to_server_challenge {
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
-        die "ERROR: reply_to_server_challenge wrong challenge type\n";
+        die "ERROR: reply_to_server_challenge failed: wrong challenge type\n";
     }
     elsif ( length $ID ) {
         exit 1

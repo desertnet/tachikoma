@@ -644,8 +644,8 @@ sub reply_to_challenge {
         return $self->handle_EOF;
     }
     elsif ( $command->{arguments} ne $type ) {
-        $self->stderr( 'ERROR: wrong challenge type: ',
-            $command->{arguments} );
+        $self->stderr(
+            'ERROR: reply_to_challenge failed: wrong challenge type');
         return $self->handle_EOF;
     }
     elsif ( length $ID
