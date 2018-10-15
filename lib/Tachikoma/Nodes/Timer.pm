@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35134 2018-10-13 07:23:20Z chris $
+# $Id: Timer.pm 35236 2018-10-15 11:19:12Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -31,7 +31,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $class = ref $self;
-        die "ERROR: $class needs its own arguments() method"
+        die "ERROR: $class needs its own arguments method"
             . " to be a subclass of Timer\n"
             if ( $class ne 'Tachikoma::Nodes::Timer' );
         $self->{arguments} = shift;

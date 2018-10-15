@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35232 2018-10-15 10:38:23Z chris $
+# $Id: CommandInterpreter.pm 35236 2018-10-15 11:19:12Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -167,7 +167,7 @@ sub call_function {
         if ( not exists $Functions{$name} );
     my $rv        = [];
     my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
+    die "ERROR: can't find _responder\n" if ( not $responder );
     my $okay = eval {
         $rv = $responder->shell->call_function(
             $name,
@@ -1398,13 +1398,15 @@ $C{slurp_file} = sub {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@;
+        my $error = $@ // 'unknown error';
         $okay = eval {
             $node->remove_node;
             return 1;
         };
-        $self->stderr("ERROR: couldn't remove_node $name: $@")
-            if ( not $okay );
+        if ( not $okay ) {
+            my $trap = $@ // 'unknown error';
+            $self->stderr("ERROR: remove_node $name failed: $trap");
+        }
         die $error;
     }
     return;
@@ -1571,11 +1573,11 @@ $C{on} = sub {
     die qq(no event specified\n)    if ( not $event );
     die qq(no function specified\n) if ( not $func_tree );
     my $responder = $Tachikoma::Nodes{_responder};
-    die "couldn't find _responder\n" if ( not $responder );
+    die "can't find _responder\n" if ( not $responder );
     my $shell = $responder->shell;
-    die "couldn't find shell\n" if ( not $shell );
+    die "can't find shell\n" if ( not $shell );
     my $node = $Tachikoma::Nodes{$name};
-    die "couldn't find node: $name\n" if ( not $node );
+    die "can't find node: $name\n" if ( not $node );
     my $id = '999' . $shell->msg_counter;
     $shell->callbacks->{$id} = $func_tree;
     my $okay = eval {
@@ -1917,7 +1919,7 @@ $C{list_callbacks} = sub {
     my $command   = shift;
     my $envelope  = shift;
     my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
+    die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
     my $response = join q{}, map "$_\n", sort keys %{$callbacks};
     return $self->response( $envelope, $response );
@@ -1928,7 +1930,7 @@ $C{dump_callback} = sub {
     my $command   = shift;
     my $envelope  = shift;
     my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
+    die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
     my $response  = Dumper( $callbacks->{ $command->arguments } );
     return $self->response( $envelope, $response );
@@ -1939,7 +1941,7 @@ $C{remove_callback} = sub {
     my $command   = shift;
     my $envelope  = shift;
     my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
+    die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
     delete $callbacks->{ $command->arguments };
     return $self->okay($envelope);
@@ -2147,7 +2149,7 @@ $C{secure} = sub {
             die "ERROR: already at secure level $Secure_Level\n";
         }
         elsif ( $num < $Secure_Level ) {
-            die "ERROR: couldn't lower secure level.\n";
+            die "ERROR: can't lower secure level.\n";
         }
         elsif ( $num > 3 ) {
             $Secure_Level = 3;
@@ -2185,8 +2187,8 @@ $C{initialize} = sub {
     my $name      = $command->arguments || 'tachikoma-server';
     my $router    = $Tachikoma::Nodes{_router};
     my $responder = $Tachikoma::Nodes{_responder};
-    die "ERROR: couldn't find _router\n"    if ( not $router );
-    die "ERROR: couldn't find _responder\n" if ( not $responder );
+    die "ERROR: can't find _router\n"    if ( not $router );
+    die "ERROR: can't find _responder\n" if ( not $responder );
     die "ERROR: already initialized\n"      if ( $router->type ne 'router' );
     $router->stop_timer;
     my $node = $responder->sink;
@@ -2409,7 +2411,7 @@ sub make_node {
             $node->remove_node;
             return 1;
         };
-        $self->stderr("ERROR: couldn't remove_node $name: $@")
+        $self->stderr("ERROR: can't remove_node $name: $@")
             if ( not $okay );
         die $error;
     }

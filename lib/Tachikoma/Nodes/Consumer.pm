@@ -711,7 +711,7 @@ sub commit_offset {
             }
             else {
                 $self->{sync_error} //=
-                    "COMMIT_OFFSET: send_messages() failed\n";
+                    "COMMIT_OFFSET: send_messages failed\n";
             }
             $self->retry_offset;
             $rv = undef;

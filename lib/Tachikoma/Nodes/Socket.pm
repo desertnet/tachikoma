@@ -66,7 +66,7 @@ sub unix_server {
     setsockopts($socket);
     bind $socket, pack_sockaddr_un($filename) or die "ERROR: bind: $!\n";
     listen $socket, SOMAXCONN or die "FAILED: listen: $!";
-    die "FAILED: stat() says $filename isn't a socket"
+    die "FAILED: stat says $filename isn't a socket"
         if ( not -S $filename );
     chmod oct $perms, $filename or die "ERROR: chmod: $!" if ($perms);
     chown $>, $gid, $filename or die "ERROR: chown: $!" if ($gid);
@@ -306,7 +306,7 @@ sub accept_connection {
             : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
         );
         if ( not $ssl_client or not ref $ssl_client ) {
-            $self->stderr( join q{: }, q{ERROR: couldn't start_SSL()},
+            $self->stderr( join q{: }, q{ERROR: couldn't start_SSL},
                 grep $_, $!, IO::Socket::SSL::errstr() );
             return;
         }
@@ -570,7 +570,7 @@ sub reply_to_server_challenge {
     if ( $self->{flags} & TK_SYNC ) {
         my $rv = syswrite $self->{fh},
             ${ $message->packed } . ${ $response->packed };
-        die "ERROR: reply_to_server_challenge() couldn't write: $!\n"
+        die "ERROR: reply_to_server_challenge couldn't write: $!\n"
             if ( not $rv );
     }
     else {
