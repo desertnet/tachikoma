@@ -148,7 +148,7 @@ sub fire {
     my @again = ();
     while ( my $node = shift @Tachikoma::Reconnect ) {
         my $okay = eval {
-            push @again, $node if ($node->reconnect);
+            push @again, $node if ( $node->reconnect );
             return 1;
         };
         if ( not $okay ) {

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35236 2018-10-15 11:19:12Z chris $
+# $Id: CommandInterpreter.pm 35246 2018-10-15 18:40:59Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2189,7 +2189,7 @@ $C{initialize} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _router\n"    if ( not $router );
     die "ERROR: can't find _responder\n" if ( not $responder );
-    die "ERROR: already initialized\n"      if ( $router->type ne 'router' );
+    die "ERROR: already initialized\n"   if ( $router->type ne 'router' );
     $router->stop_timer;
     my $node = $responder->sink;
 
