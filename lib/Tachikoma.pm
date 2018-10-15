@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Tachikoma.pm 35236 2018-10-15 11:19:12Z chris $
 #
 
 package Tachikoma;
@@ -191,7 +191,7 @@ sub reply_to_server_challenge {
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
-        die "ERROR: reply_to_server_challenge() wrong challenge type\n";
+        die "ERROR: reply_to_server_challenge wrong challenge type\n";
     }
     elsif ( length $ID ) {
         exit 1
@@ -209,7 +209,7 @@ sub reply_to_server_challenge {
     $self->{auth_timestamp} = $response->[TIMESTAMP];
     my $wrote = syswrite $self->{fh},
         ${ $message->packed } . ${ $response->packed };
-    die "ERROR: reply_to_server_challenge() couldn't write(): $!\n"
+    die "ERROR: reply_to_server_challenge couldn't write: $!\n"
         if ( not $wrote or $! );
 
     if ( $got > 0 ) {
@@ -260,7 +260,7 @@ sub read_block {
     }
     if ( not defined $read ) {
         my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
-        die "ERROR: $caller couldn't read(): $!\n";
+        die "ERROR: $caller couldn't read: $!\n";
     }
     return;
 }
@@ -387,7 +387,7 @@ sub fill {
     }
     die "ERROR: wrote $wrote < $packed_size\n"
         if ( $wrote and $wrote != $packed_size );
-    die "ERROR: fill() couldn't write(): $!\n" if ($!);
+    die "ERROR: couldn't write: $!\n" if ($!);
     return $wrote;
 }
 

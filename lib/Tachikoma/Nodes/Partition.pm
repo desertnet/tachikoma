@@ -525,7 +525,7 @@ sub process_delete {
             if ( $Tachikoma::Now - $last_modified > $Touch_Interval );
     }
     else {
-        $self->stderr('WARNING: process_delete() removed all segments');
+        $self->stderr('WARNING: process_delete removed all segments');
         $self->create_segment;
     }
     $self->update_offsets($lco);
