@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35220 2018-10-15 06:55:10Z chris $
+# $Id: HTTP_Responder.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -145,14 +145,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             if ( length ${$payload} and not syswrite $request->{fh},
                 ${$payload} )
             {
-                $self->stderr("ERROR: couldn't write(): $!");
+                $self->stderr("ERROR: couldn't write: $!");
             }
             else {
                 ${$payload} = q{};
                 return if ( $length > $request->{length} );
             }
             close $request->{fh}
-                or $self->stderr("ERROR: couldn't close(): $!");
+                or $self->stderr("ERROR: couldn't close: $!");
             delete $request->{fh};
         }
         else {

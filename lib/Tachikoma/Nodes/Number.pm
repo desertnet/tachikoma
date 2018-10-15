@@ -183,7 +183,10 @@ sub write_list {
         ( $fh, $template ) = mkstempt( '.temp-' . ( 'X' x 16 ), $parent );
         return 1;
     };
-    return $self->stderr("ERROR: couldn't mkstempt: $@") if ( not $okay );
+    if ( not $okay ) {
+        my $error = $@ // 'unknown error';
+        return $self->stderr("ERROR: mkstempt failed: $error");
+    }
     my $list = $self->{list};
     my $tmp = join q{/}, $parent, $template;
     for my $item ( sort { $list->{$a} <=> $list->{$b} } keys %{$list} ) {

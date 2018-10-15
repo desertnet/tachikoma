@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35220 2018-10-15 06:55:10Z chris $
+# $Id: Tachikoma.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma;
@@ -187,7 +187,7 @@ sub reply_to_server_challenge {
     return if ( not $message );
     my $version = $message->[ID];
     if ( not $version or $version ne $Wire_Version ) {
-        die "ERROR: reply_to_server_challenge() failed: version mismatch\n";
+        die "ERROR: reply_to_server_challenge failed: version mismatch\n";
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
@@ -227,7 +227,7 @@ sub auth_server_response {
     return if ( not $message or not $ID );
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'server' ) {
-        die "ERROR: auth_server_response() failed: wrong challenge type\n";
+        die "ERROR: auth_server_response failed: wrong challenge type\n";
     }
     elsif ( length $ID ) {
         exit 1
@@ -235,10 +235,10 @@ sub auth_server_response {
             not $self->verify_signature( 'server', $message, $command ) );
     }
     elsif ( $message->[TIMESTAMP] ne $self->{auth_timestamp} ) {
-        die "ERROR: auth_server_response() failed: incorrect timestamp\n";
+        die "ERROR: auth_server_response failed: incorrect timestamp\n";
     }
     elsif ( $command->{payload} ne md5( $self->{auth_challenge} ) ) {
-        die "ERROR: auth_server_response() failed: incorrect response\n";
+        die "ERROR: auth_server_response failed: incorrect response\n";
     }
     $self->{counter}++;
     $self->{auth_challenge} = undef;
@@ -249,7 +249,7 @@ sub read_block {
     my $self = shift;
     my ( $buffer, $got, $read, $size ) = $self->read_buffer;
     if ( $size > BUFSIZ ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
         die "ERROR: $caller failed: size $size > BUFSIZ\n";
     }
     if ( $got >= $size and $size > 0 ) {
@@ -259,7 +259,7 @@ sub read_block {
         return ( $got, $message );
     }
     if ( not defined $read ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
         die "ERROR: $caller couldn't read(): $!\n";
     }
     return;

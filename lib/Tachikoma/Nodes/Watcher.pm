@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35162 2018-10-14 02:55:02Z chris $
+# $Id: Watcher.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -204,8 +204,10 @@ sub note_fh {
                         EV_DELETE );
                     return 1;
                 };
-                $self->stderr( 'ERROR: ', $@ // 'EV_DELETE failed' )
-                    if ( not $okay );
+                if ( not $okay ) {
+                    my $error = $@ // 'unknown error';
+                    $self->stderr("ERROR: EV_DELETE failed: $error");
+                }
                 close $self->{fh}
                     or $self->stderr("ERROR: couldn't close: $!");
                 delete Tachikoma->nodes_by_fd->{ $self->{fd} };
@@ -279,7 +281,7 @@ sub close_filehandle {
         if ( defined $self->{pid} );
     undef $!;
     close $self->{fh}
-        or $self->stderr("WARNING: couldn't close(): $!")
+        or $self->stderr("WARNING: couldn't close: $!")
         if ( $self->{fh} and fileno $self->{fh} );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );
     $self->{fd}  = undef;

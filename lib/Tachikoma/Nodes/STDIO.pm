@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35113 2018-10-12 21:04:44Z chris $
+# $Id: STDIO.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -85,7 +85,7 @@ sub drain_fh {
     my $again  = $! == EAGAIN;
     $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     if ( not defined $read or ( $read < 1 and not $again ) ) {
-        $self->print_less_often("WARNING: couldn't read(): $!")
+        $self->print_less_often("WARNING: couldn't read: $!")
             if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
@@ -356,7 +356,7 @@ sub fill_fh {
             next;
         }
         elsif ( $! and $! != EAGAIN ) {
-            $self->print_less_often("WARNING: couldn't write(): $!");
+            $self->print_less_often("WARNING: couldn't write: $!");
             @{$buffer} = ();
             $cursor = 0;
             $eof    = 1;

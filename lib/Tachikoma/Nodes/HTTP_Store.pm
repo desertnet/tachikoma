@@ -69,16 +69,16 @@ sub fill {
         local $/ = undef;
         my $fh = undef;
         if ( not open $fh, '<', $tmp ) {
-            $self->stderr("ERROR: open $tmp failed: $!");
+            $self->stderr("ERROR: couldn't open $tmp: $!");
             return $self->send404($message);
         }
         $postdata = <$fh>;
         if ( not close $fh ) {
-            $self->stderr("ERROR: close $tmp failed: $!");
+            $self->stderr("ERROR: couldn't close $tmp: $!");
             return $self->send404($message);
         }
         if ( not unlink $tmp ) {
-            $self->stderr("ERROR: unlink $tmp failed: $!");
+            $self->stderr("ERROR: couldn't unlink $tmp: $!");
             return $self->send404($message);
         }
     }

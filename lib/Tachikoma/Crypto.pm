@@ -86,7 +86,7 @@ sub check_server_id {
         $short_hostname =~ s{[.].*}{};
         if ( $short_id ne $short_hostname ) {
             $self->print_less_often(
-                "ERROR: check_server_id() failed: wrong ID: $id\n");
+                "ERROR: check_server_id failed: wrong ID: $id\n");
             return;
         }
     }

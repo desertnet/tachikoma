@@ -464,6 +464,7 @@ sub request_leader {
         $self->remove_consumers;
         chomp $error;
         $self->{sync_error} = "REQUEST_LEADER: $error\n";
+        $leader = undef;
     }
     return $leader;
 }

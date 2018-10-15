@@ -36,8 +36,10 @@ sub fill {
             $self->connect_node( $name, $owner );
             return 1;
         };
-        $self->stderr( $@ // 'ERROR: connect_node: unknown error' )
-            if ( not $okay );
+        if ( not $okay ) {
+            my $error = $@ // 'unknown error';
+            $self->stderr("ERROR: connect_node failed: $error");
+        }
         return 1;
     }
     elsif ( $type & TM_EOF ) {
@@ -45,8 +47,10 @@ sub fill {
             $self->disconnect_node( $name, $owner );
             return 1;
         };
-        $self->stderr( $@ // 'ERROR: disconnect_node: unknown error' )
-            if ( not $okay );
+        if ( not $okay ) {
+            my $error = $@ // 'unknown error';
+            $self->stderr("ERROR: disconnect_node failed: $error");
+        }
         return 1;
     }
     return $self->SUPER::fill($message);

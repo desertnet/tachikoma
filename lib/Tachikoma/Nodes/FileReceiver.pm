@@ -103,7 +103,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error   = $@ // 'eval failed';
+                my $error   = $@ // 'mkstempt failed';
                 my $details = $!;
                 chomp $error;
                 $error =~ s{ at /\S+ line \d+[.]$}{};
@@ -167,7 +167,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $self->set_metadata( $path, $message->[PAYLOAD] );
     }
     else {
-        $self->stderr( "ERROR: uknown op: $op from ", $message->from );
+        $self->stderr( "ERROR: unknown op: $op from ", $message->from );
     }
     return $self->cancel($message);
 }
@@ -198,7 +198,7 @@ sub make_parent_dirs {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'eval failed';
+        my $error = $@ // 'make_parent_dirs failed';
         $self->stderr("ERROR: $error");
     }
     return;
@@ -212,7 +212,7 @@ sub make_dirs {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'eval failed';
+        my $error = $@ // 'make_dirs failed';
         $self->stderr("ERROR: $error");
     }
     return;

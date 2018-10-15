@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35220 2018-10-15 06:55:10Z chris $
+# $Id: Log.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -46,7 +46,7 @@ sub arguments {
         my $fh;
         $self->close_filehandle if ( $self->{fh} );
         open $fh, $mode eq 'append' ? '>>' : '>', $filename
-            or die "couldnt open $filename: $!";
+            or die "couldn't open $filename: $!";
         $self->{arguments} = $arguments;
         $self->{filename}  = $filename;
         $self->{mode}      = $mode;

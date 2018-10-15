@@ -278,7 +278,7 @@ sub accept_connection {
     my $client;
     my $paddr = accept $client, $server;
     if ( not $paddr ) {
-        $self->stderr("ERROR: accept_connection() failed: $!\n")
+        $self->stderr("ERROR: couldn't accept_connection: $!\n")
             if ( $! != EAGAIN );
         return;
     }
@@ -506,7 +506,7 @@ sub init_SSL_connection {
     elsif ( $! != EAGAIN ) {
         my $ssl_error = IO::Socket::SSL::errstr();
         $ssl_error =~ s{(error)(error)}{$1: $2};
-        $self->print_less_often( join q{: }, "WARNING: $method() failed",
+        $self->print_less_often( join q{: }, "WARNING: $method failed",
             grep $_, $!, $ssl_error );
 
         # this keeps the event framework from constantly
@@ -514,7 +514,7 @@ sub init_SSL_connection {
         $self->unregister_reader_node;
         $self->unregister_writer_node;
         if ( $self->{fh} and fileno $self->{fh} ) {
-            close $self->{fh} or $self->stderr("WARNING: close() failed: $!");
+            close $self->{fh} or $self->stderr("WARNING: couldn't close: $!");
         }
         $self->{fh} = undef;
         $self->handle_EOF;
@@ -570,7 +570,7 @@ sub reply_to_server_challenge {
     if ( $self->{flags} & TK_SYNC ) {
         my $rv = syswrite $self->{fh},
             ${ $message->packed } . ${ $response->packed };
-        die "ERROR: reply_to_server_challenge() couldn't write(): $!\n"
+        die "ERROR: reply_to_server_challenge() couldn't write: $!\n"
             if ( not $rv );
     }
     else {
@@ -633,13 +633,14 @@ sub reply_to_challenge {
     my $version = $message->[ID];
 
     if ( not $version or $version ne $Wire_Version ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
         $self->stderr("ERROR: $caller failed: version mismatch");
         return $self->handle_EOF;
     }
     my $command = eval { Tachikoma::Command->new( $message->[PAYLOAD] ) };
     if ( not $command ) {
-        $self->stderr("WARNING: reply_to_challenge() failed: $@");
+        my $error = $@ // 'unknown error';
+        $self->stderr("WARNING: reply_to_challenge failed: $error");
         return $self->handle_EOF;
     }
     elsif ( $command->{arguments} ne $type ) {
@@ -667,11 +668,12 @@ sub auth_response {
     my $fill_func  = shift;
     my ( $got, $message ) = $self->read_block(65536);
     return if ( not $message );
-    my $caller  = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
+    my $caller  = ( split m{::}, ( caller 1 )[3] )[-1];
     my $version = $message->[ID];
     my $command = eval { Tachikoma::Command->new( $message->[PAYLOAD] ) };
     if ( not $command ) {
-        $self->stderr("ERROR: $caller failed: $@");
+        my $error = $@ // 'unknown error';
+        $self->stderr("ERROR: $caller failed: $error");
         return $self->handle_EOF;
     }
     elsif ( not $version or $version ne $Wire_Version ) {
@@ -737,7 +739,7 @@ sub read_block {
     #     : 0;
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     if ( $size > $buf_size ) {
-        my $caller = ( split m{::}, ( caller 2 )[3] )[-1] . '()';
+        my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
         $self->stderr("ERROR: $caller failed: size $size > $buf_size");
         return $self->handle_EOF;
     }
@@ -746,7 +748,8 @@ sub read_block {
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
         };
         if ( not $message ) {
-            $self->stderr("WARNING: read_block() failed: $@");
+            my $trap = $@ // 'unknown error';
+            $self->stderr("WARNING: read_block failed: $trap");
             return $self->handle_EOF;
         }
         $got -= $size;
@@ -754,8 +757,8 @@ sub read_block {
         return ( $got, $message );
     }
     if ( not defined $read or ( $read < 1 and not $again ) ) {
-        my $caller = ( split m{::}, ( caller 2 )[3] )[-1] . '()';
-        $self->print_less_often("WARNING: $caller couldn't read(): $error");
+        my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
+        $self->print_less_often("WARNING: $caller couldn't read: $error");
         return $self->handle_EOF;
     }
     return;
@@ -891,7 +894,8 @@ sub fill_buffer_init {
             return 1;
         };
         if ( not $okay ) {
-            $self->stderr("ERROR: init_socket() failed: $@");
+            my $error = $@ // 'unknown error';
+            $self->stderr("ERROR: init_socket failed: $error");
             $self->close_filehandle('reconnect');
         }
     }
@@ -977,7 +981,7 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
             if ( not connect $socket, pack_sockaddr_un( $self->{filename} ) )
             {
                 $self->print_less_often(
-                    "WARNING: reconnect: couldn't connect(): $!");
+                    "WARNING: reconnect: couldn't connect: $!");
                 $self->close_filehandle;
                 return 'try again';
             }
@@ -1009,8 +1013,8 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
             return 1;
         };
         if ( not $okay ) {
-            $self->stderr(
-                "WARNING: reconnect: couldn't register_reader_node(): $@");
+            my $error = $@ // 'unknown error';
+            $self->stderr("WARNING: register_reader_node failed: $error");
             $self->close_filehandle;
             return 'try again';
         }

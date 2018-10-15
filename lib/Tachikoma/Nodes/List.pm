@@ -172,7 +172,7 @@ sub write_list {
     };
     if ( not $okay ) {
         my $error = $@ // 'unknown error';
-        return $self->stderr("ERROR: couldn't mkstempt: $error");
+        return $self->stderr("ERROR: mkstempt failed: $error");
     }
     my $tmp = join q{/}, $parent, $template;
     print {$fh} join q{}, @{ $self->{list} };
