@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35229 2018-10-15 10:36:32Z chris $
+# $Id: CommandInterpreter.pm 35232 2018-10-15 10:38:23Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -100,7 +100,8 @@ sub interpret {
     if ($sub) {
         my $response = undef;
         my $okay     = eval {
-            $response = &{$sub}( $self, $command, $message ) return 1;
+            $response = &{$sub}( $self, $command, $message );
+            return 1;
         };
         if ( not $okay ) {
             my $error = $@ // 'unknown error';
