@@ -71,9 +71,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 my $tmp = $fhp->[1];
                 delete $filehandles->{$key};
                 close $fh
-                    or $self->stderr("ERROR: can't close $tmp: $!");
+                    or $self->stderr("ERROR: couldn't close $tmp: $!");
                 rename $tmp, $path
-                    or $self->stderr("ERROR: can't move $tmp to $path: $!");
+                    or
+                    $self->stderr("ERROR: couldn't move $tmp to $path: $!");
                 $self->set_metadata( $path, $message->[PAYLOAD] )
                     if ( $message->[PAYLOAD] );
             }
@@ -83,9 +84,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             my $tmp = $fhp->[1];
             delete $filehandles->{$key};
             close $fh
-                or $self->stderr("ERROR: can't close $tmp: $!");
+                or $self->stderr("ERROR: couldn't close $tmp: $!");
             unlink $tmp
-                or $self->stderr("ERROR: can't unlink $tmp: $!");
+                or $self->stderr("ERROR: couldn't unlink $tmp: $!");
             $fh = undef;
         }
         if ( not $fh ) {
@@ -93,7 +94,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 if ( length( $message->[PAYLOAD] ) );
             my $parent = ( $path =~ m{(.*)/[^/]+} )[0];
             umask 0022
-                or $self->stderr("ERROR: can't umask 0022: $!");
+                or $self->stderr("ERROR: couldn't umask 0022: $!");
             my $template;
             $self->make_dirs($parent);
             my $okay = eval {
@@ -102,7 +103,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error   = $@ // 'eval failed';
+                my $error   = $@ // 'mkstempt failed';
                 my $details = $!;
                 chomp $error;
                 $error =~ s{ at /\S+ line \d+[.]$}{};
@@ -118,16 +119,16 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $fhp->[2] = $Tachikoma::Now;
         syswrite $fh, $message->[PAYLOAD]
-            or $self->stderr("ERROR: can't write $path: $!");
+            or $self->stderr("ERROR: couldn't write $path: $!");
     }
     elsif ( $op eq 'symlink' ) {
         unlink $path
-            or $self->stderr("ERROR: can't unlink $path: $!");
+            or $self->stderr("ERROR: couldn't unlink $path: $!");
         $self->make_parent_dirs($path);
         umask 0022
-            or $self->stderr("ERROR: can't umask 0022: $!");
+            or $self->stderr("ERROR: couldn't umask 0022: $!");
         symlink $message->[PAYLOAD], $path
-            or $self->stderr("ERROR: can't symlink $path: $!");
+            or $self->stderr("ERROR: couldn't symlink $path: $!");
     }
     elsif ( $op eq 'mkdir' ) {
         $self->make_dirs($path);
@@ -136,11 +137,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     elsif ( $op eq 'touch' ) {
         $self->make_parent_dirs($path);
         umask 0022
-            or $self->stderr("ERROR: can't umask 0022: $!");
+            or $self->stderr("ERROR: couldn't umask 0022: $!");
         open my $fh, '>>', $path
-            or $self->stderr("ERROR: can't open $path: $!");
+            or $self->stderr("ERROR: couldn't open $path: $!");
         close $fh
-            or $self->stderr("ERROR: can't close $path: $!");
+            or $self->stderr("ERROR: couldn't close $path: $!");
         $self->set_metadata( $path, $message->[PAYLOAD] );
     }
     elsif ( $op eq 'rename' ) {
@@ -152,21 +153,21 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $new_path = join q{/}, $prefix, $new_relative;
         $self->make_parent_dirs($path);
         rename $path, $new_path
-            or $self->stderr("ERROR: can't rename $path to $new_path: $!");
+            or $self->stderr("ERROR: couldn't rename $path to $new_path: $!");
     }
     elsif ( $op eq 'delete' or $op eq 'rmdir' ) {
         if ( -d $path ) {
-            rmdir $path or $self->stderr("ERROR: can't rmdir $path: $!");
+            rmdir $path or $self->stderr("ERROR: couldn't rmdir $path: $!");
         }
         else {
-            unlink $path or $self->stderr("ERROR: can't unlink $path: $!");
+            unlink $path or $self->stderr("ERROR: couldn't unlink $path: $!");
         }
     }
     elsif ( $op eq 'chmod' ) {
         $self->set_metadata( $path, $message->[PAYLOAD] );
     }
     else {
-        $self->stderr( "ERROR: uknown op: $op from ", $message->from );
+        $self->stderr( "ERROR: unknown op: $op from ", $message->from );
     }
     return $self->cancel($message);
 }
@@ -180,8 +181,8 @@ sub fire {
         {
             my $path = $filehandles->{$key}->[1];
             close $filehandles->{$key}->[0]
-                or $self->stderr("ERROR: can't close $path: $!");
-            unlink $path or $self->stderr("ERROR: can't unlink $path: $!");
+                or $self->stderr("ERROR: couldn't close $path: $!");
+            unlink $path or $self->stderr("ERROR: couldn't unlink $path: $!");
             delete $filehandles->{$key};
             $self->stderr("WARNING: expired $key from filehandle cache");
         }
@@ -197,7 +198,7 @@ sub make_parent_dirs {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'eval failed';
+        my $error = $@ // 'make_parent_dirs failed';
         $self->stderr("ERROR: $error");
     }
     return;
@@ -211,7 +212,7 @@ sub make_dirs {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'eval failed';
+        my $error = $@ // 'make_dirs failed';
         $self->stderr("ERROR: $error");
     }
     return;
@@ -223,9 +224,9 @@ sub set_metadata {
     my $payload = shift;
     my @lstat   = split m{:}, $payload;
     my $mode    = $lstat[2] & 07777;
-    chmod $mode, $path or $self->stderr("ERROR: can't chmod $path: $!");
+    chmod $mode, $path or $self->stderr("ERROR: couldn't chmod $path: $!");
     utime $lstat[8], $lstat[9], $path
-        or $self->stderr("ERROR: can't utime $path: $!");
+        or $self->stderr("ERROR: couldn't utime $path: $!");
     return;
 }
 

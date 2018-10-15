@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35155 2018-10-13 23:59:54Z chris $
+# $Id: Node.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::Node;
@@ -275,7 +275,7 @@ sub make_parent_dirs {
             and not( mkdir $path, MKDIR_MASK )
             and $! !~ m{File exists} )
         {
-            die "ERROR: can't mkdir $path: $!\n";
+            die "couldn't mkdir $path: $!\n";
         }
     }
     return 1;
@@ -291,7 +291,7 @@ sub make_dirs {
             and not( mkdir $path, MKDIR_MASK )
             and $! !~ m{File exists} )
         {
-            die "ERROR: can't mkdir $path: $!\n";
+            die "couldn't mkdir $path: $!\n";
         }
     }
     return 1;

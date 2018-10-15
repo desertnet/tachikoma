@@ -91,7 +91,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             local $/ = undef;
-            open my $fh, q{<}, $tmp or die "ERROR: couldn't open $tmp: $!";
+            open my $fh, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
             $content = <$fh>;
             close $fh   or die "ERROR: couldn't close $tmp: $!";
             unlink $tmp or die "ERROR: couldn't unlink $tmp: $!";

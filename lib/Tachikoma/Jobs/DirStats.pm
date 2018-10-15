@@ -173,7 +173,7 @@ sub explore_path {
     };
 
     if ( not $okay ) {
-        if ( $@ =~ m{can't open} ) {
+        if ( $@ =~ m{couldn't open} ) {
             return 0;
         }
         else {
@@ -224,9 +224,9 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     else {
         die "ERROR: bad path: $path";
     }
-    opendir my $dh, $path or die "ERROR: can't opendir $path: $!";
+    opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @entries = readdir $dh;
-    closedir $dh or die "ERROR: can't closedir $path: $!";
+    closedir $dh or die "ERROR: couldn't closedir $path: $!";
     my @out = ( join q{}, $relative, "\n" );
     my @directories = ();
     for my $entry (@entries) {
@@ -251,11 +251,11 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
         if ( $withsums and $stat eq 'F' ) {
             my $md5 = Digest::MD5->new;
             open my $fh, q{<}, $path_entry
-                or die "ERROR: can't open $path_entry: $!";
+                or die "ERROR: couldn't open $path_entry: $!";
             $md5->addfile($fh);
             $digest = $md5->hexdigest;
             close $fh
-                or die "ERROR: can't close $path_entry: $!";
+                or die "ERROR: couldn't close $path_entry: $!";
         }
         $entry = join q{}, $entry, $Separator, readlink $path_entry
             if ( $stat eq 'L' );

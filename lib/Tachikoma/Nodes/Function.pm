@@ -82,14 +82,14 @@ sub fill {
     };
     $shell->restore_local($old_local);
     if ( not $okay ) {
-        my $trap = $@ // q{};
+        my $trap = $@ // 'unknown error';
         chomp $trap;
         my ( $type, $value ) = split m{:}, $trap, 2;
         if ( $type and $type eq 'RV' ) {
             $rv = [$value] if ( defined $value );
         }
         else {
-            return $self->stderr( $@ // 'ERROR: send_command failed' );
+            return $self->stderr("ERROR: send_command failed: $trap");
         }
     }
     return if ( not $self->{owner} );

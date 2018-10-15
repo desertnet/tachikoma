@@ -187,7 +187,7 @@ FIND_SCRIPT: while ($test_path) {
         if ( $request->{tmp} ) {
             my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
-            open *STDIN, q{<}, $tmp or die "ERROR: couldn't open $tmp: $!";
+            open *STDIN, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
         }
         else {
             $self->{post_data} = $request->{body};

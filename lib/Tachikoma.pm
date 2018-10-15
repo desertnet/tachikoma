@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35160 2018-10-14 01:03:52Z chris $
+# $Id: Tachikoma.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma;
@@ -187,7 +187,7 @@ sub reply_to_server_challenge {
     return if ( not $message );
     my $version = $message->[ID];
     if ( not $version or $version ne $Wire_Version ) {
-        die "ERROR: reply_to_server_challenge() failed: version mismatch\n";
+        die "ERROR: reply_to_server_challenge failed: version mismatch\n";
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
@@ -227,7 +227,7 @@ sub auth_server_response {
     return if ( not $message or not $ID );
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'server' ) {
-        die "ERROR: auth_server_response() failed: wrong challenge type\n";
+        die "ERROR: auth_server_response failed: wrong challenge type\n";
     }
     elsif ( length $ID ) {
         exit 1
@@ -235,10 +235,10 @@ sub auth_server_response {
             not $self->verify_signature( 'server', $message, $command ) );
     }
     elsif ( $message->[TIMESTAMP] ne $self->{auth_timestamp} ) {
-        die "ERROR: auth_server_response() failed: incorrect timestamp\n";
+        die "ERROR: auth_server_response failed: incorrect timestamp\n";
     }
     elsif ( $command->{payload} ne md5( $self->{auth_challenge} ) ) {
-        die "ERROR: auth_server_response() failed: incorrect response\n";
+        die "ERROR: auth_server_response failed: incorrect response\n";
     }
     $self->{counter}++;
     $self->{auth_challenge} = undef;
@@ -249,7 +249,7 @@ sub read_block {
     my $self = shift;
     my ( $buffer, $got, $read, $size ) = $self->read_buffer;
     if ( $size > BUFSIZ ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
         die "ERROR: $caller failed: size $size > BUFSIZ\n";
     }
     if ( $got >= $size and $size > 0 ) {
@@ -259,7 +259,7 @@ sub read_block {
         return ( $got, $message );
     }
     if ( not defined $read ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1] . '()';
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
         die "ERROR: $caller couldn't read(): $!\n";
     }
     return;
@@ -491,13 +491,13 @@ sub check_pid {
 
 sub daemonize {    # from perlipc manpage
     my $self = shift;
-    open STDIN, '<', '/dev/null' or die "ERROR: can't read /dev/null: $!";
+    open STDIN, '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
     open STDOUT, '>', '/dev/null'
-        or die "ERROR: can't write /dev/null: $!";
-    defined( my $pid = fork ) or die "ERROR: can't fork: $!";
+        or die "ERROR: couldn't write /dev/null: $!";
+    defined( my $pid = fork ) or die "ERROR: couldn't fork: $!";
     exit 0 if ($pid);
-    setsid() or die "ERROR: can't start session: $!";
-    open STDERR, '>&', STDOUT or die "ERROR: can't dup STDOUT: $!";
+    setsid() or die "ERROR: couldn't start session: $!";
+    open STDERR, '>&', STDOUT or die "ERROR: couldn't dup STDOUT: $!";
     return;
 }
 
@@ -515,13 +515,13 @@ sub reset_signal_handlers {
 sub open_log_file {
     my $self = shift;
     my $log = $self->log_file or die "ERROR: no log file specified\n";
-    chdir q{/} or die "ERROR: can't chdir /: $!";
+    chdir q{/} or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
-        or die "ERROR: can't open log file $log: $!\n";
+        or die "ERROR: couldn't open log file $log: $!\n";
     $LOG_FILE_HANDLE->autoflush(1);
     ## no critic (ProhibitTies)
-    tie *STDOUT, 'Tachikoma', $self or die "ERROR: can't tie STDOUT: $!";
-    tie *STDERR, 'Tachikoma', $self or die "ERROR: can't tie STDERR: $!";
+    tie *STDOUT, 'Tachikoma', $self or die "ERROR: couldn't tie STDOUT: $!";
+    tie *STDERR, 'Tachikoma', $self or die "ERROR: couldn't tie STDERR: $!";
     ## use critic
     return 'success';
 }
@@ -530,7 +530,7 @@ sub write_pid {
     my $self = shift;
     my $file = $self->pid_file or die "ERROR: no pid file specified\n";
     $MY_PID = $$;
-    open my $fh, '>', $file or die "ERROR: can't open pid file $file: $!";
+    open my $fh, '>', $file or die "ERROR: couldn't open pid file $file: $!";
     print {$fh} "$MY_PID\n";
     close $fh or die $!;
     return;
@@ -568,7 +568,7 @@ sub touch_log_file {
     $self->close_log_file;
     $self->open_log_file;
     utime $Tachikoma::Now, $Tachikoma::Now, $log
-        or die "ERROR: can't utime $log: $!";
+        or die "ERROR: couldn't utime $log: $!";
     return;
 }
 
@@ -594,7 +594,7 @@ sub get_pid {
     my $file = $self->pid_file($name);
     my $pid;
     return if ( not $file or not -f $file );
-    open my $fh, '<', $file or die "ERROR: can't open pid file $file: $!";
+    open my $fh, '<', $file or die "ERROR: couldn't open pid file $file: $!";
     $pid = <$fh>;
     close $fh or die $!;
     chomp $pid if ($pid);

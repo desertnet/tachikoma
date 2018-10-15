@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35210 2018-10-14 21:04:44Z chris $
+# $Id: CommandInterpreter.pm 35232 2018-10-15 10:38:23Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -98,10 +98,15 @@ sub interpret {
     $self->log_command( $message, $command );
     my $sub = $self->{commands}->{$cmd_name};
     if ($sub) {
-        my $response = eval { &{$sub}( $self, $command, $message ) };
-        if ($@) {
+        my $response = undef;
+        my $okay     = eval {
+            $response = &{$sub}( $self, $command, $message );
+            return 1;
+        };
+        if ( not $okay ) {
+            my $error = $@ // 'unknown error';
             return $self->send_response( $message,
-                $self->error( $message, $cmd_name . ' failed: ' . $@ ) );
+                $self->error( $message, qq($cmd_name failed: $error) ) );
         }
         else {
             return $self->send_response( $message, $response );
@@ -123,7 +128,7 @@ sub interpret {
     elsif ( $cmd_name eq 'help' ) {
         if ( $message->type & TM_COMPLETION ) {
             my $b = Tachikoma::Nodes::Shell2::builtins;
-            my %u = ( %C, %{$b} );
+            my %u = ( %C, %{$b}, %Functions );
             return $self->send_response( $message,
                 $self->response( $message, join( "\n", keys %u ) . "\n" ) );
         }
@@ -537,21 +542,7 @@ $C{set_arguments} = sub {
     die qq(no node specified\n) if ( not $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
-    my $okay = eval {
-        $node->arguments($arguments);
-        return 1;
-    };
-
-    if ( not $okay ) {
-        my $error = $@ // "ERROR: set_arguments: unknown error\n";
-        $okay = eval {
-            $node->remove_node;
-            return 1;
-        };
-        $self->stderr("ERROR: couldn't remove_node $name: $@")
-            if ( not $okay );
-        die $error;
-    }
+    $node->arguments($arguments);
     return $self->okay($envelope);
 };
 
@@ -569,21 +560,7 @@ $C{reinitialize} = sub {
     die qq(no node specified\n) if ( not $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
-    my $okay = eval {
-        $node->arguments( $node->arguments );
-        return 1;
-    };
-
-    if ( not $okay ) {
-        my $error = $@ // "ERROR: reinitialize: unknown error\n";
-        $okay = eval {
-            $node->remove_node;
-            return 1;
-        };
-        $self->stderr("ERROR: couldn't remove_node $name: $@")
-            if ( not $okay );
-        die $error;
-    }
+    $node->arguments( $node->arguments );
     return $self->okay($envelope);
 };
 
@@ -1021,10 +998,8 @@ $C{listen_inet} = sub {
                     if ( $listen->{Scheme} );
                 return 1;
             };
-            if ( not $okay ) {
-                my $error = $@ // 'FAILED: Tachikoma::Socket::scheme()';
-                $self->stderr($error);
-            }
+            $self->stderr( $@ // 'FAILED: Tachikoma::Socket::scheme()' )
+                if ( not $okay );
             $server_node->sink($self);
         }
         return $self->okay($envelope);
@@ -1423,12 +1398,12 @@ $C{slurp_file} = sub {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // "ERROR: slurp_file: unknown error\n";
+        my $error = $@;
         $okay = eval {
             $node->remove_node;
             return 1;
         };
-        $self->stderr( "ERROR: couldn't remove_node $name: ", $@ )
+        $self->stderr("ERROR: couldn't remove_node $name: $@")
             if ( not $okay );
         die $error;
     }
@@ -2172,7 +2147,7 @@ $C{secure} = sub {
             die "ERROR: already at secure level $Secure_Level\n";
         }
         elsif ( $num < $Secure_Level ) {
-            die "ERROR: can't lower secure level.\n";
+            die "ERROR: couldn't lower secure level.\n";
         }
         elsif ( $num > 3 ) {
             $Secure_Level = 3;

@@ -60,7 +60,10 @@ sub drain {
                 while ( wait >= 0 );
             return 1;
         };
-        $self->stderr( 'WARNING: forcing shutdown - ', $@ ) if ( not $okay );
+        if ( not $okay ) {
+            my $error = $@ // 'unknown error';
+            $self->stderr("WARNING: forcing shutdown - $error");
+        }
         $self->stderr('removing pid file');
         Tachikoma->remove_pid;
         $self->stderr('shutdown complete');
@@ -144,10 +147,13 @@ sub fire {
     my $self  = shift;
     my @again = ();
     while ( my $node = shift @Tachikoma::Reconnect ) {
-        push @again, $node if ( eval { $node->reconnect } );
-        if ($@) {
-            $self->stderr( 'ERROR: reconnect() failed on connector: ',
-                $node->name, ': ', $@ );
+        my $okay = eval {
+            push @again, $node if ($node->reconnect);
+            return 1;
+        };
+        if ( not $okay ) {
+            my $error = $@ // 'unknown error';
+            $node->stderr("ERROR: reconnect failed: $error");
             $node->remove_node;
         }
     }

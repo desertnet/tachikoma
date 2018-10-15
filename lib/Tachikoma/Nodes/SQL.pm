@@ -50,8 +50,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error = $@ // 'unexpected error';
-                return $self->stderr("$command failed: $error");
+                my $error = $@ // 'unknown error';
+                return $self->stderr("ERROR: $command failed: $error");
             }
         }
         else {

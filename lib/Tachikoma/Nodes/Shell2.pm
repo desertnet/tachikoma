@@ -200,7 +200,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         };
 
         if ( not $okay ) {
-            $self->report_error( $@ // 'parse: unknown error' );
+            my $error = $@ // 'parse failed: unknown error';
+            $self->report_error($error);
         }
         elsif ($parse_tree) {
             $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
@@ -210,8 +211,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     return 1;
                 };
                 if ( not $okay ) {
-                    $self->report_error( $@
-                            // 'send_command: unknown error' );
+                    my $error = $@ // 'send_command failed: unknown error';
+                    $self->report_error($error);
                 }
             }
         }
@@ -1705,7 +1706,10 @@ sub callback {
             $self->send_command( $callbacks->{$id} );
             return 1;
         };
-        $self->stderr( $@ // 'callback: unknown error' ) if ( not $okay );
+        if ( not $okay ) {
+            my $trap = $@ // 'callback failed: unknown error';
+            $self->stderr($trap);
+        }
         %Local = %old_local;
         $rv    = 1;
     }

@@ -50,16 +50,17 @@ sub arguments {
             my $offset   = $start_offset - 1;
             my %new_list = ();
             $self->{filename} = $filename;
-            if ( open my $fh, '<', $filename ) {
+            my $fh = undef;
+            if ( not open $fh, '<', $filename ) {
+                $self->stderr("WARNING: couldn't open: $!");
+            }
+            else {
                 while ( my $line = <$fh> ) {
                     my ( $number, $value ) = split q{ }, $line, 2;
                     $new_list{$value} = $number;
                     $offset = $number if ( $number > $offset );
                 }
                 close $fh or warn;
-            }
-            else {
-                $self->stderr("WARNING: couldn't open: $!");
             }
             $self->{list}   = \%new_list;
             $self->{offset} = $offset + 1;
@@ -182,7 +183,10 @@ sub write_list {
         ( $fh, $template ) = mkstempt( '.temp-' . ( 'X' x 16 ), $parent );
         return 1;
     };
-    return $self->stderr("ERROR: couldn't mkstempt: $@") if ( not $okay );
+    if ( not $okay ) {
+        my $error = $@ // 'unknown error';
+        return $self->stderr("ERROR: mkstempt failed: $error");
+    }
     my $list = $self->{list};
     my $tmp = join q{/}, $parent, $template;
     for my $item ( sort { $list->{$a} <=> $list->{$b} } keys %{$list} ) {
@@ -190,7 +194,7 @@ sub write_list {
     }
     close $fh or warn;
     rename $tmp, $path
-        or $self->stderr("ERROR: can't move $tmp to $path: $!");
+        or $self->stderr("ERROR: couldn't move $tmp to $path: $!");
     return;
 }
 

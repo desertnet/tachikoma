@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35151 2018-10-13 23:44:57Z chris $
+# $Id: KQueue.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -77,7 +77,7 @@ sub register_writer_node {
     if ( not $okay ) {
         my $error = $@;
         $error =~ s{ at \S+/KQueue[.]pm line \d+[.]$}{};
-        $this->stderr("WARNING: register_writer_node() failed: $@");
+        $this->stderr("WARNING: register_writer_node failed: $@");
         return $this->handle_EOF;
     }
     return $this;

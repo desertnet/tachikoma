@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35120 2018-10-12 23:17:11Z chris $
+# $Id: FileHandle.pm 35226 2018-10-15 10:24:26Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -132,7 +132,7 @@ sub drain_fh {
     my $again  = $! == EAGAIN;
     $read = 0 if ( $self->{use_SSL} and not defined $read and $again );
     if ( not defined $read or ( $read < 1 and not $again ) ) {
-        $self->print_less_often("WARNING: couldn't read(): $!")
+        $self->print_less_often("WARNING: couldn't read: $!")
             if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
@@ -253,7 +253,7 @@ sub fill_fh {
             next;
         }
         elsif ( $! and $! != EAGAIN ) {
-            $self->print_less_often("WARNING: couldn't write(): $!");
+            $self->print_less_often("WARNING: couldn't write: $!");
             $self->handle_EOF;
             @{$buffer} = ();
             $cursor = 0;
@@ -321,7 +321,7 @@ sub close_filehandle {
         if ( defined $self->{fd} );
     undef $!;
     close $self->{fh} or 1 if ( $self->{fh} and fileno $self->{fh} );
-    $self->stderr("WARNING: couldn't close(): $!")
+    $self->stderr("WARNING: couldn't close: $!")
         if ( $! and $! ne 'Connection reset by peer' );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );
 
