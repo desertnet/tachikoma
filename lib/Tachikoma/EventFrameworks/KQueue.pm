@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: KQueue.pm 35285 2018-10-16 13:35:33Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -115,11 +115,13 @@ sub drain {
         $EvFilt_Proc  => 'note_fh',
     );
     my $timeout = undef;
+    my @events  = ();
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         $timeout = keys %Timers ? 1000 / ( $Tachikoma{Hz} || 10 ) : 60000;
+        @events = $KQueue->kevent($timeout);
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
-        for my $kev ( $KQueue->kevent($timeout) ) {
+        for my $kev ( @{$events} ) {
             if ( $kev->[KQ_FILTER] == EVFILT_SIGNAL ) {
                 $self->handle_signal( $this, $kev->[KQ_IDENT] );
                 next;
