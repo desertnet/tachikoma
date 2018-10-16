@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 1133;
+use Test::More tests => 1206;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR );
 
@@ -28,6 +28,7 @@ $class->event_framework(
 my $router    = test_construction('Tachikoma::Nodes::Router');
 my $responder = test_construction('Tachikoma::Nodes::Responder');
 my $shell     = test_construction('Tachikoma::Nodes::Shell2');
+my $trap      = test_construction('Tachikoma::Nodes::Callback');
 
 $router->name('_router');
 $responder->name('_responder');
@@ -50,13 +51,24 @@ sub test_node {
             $test_args, "$class->arguments can be set" );
         is( $node->arguments, $test_args,
             "$class->arguments are set correctly" );
-        is( $node->sink($responder), $responder, "$class->sink can be set" );
-        is( $node->sink, $responder, "$class->sink is set correctly" );
+        is( $node->sink($trap), $trap, "$class->sink can be set" );
+        is( $node->sink,        $trap, "$class->sink is set correctly" );
+        $trap->callback(
+            sub {
+                my $message = shift;
+                is( $message->from, $class,
+                    "$class->fill does not stamp errors" );
+                is( $message->to, q(), "$class->fill does not route errors" );
+                is( $message->payload, "NOT_AVAILABLE\n",
+                    "$class->fill does not rewrite errors" );
+                return;
+            }
+        );
         my $message = Tachikoma::Message->new;
         $message->type(TM_ERROR);
-        $message->from('foo');
+        $message->from($class);
         $message->payload("NOT_AVAILABLE\n");
-        is( $node->fill($message), undef, "$class->fill is ok" );
+        is( $node->fill($message), undef, "$class->fill returns undef" );
     }
     is( $node->remove_node, undef, "$class->remove_node returns undef" );
     while ( my $close_cb = shift @Tachikoma::Closing ) {
@@ -67,7 +79,7 @@ sub test_node {
 }
 
 my %nodes = (
-    'Tachikoma::Node'                         => 1,
+    'Tachikoma::Node'                         => undef,
     'Tachikoma::Nodes::Router'                => undef,
     'Tachikoma::Nodes::FileHandle'            => undef,
     'Tachikoma::Nodes::Socket'                => undef,
@@ -92,7 +104,7 @@ my %nodes = (
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
     'Tachikoma::Nodes::Counter'               => q(),
     'Tachikoma::Nodes::Date'                  => q(),
-    'Tachikoma::Nodes::Dumper'                => q(),
+    'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
     'Tachikoma::Nodes::Edge'                  => undef,
     'Tachikoma::Nodes::FileController'        => q(),
