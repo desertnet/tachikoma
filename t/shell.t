@@ -24,12 +24,12 @@ $Data::Dumper::Useperl  = 1;
 #####################################################################
 # shell->new
 my $shell = Tachikoma::Nodes::Shell2->new;
-is( ref($shell), 'Tachikoma::Nodes::Shell2', 'Shell2::new()' );
+is( ref $shell, 'Tachikoma::Nodes::Shell2', 'Shell2::new()' );
 
 # callback->new
 my $answer;
 my $destination = Tachikoma::Nodes::Callback->new;
-is( ref($destination), 'Tachikoma::Nodes::Callback', 'Callback::new()' );
+is( ref $destination, 'Tachikoma::Nodes::Callback', 'Callback::new()' );
 $shell->sink($destination);
 $destination->callback(
     sub {
@@ -55,11 +55,11 @@ is_deeply(
     {   'type'  => 'ident',
         'value' => ['hello']
     },
-    'basic parse'
+    'parse returns basic parse tree'
 );
 $answer = '';
 $shell->send_command($parse_tree);
-is( $answer, "[hello][]\n", 'basic evaluate' );
+is( $answer, "[hello][]\n", 'send_command sends commands' );
 
 #####################################################################
 # test variables
@@ -80,39 +80,39 @@ is_deeply(
             },
         ]
     },
-    'parse set variable'
+    'parse returns correct parse tree'
 );
 $answer = '';
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate set variable' );
-is( $Var{foo}, 5,  'variable is set correctly' );
+is( $answer,   "", 'var builtin sends nothing' );
+is( $Var{foo}, 5,  'var builtin sets variables correctly' );
 
 #####################################################################
-# test variable with extended arguments 1
+# test var builtin
 $parse_tree = $shell->parse('var bar=(<foo> + 5)');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable with extended arguments 1' );
-is( $Var{bar}, 10, 'variable is set correctly' );
+is( $answer,   "", 'nothing is sent by var builtin' );
+is( $Var{bar}, 10, 'arithmetic in parenthesis is evaluated' );
 
 #####################################################################
-# test variable with extended arguments 2
+# test assignment
 $parse_tree = $shell->parse('bar=<foo> + 3');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable with extended arguments 2' );
-is( $Var{bar}, 8,  'variable is set correctly' );
+is( $answer,   "", 'nothing is sent by assignment operator' );
+is( $Var{bar}, 8,  'arithmetic in assignment is evaluated' );
 
 #####################################################################
-# test variable with extended arguments 3
+# test multiple expressions
 $parse_tree = $shell->parse('date; bar = <foo> + 7');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer,   "[date][]\n", 'evaluate variable with extended arguments 3' );
-is( $Var{bar}, 12,           'variable is set correctly' );
+is( $answer,   "[date][]\n", 'semicolon terminates commands' );
+is( $Var{bar}, 12,           'expressions after semicolon are evaluted' );
 
 #####################################################################
-# test variable with extended arguments 4
+# test functions and braces
 $parse_tree = $shell->parse(<<'EOF');
     func true { return 1 };
     func false { return 0 };
@@ -121,45 +121,45 @@ $parse_tree = $shell->parse(<<'EOF');
 EOF
 $answer = '';
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable with extended arguments 4' );
-is( $Var{baz}, 0,  'variable is set correctly' );
-is( $Var{zab}, 1,  'variable is set correctly' );
+is( $answer,   "", 'nothing is sent by func builtin' );
+is( $Var{baz}, 0,  'expressions inside braces are evaluated' );
+is( $Var{zab}, 1,  'functions return correct values' );
 
 #####################################################################
 # test variable iteration
 $parse_tree = $shell->parse('var bar++');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable iteration' );
-is( $Var{bar}, 13, 'variable is set correctly' );
+is( $answer,   "", 'variable iteration sends nothing' );
+is( $Var{bar}, 13, 'variable iteration sets variables correctly' );
 
 #####################################################################
-# test math 1
+# test math operators 1
 $parse_tree = $shell->parse('send echo (2 - -1)');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer, "{3}\n", 'evaluate math 1' );
+is( $answer, "{3}\n", 'math operators 1' );
 
 #####################################################################
-# test math 2
+# test math operators 2
 $parse_tree = $shell->parse('send echo (-2 + 1)');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer, "{-1}\n", 'evaluate math 2' );
+is( $answer, "{-1}\n", 'math operators 2' );
 
 #####################################################################
 # test multiple commands
-$parse_tree = $shell->parse('send echo foo ; date');
+$parse_tree = $shell->parse('version ; date');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer, "{foo }\n[date][]\n", 'evaluate multiple commands' );
+is( $answer, "[version][]\n[date][]\n", 'semicolon separates commands' );
 
 #####################################################################
 # test command inside a block
 $parse_tree = $shell->parse('{ date }');
 $answer     = '';
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n", 'evaluate command inside a block' );
+is( $answer, "[date][]\n", 'braces send commands' );
 
 #####################################################################
 # test multiple commands inside a block
@@ -168,7 +168,7 @@ $answer     = '';
 $shell->send_command($parse_tree);
 is( $answer,
     "{foo }\n[date][]\n",
-    'evaluate multiple commands inside a block'
+    'expressions and braces can be mixed inside a block'
 );
 
 #####################################################################
