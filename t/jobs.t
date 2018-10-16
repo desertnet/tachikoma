@@ -7,10 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 62;
-
-use Tachikoma::Config;
-use Tachikoma::Crypto;
+use Test::More tests => 58;
 
 sub test_construction {
     my $class = shift;
@@ -25,9 +22,6 @@ my $class = 'Tachikoma';
 test_construction($class);
 $class->event_framework(
     test_construction('Tachikoma::EventFrameworks::Select') );
-
-# test_construction('Tachikoma::EventFrameworks::Epoll');
-# test_construction('Tachikoma::EventFrameworks::KQueue');
 
 my @jobs = qw(
     Tachikoma::Job
@@ -59,11 +53,6 @@ my @jobs = qw(
     Accessories::Jobs::Reactor
 );
 
-my @serializers = qw(
-    Tachikoma::Command
-    Tachikoma::Message
-);
-
-for my $class ( @jobs, @serializers ) {
+for my $class (@jobs) {
     test_construction($class);
 }
