@@ -59,8 +59,6 @@ my @jobs = qw(
     Accessories::Jobs::Reactor
 );
 
-# Tachikoma::Jobs::Transform
-
 my @serializers = qw(
     Tachikoma::Command
     Tachikoma::Message
