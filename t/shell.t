@@ -452,14 +452,17 @@ is( $answer, "[version][]\n", 'quoted operators are not evaluated' );
 $parse_tree = $shell->parse('if ("" eq "foo") { version; }');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, q(), 'evaluate operators on empty strings 2' );
+is( $answer, q(), 'empty strings evaluate as values' );
 
 #####################################################################
 
-$parse_tree = $shell->parse('if ("" ne "") { version; }');
+$parse_tree = $shell->parse( '
+    var empty = "";
+    if ("" ne <empty>) { version; }
+' );
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, q(), 'evaluate operators on empty strings 2' );
+is( $answer, q(), 'empty variables evaluate as values' );
 
 #####################################################################
 
