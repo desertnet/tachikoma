@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: JobController.pm 35277 2018-10-16 09:41:42Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -83,8 +83,8 @@ sub fill {
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
-        my $to        = $message->[TO]             || q();
-        my $job_owner = $job->{connector}->{owner} || q();
+        my $to        = $message->[TO] // q();
+        my $job_owner = $job->{connector}->{owner} // q();
         my $job_edge  = $job->{connector}->{edge};
         $message->[FROM] = $from
             if ($next

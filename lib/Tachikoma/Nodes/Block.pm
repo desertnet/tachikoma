@@ -50,7 +50,7 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     if ( $type & TM_EOF ) {
-        $message->[TO] ||= $self->{owner};
+        $message->[TO] = $self->{owner};
         return $self->{sink}->fill($message);
     }
     return if ( not $type & TM_BYTESTREAM );
