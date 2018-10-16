@@ -906,7 +906,7 @@ sub halt {
 
 sub remove_node {
     my $self = shift;
-    $self->close_segments;
+    $self->close_segments if ( $self->{segments} );
     $self->{filename} = undef;
     return $self->SUPER::remove_node;
 }

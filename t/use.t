@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 # ----------------------------------------------------------------------
-# tachikoma tests
+# tachikoma use tests
 # ----------------------------------------------------------------------
 #
 # $Id$
@@ -18,11 +18,10 @@ use Accessories::Jobs::Reactor;
 use Accessories::Nodes::ByteSplit;
 use Accessories::Nodes::HexDump;
 use Accessories::Nodes::Panel;
-#use Accessories::Nodes::SFE4DigitLED;
+# use Accessories::Nodes::SFE4DigitLED;
 use Accessories::Nodes::SFESerLCD;
 use Accessories::Nodes::SilentDeFlapper;
 use Accessories::Nodes::Smooth;
-
 use Tachikoma::Command;
 use Tachikoma::Config qw( %Tachikoma );
 use Tachikoma::Crypto;
@@ -157,4 +156,4 @@ use Tachikoma::Nodes::Watchdog;
 # use Tachikoma::Nodes::Watcher;
 use Tachikoma;
 
-is('ok', 'ok', 'is ok');
+is( 'ok', 'ok', 'is ok' );

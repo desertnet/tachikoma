@@ -644,7 +644,7 @@ sub db_dir {
 
 sub remove_node {
     my $self = shift;
-    $self->close_db;
+    $self->close_db if ( $self->{filename} );
     return $self->SUPER::remove_node(@_);
 }
 
