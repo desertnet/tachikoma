@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Tachikoma.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma;
@@ -126,8 +126,8 @@ sub inet_client {
         if ( not $ssl_socket or not ref $ssl_socket ) {
             my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
             $ssl_error =~ s{(error)(error)}{$1: $2};
-            die join q{: },
-                q{ERROR: couldn't start_SSL},
+            die join q(: ),
+                q(ERROR: couldn't start_SSL),
                 grep {$_} $!, $ssl_error;
         }
         $socket = $ssl_socket;

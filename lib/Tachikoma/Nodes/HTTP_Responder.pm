@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: HTTP_Responder.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -221,7 +221,7 @@ sub log_entry {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request    = $message->payload;
     my $headers    = $request->{headers};
-    my $host       = $headers->{'host'} || q{""};
+    my $host       = $headers->{'host'} || q("");
     my $referer    = $headers->{'referer'} || q();
     my $user_agent = $headers->{'user-agent'} || q();
     my $log_entry  = Tachikoma::Message->new;
@@ -229,12 +229,12 @@ sub log_entry {
     $log_entry->[TO]      = 'http:log';
     $log_entry->[PAYLOAD] = join q(),
         $host, q( ),
-        $request->{remote_addr}, q{ - },
+        $request->{remote_addr}, q( - ),
         $request->{remote_user} || q(-),
-        q{ [}, cached_log_strftime(),
-        q{] "}, $request->{line}, q{" },
+        q( [), cached_log_strftime(),
+        q(] "), $request->{line}, q(" ),
         $status, q( ), $size || q(-),
-        q{ "}, $referer, q{" "}, $user_agent, q("),
+        q( "), $referer, q(" "), $user_agent, q("),
         "\n";
     return $self->{sink}->fill($log_entry);
 }

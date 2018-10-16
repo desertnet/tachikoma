@@ -29,7 +29,7 @@ Tachikoma->load_event_framework;
 
 $Tachikoma::Now       = time;
 $Tachikoma::Right_Now = $Tachikoma::Now;
-open my $child_fh, q{+<&=}, 5 or usage();
+open my $child_fh, q(+<&=), 5 or usage();
 my $connector =
     Tachikoma::Nodes::FileHandle->filehandle( $child_fh, TK_R | TK_SYNC );
 my $router = Tachikoma::Nodes::Router->new;

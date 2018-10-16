@@ -21,7 +21,7 @@ use parent qw( Tachikoma::Job );
 use version; our $VERSION = 'v2.0.368';
 
 # my $Separator   = chr 0;
-my $Separator = join q(), chr 30, q{ -> }, chr 30;
+my $Separator = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn

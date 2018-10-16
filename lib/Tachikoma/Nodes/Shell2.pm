@@ -744,7 +744,7 @@ for my $type (qw( local var )) {
                 if ( ref $hash->{$key} ) {
                     $output
                         .= '["'
-                        . join( q{", "}, grep m{\S}, @{ $hash->{$key} } )
+                        . join( q(", "), grep m{\S}, @{ $hash->{$key} } )
                         . '"]';
                 }
                 else {
@@ -1572,15 +1572,15 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
         pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
         my $joined = join q(), @{$result};
-        if ( $op eq q{.=} and @{$v} ) { unshift @{$result}, q( ); }
+        if ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
         if ( $op eq q(=) ) { $v = $result; }
-        elsif ( $op eq q{.=} ) { push @{$v}, @{$result}; }
-        elsif ( $op eq q{+=} ) { $v->[0] //= 0; $v->[0] += $joined; }
-        elsif ( $op eq q{-=} ) { $v->[0] //= 0; $v->[0] -= $joined; }
-        elsif ( $op eq q{*=} ) { $v->[0] //= 0; $v->[0] *= $joined; }
-        elsif ( $op eq q{/=} ) { $v->[0] //= 0; $v->[0] /= $joined; }
-        elsif ( $op eq q{//=} and not @{$v} ) { $v = $result; }
-        elsif ( $op eq q{||=} and not join q(), @{$v} ) { $v = $result; }
+        elsif ( $op eq q(.=) ) { push @{$v}, @{$result}; }
+        elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
+        elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
+        elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
+        elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
+        elsif ( $op eq q(//=) and not @{$v} ) { $v = $result; }
+        elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = $result; }
         else { $self->fatal_parse_error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
@@ -1593,8 +1593,8 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
     }
     elsif ( length $op ) {
         if    ( $op eq q(=) )  { delete $hash->{$key}; }
-        elsif ( $op eq q{++} ) { $v->[0]++; $hash->{$key} = $v->[0]; }
-        elsif ( $op eq q{--} ) { $v->[0]--; $hash->{$key} = $v->[0]; }
+        elsif ( $op eq q(++) ) { $v->[0]++; $hash->{$key} = $v->[0]; }
+        elsif ( $op eq q(--) ) { $v->[0]--; $hash->{$key} = $v->[0]; }
         else { $self->fatal_parse_error("bad arguments: $op"); }
     }
     else {

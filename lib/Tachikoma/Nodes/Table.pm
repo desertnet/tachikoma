@@ -205,7 +205,7 @@ sub send_stats {
             push @cache_stats, sprintf '%6d',
                 $bucket ? scalar keys %{$bucket} : 0;
         }
-        push @stats, '[ ', ( join q{, }, @cache_stats ), " ]\n";
+        push @stats, '[ ', ( join q(, ), @cache_stats ), " ]\n";
     }
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;

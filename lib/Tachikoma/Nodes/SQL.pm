@@ -278,7 +278,7 @@ sub mget {
     my $self      = shift;
     my $arguments = shift;
     my $message   = shift;
-    my $objids    = join q{", "}, split q( ), $arguments;
+    my $objids    = join q(", "), split q( ), $arguments;
     my $dbh       = $self->dbh;
     my $table     = $self->table or die 'ERROR: no table specified';
     my $sth =
@@ -386,7 +386,7 @@ sub remove {
         $delete = $dbh->prepare(qq( DELETE FROM $table WHERE $query_string ));
     }
     else {
-        my $objids = join q{", "}, split q( ), $arguments;
+        my $objids = join q(", "), split q( ), $arguments;
         $delete =
             $dbh->prepare(qq( DELETE FROM $table WHERE _objid IN "$objids" ));
     }
@@ -446,7 +446,7 @@ sub send_bytestream {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $to;
     $response->[PAYLOAD] = join q(),
-        map { join q(), $_, q{: }, $object->{$_} || q(), "\n" } @{$fields};
+        map { join q(), $_, q(: ), $object->{$_} || q(), "\n" } @{$fields};
     return $self->SUPER::fill($response);
 }
 

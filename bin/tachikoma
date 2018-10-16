@@ -41,7 +41,7 @@ my $verbose       = undef;
 my $debug         = undef;
 my $help          = undef;
 
-splice @ARGV, 1, 0, q{--} if ( @ARGV and $ARGV[0] !~ m{^-} );
+splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 
 my $r = GetOptions(
     'config=s'      => \$config,

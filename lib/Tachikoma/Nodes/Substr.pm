@@ -34,7 +34,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my $pattern = $self->{arguments} || q{(.*)};
+        my $pattern = $self->{arguments} || q((.*));
         $pattern = ( $pattern =~ m{^(.*)$} )[0];
         $self->{pattern} = qr{$pattern};
     }

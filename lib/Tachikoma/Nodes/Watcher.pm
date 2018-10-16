@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Watcher.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -179,7 +179,7 @@ sub note_fh {
             and not $Can_KQueue
             and not $self->{orly} );
         $message->payload( "$self->{name}: process $self->{pid} "
-                . join( q{, }, @notes ) . q( )
+                . join( q(, ), @notes ) . q( )
                 . $kevent->[KQ_DATA]
                 . "\n" );
         $self->{counter}++;
@@ -189,7 +189,7 @@ sub note_fh {
     else {
         if ( $kevent->[KQ_IDENT] ) {
             $message->payload( "$self->{name}: file $self->{filename} "
-                    . join( q{, }, @notes ) . q( )
+                    . join( q(, ), @notes ) . q( )
                     . $kevent->[KQ_DATA]
                     . "\n" );
             $self->{counter}++;

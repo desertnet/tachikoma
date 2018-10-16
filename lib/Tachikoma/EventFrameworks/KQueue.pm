@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: KQueue.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -174,7 +174,7 @@ sub handle_signal {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
         $this->stderr('got SIGHUP - sending SIGUSR1');
         my $usr1 = SIGUSR1;
-        kill -$usr1, $$ or die q{FAILURE: couldn't signal self};
+        kill -$usr1, $$ or die q(FAILURE: couldn't signal self);
     }
     elsif ( $id == SIGUSR1 ) {
         $this->stderr('got SIGUSR1 - reloading config');
@@ -196,7 +196,7 @@ sub handle_error {
         $this->stderr(
             "WARNING: $method error kevent for ",
             ( $node ? $node->name : $kev->[KQ_IDENT] ),
-            $error ? q{: } . $error : q()
+            $error ? q(: ) . $error : q()
         );
     }
     POSIX::close( $kev->[KQ_IDENT] )

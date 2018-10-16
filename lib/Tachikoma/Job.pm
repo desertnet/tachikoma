@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Job.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Job;
@@ -262,7 +262,7 @@ sub determine_class {
     my $error = undef;
     for my $prefix ( @{ $Tachikoma{Include_Jobs} }, 'Tachikoma::Jobs' ) {
         next if ( not $prefix );
-        $class = join q{::}, $prefix, $type;
+        $class = join q(::), $prefix, $type;
         my $class_path = $class;
         $class_path =~ s{::}{/}g;
         $class_path .= '.pm';

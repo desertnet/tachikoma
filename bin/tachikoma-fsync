@@ -291,9 +291,9 @@ while (1) {
                 # $withsums = 1;
 }
 
-print 'ok: ', join( q{, }, sort @hostnames ), "\n" if ( not $quiet );
+print 'ok: ', join( q(, ), sort @hostnames ), "\n" if ( not $quiet );
 print {*STDERR} 'WARNING: missing from client list: ',
-    join( q{, }, sort @missing ), "\n"
+    join( q(, ), sort @missing ), "\n"
     if (@missing);
 
 sub explore_path {

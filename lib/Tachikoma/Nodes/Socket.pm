@@ -306,7 +306,7 @@ sub accept_connection {
             : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
         );
         if ( not $ssl_client or not ref $ssl_client ) {
-            $self->stderr( join q{: }, q{ERROR: couldn't start_SSL},
+            $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
                 grep $_, $!, IO::Socket::SSL::errstr() );
             return;
         }
@@ -424,13 +424,13 @@ sub start_SSL_connection {
         my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
         $ssl_error =~ s{(error)(error)}{$1: $2};
         if ( $self->{flags} & TK_SYNC ) {
-            die join q{: },
-                q{ERROR: couldn't start_SSL},
+            die join q(: ),
+                q(ERROR: couldn't start_SSL),
                 grep $_, $!, $ssl_error, "\n";
         }
         else {
-            $self->print_less_often( join q{: },
-                q{WARNING: couldn't start_SSL},
+            $self->print_less_often( join q(: ),
+                q(WARNING: couldn't start_SSL),
                 grep $_, $!, $ssl_error );
             return;
         }
@@ -506,7 +506,7 @@ sub init_SSL_connection {
     elsif ( $! != EAGAIN ) {
         my $ssl_error = IO::Socket::SSL::errstr();
         $ssl_error =~ s{(error)(error)}{$1: $2};
-        $self->print_less_often( join q{: }, "WARNING: $method failed",
+        $self->print_less_often( join q(: ), "WARNING: $method failed",
             grep $_, $!, $ssl_error );
 
         # this keeps the event framework from constantly
@@ -1047,7 +1047,7 @@ sub dns_lookup {
     if ( not $job_controller ) {
         require Tachikoma::Nodes::JobController;
         my $interpreter = $Tachikoma::Nodes{'command_interpreter'}
-            or die q{FAILED: couldn't find interpreter};
+            or die q(FAILED: couldn't find interpreter);
         $job_controller = Tachikoma::Nodes::JobController->new;
         $job_controller->name('jobs');
         $job_controller->sink($interpreter);

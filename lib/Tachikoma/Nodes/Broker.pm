@@ -261,9 +261,9 @@ sub fill {
         $self->stderr(
             'WARNING: stale message: ID ',
             $message->id,
-            q{ < },
+            q( < ),
             $self->{generation},
-            q{ - },
+            q( - ),
             $message->type_as_string
                 . ( $message->from ? ' from: ' . $message->from : q() )
                 . ( $message->to   ? ' to: ' . $message->to     : q() )
@@ -470,7 +470,7 @@ sub validate {
     }
     elsif ( $stage ne 'INIT' and $message->[ID] < $self->{generation} ) {
         $self->stderr( $self->{stage}, 'ERROR: stale message: ID ',
-            $message->id, q{ < }, $self->{generation} );
+            $message->id, q( < ), $self->{generation} );
     }
     else {
         $rv = 1;
@@ -958,7 +958,7 @@ sub determine_leader {
 
     # $self->stderr(
     #     "CANDIDATE LEADERS for $log_name - ",
-    #     join q{, },
+    #     join q(, ),
     #     grep $query->{candidates}->{$_},
     #     sort keys %{ $query->{candidates} }
     # );

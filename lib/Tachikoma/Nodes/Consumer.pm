@@ -341,7 +341,7 @@ sub get_batch_async {
     if ( not defined $offset ) {
         if ( $self->cache_dir ) {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
-                q{.db};
+                q(.db);
             $self->load_cache( retrieve($file) ) if ( -f $file );
             $self->stderr( 'INFO: starting from ',
                 $self->{saved_offset} // $self->{default_offset} );
@@ -409,7 +409,7 @@ sub commit_offset_async {
             if ( exists $self->{edge}->{caches} and defined $i );
     }
     if ( $self->{cache_dir} ) {
-        my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q{.db};
+        my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
@@ -555,7 +555,7 @@ sub get_offset {
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->{group} );
         my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q(), $self->{cache_dir}, q(/), $name, q{.db};
+        my $file = join q(), $self->{cache_dir}, q(/), $name, q(.db);
         $stored         = retrieve($file);
         $self->{offset} = $stored->{offset};
         $self->{cache}  = $stored->{cache};
@@ -677,7 +677,7 @@ sub commit_offset {
     if ( $self->{cache_dir} ) {
         die "ERROR: no group specified\n" if ( not $self->{group} );
         my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q(), $self->{cache_dir}, q(/), $name, q{.db};
+        my $file = join q(), $self->{cache_dir}, q(/), $name, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(

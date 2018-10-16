@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: CommandInterpreter.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -174,8 +174,8 @@ sub call_function {
             {   q(@)            => $command->arguments,
                 q(0)            => $name,
                 q(1)            => $command->arguments,
-                q{_C}           => 1,
-                q{message.from} => $envelope->from
+                q(_C)           => 1,
+                q(message.from) => $envelope->from
             }
         );
         return 1;
@@ -236,7 +236,7 @@ sub topical_help {
         for my $prefix ( @{ $Tachikoma{Include_Nodes} }, 'Tachikoma::Nodes' )
         {
             next if ( not $prefix );
-            $class = join q{::}, $prefix, $type;
+            $class = join q(::), $prefix, $type;
             my $class_path = $class;
             $class_path =~ s{::}{/}g;
             $class_path .= '.pm';
@@ -370,7 +370,7 @@ $C{list_nodes} = sub {
         if ($show_owner) {
             my $rv = $node->owner;
             if ( ref $rv eq 'ARRAY' ) {
-                $owner = join q{, }, @{$rv};
+                $owner = join q(, ), @{$rv};
             }
             elsif ($rv) {
                 $owner = $rv;
@@ -748,7 +748,7 @@ $C{dump_metadata} = sub {
                 $type = 'router';
             }
         }
-        $owner = join q{, }, @{$owner} if ( ref $owner eq 'ARRAY' );
+        $owner = join q(, ), @{$owner} if ( ref $owner eq 'ARRAY' );
         $response .= join( q(|),
             $received, $sent, $name, $sink, $owner || q(),
             $class, $type, @extra )
@@ -1832,15 +1832,15 @@ $C{remote_var} = sub {
         my $v = $Var{$key};
         $v = [] if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
-        if ( $op eq q{.=} and @{$v} ) { push @{$v}, q( ); }
+        if ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ); }
         if ( $op eq q(=) ) { $v = [$value]; }
-        elsif ( $op eq q{.=} ) { push @{$v}, $value; }
-        elsif ( $op eq q{+=} ) { $v->[0] //= 0; $v->[0] += $value; }
-        elsif ( $op eq q{-=} ) { $v->[0] //= 0; $v->[0] -= $value; }
-        elsif ( $op eq q{*=} ) { $v->[0] //= 0; $v->[0] *= $value; }
-        elsif ( $op eq q{/=} ) { $v->[0] //= 0; $v->[0] /= $value; }
-        elsif ( $op eq q{//=} and not @{$v} ) { $v = [$value]; }
-        elsif ( $op eq q{||=} and not join q(), @{$v} ) { $v = [$value]; }
+        elsif ( $op eq q(.=) ) { push @{$v}, $value; }
+        elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $value; }
+        elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $value; }
+        elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $value; }
+        elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $value; }
+        elsif ( $op eq q(//=) and not @{$v} ) { $v = [$value]; }
+        elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = [$value]; }
         else { return $self->error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
@@ -1859,7 +1859,7 @@ $C{remote_var} = sub {
             if ( ref $Var{$key} ) {
                 return $self->response( $envelope,
                           '["'
-                        . join( q{", "}, grep m{\S}, @{ $Var{$key} } )
+                        . join( q(", "), grep m{\S}, @{ $Var{$key} } )
                         . qq("]\n) );
             }
             else {
@@ -1876,7 +1876,7 @@ $C{remote_var} = sub {
             my $line = "$key=";
             if ( ref $Var{$key} ) {
                 $line .= '["'
-                    . join( q{", "}, grep m{\S}, @{ $Var{$key} } ) . '"]';
+                    . join( q(", "), grep m{\S}, @{ $Var{$key} } ) . '"]';
             }
             else {
                 $line .= $Var{$key};
@@ -2251,7 +2251,7 @@ sub verify_command {
     my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
     if ( not $id ) {
         $self->stderr( 'ERROR: verification of message from ',
-            $message->[FROM], q{ failed: couldn't find ID} );
+            $message->[FROM], q( failed: couldn't find ID) );
         return;
     }
     my ( $scheme, $signature ) = split m{\n}, $proto, 2;
@@ -2386,7 +2386,7 @@ sub make_node {
 
     for my $prefix ( @{ $Tachikoma{Include_Nodes} }, 'Tachikoma::Nodes' ) {
         next if ( not $prefix );
-        $class = join q{::}, $prefix, $type;
+        $class = join q(::), $prefix, $type;
         my $class_path = $class;
         $class_path =~ s{::}{/}g;
         $class_path .= '.pm';
@@ -2549,7 +2549,7 @@ sub tabulate {
         my $dir = $show_title ? $header->[$col]->[1] : $header->[$col];
         push @format,
             join q(),
-            ( $dir eq 'left' ? q{%-} : q(%) ),
+            ( $dir eq 'left' ? q(%-) : q(%) ),
             ( $dir eq 'right' or $col < $#max ) ? $max[$col] : q(), 's';
     }
     my $format = join( q( ), @format ) . "\n";

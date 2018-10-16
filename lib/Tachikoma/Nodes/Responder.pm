@@ -5,7 +5,7 @@
 #
 #  - duct tape everything together at the last minute
 #
-# $Id: Responder.pm 34375 2018-07-03 12:17:22Z chris $
+# $Id: Responder.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Nodes::Responder;
@@ -96,7 +96,7 @@ sub get_last_buffer {
             else {
                 # $last_buffer is probably intended only as a regex,
                 # so warn and send the response back to the sender
-                $self->stderr( q{WARNING: couldn't find last buffer for },
+                $self->stderr( q(WARNING: couldn't find last buffer for ),
                     $from );
             }
         }
