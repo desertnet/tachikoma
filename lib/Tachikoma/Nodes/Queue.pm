@@ -55,6 +55,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $filename, $max_unanswered ) =
             split q( ), $self->{arguments}, 2;
+        die "ERROR: no filename specified\n" if ( not $filename );
         $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );

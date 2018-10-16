@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Tail.pm 35279 2018-10-16 10:39:46Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -95,7 +95,7 @@ sub arguments {
                 'on-enoent=s'      => \$on_enoent,
                 'timeout=i'        => \$timeout
             );
-            die "invalid option\n" if ( not $r );
+            die "ERROR: bad arguments for Tail\n" if ( not $r );
             $filename ||= $argv->[0];
             $offset         //= $argv->[1];
             $max_unanswered //= $argv->[2];
@@ -111,6 +111,7 @@ sub arguments {
             $on_enoent      = $arguments->{on_ENOENT};
             $timeout        = $arguments->{timeout};
         }
+        die "ERROR: bad arguments for Tail\n" if ( not $filename );
         my $fh;
         my $path = $self->check_path($filename);
         $stream //= join q(:), hostname(), $path;

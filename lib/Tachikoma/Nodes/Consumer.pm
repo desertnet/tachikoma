@@ -121,7 +121,8 @@ sub arguments {
             'default_offset=s' => \$default_offset,
         );
         $partition //= shift @{$argv};
-        die "ERROR: bad arguments\n" if ( not $r or not $partition );
+        die "ERROR: bad arguments for Consumer\n"
+            if ( not $r or not $partition );
         my $new_buffer = q();
         $self->{arguments}      = $arguments;
         $self->{partition}      = $partition;

@@ -67,7 +67,7 @@ sub arguments {
             'leader=s'           => \$leader,
         );
         $filename //= shift @{$argv};
-        die "ERROR: bad arguments\n" if ( not $r );
+        die "ERROR: bad arguments for Partition\n" if ( not $r );
         $self->{arguments}        = $arguments;
         $self->{filename}         = $filename;
         $self->{num_segments}     = $num_segments;

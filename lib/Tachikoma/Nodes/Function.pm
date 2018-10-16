@@ -45,7 +45,7 @@ sub arguments {
             $self->{parse_tree} = $shell->parse($commands);
         }
         else {
-            die "ERROR: missing arguments\n";
+            die "ERROR: bad arguments for Function\n";
         }
     }
     return $self->{arguments};

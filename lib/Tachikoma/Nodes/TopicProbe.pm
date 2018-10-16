@@ -41,7 +41,8 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
-        die 'usage: ' . $self->help if ( $seconds =~ m{\D} );
+        die "ERROR: bad arguments for TopicProbe\n"
+            if ( not $seconds or $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
         $self->prefix( $prefix || q() );

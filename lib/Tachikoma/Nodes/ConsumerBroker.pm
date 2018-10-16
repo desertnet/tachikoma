@@ -106,8 +106,8 @@ sub arguments {
             'hub_timeout=i'    => \$hub_timeout,
             'default_offset=s' => \$default_offset,
         );
-        die "ERROR: invalid option\n" if ( not $r );
-        die "ERROR: no topic\n"       if ( not $topic );
+        die "ERROR: bad arguments for ConsumerBroker\n" if ( not $r );
+        die "ERROR: no topic for ConsumerBroker\n"      if ( not $topic );
         $self->{arguments}      = $arguments;
         $self->{broker_path}    = $broker;
         $self->{topic}          = $topic;

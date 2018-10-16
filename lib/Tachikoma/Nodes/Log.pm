@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Log.pm 35279 2018-10-16 10:39:46Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -42,6 +42,7 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         my ( $filename, $mode, $max_size ) = split q( ), $arguments, 3;
+        die "ERROR: bad arguments for Log\n" if (not $filename);
         $mode ||= 'append';
         my $fh;
         $self->close_filehandle if ( $self->{fh} );

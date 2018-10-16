@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: HTTP_Auth.pm 35279 2018-10-16 10:39:46Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -35,6 +35,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $filename, $realm ) = split q( ), $self->{arguments}, 2;
+        die "ERROR: bad arguments for HTTP_Auth\n" if ( not $filename );
         $self->{filename} = $filename;
         $self->{realm}    = $realm;
         $self->reload_htpasswd;

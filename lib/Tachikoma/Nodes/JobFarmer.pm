@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: JobFarmer.pm 35279 2018-10-16 10:39:46Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -58,8 +58,10 @@ sub arguments {
         my ( $job_count, $job_type, $job_arguments ) =
             ( split q( ), $arguments, 3 );
         my $name = $self->{name};
-        die "invalid job count\n" if ( $job_count =~ m{\D} );
-        die "no job type specified\n" if ( not $job_type );
+        die "ERROR: bad arguments for JobFarmer\n"
+            if ( not defined $job_count
+            or $job_count =~ m{\D}
+            or not $job_type );
         die "can't make $name, $name:job_controller exists\n"
             if ( exists $Tachikoma::Nodes{"$name:job_controller"} );
         die "can't make $name, $name:load_balancer exists\n"
