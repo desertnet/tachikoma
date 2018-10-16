@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Buffer.pm 35277 2018-10-16 09:41:42Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -85,7 +85,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
@@ -101,58 +101,35 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $buffer_size    = $self->{buffer_size} // $self->get_buffer_size;
     my $buffer_mode    = $self->{buffer_mode};
     my $copy           = bless [ @{$message} ], ref $message;
-    my $should_send =
-        ( $self->{owner} and $unanswered < $max_unanswered ) ? 1 : 0;
+    $self->set_timer(0)
+        if ( $self->{owner} and $unanswered < $max_unanswered );
+    return $self->stderr( 'ERROR: unexpected ',
+        $message->type_as_string, ' from ', $message->from )
+        if (not $type & TM_BYTESTREAM
+        and not $type & TM_STORABLE
+        and not $type & TM_INFO );
+    $self->{counter}++;
+    return if ( $buffer_mode eq 'null' );
+    do {
+        $message_id = $self->msg_counter;
+    } while ( exists $tiedhash->{$message_id} );
+    $copy->[TYPE]            = $type | TM_PERSIST;
+    $copy->[FROM]            = $self->{name};
+    $copy->[TO]              = $self->{owner};
+    $copy->[ID]              = $message_id;
+    $tiedhash->{$message_id} = pack 'F N a*',
+        $Tachikoma::Right_Now + $self->{delay}, 0, ${ $copy->packed };
+    $self->{buffer_fills}++;
+    $buffer_size++;
 
-    if ( $should_send and $buffer_mode eq 'ordered' ) {
-        $self->set_timer(0);
-        $should_send = 0;
+    if ( $type & TM_ERROR ) {
+        $self->{errors_passed}++;
+        $self->answer($message) if ( $type & TM_PERSIST );
     }
-    if ( $type & TM_BYTESTREAM or $type & TM_STORABLE or $type & TM_INFO ) {
-        $self->{counter}++;
-        return if ( $buffer_mode eq 'null' );
-        do {
-            $message_id = $self->msg_counter;
-        } while ( exists $tiedhash->{$message_id} );
-        $copy->type( $type | TM_PERSIST );
-        $copy->[FROM]            = $self->{name};
-        $copy->[TO]              = $self->{owner};
-        $copy->[ID]              = $message_id;
-        $tiedhash->{$message_id} = pack 'F N a*',
-              ( $should_send ? $self->{timeout} : 0 )
-            + $Tachikoma::Right_Now
-            + $self->{delay}, $should_send, ${ $copy->packed };
-        $self->{buffer_fills}++;
-        $buffer_size++;
-
-        if ( $type & TM_ERROR ) {
-            $self->{errors_passed}++;
-            $self->answer($message) if ( $type & TM_PERSIST );
-        }
-        elsif ( $type & TM_PERSIST ) {
-            $self->cancel($message);
-        }
-    }
-    else {
-        return $self->stderr( 'ERROR: unexpected ',
-            $message->type_as_string, ' from ', $message->from );
+    elsif ( $type & TM_PERSIST ) {
+        $self->cancel($message);
     }
     $self->{buffer_size} = $buffer_size;
-    if ( $copy->[TYPE] & TM_PERSIST ) {
-        if ($should_send) {
-            $self->set_timer( $Timer_Interval * 1000 )
-                if ( $buffer_size and not $self->{timer_is_active} );
-            $self->{pmsg_sent}++;
-            $self->{msg_unanswered}->{ $copy->[ID] } =
-                [ $Tachikoma::Right_Now, $copy->[TYPE] ];
-            $self->{sink}->fill($copy);
-        }
-    }
-    else {
-        $copy->[TO] ||= $self->{owner};
-        $self->{msg_sent}++;
-        $self->{sink}->fill($copy);
-    }
     return 1;
 }
 

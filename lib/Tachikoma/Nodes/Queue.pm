@@ -65,7 +65,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
@@ -83,63 +83,53 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $copy           = bless [ @{$message} ], ref $message;
     $self->set_timer(0)
         if ( $self->{owner} and $unanswered < $max_unanswered );
-
-    if ( $type & TM_BYTESTREAM or $type & TM_STORABLE or $type & TM_INFO ) {
-        $self->{counter}++;
-        return if ( $buffer_mode eq 'null' );
-        my $sth =
-            $dbh->prepare('SELECT count(1) FROM queue WHERE message_id=?');
-        do {
-            $message_id = $self->msg_counter;
-            $sth->execute($message_id);
-        } while ( $sth->fetchrow_arrayref->[0] );
-        $copy->type( $type | TM_PERSIST );
-        $copy->[FROM] = $self->{name};
-        $copy->[TO]   = $self->{owner};
-        $copy->[ID]   = $message_id;
-        my $has_payload = undef;
-        if ( $self->{check_payloads} ) {
-            if ( $copy->[TYPE] & TM_STORABLE ) {
-                $Storable::canonical = 1;
-                $copy->[PAYLOAD]     = nfreeze( $copy->payload );
-                $copy->[IS_UNTHAWED] = 0;
-            }
-            $sth = $dbh->prepare(
-                'SELECT attempts FROM queue WHERE message_payload=?');
-            $sth->execute( $copy->[PAYLOAD] );
-            while ( my $row = $sth->fetchrow_arrayref ) {
-                $has_payload = 1 if ( $row->[0] == 0 );
-            }
+    return $self->stderr( 'ERROR: unexpected ',
+        $message->type_as_string, ' from ', $message->from )
+        if (not $type & TM_BYTESTREAM
+        and not $type & TM_STORABLE
+        and not $type & TM_INFO );
+    $self->{counter}++;
+    return if ( $buffer_mode eq 'null' );
+    my $sth = $dbh->prepare('SELECT count(1) FROM queue WHERE message_id=?');
+    do {
+        $message_id = $self->msg_counter;
+        $sth->execute($message_id);
+    } while ( $sth->fetchrow_arrayref->[0] );
+    $copy->[TYPE] = $type | TM_PERSIST;
+    $copy->[FROM] = $self->{name};
+    $copy->[TO]   = $self->{owner};
+    $copy->[ID]   = $message_id;
+    my $has_payload = undef;
+    if ( $self->{check_payloads} ) {
+        if ( $copy->[TYPE] & TM_STORABLE ) {
+            $Storable::canonical = 1;
+            $copy->[PAYLOAD]     = nfreeze( $copy->payload );
+            $copy->[IS_UNTHAWED] = 0;
         }
-        if ( not $has_payload ) {
-            $sth =
-                $dbh->prepare(
-                'INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
-            $sth->execute( $Tachikoma::Right_Now + $self->{delay},
-                0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
-                $copy->[TIMESTAMP], $copy->[PAYLOAD], );
-            $buffer_size++;
-            $self->{buffer_fills}++;
-        }
-        if ( $type & TM_ERROR ) {
-            $self->{errors_passed}++;
-            $self->answer($message) if ( $type & TM_PERSIST );
-        }
-        elsif ( $type & TM_PERSIST ) {
-            $self->cancel($message);
+        $sth = $dbh->prepare(
+            'SELECT attempts FROM queue WHERE message_payload=?');
+        $sth->execute( $copy->[PAYLOAD] );
+        while ( my $row = $sth->fetchrow_arrayref ) {
+            $has_payload = 1 if ( $row->[0] == 0 );
         }
     }
-    else {
-        return $self->stderr( 'ERROR: unexpected ',
-            $message->type_as_string, ' from ', $message->from );
+    if ( not $has_payload ) {
+        $sth =
+            $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $sth->execute( $Tachikoma::Right_Now + $self->{delay},
+            0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
+            $copy->[TIMESTAMP], $copy->[PAYLOAD], );
+        $buffer_size++;
+        $self->{buffer_fills}++;
+    }
+    if ( $type & TM_ERROR ) {
+        $self->{errors_passed}++;
+        $self->answer($message) if ( $type & TM_PERSIST );
+    }
+    elsif ( $type & TM_PERSIST ) {
+        $self->cancel($message);
     }
     $self->{buffer_size} = $buffer_size;
-    $self->{counter}++;
-    if ( not $copy->[TYPE] & TM_PERSIST ) {
-        $copy->[TO] ||= $self->{owner};
-        $self->{msg_sent}++;
-        $self->{sink}->fill($copy);
-    }
     return 1;
 }
 
