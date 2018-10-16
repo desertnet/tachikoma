@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35246 2018-10-15 18:40:59Z chris $
+# $Id: FileHandle.pm 35249 2018-10-16 01:30:30Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -317,7 +317,7 @@ sub close_filehandle {
     my $self         = shift;
     my $input_buffer = q{};
     $Tachikoma::Event_Framework->close_filehandle($self);
-    delete( $Tachikoma::Nodes_By_FD->{ $self->{fd} } )
+    delete $Tachikoma::Nodes_By_FD->{ $self->{fd} }
         if ( defined $self->{fd} );
     undef $!;
     $self->stderr("WARNING: couldn't close: $!")
