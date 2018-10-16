@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
@@ -28,15 +28,18 @@ my $i       = $total;
 
 my $router = Tachikoma::Nodes::Router->new;
 $router->name('_router');
-is( ref($router), 'Tachikoma::Nodes::Router', 'is ok' );
+is( ref $router, 'Tachikoma::Nodes::Router',
+    'Tachikoma::Nodes::Router->new is ok' );
 
 my $server = inet_server Tachikoma::Nodes::STDIO( $address, $port );
-is( ref($server), 'Tachikoma::Nodes::STDIO', 'is ok' );
+is( ref $server, 'Tachikoma::Nodes::STDIO',
+    'Tachikoma::Nodes::STDIO->new is ok' );
 
 $server->name( $server->name . ':server' );
 
 my $destination = Tachikoma::Nodes::Callback->new;
-is( ref($destination), 'Tachikoma::Nodes::Callback', 'is ok' );
+is( ref $destination, 'Tachikoma::Nodes::Callback',
+    'Tachikoma::Nodes::Callback->new is ok' );
 
 $server->sink($destination);
 $destination->callback(
@@ -48,7 +51,8 @@ $destination->callback(
 );
 
 my $client = Tachikoma::Nodes::STDIO->inet_client( $address, $port );
-is( ref($client), 'Tachikoma::Nodes::STDIO', 'is ok' );
+is( ref $client, 'Tachikoma::Nodes::STDIO',
+    'Tachikoma::Nodes::STDIO->inet_client is ok' );
 
 for ( 1 .. $total ) {
     my $message = Tachikoma::Message->new;
@@ -58,4 +62,5 @@ for ( 1 .. $total ) {
 }
 $router->drain;
 
-is( $answer, $test x $total, 'is ok' );
+is( $answer, $test x $total, 'Tachikoma::Nodes::STDIO->fill is ok' );
+is( $answer, $test x $total, 'Tachikoma::Nodes::STDIO->drain is ok' );
