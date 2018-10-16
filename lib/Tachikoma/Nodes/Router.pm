@@ -212,7 +212,7 @@ sub heartbeat {
             next;
         }
         if (    $node->{last_upbeat}
-            and $Tachikoma::Now - $node->{last_upbeat} > 60 )
+            and $Tachikoma::Now - $node->{last_upbeat} >= 60 )
         {
             my $message = Tachikoma::Message->new;
             $message->[TYPE]    = TM_HEARTBEAT;
