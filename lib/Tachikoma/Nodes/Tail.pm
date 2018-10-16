@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35279 2018-10-16 10:39:46Z chris $
+# $Id: Tail.pm 35281 2018-10-16 11:09:07Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -111,7 +111,6 @@ sub arguments {
             $on_enoent      = $arguments->{on_ENOENT};
             $timeout        = $arguments->{timeout};
         }
-        die "ERROR: bad arguments for Tail\n" if ( not $filename );
         my $fh;
         my $path = $self->check_path($filename);
         $stream //= join q(:), hostname(), $path;
@@ -158,7 +157,8 @@ sub arguments {
 sub check_path {
     my $self     = shift;
     my $filename = shift;
-    my $path     = ( $filename =~ m{^(/.*)$} )[0];
+    die "ERROR: bad arguments for Tail\n" if ( not $filename );
+    my $path = ( $filename =~ m{^(/.*)$} )[0];
     die "ERROR: invalid path: $filename\n" if ( not defined $path );
     $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
     $path =~ s{(?:^|/)[.][.](?=/)}{}g;
