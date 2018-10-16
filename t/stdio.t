@@ -38,8 +38,8 @@ is( ref $server, 'Tachikoma::Nodes::STDIO',
 $server->name( $server->name . ':server' );
 
 my $destination = Tachikoma::Nodes::Callback->new;
-is( ref $destination, 'Tachikoma::Nodes::Callback',
-    'Tachikoma::Nodes::Callback->new is ok' );
+is( ref $destination,
+    'Tachikoma::Nodes::Callback', 'Tachikoma::Nodes::Callback->new is ok' );
 
 $server->sink($destination);
 $destination->callback(
