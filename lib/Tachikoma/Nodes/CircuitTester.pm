@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: CircuitTester.pm 35293 2018-10-16 20:32:45Z chris $
 #
 
 package Tachikoma::Nodes::CircuitTester;
@@ -81,7 +81,7 @@ sub fill {
         }
     }
     $self->{counter}++;
-    return 1;
+    return;
 }
 
 sub fire {

@@ -10,7 +10,7 @@ package Tachikoma::Nodes::Watchdog;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
-use Tachikoma::Message qw( TM_EOF );
+use Tachikoma::Message qw( TM_EOF TM_ERROR );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = 'v2.0.367';
@@ -39,8 +39,9 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $gate    = $self->{gate} or return $self->stderr('ERROR: no gate set');
-    my $node    = $Tachikoma::Nodes{$gate}
+    return if ( $message->type == TM_ERROR );
+    my $gate = $self->{gate} or return $self->stderr('ERROR: no gate set');
+    my $node = $Tachikoma::Nodes{$gate}
         or return $self->stderr("ERROR: couldn't find $gate");
     return $self->stderr('ERROR: only Gate nodes are supported')
         if ( not $node->isa('Tachikoma::Nodes::Gate') );

@@ -60,7 +60,7 @@ sub fill {
         $self->set_timer( $delay, 'oneshot' )
             if ( not $self->{timer_is_active} );
     }
-    return 1;
+    return;
 }
 
 sub fire {

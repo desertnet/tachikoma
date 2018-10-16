@@ -111,7 +111,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $self->set_timer( $Default_Timeout * 1000 );
     }
-    return 1;
+    return;
 }
 
 sub fire {

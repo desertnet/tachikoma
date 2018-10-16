@@ -45,7 +45,7 @@ sub fill {
     my $self     = shift;
     my $message  = shift;
     my $max_size = $self->{max_size};
-    my $target   = $self->{owner} or return $self->stderr('ERROR: no owner');
+    my $target   = $self->{owner} or return;
     my $name     = ( split m{/}, $target, 2 )[0];
     my $node     = $Tachikoma::Nodes{$name}
         or return $self->print_less_often(q{ERROR: couldn't find node});

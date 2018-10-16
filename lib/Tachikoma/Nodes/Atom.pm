@@ -10,7 +10,7 @@ package Tachikoma::Nodes::Atom;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR );
 use File::MkTemp;
 use parent qw( Tachikoma::Node );
 
@@ -51,6 +51,7 @@ sub fill {
     my $message = shift;
     my $tmp_dir = $self->{tmp_dir};
     my $path    = $self->{path};
+    return if ( $message->[TYPE] == TM_ERROR );
     return $self->stderr('ERROR: no path set') if ( not $path );
     return $self->stderr('ERROR: unexpected payload')
         if ( not $message->[TYPE] & TM_BYTESTREAM );

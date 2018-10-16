@@ -35,8 +35,9 @@ sub arguments {
 }
 
 sub fill {
-    my $self      = shift;
-    my $message   = shift;
+    my $self    = shift;
+    my $message = shift;
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $num_bytes = $self->{num_bytes};
     my $payload   = $self->{byte_buffer} . $message->[PAYLOAD];
     my $got       = length($payload);
