@@ -144,15 +144,16 @@ my @nodes = qw(
     Accessories::Nodes::SilentDeFlapper
     Accessories::Nodes::Smooth
 );
-    # Tachikoma::Nodes::BufferTop
-    # Tachikoma::Nodes::JSONtoStorable
-    # Tachikoma::Nodes::SerialPort
-    # Tachikoma::Nodes::Shell
-    # Tachikoma::Nodes::Shell2
-    # Tachikoma::Nodes::SQL
-    # Tachikoma::Nodes::StorableToJSON
-    # Tachikoma::Nodes::TopicTop
-    # Accessories::Nodes::SFE4DigitLED
+
+# Tachikoma::Nodes::BufferTop
+# Tachikoma::Nodes::JSONtoStorable
+# Tachikoma::Nodes::SerialPort
+# Tachikoma::Nodes::Shell
+# Tachikoma::Nodes::Shell2
+# Tachikoma::Nodes::SQL
+# Tachikoma::Nodes::StorableToJSON
+# Tachikoma::Nodes::TopicTop
+# Accessories::Nodes::SFE4DigitLED
 
 for my $class (@nodes) {
     test_node( test_construction($class) );
