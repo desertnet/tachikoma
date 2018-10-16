@@ -37,7 +37,6 @@ sub fill {
             my $error = $@ // 'unknown error';
             $self->stderr("ERROR: connect_node failed: $error");
         }
-        $self->SUPER::fill($message);
     }
     elsif ( $type & TM_EOF ) {
         my $okay = eval { $self->disconnect_node( $name, $owner ); };
@@ -45,7 +44,6 @@ sub fill {
             my $error = $@ // 'unknown error';
             $self->stderr("ERROR: disconnect_node failed: $error");
         }
-        $self->SUPER::fill($message);
     }
     return;
 }
