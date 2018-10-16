@@ -33,7 +33,7 @@ is( ref $router, 'Tachikoma::Nodes::Router',
 
 my $server = inet_server Tachikoma::Nodes::STDIO( $address, $port );
 is( ref $server, 'Tachikoma::Nodes::STDIO',
-    'Tachikoma::Nodes::STDIO->new is ok' );
+    'Tachikoma::Nodes::STDIO->inet_server is ok' );
 
 $server->name( $server->name . ':server' );
 
