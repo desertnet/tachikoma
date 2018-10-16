@@ -5,7 +5,7 @@
 #
 # Tachikoma::Nodes::STDIO plus Readline support
 #
-# $Id: TTY.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: TTY.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::TTY;
@@ -94,7 +94,7 @@ sub resume {
     if ( $self->use_readline ) {
         my $term = $self->term;
         $term->callback_handler_install(
-            q{},
+            q(),
             sub {
                 my $buf = shift;
                 $self->prompt(q{});

@@ -69,7 +69,7 @@ sub new {
     $self->{brokers}          = {};
     $self->{caches}           = {};
     $self->{consumer_groups}  = {};
-    $self->{controller}       = q{};
+    $self->{controller}       = q();
     $self->{default_settings} = {
         num_partitions     => 1,
         replication_factor => 2,
@@ -265,12 +265,12 @@ sub fill {
             $self->{generation},
             q{ - },
             $message->type_as_string
-                . ( $message->from ? ' from: ' . $message->from : q{} )
-                . ( $message->to   ? ' to: ' . $message->to     : q{} )
+                . ( $message->from ? ' from: ' . $message->from : q() )
+                . ( $message->to   ? ' to: ' . $message->to     : q() )
                 . (
                 ( $message->type & TM_INFO or $message->type & TM_ERROR )
                 ? ' payload: ' . $message->payload
-                : q{}
+                : q()
                 )
         );
     }
@@ -495,7 +495,7 @@ sub determine_controller {
             $broker->{leader} = undef;
         }
     }
-    $self->{controller} = $controller // q{};
+    $self->{controller} = $controller // q();
     return $controller;
 }
 
@@ -1298,7 +1298,7 @@ sub inform_brokers {
     my $payload = shift;
     my $stage   = $self->{stage};
     if ( $stage eq 'COMPLETE' ) {
-        $stage = q{};
+        $stage = q();
     }
     else {
         $stage .= q( );
@@ -1835,9 +1835,9 @@ $C{list_brokers} = sub {
             $broker->{host},
             $broker->{port},
             strftime( '%F %T %Z', localtime( $broker->{last_heartbeat} ) ),
-            $broker->{online}         ? q(*) : q{},
-            $broker->{leader}         ? q(*) : q{},
-            $broker_id eq $controller ? q(*) : q{},
+            $broker->{online}         ? q(*) : q(),
+            $broker->{leader}         ? q(*) : q(),
+            $broker_id eq $controller ? q(*) : q(),
             ];
     }
     return $self->response( $envelope, $self->tabulate($results) );
@@ -1966,11 +1966,11 @@ $C{list_partitions} = sub {
             next if ( $glob and $name !~ m{$glob} );
             my $log       = $broker_lco->{$name};
             my $stats     = $broker_stats->{$name};
-            my $count     = $stats ? $stats->{isr} : q{};
-            my $offset    = $stats ? $stats->{offset} : q{};
-            my $is_leader = $count ? q(*) : q{};
-            my $is_active = q{};
-            my $is_online = $broker->{online} ? q(*) : q{};
+            my $count     = $stats ? $stats->{isr} : q();
+            my $offset    = $stats ? $stats->{offset} : q();
+            my $is_leader = $count ? q(*) : q();
+            my $is_active = q();
+            my $is_online = $broker->{online} ? q(*) : q();
             $is_active = q(*)
                 if ($log->{is_active}
                 and $Tachikoma::Now - $log->{is_active}
@@ -1980,7 +1980,7 @@ $C{list_partitions} = sub {
             if ($by_partition) {
                 my ( $topic_name, $type, $i, $etc ) = split m{:}, $name, 4;
                 my $key = sprintf '%s:%s:%09d:%s:%s',
-                    $topic_name, $type, $i, $etc // q{}, $broker_id;
+                    $topic_name, $type, $i, $etc // q(), $broker_id;
                 $unsorted{$key} = [
                     $name,       $broker_id, $offset,
                     $log->{lco}, $is_leader, $count
@@ -1991,7 +1991,7 @@ $C{list_partitions} = sub {
             else {
                 my ( $topic_name, $type, $i, $etc ) = split m{:}, $name, 4;
                 my $key = sprintf '%s:%s:%s:%09d:%s',
-                    $broker_id, $topic_name, $type, $i, $etc // q{};
+                    $broker_id, $topic_name, $type, $i, $etc // q();
                 $unsorted{$key} = [
                     $broker_id,  $name,      $offset,
                     $log->{lco}, $is_leader, $count

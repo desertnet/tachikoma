@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Shell.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Shell;
@@ -51,14 +51,14 @@ sub parse_line {
         $self->mode('concatenation');
         my $concatenation = $self->concatenation || {};
         if ( not $concatenation->{name} ) {
-            $arguments ||= q{};
+            $arguments ||= q();
             $arguments =~ s{\\$}{};
             $concatenation->{name} = $name;
-            $concatenation->{arguments} = join q{}, $arguments, "\n";
+            $concatenation->{arguments} = join q(), $arguments, "\n";
         }
         else {
             $line =~ s{\\$}{};
-            $concatenation->{arguments} .= join q{}, $line, "\n";
+            $concatenation->{arguments} .= join q(), $line, "\n";
         }
         $self->concatenation($concatenation);
         return;
@@ -66,7 +66,7 @@ sub parse_line {
     elsif ( $self->mode eq 'concatenation' ) {
         $self->mode('command');
         $name = $self->concatenation->{name};
-        $arguments = join q{}, $self->concatenation->{arguments}, $line;
+        $arguments = join q(), $self->concatenation->{arguments}, $line;
         $self->concatenation(undef);
     }
     elsif ( $line !~ m{\S} ) {
@@ -79,10 +79,10 @@ sub parse_line {
     }
     elsif ( $name eq 'command' or $name eq 'cmd' ) {
         my ( $path, $new_name, $new_arguments ) =
-            ( split q( ), $arguments // q{}, 3 );
+            ( split q( ), $arguments // q(), 3 );
         $message->to( $self->prefix($path) );
-        $command->name( $new_name // q{} );
-        $command->arguments( $new_arguments // q{} );
+        $command->name( $new_name // q() );
+        $command->arguments( $new_arguments // q() );
     }
     else {
         $message->to( $self->path );
@@ -98,8 +98,8 @@ sub parse_line {
 
 sub cd {
     my $self = shift;
-    my $cwd  = shift || q{};
-    my $path = shift || q{};
+    my $cwd  = shift || q();
+    my $path = shift || q();
     if ( $path =~ m{^/} ) {
         $cwd = $path;
     }

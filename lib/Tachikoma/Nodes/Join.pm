@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Join
 # ----------------------------------------------------------------------
 #
-# $Id: Join.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Join.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Join;
@@ -57,7 +57,7 @@ sub fill {
     }
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     if ( not defined $self->{buffer} ) {
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{buffer} = \$new_buffer;
     }
     my $buffer = $self->{buffer};

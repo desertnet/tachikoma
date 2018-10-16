@@ -18,7 +18,7 @@ use version; our $VERSION = 'v2.0.349';
 
 sub initialize_graph {
     my $self = shift;
-    my ( $config_file, $tmp_path ) = split q( ), $self->arguments || q{}, 2;
+    my ( $config_file, $tmp_path ) = split q( ), $self->arguments || q(), 2;
     my $cgi = Tachikoma::Nodes::CGI->new;
     $self->connector->sink($cgi);
     $cgi->name('CGI');

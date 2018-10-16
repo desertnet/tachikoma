@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: HTTP_Responder.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -57,14 +57,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $name     = $message->[FROM];
     my $payloads = $self->{payloads};
     my $payload  = $payloads->{$name};
-    my $lastfour = q{};
+    my $lastfour = q();
     my $requests = $self->{requests};
     my $request  = $requests->{$name};
     my $headers  = undef;
 
     # collect request payloads
     if ( not $payload ) {
-        my $scalar = q{};
+        my $scalar = q();
         $payloads->{$name} = \$scalar;
         $payload = \$scalar;
     }
@@ -109,7 +109,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $request->{version}      = $version;
         $request->{path}         = $script_url;
         $request->{script_url}   = $script_url;
-        $request->{query_string} = $query_string || q{};
+        $request->{query_string} = $query_string || q();
 
         for my $line (@lines) {
             my ( $key, $value ) = split m{:\s*}, $line, 2;
@@ -148,7 +148,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->stderr("ERROR: couldn't write: $!");
             }
             else {
-                ${$payload} = q{};
+                ${$payload} = q();
                 return if ( $length > $request->{length} );
             }
             close $request->{fh}
@@ -169,12 +169,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     $request_message->[FROM] = $message->[FROM];
     $request_message->[TO]   = $self->{owner};
     $request_message->[STREAM] =
-        join q{},
+        join q(),
         $headers->{host}
         ? $request->{uri} =~ m{^http://$headers->{host}}
             ? $request->{uri}
-            : join q{}, 'http://', $headers->{host}, $request->{uri}
-        : join q{}, 'http://default', $request->{uri};
+            : join q(), 'http://', $headers->{host}, $request->{uri}
+        : join q(), 'http://default', $request->{uri};
     $request_message->[PAYLOAD] = $request;
     $self->{counter}++;
     return $self->{sink}->fill($request_message);
@@ -222,12 +222,12 @@ sub log_entry {
     my $request    = $message->payload;
     my $headers    = $request->{headers};
     my $host       = $headers->{'host'} || q{""};
-    my $referer    = $headers->{'referer'} || q{};
-    my $user_agent = $headers->{'user-agent'} || q{};
+    my $referer    = $headers->{'referer'} || q();
+    my $user_agent = $headers->{'user-agent'} || q();
     my $log_entry  = Tachikoma::Message->new;
     $log_entry->[TYPE]    = TM_BYTESTREAM;
     $log_entry->[TO]      = 'http:log';
-    $log_entry->[PAYLOAD] = join q{},
+    $log_entry->[PAYLOAD] = join q(),
         $host, q( ),
         $request->{remote_addr}, q{ - },
         $request->{remote_user} || q(-),

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: LoadBalancer.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -34,7 +34,7 @@ sub new {
     $self->{timeout}        = $Default_Timeout;
     $self->{method}         = 'round-robin';
     $self->{mode}           = 'persistent';
-    $self->{hash}           = q{};
+    $self->{hash}           = q();
     $self->{interpreter}    = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );

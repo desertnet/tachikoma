@@ -38,7 +38,7 @@ my %Types = (
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{prefix} = q{};
+    $self->{prefix} = q();
     $self->{tables} = {};
     bless $self, $class;
     return $self;
@@ -73,7 +73,7 @@ sub fill {
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
     my $type            = ( $path =~ m{[.]([^.]+)$} )[0] || 'json';
-    my $accept_encoding = $headers->{'accept-encoding'}  || q{};
+    my $accept_encoding = $headers->{'accept-encoding'}  || q();
     my ( $table_name, $escaped ) = split m{/}, $path, 2;
     return $self->send404($message)
         if ( not length $table_name
@@ -92,7 +92,7 @@ sub fill {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 200 OK\n",
         'Date: ', cached_strftime(), "\n",
         "Server: Tachikoma\n",
@@ -121,7 +121,7 @@ sub send404 {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 404 NOT FOUND\n",
         'Date: ', cached_strftime(), "\n",
         "Server: Tachikoma\n",

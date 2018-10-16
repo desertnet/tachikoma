@@ -61,7 +61,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $to          = undef;
     if ( $message->[TYPE] & TM_STORABLE ) {
         $request     = $message->payload;
-        $request_uri = join q{},
+        $request_uri = join q(),
             'http://', $request->{headers}->{host},
             $request->{uri};
         $to = $message->[FROM];
@@ -129,7 +129,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $to;
             $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
-            $header->[PAYLOAD] = join q{},
+            $header->[PAYLOAD] = join q(),
                 "HTTP/1.1 501 NOT IMPLEMENTED\n\n",
                 "Sorry, this method is not yet implemented.\n";
             $self->{sink}->fill($header);
@@ -153,13 +153,13 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $header->[TYPE]    = TM_BYTESTREAM;
                 $header->[TO]      = $to;
                 $header->[STREAM]  = $message->[STREAM] . "\n"; # XXX: LB hack
-                $header->[PAYLOAD] = join q{},
+                $header->[PAYLOAD] = join q(),
                     'HTTP/1.1 ', $r->{_rc}, q( ), $r->{_msg}, "\n",
                     $r->{_headers}->as_string, "\n";
                 $self->{sink}->fill($header);
                 $sent_header = 'true';
             }
-            return $self->stderr('no content') if ( $payload eq q{} );
+            return $self->stderr('no content') if ( $payload eq q() );
             if ($to) {
                 my $response = Tachikoma::Message->new;
                 $response->[TYPE] = TM_BYTESTREAM;
@@ -183,7 +183,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $to;
             $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
-            $header->[PAYLOAD] = join q{},
+            $header->[PAYLOAD] = join q(),
                 join( q( ),
                 $res->protocol || 'HTTP/1.1',
                 $res->code, $res->message ),

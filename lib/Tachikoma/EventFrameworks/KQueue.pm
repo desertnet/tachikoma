@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35242 2018-10-15 17:53:51Z chris $
+# $Id: KQueue.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -132,7 +132,7 @@ sub drain {
             }
             elsif ( $kev->[KQ_FILTER] == EVFILT_TIMER ) {
                 $node->{timer_is_active} = undef
-                    if ( ( $node->{timer_is_active} // q{} ) ne 'forever' );
+                    if ( ( $node->{timer_is_active} // q() ) ne 'forever' );
                 $node->fire;
                 next;
             }
@@ -196,7 +196,7 @@ sub handle_error {
         $this->stderr(
             "WARNING: $method error kevent for ",
             ( $node ? $node->name : $kev->[KQ_IDENT] ),
-            $error ? q{: } . $error : q{}
+            $error ? q{: } . $error : q()
         );
     }
     POSIX::close( $kev->[KQ_IDENT] )

@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::FileRemover
 # ----------------------------------------------------------------------
 #
-# $Id: FileRemover.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: FileRemover.pm 35265 2018-10-16 06:42:47Z chris $
 #
 # FileRemover simply accepts the path to a file, and after thoroughly
 # validating that path, moves it to a new location.
@@ -63,7 +63,7 @@ sub fill {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = join q(/), '_parent', $self->{logger};
-        $response->[PAYLOAD] = join q{}, @log;
+        $response->[PAYLOAD] = join q(), @log;
         $self->SUPER::fill($response);
     }
     $self->cancel($message);

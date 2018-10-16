@@ -25,7 +25,7 @@ my $Respawn_Timeout = 300;
 my $Shutting_Down   = undef;
 
 # my $Separator       = chr 0;
-my $Separator = join q{}, chr 30, ' -> ', chr 30;
+my $Separator = join q(), chr 30, ' -> ', chr 30;
 
 sub arguments {
     my $self = shift;
@@ -105,7 +105,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $payload   = $message->[PAYLOAD];
     my $op        = undef;
     my $path      = undef;
-    my $arguments = q{};
+    my $arguments = q();
     if ( $payload =~ m{^\w+:} ) {
         ( $op, $path ) = split m{:}, $payload, 2;
     }

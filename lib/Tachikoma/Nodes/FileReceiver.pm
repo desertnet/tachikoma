@@ -23,7 +23,7 @@ my $Filehandle_Timeout = 300;
 my $Expire_Interval    = 60;
 
 # my $Separator          = chr(0);
-my $Separator = join q{}, chr 30, ' -> ', chr 30;
+my $Separator = join q(), chr 30, ' -> ', chr 30;
 
 sub arguments {
     my $self = shift;

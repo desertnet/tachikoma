@@ -74,7 +74,7 @@ sub fill {
     my $message = shift;
     return $self->{interpreter}->fill($message)
         if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $output = q{};
+    my $output = q();
     for my $item ( split m{^}, $message->[PAYLOAD] ) {
         my $number = $self->add_item($item);
         $output .= join q( ), $number, $item;
@@ -126,7 +126,7 @@ $C{list} = sub {
         next if ( length $glob and $item !~ m{$glob} );
         push @responses, $list->{$item}, q( ), $item;
     }
-    return $self->response( $envelope, join q{}, @responses );
+    return $self->response( $envelope, join q(), @responses );
 };
 
 $C{ls} = $C{list};

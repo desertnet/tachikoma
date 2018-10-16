@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: FileHandle.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -53,7 +53,7 @@ sub new {
     my $class        = ref($proto) || $proto;
     my $flags        = shift || 0;
     my $self         = $class->SUPER::new;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     $self->{type}             = 'filehandle';
     $self->{flags}            = $flags;
     $self->{on_EOF}           = 'close';
@@ -139,7 +139,7 @@ sub drain_fh {
     $got += $read;
     $got = $self->drain_buffer($buffer) if ( $got > 0 );
     if ( not defined $got or $got < 1 ) {
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
     return $read;
@@ -161,7 +161,7 @@ sub drain_buffer {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
@@ -315,7 +315,7 @@ sub close_filehandle_and_remove_node {
 
 sub close_filehandle {
     my $self         = shift;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     $Tachikoma::Event_Framework->close_filehandle($self);
     delete $Tachikoma::Nodes_By_FD->{ $self->{fd} }
         if ( defined $self->{fd} );

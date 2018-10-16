@@ -23,7 +23,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{my_hostname} = hostname();
-    $self->{prefix}      = q{};
+    $self->{prefix}      = q();
     $self->{last_time}   = $Tachikoma::Right_Now;
     bless $self, $class;
     return $self;
@@ -51,7 +51,7 @@ sub arguments {
 
 sub fire {
     my $self     = shift;
-    my $out      = q{};
+    my $out      = q();
     my $interval = $self->{timer_interval} / 1000;
     my $elapsed  = Time::HiRes::time - $self->{last_time};
     $self->stderr(
@@ -66,7 +66,7 @@ sub fire {
             my $buff_name = $node->{filename};
             $buff_name ||= join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
-            $out .= join q{},
+            $out .= join q(),
                 'hostname:',
                 $self->{my_hostname},
                 ' buff_name:',
@@ -97,7 +97,7 @@ sub fire {
             my $buff_name = join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
             my $partition = $Tachikoma::Nodes{ $node->{partition} } or next;
-            $out .= join q{},
+            $out .= join q(),
                 'hostname:',
                 $self->{my_hostname},
                 ' buff_name:',

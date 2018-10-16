@@ -106,8 +106,8 @@ sub fill {
         for my $sender ( keys %senders ) {
             my $copy = bless [ @{$message} ], ref $message;
             $copy->[TO]     = $sender;
-            $copy->[ID]     = q{};
-            $copy->[STREAM] = q{};
+            $copy->[ID]     = q();
+            $copy->[STREAM] = q();
             $self->{sink}->fill($copy);
         }
         $self->{partitions} = undef;
@@ -146,7 +146,7 @@ sub fill {
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     push @{ $_[0]->{batch} },
         (
-        bless [ TM_BYTESTREAM, q{}, q{}, q{}, q{}, $Tachikoma::Now,
+        bless [ TM_BYTESTREAM, q(), q(), q(), q(), $Tachikoma::Now,
             ${ $_[1] } ],
         'Tachikoma::Message'
         );
@@ -176,7 +176,7 @@ sub fire {
             $batch{$i} //= [];
             push @{ $batch{$i} }, ${ $message->packed };
             $message->[$Offset] = $self->{counter}++;
-            $message->[PAYLOAD] = q{};
+            $message->[PAYLOAD] = q();
             push @{ $self->{responses}->{$broker_id} }, $message
                 if ( $message->[TYPE] & TM_PERSIST );
         }
@@ -188,7 +188,7 @@ sub fire {
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = $self->{counter};
             $message->[STREAM]  = scalar @{ $batch{$i} };
-            $message->[PAYLOAD] = join q{}, @{ $batch{$i} };
+            $message->[PAYLOAD] = join q(), @{ $batch{$i} };
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
         }
@@ -273,7 +273,7 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     $message->[TYPE]    = ( $persist ? TM_BATCH | TM_PERSIST : TM_BATCH );
     $message->[STREAM]  = scalar @{$payloads};
     $message->[TO]      = "$topic:partition:$i";
-    $message->[PAYLOAD] = join q{}, map ${$_}, @buffer;
+    $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
         sub {
             if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
@@ -342,7 +342,7 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     $message->[TYPE]    = ( $persist ? TM_BATCH | TM_PERSIST : TM_BATCH );
     $message->[STREAM]  = $count;
     $message->[TO]      = "$topic:partition:$i";
-    $message->[PAYLOAD] = join q{}, map ${$_}, @buffer;
+    $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
         sub {
             if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }

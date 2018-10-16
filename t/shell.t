@@ -36,7 +36,7 @@ $destination->callback(
         my $payload = $message->payload;
         if ( $message->type & TM_COMMAND ) {
             my $command = Tachikoma::Command->new($payload);
-            $answer .= join q{}, q([), $command->name, q{][},
+            $answer .= join q(), q([), $command->name, q{][},
                 $command->arguments, q(]), "\n";
         }
         else {

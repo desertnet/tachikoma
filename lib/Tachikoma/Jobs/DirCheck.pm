@@ -21,7 +21,7 @@ use parent qw( Tachikoma::Job );
 use version; our $VERSION = 'v2.0.368';
 
 # my $Separator   = chr 0;
-my $Separator = join q{}, chr 30, q{ -> }, chr 30;
+my $Separator = join q(), chr 30, q{ -> }, chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -51,7 +51,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 
     if ( $relative eq '.intent' ) {
         my $fh;
-        my $payload = q{};
+        my $payload = q();
         if ( open $fh, q(<), $my_path ) {
             $payload .= $_ while (<$fh>);
             close $fh or $self->stderr("ERROR: couldn't close $my_path: $!");
@@ -90,7 +90,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 my $response = Tachikoma::Message->new;
                 $response->[TYPE]    = TM_BYTESTREAM;
                 $response->[TO]      = $message_to;
-                $response->[PAYLOAD] = join q{}, 'update:',
+                $response->[PAYLOAD] = join q(), 'update:',
                     $their_path_entry, "\n";
                 $self->SUPER::fill($response);
             }
@@ -133,9 +133,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};
-        my $their_stat    = $other_entry ? $other_entry->[0] : q{};
+        my $their_stat    = $other_entry ? $other_entry->[0] : q();
         my $their_size    = $other_entry ? $other_entry->[1] : q(-);
-        my $their_perms   = $other_entry ? $other_entry->[2] : q{};
+        my $their_perms   = $other_entry ? $other_entry->[2] : q();
         my $my_is_dir     = ( $stat eq 'D' ) ? 1 : 0;
         my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1 : 0;
         my $last_modified = $lstat[9];
@@ -233,7 +233,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = $message_to;
-        $response->[PAYLOAD] = join q{}, 'update:', $their_path_entry, "\n";
+        $response->[PAYLOAD] = join q(), 'update:', $their_path_entry, "\n";
         $self->SUPER::fill($response);
     }
     scrub();

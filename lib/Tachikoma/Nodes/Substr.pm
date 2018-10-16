@@ -48,7 +48,7 @@ sub fill {
     my @matches = $payload =~ m{$self->{pattern}};
     return $self->cancel($message) if ( not @matches );
     my $copy = bless [ @{$message} ], ref $message;
-    $payload = join q{}, @matches;
+    $payload = join q(), @matches;
     $payload .= "\n" if ( substr( $payload, -1, 1 ) ne "\n" );
     $copy->[PAYLOAD] = $payload;
     return $self->SUPER::fill($copy);

@@ -221,7 +221,7 @@ sub new {
     my $class        = ref($proto) || $proto;
     my $flags        = shift || 0;
     my $self         = $class->SUPER::new;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     $self->{type}             = 'socket';
     $self->{flags}            = $flags;
     $self->{on_EOF}           = 'close';
@@ -440,7 +440,7 @@ sub start_SSL_connection {
     $self->register_writer_node;
     if ( $self->{flags} & TK_SYNC ) {
 
-        # my $peer = join q{},
+        # my $peer = join q(),
         #     'authority: "',
         #     $fh->peer_certificate('authority'),
         #     '" owner: "',
@@ -481,7 +481,7 @@ sub init_SSL_connection {
     my $fh     = $self->{fh};
     my $method = $type eq 'connect' ? 'connect_SSL' : 'accept_SSL';
     if ( $fh and $fh->$method ) {
-        my $peer = join q{},
+        my $peer = join q(),
             'authority: "',
             $fh->peer_certificate('authority'),
             '" owner: "',
@@ -581,7 +581,7 @@ sub reply_to_server_challenge {
     if ( $got > 0 ) {
         $self->stderr(
             "WARNING: discarding $got extra bytes from server challenge.");
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
     return;
@@ -745,7 +745,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message = eval {
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         };
         if ( not $message ) {
             my $trap = $@ // 'unknown error';
@@ -810,7 +810,7 @@ sub drain_buffer {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
@@ -1077,7 +1077,7 @@ sub dns_lookup {
 
 sub dump_config {    ## no critic (ProhibitExcessComplexity)
     my $self     = shift;
-    my $response = q{};
+    my $response = q();
     if ( $self->{type} eq 'listen' ) {
         $response = $self->{filename} ? 'listen_unix' : 'listen_inet';
         if ( ref $self eq 'Tachikoma::Nodes::STDIO' ) {

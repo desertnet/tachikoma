@@ -27,7 +27,7 @@ my %Exclusive = map { $_ => 1 } qw(
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{op}    = q{};
+    $self->{op}    = q();
     $self->{pools} = [];
     bless $self, $class;
     return $self;
@@ -37,7 +37,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{op}        = q{};
+        $self->{op}        = q();
         $self->{pools}     = [];
     }
     return $self->{arguments};
@@ -103,7 +103,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( not keys %{$first_pool} ) {
             shift @{$pools};
             if ( not @{$pools} ) {
-                $self->{op} = q{};
+                $self->{op} = q();
                 $self->stop_timer;
                 return 1;
             }
@@ -119,7 +119,7 @@ sub fire {
 
     # empty all the pools so the buffer can refill them
     $self->stderr('WARNING: emptying event pools');
-    $self->{op}    = q{};
+    $self->{op}    = q();
     $self->{pools} = [];
     $self->stop_timer;
     return;

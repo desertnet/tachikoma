@@ -85,7 +85,7 @@ sub fill {
     return $self->drop_message( $message, 'message not addressed' )
         if ( not $to );
     return $self->drop_message( $message, 'path exceeded 1024 bytes' )
-        if ( length( $message->[FROM] // q{} ) > 1024 );
+        if ( length( $message->[FROM] // q() ) > 1024 );
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name};
     return $self->send_error( $message, "NOT_AVAILABLE\n" ) if ( not $node );
@@ -132,12 +132,12 @@ sub drop_message {
     $self->print_less_often(
               "WARNING: $error - "
             . $message->type_as_string
-            . ( $message->from ? ' from: ' . $message->from : q{} )
-            . ( $message->to   ? ' to: ' . $message->to     : q{} )
+            . ( $message->from ? ' from: ' . $message->from : q() )
+            . ( $message->to   ? ' to: ' . $message->to     : q() )
             . (
             ( $message->type == TM_INFO or $message->type == TM_ERROR )
             ? ' payload: ' . $message->payload
-            : q{}
+            : q()
             )
     );
     return;

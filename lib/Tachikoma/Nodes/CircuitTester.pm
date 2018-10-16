@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: CircuitTester.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::CircuitTester;
@@ -146,7 +146,7 @@ $C{list_circuits} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $glob     = $command->arguments;
-    my $response = q{};
+    my $response = q();
     for my $path ( sort keys %{ $self->patron->circuits } ) {
         $response .= "$path\n" if ( not $glob or $path =~ $glob );
     }
@@ -217,12 +217,12 @@ $C{list_waiting} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $waiting  = $self->patron->waiting;
-    my $response = q{};
+    my $response = q();
     for my $path ( sort keys %{$waiting} ) {
         $response .= sprintf "%-70s %9d\n",
             $path, $Tachikoma::Now - $waiting->{$path};
     }
-    $response = "none - all nodes have responded\n" if ( $response eq q{} );
+    $response = "none - all nodes have responded\n" if ( $response eq q() );
     return $self->response( $envelope, $response );
 };
 
@@ -233,12 +233,12 @@ $C{list_offline} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $waiting  = $self->patron->waiting;
-    my $response = q{};
+    my $response = q();
     for my $path ( sort keys %{ $self->patron->offline } ) {
         $response .= sprintf "%-70s %9d\n",
             $path, $Tachikoma::Now - $waiting->{$path};
     }
-    $response = "none - all nodes are online\n" if ( $response eq q{} );
+    $response = "none - all nodes are online\n" if ( $response eq q() );
     return $self->response( $envelope, $response );
 };
 
@@ -249,11 +249,11 @@ $C{list_disabled} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $circuits = $self->patron->circuits;
-    my $response = q{};
+    my $response = q();
     for my $path ( sort keys %{$circuits} ) {
         $response .= "$path\n" if ( not $circuits->{$path} );
     }
-    $response = "none - all nodes are enabled\n" if ( $response eq q{} );
+    $response = "none - all nodes are enabled\n" if ( $response eq q() );
     return $self->response( $envelope, $response );
 };
 
@@ -266,12 +266,12 @@ $C{list_times} = sub {
     my $patron   = $self->patron;
     my $times    = $patron->round_trip_times;
     my $glob     = $command->arguments;
-    my $response = q{};
+    my $response = q();
     for my $path ( sort keys %{$times} ) {
         $response .= sprintf "%-70s %6.2f ms\n", $path, $times->{$path} * 1000
             if ( not $glob or $path =~ $glob );
     }
-    if ( $response ne q{} ) {
+    if ( $response ne q() ) {
         return $self->response( $envelope, $response );
     }
     else {

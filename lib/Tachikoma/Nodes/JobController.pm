@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: JobController.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -83,8 +83,8 @@ sub fill {
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
-        my $to        = $message->[TO]             || q{};
-        my $job_owner = $job->{connector}->{owner} || q{};
+        my $to        = $message->[TO]             || q();
+        my $job_owner = $job->{connector}->{owner} || q();
         my $job_edge  = $job->{connector}->{edge};
         $message->[FROM] = $from
             if ($next
@@ -174,7 +174,7 @@ $C{list_jobs} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     my $jobs     = $self->patron->jobs;
     if ( $command->arguments eq '-a' ) {
         $response = join( "\n", sort keys %{$jobs} ) . "\n";
@@ -562,7 +562,7 @@ sub remove_node {
 
 sub dump_config {
     my $self     = shift;
-    my $response = q{};
+    my $response = q();
     if ( not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') ) {
         $response = $self->SUPER::dump_config;
         my $jobs = $self->{jobs};
@@ -648,7 +648,7 @@ sub config {
     }
     if ( not $config ) {
         if ( $self->{username} ) {
-            $config = join q{},
+            $config = join q(),
                 '/usr/local/etc/tachikoma-', $self->{username}, '.conf';
         }
         else {

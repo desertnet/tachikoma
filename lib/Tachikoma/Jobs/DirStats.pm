@@ -27,7 +27,7 @@ my $Default_Max_Files = 256;
 my $Default_Port      = 5600;
 
 # my $Separator         = chr 0;
-my $Separator = join q{}, chr 30, q{ -> }, chr 30;
+my $Separator = join q(), chr 30, q{ -> }, chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -42,7 +42,7 @@ sub initialize_graph {
     my ( $prefix, $target_settings, $max_files, $pedantic ) =
         split q( ), $self->arguments, 4;
     my ( $host, $port ) = split m{:}, $target_settings, 2;
-    $prefix ||= q{};
+    $prefix ||= q();
     $prefix =~ s{^'|'$}{}g;
     $host      ||= 'localhost';
     $port      ||= $Default_Port;
@@ -144,7 +144,7 @@ sub send_stats {
         my $update = shift @updates;
         if ($update) {
             my $relative = ( split m{:}, $update, 2 )[1];
-            $self->send_update( join q{}, 'update:', $prefix, q(/),
+            $self->send_update( join q(), 'update:', $prefix, q(/),
                 $relative );
             $count++;
         }
@@ -184,7 +184,7 @@ sub explore_path {
     $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
     $message->[TO]      = 'DirStats:tee';
     $message->[STREAM]  = $path;
-    $message->[PAYLOAD] = join q{}, @{$out};
+    $message->[PAYLOAD] = join q(), @{$out};
     $target->fill($message);
     ${$count}++;
     $total++;
@@ -216,7 +216,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     my $relative = undef;
     my $is_svn   = ( $path =~ m{/.svn$} );
     if ( $path eq $prefix ) {
-        $relative = q{};
+        $relative = q();
     }
     elsif ( $path =~ m{^$prefix/(.*)$} ) {
         $relative = $1;
@@ -227,7 +227,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @entries = readdir $dh;
     closedir $dh or die "ERROR: couldn't closedir $path: $!";
-    my @out = ( join q{}, $relative, "\n" );
+    my @out = ( join q(), $relative, "\n" );
     my @directories = ();
     for my $entry (@entries) {
         next
@@ -257,7 +257,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             close $fh
                 or die "ERROR: couldn't close $path_entry: $!";
         }
-        $entry = join q{}, $entry, $Separator, readlink $path_entry
+        $entry = join q(), $entry, $Separator, readlink $path_entry
             if ( $stat eq 'L' );
         push @out,
             join( q( ),

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Watcher.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -141,7 +141,7 @@ sub fire {
     elsif ( not kill 0, $self->{pid} and $! eq 'No such process' ) {
         if ( $self->{orly} ) {
             $kevent->[KQ_FFLAGS] = NOTE_EXIT;
-            $kevent->[KQ_DATA]   = q{};
+            $kevent->[KQ_DATA]   = q();
             $self->stderr(
                 "WARNING: KQueue missed process exit, working around...\n")
                 if ($Can_KQueue);

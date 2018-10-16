@@ -206,12 +206,12 @@ $C{averages} = sub {
     my $self      = shift;
     my $command   = shift;
     my $envelope  = shift;
-    my $response  = q{};
+    my $response  = q();
     my $patron    = $self->patron;
     my $calculate = sub {
         my $this     = shift;
         my $count    = shift;
-        my $last_t   = join q{}, 'last_', $this;
+        my $last_t   = join q(), 'last_', $this;
         my @averages = ( @{ $patron->{$last_t} }, @{ $patron->{$this} } );
         splice @averages, 0, @averages - $count;
         my $average = 0;
@@ -225,7 +225,7 @@ $C{averages} = sub {
     my $hour_avg           = $patron->calculate( 'hour',           60 );
     my $day_avg            = $patron->calculate( 'day',            24 );
     if ( $command->arguments ne '-s' ) {
-        $response = join q{},
+        $response = join q(),
             'one minute average:     ', $one_minute_avg,     "\n",
             'five minute average:    ', $five_minute_avg,    "\n",
             'fifteen minute average: ', $fifteen_minute_avg, "\n",
@@ -233,7 +233,7 @@ $C{averages} = sub {
             'day average:            ', $day_avg,            "\n";
     }
     else {
-        $response = join q{},
+        $response = join q(),
             'one_min_avg:',     $one_minute_avg,     q( ),
             'five_min_avg:',    $five_minute_avg,    q( ),
             'fifteen_min_avg:', $fifteen_minute_avg, q( ),
@@ -269,7 +269,7 @@ sub calculate {
     my $self     = shift;
     my $this     = shift;
     my $count    = shift;
-    my $last_t   = join q{}, 'last_', $this;
+    my $last_t   = join q(), 'last_', $this;
     my @averages = ( @{ $self->{$last_t} }, @{ $self->{$this} } );
     splice @averages, 0, @averages - $count if ( @averages > $count );
     my $average = 0;

@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Tachikoma.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma;
@@ -61,7 +61,7 @@ $Tachikoma::Profiles          = undef;
 %Tachikoma::Recent_Log_Timers = ();
 $Tachikoma::Shutting_Down     = undef;
 $Tachikoma::Scheme            = 'rsa';
-$Tachikoma::SSL_Ciphers       = q{};
+$Tachikoma::SSL_Ciphers       = q();
 $Tachikoma::SSL_Version       = 'TLSv1';
 
 sub unix_client {
@@ -144,7 +144,7 @@ sub inet_client {
 sub new {
     my $class        = shift;
     my $fh           = shift;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     my $self         = $class->SUPER::new;
     $self->{name}           = $$;
     $self->{fh}             = $fh;
@@ -215,7 +215,7 @@ sub reply_to_server_challenge {
     if ( $got > 0 ) {
         print {*STDERR}
             "WARNING: discarding $got excess bytes from server challenge.\n";
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
     return;
@@ -254,7 +254,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         return ( $got, $message );
     }
@@ -294,7 +294,7 @@ sub drain {
         my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         while ( $got >= $size and $size > 0 ) {
             my $message =
-                Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+                Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
             $got -= $size;
 
             # XXX:M
@@ -324,7 +324,7 @@ sub drain_cycle {
     my $rv = 1;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
 
         # XXX:M
@@ -469,7 +469,7 @@ sub copy_variables {
     for my $name (@CONFIG_VARIABLES) {
         my $value = undef;
         if ( ref $Var{$name} ) {
-            $value = join q{}, @{ $Var{$name} };
+            $value = join q(), @{ $Var{$name} };
         }
         else {
             $value = $Var{$name};
@@ -618,7 +618,7 @@ sub pid_file {
         $pid_file = $Tachikoma{Pid_File};
     }
     elsif ( $Tachikoma{Pid_Dir} ) {
-        $pid_file = join q{}, $Tachikoma{Pid_Dir}, q(/), $name, '.pid';
+        $pid_file = join q(), $Tachikoma{Pid_Dir}, q(/), $name, '.pid';
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -634,7 +634,7 @@ sub log_file {
         $log_file = $Tachikoma{Log_File};
     }
     elsif ( $Tachikoma{Log_Dir} ) {
-        $log_file = join q{}, $Tachikoma{Log_Dir}, q(/), $name, '.log';
+        $log_file = join q(), $Tachikoma{Log_Dir}, q(/), $name, '.log';
     }
     else {
         die "ERROR: couldn't determine log_file\n";
@@ -850,7 +850,7 @@ sub WRITE {
 
 sub PRINT {
     my ( $self, @args ) = @_;
-    my @msg = grep { defined and $_ ne q{} } @args;
+    my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
     push @Tachikoma::Recent_Log, @msg;
     shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );
@@ -859,7 +859,7 @@ sub PRINT {
 
 sub PRINTF {
     my ( $self, $fmt, @args ) = @_;
-    my @msg = grep { defined and $_ ne q{} } @args;
+    my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
     push @Tachikoma::Recent_Log, sprintf $fmt, @msg;
     shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );

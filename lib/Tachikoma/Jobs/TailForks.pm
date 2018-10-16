@@ -127,7 +127,7 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        my $response = q{};
+        my $response = q();
         for my $file ( sort keys %{ $self->tails } ) {
             $response .= "$file\n";
         }

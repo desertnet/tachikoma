@@ -39,7 +39,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{path}   = undef;
-    $self->{prefix} = q{};
+    $self->{prefix} = q();
     bless $self, $class;
     return $self;
 }
@@ -62,15 +62,15 @@ sub fill {
     my $request = $message->payload;
     my $headers = $request->{headers};
     my $uri     = $request->{path};
-    my $path    = ( $uri =~ m{^(/[\w:./~-]*)} )[0] || q{};
+    my $path    = ( $uri =~ m{^(/[\w:./~-]*)} )[0] || q();
     $path =~ s{/[.][.](?=/)}{}g;
     $path =~ s{/+}{/}g;
     my $url    = $path;
     my $prefix = $self->{prefix};
     $path =~ s{^$prefix}{};
-    my $filename        = join q{}, $self->{path}, $path;
+    my $filename        = join q(), $self->{path}, $path;
     my $if_modified     = $headers->{'if-modified-since'};
-    my $accept_encoding = $headers->{'accept-encoding'} || q{};
+    my $accept_encoding = $headers->{'accept-encoding'} || q();
     my $response        = Tachikoma::Message->new;
     $response->[TYPE]   = TM_BYTESTREAM;
     $response->[TO]     = $message->[FROM];
@@ -78,7 +78,7 @@ sub fill {
 
     if ( -d $filename ) {
         $url =~ s{/$}{};
-        $response->[PAYLOAD] = join q{},
+        $response->[PAYLOAD] = join q(),
             "HTTP/1.1 302 FOUND\n",
             'Date: ', cached_strftime(), "\n",
             "Server: Tachikoma\n",
@@ -95,7 +95,7 @@ sub fill {
         return $self->{sink}->fill($response);
     }
     elsif ( not -r _ ) {
-        $response->[PAYLOAD] = join q{},
+        $response->[PAYLOAD] = join q(),
             "HTTP/1.1 404 NOT FOUND\n",
             'Date: ', cached_strftime(), "\n",
             "Server: Tachikoma\n",
@@ -114,7 +114,7 @@ sub fill {
         my $last_modified = ( stat _ )[9];
         my $date          = get_time($if_modified);
         if ( $last_modified <= $date ) {
-            $response->[PAYLOAD] = join q{}, "HTTP/1.1 304 Not Modified\n",
+            $response->[PAYLOAD] = join q(), "HTTP/1.1 304 Not Modified\n",
                 'Date: ', cached_strftime(), "\n",
                 "Server: Tachikoma\n",
                 "Connection: close\n",
@@ -131,7 +131,7 @@ sub fill {
     $self->stderr("WARNING: no mime type set for $type")
         if ( not $Types{$type} );
     my @stat = stat $filename;
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 200 OK\n",
         'Date: ', cached_strftime(), "\n",
         strftime( "Last-Modified: %a, %d %b %Y %T GMT\n", gmtime $stat[9] ),

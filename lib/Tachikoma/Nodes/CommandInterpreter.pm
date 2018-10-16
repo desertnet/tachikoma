@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: CommandInterpreter.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -117,7 +117,7 @@ sub interpret {
             $message,
             $self->response(
                 $message,
-                join q{}, ref( $self->{patron} || $self->{sink} ), '> '
+                join q(), ref( $self->{patron} || $self->{sink} ), '> '
             )
         );
     }
@@ -148,7 +148,7 @@ sub interpret {
             'unrecognized command: '
                 . $cmd_name
                 . (
-                $command->{arguments} ne q{}
+                $command->{arguments} ne q()
                 ? q( ) . $command->{arguments} . "\n"
                 : "\n"
                 )
@@ -182,7 +182,7 @@ sub call_function {
     };
     $self->stderr( $@ // 'ERROR: call_function: unknown error' )
         if ( not $okay );
-    return $self->response( $envelope, join q{}, @{$rv} );
+    return $self->response( $envelope, join q(), @{$rv} );
 }
 
 sub send_response {
@@ -222,13 +222,13 @@ sub topical_help {
     my $h        = $self->help_topics;
     my $l        = $self->help_links;
     if ( $Help{$glob} ) {
-        return $self->response( $envelope, join q{}, @{ $Help{$glob} } );
+        return $self->response( $envelope, join q(), @{ $Help{$glob} } );
     }
     elsif ( $h->{$glob} ) {
-        return $self->response( $envelope, join q{}, @{ $h->{$glob} } );
+        return $self->response( $envelope, join q(), @{ $h->{$glob} } );
     }
     elsif ( $l->{$glob} ) {
-        return $self->response( $envelope, join q{}, @{ $l->{$glob} } );
+        return $self->response( $envelope, join q(), @{ $l->{$glob} } );
     }
     my $type = ( $glob =~ m{^([\w:]+)$} )[0];
     if ($type) {
@@ -248,11 +248,11 @@ sub topical_help {
         }
     }
     my $output = undef;
-    if ( $glob ne q{} ) {
+    if ( $glob ne q() ) {
         $output = $self->tabulate_help( $glob, \%Help, $h );
     }
     else {
-        $output = join q{},
+        $output = join q(),
             "### SHELL BUILTINS ###\n",
             $self->tabulate_help( $glob, \%Help ),
             "\n### SERVER COMMANDS ###\n",
@@ -272,8 +272,8 @@ sub tabulate_help {
     my @unsorted = ();
     my @topics   = ();
     my $row      = [];
-    my $output   = q{};
-    if ( $glob ne q{} ) {
+    my $output   = q();
+    if ( $glob ne q() ) {
         @unsorted = grep m{$glob}, keys %{$_} for (@groups);
     }
     else {
@@ -335,19 +335,19 @@ $C{list_nodes} = sub {
     push @{ $response->[0] }, 'left' if ($show_sink);
     push @{ $response->[0] }, 'left' if ($show_edge);
     for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $list_matches and $glob ne q{} and $name !~ m{$glob} );
+        next if ( $list_matches and $glob ne q() and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
         my $sink = (
               $node->{sink}
             ? $node->{sink}->{name} // '--UNKNOWN--'
-            : q{}
+            : q()
         );
         my $edge = (
               $node->{edge}
             ? $node->{edge}->{name} // '--UNKNOWN--'
-            : q{}
+            : q()
         );
-        my $owner = q{};
+        my $owner = q();
         my @row   = ();
         if ( not $list_matches ) {
 
@@ -379,7 +379,7 @@ $C{list_nodes} = sub {
         push @row, $owner ? "-> $owner" : q( ) if ($show_owner);
         push @{$response}, \@row;
     }
-    if ( $list_matches and $glob and $response eq q{} ) {
+    if ( $list_matches and $glob and $response eq q() ) {
         push @{$response}, ['no matches'];
     }
     return $self->response( $envelope, $self->tabulate($response) );
@@ -406,7 +406,7 @@ $C{list_fds} = sub {
         my $name   = $node->{name} || 'unknown';
         my $type   = $node->{type} || 'unknown';
         my $sortby = $list_types ? $type : $name;
-        next if ( $glob ne q{} and $sortby !~ m{$glob} );
+        next if ( $glob ne q() and $sortby !~ m{$glob} );
         push @{$response}, [ $fd, $node->{type}, $name ];
     }
     return $self->response( $envelope, $self->tabulate($response) );
@@ -429,7 +429,7 @@ $C{list_ids} = sub {
     for my $id ( sort { $a <=> $b } keys %{$nodes} ) {
         my $node = $nodes->{$id};
         my $name = $node->{name} || 'unknown';
-        next if ( $glob ne q{} and $name !~ m{$glob} );
+        next if ( $glob ne q() and $name !~ m{$glob} );
         my $is_active = $node->timer_is_active;
         my $interval  = $node->timer_interval;
         if ( defined $interval ) {
@@ -468,7 +468,7 @@ $C{list_reconnecting} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     for my $node ( @{ Tachikoma->nodes_to_reconnect } ) {
         $response .= $node->{name} . "\n" if ( $node->{name} );
     }
@@ -653,7 +653,7 @@ $C{remove_node} = sub {
         sort keys %Tachikoma::Nodes
         : $glob
     );
-    my $out = q{};
+    my $out = q();
     for my $name (@names) {
         my $node = $Tachikoma::Nodes{$name};
         my $sink = $node->{sink};
@@ -694,15 +694,15 @@ $C{dump_metadata} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     for my $name ( sort keys %Tachikoma::Nodes ) {
         my $node     = $Tachikoma::Nodes{$name};
         my $received = $node->{counter};
         my $sent     = $node->{counter};
-        my $sink     = $node->{sink} ? $node->{sink}->{name} : q{};
+        my $sink     = $node->{sink} ? $node->{sink}->{name} : q();
         my $owner    = $node->owner;
         my $class    = ref $node;
-        my $type     = q{};
+        my $type     = q();
         my @extra    = ();
         if ( $node->isa('Tachikoma::Nodes::FileHandle') ) {
 
@@ -750,7 +750,7 @@ $C{dump_metadata} = sub {
         }
         $owner = join q{, }, @{$owner} if ( ref $owner eq 'ARRAY' );
         $response .= join( q(|),
-            $received, $sent, $name, $sink, $owner || q{},
+            $received, $sent, $name, $sink, $owner || q(),
             $class, $type, @extra )
             . "\n";
     }
@@ -765,7 +765,7 @@ $C{dump_node} = sub {
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
-    my $response = q{};
+    my $response = q();
     if ( not $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
@@ -823,7 +823,7 @@ $C{dump_hex} = sub {
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
-    my $response = q{};
+    my $response = q();
     if ( not $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
@@ -866,7 +866,7 @@ $C{dump_dec} = sub {
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
-    my $response = q{};
+    my $response = q();
     if ( not $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
@@ -916,7 +916,7 @@ $C{list_connections} = sub {
         ]
     ];
     for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $glob ne q{} and $name !~ m{$glob} );
+        next if ( $glob ne q() and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
         next
             if ( not $node->isa('Tachikoma::Nodes::Socket')
@@ -1608,7 +1608,7 @@ $C{activate} = sub {
         $arguments .= "\n";
     }
     else {
-        $arguments = q{};
+        $arguments = q();
     }
     $node->activate( \$arguments );
     return $self->okay($envelope);
@@ -1647,9 +1647,9 @@ $C{stats} = sub {
         ]
     ];
     for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $list_matches and $glob ne q{} and $name !~ m{$glob} );
+        next if ( $list_matches and $glob ne q() and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
-        my $sink = $node->{sink} ? $node->{sink}->name : q{};
+        my $sink = $node->{sink} ? $node->{sink}->name : q();
         if ( not $list_matches ) {
             if ($glob) {
                 next if ( $sink ne $glob );
@@ -1686,7 +1686,7 @@ $C{dump_config} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $glob     = $command->arguments;
-    my $response = q{};
+    my $response = q();
     my %skip     = ();
     for my $name ( sort keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
@@ -1772,11 +1772,11 @@ $C{list_env} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     if ( $command->arguments ) {
         my $key = $command->arguments;
         if ( $ENV{$key} ) {
-            $response = join q{}, $key, q(=), $ENV{$key}, "\n";
+            $response = join q(), $key, q(=), $ENV{$key}, "\n";
         }
         else {
             return $self->error( $envelope,
@@ -1785,7 +1785,7 @@ $C{list_env} = sub {
     }
     else {
         for my $key ( sort keys %ENV ) {
-            $response .= join q{}, $key, q(=), $ENV{$key}, "\n";
+            $response .= join q(), $key, q(=), $ENV{$key}, "\n";
         }
     }
     return $self->response( $envelope, $response );
@@ -1840,7 +1840,7 @@ $C{remote_var} = sub {
         elsif ( $op eq q{*=} ) { $v->[0] //= 0; $v->[0] *= $value; }
         elsif ( $op eq q{/=} ) { $v->[0] //= 0; $v->[0] /= $value; }
         elsif ( $op eq q{//=} and not @{$v} ) { $v = [$value]; }
-        elsif ( $op eq q{||=} and not join q{}, @{$v} ) { $v = [$value]; }
+        elsif ( $op eq q{||=} and not join q(), @{$v} ) { $v = [$value]; }
         else { return $self->error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
@@ -1867,7 +1867,7 @@ $C{remote_var} = sub {
             }
         }
         else {
-            return $self->response( $envelope, q{} );
+            return $self->response( $envelope, q() );
         }
     }
     else {
@@ -1884,7 +1884,7 @@ $C{remote_var} = sub {
             chomp $line;
             push @response, $line, "\n";
         }
-        return $self->response( $envelope, join q{}, @response );
+        return $self->response( $envelope, join q(), @response );
     }
     return $self->okay($envelope);
 };
@@ -1909,7 +1909,7 @@ $C{remote_func} = sub {
         for my $name ( sort keys %Functions ) {
             push @response, $name, "\n";
         }
-        return $self->response( $envelope, join q{}, @response );
+        return $self->response( $envelope, join q(), @response );
     }
     return $self->okay($envelope);
 };
@@ -1921,7 +1921,7 @@ $C{list_callbacks} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
-    my $response = join q{}, map "$_\n", sort keys %{$callbacks};
+    my $response = join q(), map "$_\n", sort keys %{$callbacks};
     return $self->response( $envelope, $response );
 };
 
@@ -1963,15 +1963,15 @@ $C{dmesg} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $out      = q{};
-    return $self->response( $envelope, join q{}, @Tachikoma::Recent_Log );
+    my $out      = q();
+    return $self->response( $envelope, join q(), @Tachikoma::Recent_Log );
 };
 
 $C{getrusage} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $out      = q{};
+    my $out      = q();
     require BSD::Resource;
     my @rusage = BSD::Resource::getrusage();
     my @labels = qw(
@@ -1997,7 +1997,7 @@ $C{date} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $time     = $command->arguments || $Tachikoma::Now;
-    my $out      = q{};
+    my $out      = q();
     if ( $time eq '-e' ) {
         return $self->response( $envelope, "$Tachikoma::Now\n" );
     }
@@ -2086,7 +2086,7 @@ $C{list_profiles} = sub {
         keys %{$p}
         )
     {
-        next if ( $glob ne q{} and $glob ne 'total' and $key !~ m{$glob} );
+        next if ( $glob ne q() and $glob ne 'total' and $key !~ m{$glob} );
         my $info = $p->{$key};
         $total->{time}  += $info->{time};
         $total->{count} += $info->{count};
@@ -2095,7 +2095,7 @@ $C{list_profiles} = sub {
         $total->{oldest} = $info->{oldest}
             if ( not $total->{oldest} or $info->{oldest} < $total->{oldest} );
         my $age = $info->{timestamp} - $info->{oldest};
-        next if ( $glob ne q{} and $glob eq 'total' );
+        next if ( $glob ne q() and $glob eq 'total' );
         push @responses, sprintf "%12.12s %8.8s %8d %6.6s %8.8s %6d %s\n",
             sprintf( '%.6f', $info->{avg} ),
             sprintf( '%.2f', $info->{time} ), $info->{count},
@@ -2117,7 +2117,7 @@ $C{list_profiles} = sub {
         '--total--';
     push @responses, sprintf "returned %d profiles in %.4f seconds\n",
         $count, Time::HiRes::time - $Tachikoma::Right_Now;
-    return $self->response( $envelope, join q{}, @responses );
+    return $self->response( $envelope, join q(), @responses );
 };
 
 $H{disable_profiling} = ["disable_profiling\n"];
@@ -2400,7 +2400,7 @@ sub make_node {
     my $node = $class->new;
     my $okay = eval {
         $node->name($name);
-        $node->arguments( $arguments // q{} );
+        $node->arguments( $arguments // q() );
         $node->owner($owner) if ( length $owner );
         $node->sink($self);
         return 1;
@@ -2421,7 +2421,7 @@ sub make_node {
 sub connect_inet {
     my ( $self, %options ) = @_;
     my $host      = $options{host};
-    my $port      = $options{port} || q{};
+    my $port      = $options{port} || q();
     my $name      = $options{name} || $host;
     my $mode      = $options{mode} || 'message';
     my $reconnect = $options{reconnect};
@@ -2540,7 +2540,7 @@ sub tabulate {
             if ( $show_title
             and length $header->[$col]->[0] > ( $max[$col] || 0 ) );
         for my $row ( @{$data} ) {
-            $row->[$col] = q{} if ( not defined $row->[$col] );
+            $row->[$col] = q() if ( not defined $row->[$col] );
             $max[$col] = length $row->[$col]
                 if ( length $row->[$col] > ( $max[$col] || 0 ) );
         }
@@ -2548,12 +2548,12 @@ sub tabulate {
     for my $col ( 0 .. $#max ) {
         my $dir = $show_title ? $header->[$col]->[1] : $header->[$col];
         push @format,
-            join q{},
+            join q(),
             ( $dir eq 'left' ? q{%-} : q(%) ),
-            ( $dir eq 'right' or $col < $#max ) ? $max[$col] : q{}, 's';
+            ( $dir eq 'right' or $col < $#max ) ? $max[$col] : q(), 's';
     }
     my $format = join( q( ), @format ) . "\n";
-    my $output = $show_title ? sprintf $format, map $_->[0], @{$header} : q{};
+    my $output = $show_title ? sprintf $format, map $_->[0], @{$header} : q();
     for my $row ( @{$data} ) {
         $output .= sprintf $format, @{$row};
     }

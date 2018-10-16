@@ -37,7 +37,7 @@ my $Lower = 128;
 my $Upper = 256;
 
 # my $Separator = chr(0);
-my $Separator = join q{}, chr 30, ' -> ', chr 30;
+my $Separator = join q(), chr 30, ' -> ', chr 30;
 my $Home      = ( getpwuid $< )[7];
 my $config    = '/usr/local/etc/tachikoma.conf';
 my $host      = 'localhost';
@@ -167,7 +167,7 @@ for my $hostname ( sort keys %roll ) {
 }
 
 # check intent
-my $intent = q{};
+my $intent = q();
 my $fail   = undef;
 open $fh, '<', join q(/), $prefix, '.intent'
     or die "couldn't open $prefix/.intent: $!\n";
@@ -186,7 +186,7 @@ $tachikoma->callback(
         my $payload = $message->[PAYLOAD];
         chomp $payload;
         if ( $payload ne $intent ) {
-            print {*STDERR} join q{},
+            print {*STDERR} join q(),
                 'wrong intent: "', $payload, q("),
                 ' should be: "',   $intent,  q("),
                 ' from ', $message->from, "\n";
@@ -249,7 +249,7 @@ while (1) {
         for my $update (@updates) {
             my $path = ( split m{:}, $update )[1];
             next if ( $path =~ m{[.]svn/(?:entries|wc[.]db)} );
-            cleanline( join q{}, 'update ', $prefix, q(/), $path );
+            cleanline( join q(), 'update ', $prefix, q(/), $path );
         }
         last;
     }
@@ -282,7 +282,7 @@ while (1) {
         my $update = shift @updates;
         if ($update) {
             my $relative = ( split m{:}, $update, 2 )[1];
-            send_update( join q{}, 'update:', $prefix, q(/), $relative );
+            send_update( join q(), 'update:', $prefix, q(/), $relative );
         }
         $tachikoma->drain if ( $count >= $Upper );
     }
@@ -319,7 +319,7 @@ sub explore_path {
     $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
     $message->[TO]      = 'DirStats:tee';
     $message->[STREAM]  = $path;
-    $message->[PAYLOAD] = join q{}, @{$out};
+    $message->[PAYLOAD] = join q(), @{$out};
     $tachikoma->fill($message);
     $tachikoma->drain if ( $count >= $Upper );
     explore_path($_) for ( @{$directories} );
@@ -353,7 +353,7 @@ sub cleanline {
     chomp $output;
     my $size = length $output;
     print "\r", $output,
-        ( ( $width > $size ) ? q( ) x ( $width - $size ) : q{} ),
+        ( ( $width > $size ) ? q( ) x ( $width - $size ) : q() ),
         "\n";
     return;
 }

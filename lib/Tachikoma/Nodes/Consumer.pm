@@ -38,7 +38,7 @@ sub new {
     my $self  = $class->SUPER::new;
 
     # async and sync support
-    my $new_buffer = q{};
+    my $new_buffer = q();
     if (@_) {
         $self->{partition} = shift;
         $self->{offsetlog} = shift;
@@ -122,7 +122,7 @@ sub arguments {
         );
         $partition //= shift @{$argv};
         die "ERROR: bad arguments\n" if ( not $r or not $partition );
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{arguments}      = $arguments;
         $self->{partition}      = $partition;
         $self->{offsetlog}      = $offsetlog;
@@ -196,7 +196,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         {
             $self->stderr( 'WARNING: skipping from ',
                 $self->{next_offset}, ' to ', $offset );
-            my $new_buffer = q{};
+            my $new_buffer = q();
             $self->{buffer} = \$new_buffer;
             $self->{offset} = $offset;
         }
@@ -286,7 +286,7 @@ sub drain_buffer {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         if ( $self->{status} ne 'ACTIVE' ) {
             if ( $message->[TYPE] & TM_STORABLE ) {
                 $self->load_cache( $message->payload );
@@ -340,7 +340,7 @@ sub get_batch_async {
     my $offset = $self->{next_offset};
     if ( not defined $offset ) {
         if ( $self->cache_dir ) {
-            my $file = join q{}, $self->{cache_dir}, q(/), $self->{name},
+            my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
                 q{.db};
             $self->load_cache( retrieve($file) ) if ( -f $file );
             $self->stderr( 'INFO: starting from ',
@@ -409,8 +409,8 @@ sub commit_offset_async {
             if ( exists $self->{edge}->{caches} and defined $i );
     }
     if ( $self->{cache_dir} ) {
-        my $file = join q{}, $self->{cache_dir}, q(/), $self->{name}, q{.db};
-        my $tmp = join q{}, $file, '.tmp';
+        my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q{.db};
+        my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
             {   offset => $self->{lowest_offset},
@@ -494,7 +494,7 @@ sub remove_node {
 
 sub dump_config {
     my $self     = shift;
-    my $response = q{};
+    my $response = q();
     if ( not defined $self->{partition_id} ) {
         $response = $self->SUPER::dump_config;
     }
@@ -525,7 +525,7 @@ sub fetch {
     my $request = Tachikoma::Message->new;
     $request->[TYPE]    = TM_INFO;
     $request->[TO]      = $self->{partition};
-    $request->[PAYLOAD] = join q{}, 'GET ', $self->{next_offset}, "\n";
+    $request->[PAYLOAD] = join q(), 'GET ', $self->{next_offset}, "\n";
     $target->callback( $self->get_batch_sync );
     my $okay = eval {
         $target->fill($request);
@@ -555,7 +555,7 @@ sub get_offset {
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->{group} );
         my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q{}, $self->{cache_dir}, q(/), $name, q{.db};
+        my $file = join q(), $self->{cache_dir}, q(/), $name, q{.db};
         $stored         = retrieve($file);
         $self->{offset} = $stored->{offset};
         $self->{cache}  = $stored->{cache};
@@ -568,7 +568,7 @@ sub get_offset {
         $consumer->hub_timeout( $self->hub_timeout );
         while (1) {
             my $messages = $consumer->fetch;
-            my $error    = $consumer->{sync_error} // q{};
+            my $error    = $consumer->{sync_error} // q();
             chomp $error;
             $self->{sync_error} = "GET_OFFSET: $error\n" if ($error);
             $stored = $messages->[-1]->payload if ( @{$messages} );
@@ -612,7 +612,7 @@ sub get_batch_sync {
             {
                 print {*STDERR} 'WARNING: skipping from ',
                     $self->{next_offset}, ' to ', $offset, "\n";
-                my $new_buffer = q{};
+                my $new_buffer = q();
                 $self->{buffer} = \$new_buffer;
                 $self->{offset} = $offset;
             }
@@ -652,7 +652,7 @@ sub get_messages {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
         $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;
@@ -677,8 +677,8 @@ sub commit_offset {
     if ( $self->{cache_dir} ) {
         die "ERROR: no group specified\n" if ( not $self->{group} );
         my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q{}, $self->{cache_dir}, q(/), $name, q{.db};
-        my $tmp = join q{}, $file, '.tmp';
+        my $file = join q(), $self->{cache_dir}, q(/), $name, q{.db};
+        my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
             {   offset => $self->{offset},
@@ -791,7 +791,7 @@ sub next_offset {
     my $self = shift;
     if (@_) {
         $self->{next_offset} = shift;
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{buffer} = \$new_buffer;
         $self->{offset} = undef;
     }

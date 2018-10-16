@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Split.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -24,8 +24,8 @@ my $Counter         = 0;
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{delimiter}   = q{};
-    $self->{line_buffer} = q{};
+    $self->{delimiter}   = q();
+    $self->{line_buffer} = q();
     $self->{messages}    = {};
     bless $self, $class;
     return $self;
@@ -61,7 +61,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
                     next;    # also last
                 }
                 my $payload = $_[0]->{line_buffer} . $line;
-                $_[0]->{line_buffer} = q{};
+                $_[0]->{line_buffer} = q();
                 $_[0]->{edge}->activate( \$payload );
             }
         }
@@ -129,7 +129,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
             $response->[ID]        = $message_id;
             $response->[TIMESTAMP] = $message->[TIMESTAMP];
             $response->[PAYLOAD]   = $self->{line_buffer} . $line;
-            $self->{line_buffer}   = q{};
+            $self->{line_buffer}   = q();
             $rv += $self->{sink}->fill($response) || 0;
             $count++;
         }

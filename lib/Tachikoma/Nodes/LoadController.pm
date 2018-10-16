@@ -259,7 +259,7 @@ $C{list_connectors} = sub {
     for my $id ( sort keys %{$connectors} ) {
         push @output, $Tachikoma::Now - $connectors->{$id}, q( ), $id, "\n";
     }
-    return $self->response( $envelope, join q{}, @output );
+    return $self->response( $envelope, join q(), @output );
 };
 
 $C{ls} = $C{list_connectors};
@@ -332,7 +332,7 @@ $C{list_circuits} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $tees     = $self->patron->circuits;
-    my $response = q{};
+    my $response = q();
     for my $id ( sort keys %{$tees} ) {
         $response .= "$id\n";
     }
@@ -581,7 +581,7 @@ sub add_connector {
         name      => $id,
         host      => $host,
         port      => $port,
-        use_SSL   => $use_SSL ? 1 : q{},
+        use_SSL   => $use_SSL ? 1 : q(),
         reconnect => 1
     ) if ( not $Tachikoma::Nodes{$id} );
     $Tachikoma::Nodes{$id}->register( 'reconnect' => $self->name );
@@ -665,15 +665,15 @@ sub dump_config {
     }
     for my $name ( sort keys %{$buffers} ) {
         my $path = $buffers->{$name};
-        $response .= "  buffer $name" . ( $path ? " $path" : q{} ) . "\n";
+        $response .= "  buffer $name" . ( $path ? " $path" : q() ) . "\n";
     }
     for my $name ( sort keys %{$load_balancers} ) {
         my $path = $load_balancers->{$name};
-        $response .= "  balance $name" . ( $path ? " $path" : q{} ) . "\n";
+        $response .= "  balance $name" . ( $path ? " $path" : q() ) . "\n";
     }
     for my $name ( sort keys %{$tees} ) {
         my $path = $tees->{$name};
-        $response .= "  tee $name" . ( $path ? " $path" : q{} ) . "\n";
+        $response .= "  tee $name" . ( $path ? " $path" : q() ) . "\n";
     }
     $response .= "  circuit_tester $circuit_tester\n" if ($circuit_tester);
     for my $name ( sort keys %{$circuits} ) {

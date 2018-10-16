@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 34674 2018-09-01 08:50:38Z chris $
+# $Id: Config.pm 35265 2018-10-16 06:42:47Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -29,9 +29,9 @@ our %Tachikoma    = (
     Include_Jobs  => ['Accessories::Jobs'],
     Buffer_Size   => 1048576,
 );
-our $ID                  = q{};
-our $Private_key         = q{};
-our $Private_Ed25519_Key = q{};
+our $ID                  = q();
+our $Private_key         = q();
+our $Private_Ed25519_Key = q();
 our %Keys                = ();
 our %SSL_Config          = ();
 our %Forbidden           = ();
@@ -62,7 +62,7 @@ sub include_conf {
     my $script = <$fh>;
     close $fh or die $!;
     ## no critic (ProhibitStringyEval)
-    my $rv = eval join q{},
+    my $rv = eval join q(),
         'package ', $package, ";\n",
         ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
     ## use critic

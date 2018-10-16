@@ -153,7 +153,7 @@ sub new {
     $self->{responder}     = undef;
     $self->{validate}      = undef;
     $self->{errors}        = 0;
-    $self->{parse_buffer}  = q{};
+    $self->{parse_buffer}  = q();
     $self->{callbacks}     = {};
     $self->{message_id}    = undef;
     $self->{dirty}         = undef;
@@ -170,7 +170,7 @@ sub new_func {
     my $self     = shift;
     my $name     = shift;
     my $body     = shift;
-    my $function = join q{}, "func $name {",
+    my $function = join q(), "func $name {",
         $body =~ m{^\s} ? "\n$body};\n" : " $body };\n";
     $Help{$name} = [$function];
     $self->evaluate( $self->parse($function) );
@@ -189,7 +189,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             return $self->sink->fill($message);
         }
         $self->{counter}++;
-        my $parse_buffer = join q{}, $self->parse_buffer, $message->payload;
+        my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
         my $parse_tree = undef;
         $self->parse_buffer(q{});
         local $SIG{INT} = sub { die "^C\n" }
@@ -260,7 +260,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
         next if ( not $parse_tree and $tok->{type} eq 'whitespace' );
         my $this_branch = undef;
         if ( $Partial{$expecting} ) {
-            $parse_tree //= q{};
+            $parse_tree //= q();
             if ( $expecting eq $tok->{type} ) {
                 return $parse_tree;
             }
@@ -303,7 +303,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $this_branch  = $tok;
         }
         elsif ( $Close{ $tok->{type} } ) {
-            $parse_tree //= q{};
+            $parse_tree //= q();
             return $parse_tree if ( $expecting eq $tok->{type} );
             $self->unexpected_tok($tok);
         }
@@ -363,7 +363,7 @@ sub unexpected_tok {
     $self->fatal_parse_error(
         qq(syntax error near unexpected token '$tok->{type}')
             . (
-            $tok->{type} ne 'whitespace' ? qq(: "$tok->{value}->[0]") : q{}
+            $tok->{type} ne 'whitespace' ? qq(: "$tok->{value}->[0]") : q()
             )
     );
     return;
@@ -504,7 +504,7 @@ $Evaluators{'open_paren'} = sub {
     if ( $op and $Operators{$op} ) {
         my @result = &{ $Operators{$op} }(
             join(
-                q{},
+                q(),
                 @{  $self->evaluate(
                         {   type  => $values->[0]->{type},
                             value => [ $inner->[0] ]
@@ -512,7 +512,7 @@ $Evaluators{'open_paren'} = sub {
                     )
                 }
             ),
-            join q{},
+            join q(),
             @{ $self->evaluate( $inner->[2] ) }
         );
         my @padded = ();
@@ -524,7 +524,7 @@ $Evaluators{'open_paren'} = sub {
     }
     else {
         $rv = $self->evaluate( $values->[0] );
-        my $line     = join q{}, @{$rv};
+        my $line     = join q(), @{$rv};
         my $number   = qr{\s*-?(?:\d+(?:[.]\d*)?|[.]\d+)};
         my $operator = qr{\s*(?:[+]|-(?!-)|[*]|/|!=?|<=?|>=?|==)};
         if ( $line =~ m{^$number(?:$operator$number)+\s*$}o ) {
@@ -556,7 +556,7 @@ $Evaluators{'and'} = sub {
     for my $branch ( @{ $raw_tree->{value} } ) {
         next if ( ref $branch and $branch->{type} eq 'whitespace' );
         $rv = $self->evaluate($branch);
-        my $test = join q{}, @{$rv};
+        my $test = join q(), @{$rv};
         $test =~ s{\s+}{}g;
         last if ( not $test );
     }
@@ -570,7 +570,7 @@ $Evaluators{'or'} = sub {
     for my $branch ( @{ $raw_tree->{value} } ) {
         next if ( ref $branch and $branch->{type} eq 'whitespace' );
         $rv = $self->evaluate($branch);
-        my $test = join q{}, @{$rv};
+        my $test = join q(), @{$rv};
         $test =~ s{\s+}{}g;
         last if ($test);
     }
@@ -605,7 +605,7 @@ $Evaluators{'pipe'} = sub {
         # unwrap nested statements
         my $trimmed = $self->trim($func_tree);
         my $first   = $trimmed->{value}->[0];
-        my $type    = ref $first ? $first->{type} : q{};
+        my $type    = ref $first ? $first->{type} : q();
         $func_tree = $first
             if ( $type eq 'open_brace' or $type eq 'open_bracket' );
         push @functions, $func_tree;
@@ -664,8 +664,8 @@ $Builtins{'read'} = sub {
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     my $name_tree  = $parse_tree->{value}->[1];
-    my $name       = q{};
-    $name = join q{}, @{ $self->evaluate($name_tree) } if ($name_tree);
+    my $name       = q();
+    $name = join q(), @{ $self->evaluate($name_tree) } if ($name_tree);
     $self->fatal_parse_error('bad arguments for read')
         if ( @{ $parse_tree->{value} } > 2 );
     $self->stdin->pause if ( $self->{isa_tty} );
@@ -692,7 +692,7 @@ $Builtins{'print'} = sub {
     my $argument_tree = $parse_tree->{value}->[1];
     $self->fatal_parse_error('bad arguments for print')
         if ( @{ $parse_tree->{value} } > 2 );
-    my $output = join q{}, @{ $self->evaluate($argument_tree) };
+    my $output = join q(), @{ $self->evaluate($argument_tree) };
     syswrite STDOUT, $output or die if ( length $output );
     return [];
 };
@@ -722,15 +722,15 @@ for my $type (qw( local var )) {
         $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
         $value_tree = $self->fake_tree( 'open_paren', $values, $i );
         my $hash = ( $type eq 'local' ) ? \%Local : \%Var;
-        my $key = join q{}, @{ $self->evaluate($key_tree) };
-        my $op  = join q{}, @{ $self->evaluate($op_tree) };
+        my $key = join q(), @{ $self->evaluate($key_tree) };
+        my $op  = join q(), @{ $self->evaluate($op_tree) };
         my $rv  = [];
 
         if ( length $op ) {
             $rv = $self->operate( $key, $op, $value_tree, $hash );
         }
         elsif ( length $key ) {
-            $hash->{$key} //= q{};
+            $hash->{$key} //= q();
             if ( ref $hash->{$key} ) {
                 $rv = $hash->{$key};
             }
@@ -748,12 +748,12 @@ for my $type (qw( local var )) {
                         . '"]';
                 }
                 else {
-                    $output .= $hash->{$key} // q{};
+                    $output .= $hash->{$key} // q();
                 }
                 chomp $output;
                 push @{$rv}, "$output\n";
             }
-            my $output = join q{}, @{$rv};
+            my $output = join q(), @{$rv};
             syswrite STDOUT, $output or die if ($output);
             $rv = [];
         }
@@ -769,7 +769,7 @@ $Builtins{'shift'} = sub {
     my $parse_tree = $self->trim($raw_tree);
     my $key_tree   = $parse_tree->{value}->[1];
     my $key        = q(@);
-    $key = join q{}, @{ $self->evaluate($key_tree) } if ($key_tree);
+    $key = join q(), @{ $self->evaluate($key_tree) } if ($key_tree);
     $self->fatal_parse_error('bad arguments for shift')
         if ( @{ $parse_tree->{value} } > 2 );
     my $hash = undef;
@@ -788,13 +788,13 @@ $Builtins{'shift'} = sub {
     my $value = $hash->{$key};
     my $rv    = undef;
     if ( ref $value ) {
-        $rv = [ shift @{$value} // q{} ];
+        $rv = [ shift @{$value} // q() ];
         shift @{$value} if ( @{$value} and $value->[0] =~ m{^\s*$} );
-        $hash->{$key} = q{} if ( not @{$value} );
+        $hash->{$key} = q() if ( not @{$value} );
     }
     else {
         $rv = [$value];
-        $hash->{$key} = q{};
+        $hash->{$key} = q();
     }
     return $rv;
 };
@@ -810,7 +810,7 @@ $Builtins{'while'} = sub {
     $self->fatal_parse_error('missing argument') if ( not $then_tree );
     $self->fatal_parse_error('bad arguments for while')
         if ( @{ $parse_tree->{value} } > 3 );
-    my $test = join q{}, @{ $self->evaluate($test_tree) };
+    my $test = join q(), @{ $self->evaluate($test_tree) };
     $test =~ s{^\s*|\s*$}{}g;
     my $rv = [];
 
@@ -840,7 +840,7 @@ $Builtins{'if'} = sub {
         my $i = 3;
         while ( $i <= $#{ $parse_tree->{value} } - 1 ) {
             my $cane = $parse_tree->{value}->[ $i++ ];
-            my $sugar = join q{}, @{ $self->evaluate($cane) };
+            my $sugar = join q(), @{ $self->evaluate($cane) };
             if ( $sugar eq 'elsif' ) {
                 my $elsif = $parse_tree->{value}->[ $i++ ];
                 my $then  = $parse_tree->{value}->[ $i++ ];
@@ -864,7 +864,7 @@ $Builtins{'if'} = sub {
                 . scalar @{ $parse_tree->{value} } )
             if ( $i != @{ $parse_tree->{value} } );
     }
-    my $test = join q{}, @{ $self->evaluate($test_tree) };
+    my $test = join q(), @{ $self->evaluate($test_tree) };
     $test =~ s{^\s*|\s*$}{}g;
     my $rv = [];
     if ($test) {
@@ -873,7 +873,7 @@ $Builtins{'if'} = sub {
     elsif (@elsif_tests) {
         my $i = 0;
         while ( $i < @elsif_tests ) {
-            $test = join q{}, @{ $self->evaluate( $elsif_tests[$i] ) };
+            $test = join q(), @{ $self->evaluate( $elsif_tests[$i] ) };
             $test =~ s{^\s*|\s*$}{}g;
             if ($test) {
                 $rv = $self->evaluate( $elsif_trees[$i] );
@@ -910,7 +910,7 @@ $Builtins{'not'} = sub {
     my $self      = shift;
     my $raw_tree  = shift;
     my $test_tree = $self->fake_tree( 'open_paren', $raw_tree->{value}, 1 );
-    my $test      = join q{}, @{ $self->evaluate($test_tree) };
+    my $test      = join q(), @{ $self->evaluate($test_tree) };
     $test =~ s{^\s*|\s*$}{}g;
     return [ not $test ];
 };
@@ -936,7 +936,7 @@ $Builtins{'for'} = sub {
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $do_tree = $values->[ $i++ ];
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
-    my $var = join q{}, @{ $self->evaluate($var_tree) };
+    my $var = join q(), @{ $self->evaluate($var_tree) };
     $self->fatal_parse_error('bad arguments in for loop')
         if ( not ref $each_tree
         or not @{ $each_tree->{value} }
@@ -979,7 +979,7 @@ $Builtins{'eval'} = sub {
     $self->fatal_parse_error('bad arguments for eval')
         if ( @{ $parse_tree->{value} } > 2 );
     if ($text_tree) {
-        my $text = join q{}, @{ $self->evaluate($text_tree) };
+        my $text = join q(), @{ $self->evaluate($text_tree) };
         $rv = $self->evaluate( $self->parse($text) );
     }
     return $rv;
@@ -994,7 +994,7 @@ $Builtins{'include'} = sub {
     $self->fatal_parse_error('bad arguments for include')
         if ( not $parse_tree );
     my $path_tree = $parse_tree->{value}->[1];
-    my $relative  = join q{}, @{ $self->evaluate($path_tree) };
+    my $relative  = join q(), @{ $self->evaluate($path_tree) };
     my @arguments = ();
     my %new_local = ();
     my %old       = ();
@@ -1023,9 +1023,9 @@ $Builtins{'include'} = sub {
         $self->fatal_parse_error("expected string, got $value_tree->{type}\n")
             if (not $Ident{ $value_tree->{type} }
             and not $Strings{ $value_tree->{type} } );
-        my $key   = join q{}, @{ $self->evaluate($key_tree) };
-        my $op    = join q{}, @{ $self->evaluate($op_tree) };
-        my $value = join q{}, @{ $self->evaluate($value_tree) };
+        my $key   = join q(), @{ $self->evaluate($key_tree) };
+        my $op    = join q(), @{ $self->evaluate($op_tree) };
+        my $value = join q(), @{ $self->evaluate($value_tree) };
         $self->fatal_parse_error("expected =, got $op")
             if ( $op ne q(=) );
         $new_local{$key} = $value;
@@ -1068,7 +1068,7 @@ $Builtins{'func'} = sub {
     my $rv         = [];
     $self->fatal_parse_error('bad arguments for func')
         if ( $parse_tree and @{ $parse_tree->{value} } > 3 );
-    $name = join q{}, @{ $self->evaluate($name_tree) } if ($name_tree);
+    $name = join q(), @{ $self->evaluate($name_tree) } if ($name_tree);
 
     if ($func_tree) {
         $Functions{$name} = $func_tree;
@@ -1081,7 +1081,7 @@ $Builtins{'func'} = sub {
         for my $key ( sort keys %Functions ) {
             push @{$rv}, "$key\n";
         }
-        my $output = join q{}, @{$rv};
+        my $output = join q(), @{$rv};
         syswrite STDOUT, $output or die if ($output);
         $rv = [];
     }
@@ -1100,7 +1100,7 @@ $Builtins{'remote_func'} = sub {
     my $rv         = [];
     $self->fatal_parse_error('bad arguments for func')
         if ( $parse_tree and @{ $parse_tree->{value} } > 3 );
-    $name = join q{}, @{ $self->evaluate($name_tree) } if ($name_tree);
+    $name = join q(), @{ $self->evaluate($name_tree) } if ($name_tree);
     $self->_send_command( 'remote_func', $name,
         $func_tree ? nfreeze($func_tree) : undef )
         if ( not $self->{validate} );
@@ -1116,7 +1116,7 @@ $Builtins{'return'} = sub {
     my $value_tree = $parse_tree->{value}->[1];
     $self->fatal_parse_error('bad arguments for return')
         if ( @{ $parse_tree->{value} } > 2 );
-    my $value = join q{}, @{ $self->evaluate($value_tree) };
+    my $value = join q(), @{ $self->evaluate($value_tree) };
     die "RV:$value\n";
 };
 
@@ -1131,7 +1131,7 @@ $Builtins{'die'} = sub {
         if ( @{ $parse_tree->{value} } > 2 );
     delete $self->callbacks->{ $self->message_id }
         if ( $self->{message_id} );
-    my $value = join q{}, @{ $self->evaluate($value_tree) };
+    my $value = join q(), @{ $self->evaluate($value_tree) };
     die "DIE:$value\n";
 };
 
@@ -1158,8 +1158,8 @@ $Builtins{'on'} = sub {
     my $event_tree = shift @values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
     my $func_tree = $self->fake_tree( 'open_brace', \@values );
-    my $name  = join q{}, @{ $self->evaluate($name_tree) };
-    my $event = join q{}, @{ $self->evaluate($event_tree) };
+    my $name  = join q(), @{ $self->evaluate($name_tree) };
+    my $event = join q(), @{ $self->evaluate($event_tree) };
     $self->_send_command( 'on', "$name $event", nfreeze($func_tree) )
         if ( not $self->{validate} );
     return [];
@@ -1188,7 +1188,7 @@ $Builtins{'command_node'} = sub {
     $self->fatal_parse_error('bad arguments for command_node')
         if ( $i > $#{$values} );
     my $cmd_tree = $self->fake_tree( 'open_brace', $values, $i );
-    my $sub_path = join q{}, @{ $self->evaluate($path_tree) };
+    my $sub_path = join q(), @{ $self->evaluate($path_tree) };
     my $old_path = $self->path;
     my $path     = $old_path ? join q(/), $old_path, $sub_path : $sub_path;
     $self->path($path);    # set $message->[TO]
@@ -1207,14 +1207,14 @@ $H{'tell_node'} = [ "tell_node <path> <info>\n", "    alias: tell\n" ];
 $Builtins{'tell_node'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q{}, @{ $self->evaluate($raw_tree) };
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_INFO);
     $message->from( $Local{'message.from'} // $self->{responder}->{name} );
-    $message->stream( $Local{'message.stream'} // q{} );
+    $message->stream( $Local{'message.stream'} // q() );
     $message->to( $self->prefix($path) );
-    $message->payload( $payload // q{} );
+    $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
 };
 
@@ -1225,14 +1225,14 @@ $H{'send_node'} = [ "send_node <path> <bytes>\n", "    alias: send\n" ];
 $Builtins{'send_node'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q{}, @{ $self->evaluate($raw_tree) };
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
     $message->from( $Local{'message.from'} // $self->{responder}->{name} );
     $message->stream( $Local{'message.stream'} );
     $message->to( $self->prefix($path) );
-    $message->payload( $payload // q{} );
+    $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
 };
 
@@ -1245,7 +1245,7 @@ $Builtins{'send_hash'} = sub {
     my $raw_tree = shift;
     die "ERROR: no JSON support\n" if ( not $USE_JSON );
     my $json = JSON->new;
-    my $line = join q{}, @{ $self->evaluate($raw_tree) };
+    my $line = join q(), @{ $self->evaluate($raw_tree) };
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_STORABLE);
@@ -1263,8 +1263,8 @@ $Builtins{'bytestream'} = sub {
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     my $name_tree  = $parse_tree->{value}->[1];
-    my $name       = q{};
-    $name = join q{}, @{ $self->evaluate($name_tree) } if ($name_tree);
+    my $name       = q();
+    $name = join q(), @{ $self->evaluate($name_tree) } if ($name_tree);
     $self->fatal_parse_error('bad arguments for bytestream')
         if ( @{ $parse_tree->{value} } > 2 );
     my $cwd = $self->path;
@@ -1279,7 +1279,7 @@ $H{'ping'} = ["ping [ <path> ]\n"];
 $Builtins{'ping'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q{}, @{ $self->evaluate($raw_tree) };
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
     my ( $proto, $path ) = split q( ), $line, 2;
     my $message = Tachikoma::Message->new;
@@ -1298,7 +1298,7 @@ $Builtins{'debug'} = sub {
     my $parse_tree = $self->trim($raw_tree);
     my $level_tree = $parse_tree->{value}->[1];
     my $level      = not $self->dumper->debug;
-    $level = join q{}, @{ $self->evaluate($level_tree) } if ($level_tree);
+    $level = join q(), @{ $self->evaluate($level_tree) } if ($level_tree);
     $self->fatal_parse_error('bad arguments for debug')
         if ( @{ $parse_tree->{value} } > 2 );
     $self->dumper->debug($level) if ( $self->dumper );
@@ -1313,7 +1313,7 @@ $Builtins{'show_parse'} = sub {
     my $parse_tree = $self->trim($raw_tree);
     my $value_tree = $parse_tree->{value}->[1];
     my $value      = not $self->show_parse;
-    $value = join q{}, @{ $self->evaluate($value_tree) } if ($value_tree);
+    $value = join q(), @{ $self->evaluate($value_tree) } if ($value_tree);
     $self->fatal_parse_error('bad arguments for show_parse')
         if ( @{ $parse_tree->{value} } > 2 );
     $self->show_parse($value);
@@ -1328,7 +1328,7 @@ $Builtins{'show_commands'} = sub {
     my $parse_tree = $self->trim($raw_tree);
     my $value_tree = $parse_tree->{value}->[1];
     my $value      = not $self->show_commands;
-    $value = join q{}, @{ $self->evaluate($value_tree) } if ($value_tree);
+    $value = join q(), @{ $self->evaluate($value_tree) } if ($value_tree);
     $self->fatal_parse_error('bad arguments for show_commands')
         if ( @{ $parse_tree->{value} } > 2 );
     $self->show_commands($value);
@@ -1364,7 +1364,7 @@ $H{'chdir'} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
 $Builtins{'chdir'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q{}, @{ $self->evaluate($raw_tree) };
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
     my ( $proto, $path ) = split q( ), $line, 2;
     my $cwd = $self->path;
@@ -1388,7 +1388,7 @@ $H{'sleep'} = ["sleep <seconds>\n"];
 $Builtins{'sleep'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q{}, @{ $self->evaluate($raw_tree) };
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
     my ( $proto, $seconds ) = split q( ), $line, 2;
     $self->fatal_parse_error("bad arguments for sleep: $seconds")
@@ -1404,7 +1404,7 @@ $Operators{'ge'} = sub { $_[0] ge $_[1] };
 $Operators{'ne'} = sub { $_[0] ne $_[1] };
 $Operators{'eq'} = sub { $_[0] eq $_[1] };
 $Operators{q{=~}} = sub {
-    my @rv = ( ( $_[0] // q{} ) =~ ( $_[1] // q{} ) );
+    my @rv = ( ( $_[0] // q() ) =~ ( $_[1] // q() ) );
     for my $i ( 0 .. $#rv ) {
         $Local{ '_' . ( $i + 1 ) } = [ $rv[$i] ];
     }
@@ -1472,7 +1472,7 @@ sub get_values {
         $value =~ s{(?<!\\)<([^<>]+)>}{$Shared{$1}}g;
         $value =~ s{\\([<>])}{$1}g;
         ## no critic (ProhibitBacktickOperators)
-        $values = [ split m{(\s+)}, `$value` // q{} ];
+        $values = [ split m{(\s+)}, `$value` // q() ];
     }
     else {
         $values = [$value];
@@ -1492,8 +1492,8 @@ sub send_command {
         while ( $i < @{$values}
         and ref $values->[$i]
         and $values->[$i]->{type} eq 'whitespace' );
-    my $name_tree = $raw_tree->{value}->[ $i++ ] // q{};
-    my $name      = join q{},
+    my $name_tree = $raw_tree->{value}->[ $i++ ] // q();
+    my $name      = join q(),
         @{
         ref $name_tree
         ? $self->evaluate($name_tree)
@@ -1521,7 +1521,7 @@ sub send_command {
             while ( my $branch = $raw_tree->{value}->[ $i++ ] ) {
                 push @arguments, @{ $self->evaluate($branch) };
             }
-            $line .= join q{}, q( ), @arguments;
+            $line .= join q(), q( ), @arguments;
         }
         $rv = $self->_send_command( split q( ), $line, 2 )
             if ( $line =~ m{\S} );
@@ -1546,7 +1546,7 @@ sub assignment {
         if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-    my $op = join q{}, @{ $self->evaluate($op_tree) };
+    my $op = join q(), @{ $self->evaluate($op_tree) };
 
     if ( exists $Local{$key} ) {
         $self->operate( $key, $op, $value_tree, \%Local );
@@ -1571,7 +1571,7 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         my $result = $self->evaluate($value_tree);
         shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
         pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
-        my $joined = join q{}, @{$result};
+        my $joined = join q(), @{$result};
         if ( $op eq q{.=} and @{$v} ) { unshift @{$result}, q( ); }
         if ( $op eq q(=) ) { $v = $result; }
         elsif ( $op eq q{.=} ) { push @{$v}, @{$result}; }
@@ -1580,14 +1580,14 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         elsif ( $op eq q{*=} ) { $v->[0] //= 0; $v->[0] *= $joined; }
         elsif ( $op eq q{/=} ) { $v->[0] //= 0; $v->[0] /= $joined; }
         elsif ( $op eq q{//=} and not @{$v} ) { $v = $result; }
-        elsif ( $op eq q{||=} and not join q{}, @{$v} ) { $v = $result; }
+        elsif ( $op eq q{||=} and not join q(), @{$v} ) { $v = $result; }
         else { $self->fatal_parse_error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
             $hash->{$key} = $v;
         }
         else {
-            $hash->{$key} = $v->[0] // q{};
+            $hash->{$key} = $v->[0] // q();
         }
         $rv = $v;
     }
@@ -1618,7 +1618,7 @@ sub _call_function {
             next;
         }
         my $dequoted = $self->evaluate($tok);
-        push @values, join q{}, @{$dequoted};
+        push @values, join q(), @{$dequoted};
         push @trimmed, $dequoted;
     }
     pop @values if ( $values[-1] =~ m{^\s+$} );
@@ -1664,13 +1664,13 @@ sub call_function {
 sub _send_command {
     my $self      = shift;
     my $name      = shift;
-    my $arguments = shift // q{};
+    my $arguments = shift // q();
     my $payload   = shift;
     my $path      = shift;
     my $message   = $self->command( $name, $arguments, $payload );
     $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->should_reply );
     $message->from( $Local{'message.from'} // $self->{responder}->{name}
-            // q{} );
+            // q() );
     $message->to( $self->prefix($path) );
     $message->id( $self->message_id );
     $self->dirty($name);
@@ -1692,11 +1692,11 @@ sub callback {
             $arguments{q{1}}      = $payload;
             $arguments{q{@}}      = $payload;
             $arguments{q{_C}}     = 1;
-            $arguments{q{_ERROR}} = q{};
+            $arguments{q{_ERROR}} = q();
         }
         else {
-            $arguments{q{1}}      = q{};
-            $arguments{q{@}}      = q{};
+            $arguments{q{1}}      = q();
+            $arguments{q{@}}      = q();
             $arguments{q{_C}}     = 0;
             $arguments{q{_ERROR}} = $payload;
         }
@@ -1722,8 +1722,8 @@ sub callback {
 
 sub cd {
     my $self = shift;
-    my $cwd  = shift || q{};
-    my $path = shift || q{};
+    my $cwd  = shift || q();
+    my $path = shift || q();
     if ( $path =~ m{^/} ) {
         $cwd = $path;
     }
@@ -2013,7 +2013,7 @@ sub TIEHASH {
 sub FETCH {
     my $self = shift;
     my $key  = shift;
-    my $rv   = q{};
+    my $rv   = q();
     if ( defined $Local{$key} ) {
         $rv = $Local{$key};
     }
@@ -2023,7 +2023,7 @@ sub FETCH {
     else {
         print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
     }
-    return ref $rv ? join q{}, @{$rv} : $rv;
+    return ref $rv ? join q(), @{$rv} : $rv;
 }
 
 1;

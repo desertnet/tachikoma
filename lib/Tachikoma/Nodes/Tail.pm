@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Tail.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -39,7 +39,7 @@ sub new {
     $self->{on_timeout}      = 'expire';
     $self->{drain_fh}        = \&drain_fh;
     $self->{note_fh}         = \&note_fh;
-    $self->{line_buffer}     = q{};
+    $self->{line_buffer}     = q();
     $self->{buffer_mode}     = 'binary';
     $self->{msg_unanswered}  = 0;
     $self->{max_unanswered}  = 0;
@@ -120,7 +120,7 @@ sub arguments {
         $self->{filename}       = $path;
         $self->{size}           = undef;
         $self->{stream}         = $stream;
-        $self->{line_buffer}    = q{};
+        $self->{line_buffer}    = q();
         $self->{buffer_mode}    = $buffer_mode;
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered || 0;
@@ -175,7 +175,7 @@ sub drain_fh {
     my $kev  = shift;
     my $fh   = $self->{fh} or return;
     $self->file_shrank if ( $kev and $kev->[4] < 0 );
-    my $buffer = q{};
+    my $buffer = q();
     my $read = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
@@ -270,7 +270,7 @@ sub note_fh {
     $self->{bytes_read}     = 0;
     $self->{bytes_answered} = 0;
     $self->{size}           = undef;
-    $self->{line_buffer}    = q{};
+    $self->{line_buffer}    = q();
     $self->{reattempt}      = undef;
     return;
 }

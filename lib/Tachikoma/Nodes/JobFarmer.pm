@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: JobFarmer.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -196,7 +196,7 @@ $C{list_jobs} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     my $jobs     = $self->patron->job_controller->jobs;
     if ( $command->arguments eq '-a' ) {
         $response = join( "\n", sort keys %{$jobs} ) . "\n";
@@ -293,7 +293,7 @@ $C{cut_job} = sub {
     my $name     = $command->arguments;
     my $jobc     = $self->patron->job_controller;
     my $jobs     = $jobc->jobs;
-    my $error    = q{};
+    my $error    = q();
     if ( $name eq q(*) ) {
 
         for my $name ( keys %{$jobs} ) {

@@ -36,7 +36,7 @@ sub fill {
     $response->[PAYLOAD] =
         length( $message->[PAYLOAD] )
         ? "$partition:$offset\n"
-        : q{};
+        : q();
     return $self->{sink}->fill($response);
 }
 

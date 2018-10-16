@@ -120,7 +120,7 @@ sub send_offset {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]     = TM_BYTESTREAM;
     $message->[ID]       = $self->{offset};
-    $message->[PAYLOAD]  = join q{}, $self->{offset}, "\n";
+    $message->[PAYLOAD]  = join q(), $self->{offset}, "\n";
     $self->{last_offset} = $self->{offset};
     return $self->SUPER::fill($message);
 }

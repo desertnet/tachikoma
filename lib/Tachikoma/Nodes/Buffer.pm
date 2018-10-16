@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Buffer.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -423,7 +423,7 @@ $C{list_messages} = sub {
     my $list_all       = $arguments =~ m{a};
     my $verbose        = $arguments =~ m{v};
     my $buffer_size    = $self->patron->buffer_size || 0;
-    my $response       = q{};
+    my $response       = q();
     return if ( $list_all and $buffer_size > 10000 );
     my $hash = $list_all ? $tiedhash : $msg_unanswered;
 
@@ -627,7 +627,7 @@ $C{list_responders} = sub {
     my $command    = shift;
     my $envelope   = shift;
     my $responders = $self->patron->responders;
-    my $response   = q{};
+    my $response   = q();
     for my $key ( sort keys %{$responders} ) {
         $response .= sprintf "%-30s %9d\n", $key, $responders->{$key};
     }
@@ -642,7 +642,7 @@ $C{list_times} = sub {
     my $envelope = shift;
     my $patron   = $self->patron;
     my $times    = $patron->trip_times;
-    my $response = q{};
+    my $response = q();
     for my $timestamp ( sort { $a <=> $b } keys %{$times} ) {
         my @pairs = @{ $times->{$timestamp} };
         while ( my $message_id = shift @pairs ) {
@@ -779,7 +779,7 @@ sub dump_config {
     my $response        = undef;
     my $settings        = undef;
     my $name            = $self->{name};
-    my $filename        = $self->{filename} // q{};
+    my $filename        = $self->{filename} // q();
     my $max_unanswered  = $self->{max_unanswered};
     my $max_attempts    = $self->{max_attempts};
     my $on_max_attempts = $self->{on_max_attempts};

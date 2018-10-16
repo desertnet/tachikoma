@@ -44,8 +44,8 @@ sub new {
         max_unanswered => { label => 'MAX',         size => '-5',  pad => 0 },
         msg_in_buf     => { label => 'IN_BUF',      size => '11',  pad => 0 },
         recv_rate      => { label => 'RX/s',        size => '9',   pad => 0 },
-        direction      => { label => q{},           size => '1',   pad => 0 },
-        direction2     => { label => q{},           size => '1',   pad => 0 },
+        direction      => { label => q(),           size => '1',   pad => 0 },
+        direction2     => { label => q(),           size => '1',   pad => 0 },
         send_rate      => { label => 'TX/s',        size => '9',   pad => 0 },
         eta            => { label => 'ETA',         size => '11',  pad => 0 },
         lag            => { label => 'LAG',         size => '5',   pad => 1 },
@@ -190,11 +190,11 @@ COLLECT: for my $buffer_id ( keys %{$buffers} ) {
         $total, $Buffer_Timeout, q( ) x ( $width - length $output );
     $totals->{$_} = sprintf '%.2f', $totals->{"_$_"} // 0
         for (qw( recv_rate send_rate ));
-    $output .= join q{},
+    $output .= join q(),
         sprintf(
-        join( q{}, $color, $self->{format}, $reset, "\n" ),
-        map substr( $totals->{$_} // q{}, 0, abs $fields->{$_}->{size} ),
-        map $_ || q{},
+        join( q(), $color, $self->{format}, $reset, "\n" ),
+        map substr( $totals->{$_} // q(), 0, abs $fields->{$_}->{size} ),
+        map $_ || q(),
         @{$selected}
         ),
         $self->{header};
@@ -206,7 +206,7 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
                 if ($sort eq 'msg_in_buf'
                 and $key < $threshold
                 and $buffer->{age} < $Buffer_Timeout );
-            $color = q{};
+            $color = q();
             if ( $buffer->{age} > $Buffer_Timeout ) {
                 $color = "\e[41m";
             }
@@ -227,19 +227,19 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
             $buffer->{direction2} = (
                 ( $buffer->{_recv_rate} > $buffer->{_send_rate} )
                 ? q(>)
-                : q{}
+                : q()
             );
             $output .= sprintf
-                join( q{}, $color, $self->{format}, $reset ),
+                join( q(), $color, $self->{format}, $reset ),
                 map
-                substr( $buffer->{$_} // q{}, 0, abs $fields->{$_}->{size} ),
-                map $_ || q{},
+                substr( $buffer->{$_} // q(), 0, abs $fields->{$_}->{size} ),
+                map $_ || q(),
                 @{$selected};
             last OUTPUT if ( $count++ > $height );
             $output .= "\n";
         }
     }
-    $output .= join q{}, q( ) x ( ( $height - ( $count - 2 ) ) * $width ),
+    $output .= join q(), q( ) x ( ( $height - ( $count - 2 ) ) * $width ),
         "\e[?25l";
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;

@@ -35,12 +35,12 @@ sub new {
     $self->{hosts}            = {};
     $self->{email_alerts}     = {};
     $self->{trap_alerts}      = {};
-    $self->{email}            = q{};
-    $self->{trap}             = q{};
+    $self->{email}            = q();
+    $self->{trap}             = q();
     $self->{last_email}       = 0;
     $self->{last_trap}        = 0;
-    $self->{email_address}    = q{};
-    $self->{mon_path}         = q{};
+    $self->{email_address}    = q();
+    $self->{mon_path}         = q();
     $self->{interpreter}      = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
@@ -213,7 +213,7 @@ $C{list_email_thresholds} = sub {
     my $envelope   = shift;
     my $glob       = $command->arguments;
     my $thresholds = $self->patron->email_thresholds;
-    my $response   = q{};
+    my $response   = q();
     for my $path ( sort keys %{$thresholds} ) {
         $response .= sprintf "%30s %10d\n", $path, $thresholds->{$path}
             if ( not $glob or $path =~ m{$glob} );
@@ -261,7 +261,7 @@ $C{list_trap_thresholds} = sub {
     my $envelope   = shift;
     my $glob       = $command->arguments;
     my $thresholds = $self->patron->trap_thresholds;
-    my $response   = q{};
+    my $response   = q();
     for my $path ( sort keys %{$thresholds} ) {
         $response .= sprintf "%30s %10d\n", $path, $thresholds->{$path}
             if ( not $glob or $path =~ m{$glob} );
@@ -307,7 +307,7 @@ $C{rm_trap} = $C{remove_trap_threshold};
 #         if ($Tachikoma::Now - $buffer->{"last_$type"} < $Alert_Interval);
 #     $buffer->{"last_$type"} = $Tachikoma::Now;
 #     if ($type eq 'email') {
-#         my $body = q{};
+#         my $body = q();
 #         $body .= sprintf("%20s: %s\n", 'hostname', $buffer->{hostname});
 #         $body .= sprintf("%20s: %s\n", 'buff_name', $buffer->{buff_name});
 #         for my $field ( sort keys %{$buffer} ) {
@@ -316,7 +316,7 @@ $C{rm_trap} = $C{remove_trap_threshold};
 #                   or $field =~ m{^last_});
 #             $body .= sprintf("%20s: %12d\n", $field, $buffer->{$field});
 #         }
-#         $self->{$type} .= join q{}, $subject, qq(\n), $body, qq(\n\n);
+#         $self->{$type} .= join q(), $subject, qq(\n), $body, qq(\n\n);
 #     }
 #     else {
 #         $self->{$type} .= "$subject\n";
@@ -347,11 +347,11 @@ sub get_alerts {
     my $buffers = $self->{buffers};
     my $alerts  = $self->{"${type}_alerts"};
     my %hosts   = ();
-    my $body    = q{};
+    my $body    = q();
     for my $id ( sort keys %{$alerts} ) {
         my $subjects = $alerts->{$id};
         my $buffer   = $buffers->{$id};
-        my $chunk    = q{};
+        my $chunk    = q();
         for my $subject ( sort keys %{$subjects} ) {
             my ( $timestamp, $callback ) = @{ $subjects->{$subject} };
             next if ( $Tachikoma::Now - $timestamp < $Alert_Delay );
@@ -377,7 +377,7 @@ sub get_alerts {
 sub get_details {
     my $self    = shift;
     my $buffer  = shift;
-    my $details = q{};
+    my $details = q();
     $details .= sprintf "%20s: %s\n", 'hostname',  $buffer->{hostname};
     $details .= sprintf "%20s: %s\n", 'buff_name', $buffer->{buff_name};
     for my $field ( sort keys %{$buffer} ) {
@@ -401,7 +401,7 @@ sub send_alerts {
         $self->{'last_email'} = $Tachikoma::Now;
         my $email = $self->{email_address};
         delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};
-        local $ENV{PATH} = q{};
+        local $ENV{PATH} = q();
         my $subject = 'WARNING: BufferMonitor threshold(s) exceeded';
         my $grep    = '/usr/bin/grep';
         for my $host ( keys %{ $self->{hosts} } ) {
@@ -435,7 +435,7 @@ sub send_alerts {
         $message->[TYPE] = TM_BYTESTREAM;
         $message->[TO]   = $self->{mon_path};
         if ( $self->{trap} ) {
-            $message->[PAYLOAD] = join q{},
+            $message->[PAYLOAD] = join q(),
                 "BufferMonitor threshold(s) exceeded\n",
                 $self->{trap};
         }
@@ -445,7 +445,7 @@ sub send_alerts {
         $self->SUPER::fill($message);
     }
     $self->{hosts} = {};
-    $self->{$type} = q{};
+    $self->{$type} = q();
     return;
 }
 

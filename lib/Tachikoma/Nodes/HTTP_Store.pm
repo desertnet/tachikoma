@@ -25,7 +25,7 @@ use version; our $VERSION = 'v2.0.367';
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{prefix} = q{};
+    $self->{prefix} = q();
     $self->{topics} = {};
     bless $self, $class;
     return $self;
@@ -59,7 +59,7 @@ sub fill {
     my $prefix  = $self->{prefix};
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
-    my $accept_encoding = $headers->{'accept-encoding'} || q{};
+    my $accept_encoding = $headers->{'accept-encoding'} || q();
     my ( $topic_name, $escaped ) = split m{/}, $path, 2;
     my $postdata = undef;
 
@@ -104,7 +104,7 @@ sub fill {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 200 OK\n",
         strftime( "Date: %a, %d %b %Y %T GMT\n", gmtime $Tachikoma::Now ),
         "Server: Tachikoma\n",
@@ -135,7 +135,7 @@ sub send404 {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 404 NOT FOUND\n",
         strftime( "Date: %a, %d %b %Y %T GMT\n", gmtime $Tachikoma::Now ),
         "Server: Tachikoma\n",

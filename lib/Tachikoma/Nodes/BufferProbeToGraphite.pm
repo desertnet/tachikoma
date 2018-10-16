@@ -78,7 +78,7 @@ sub fire {
         my (@seg) = splice @output, 0, 16;
         my $response = Tachikoma::Message->new;
         $response->type(TM_BYTESTREAM);
-        $response->payload( join q{}, @seg );
+        $response->payload( join q(), @seg );
         $self->SUPER::fill($response);
     }
     $self->output( {} );

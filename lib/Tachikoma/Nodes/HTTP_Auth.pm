@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: HTTP_Auth.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -69,7 +69,7 @@ sub fill {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 401 UNAUTHORIZED\n",
         "Content-Type: text/plain\n",
         'WWW-Authenticate: Basic realm="',

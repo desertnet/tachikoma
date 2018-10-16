@@ -209,7 +209,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     push @{ $_[0]->{batch} },
         (
-        bless [ TM_BYTESTREAM, q{}, q{}, q{}, q{}, $Tachikoma::Now,
+        bless [ TM_BYTESTREAM, q(), q(), q(), q(), $Tachikoma::Now,
             ${ $_[1] } ],
         'Tachikoma::Message'
         );
@@ -239,7 +239,7 @@ sub fire {
         for my $message ( @{$batch} ) {
             next if ( not $message->[TYPE] & TM_PERSIST );
             $message->[$Offset] = $self->{offset};
-            $message->[PAYLOAD] = q{};
+            $message->[PAYLOAD] = q();
             push @{$responses}, $message;
         }
         @{$batch} = ();
@@ -319,7 +319,7 @@ sub send_offset {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_INFO;
         $message->[TO]      = $self->{followers}->{$broker_id};
-        $message->[PAYLOAD] = join q{}, 'COMMIT ', $offset, "\n";
+        $message->[PAYLOAD] = join q(), 'COMMIT ', $offset, "\n";
         $self->{sink}->fill($message);
     }
     return;
@@ -372,7 +372,7 @@ sub process_get_valid_offsets {
     $response->[TYPE]    = TM_INFO;
     $response->[FROM]    = $self->{name};
     $response->[TO]      = $path;
-    $response->[PAYLOAD] = join q{}, 'VALID_OFFSETS ', $offsets, "\n";
+    $response->[PAYLOAD] = join q(), 'VALID_OFFSETS ', $offsets, "\n";
     $node->fill($response);
     return;
 }
@@ -508,7 +508,7 @@ sub process_delete {
             my $message = Tachikoma::Message->new;
             $message->[TYPE]    = TM_INFO;
             $message->[TO]      = $self->{followers}->{$broker_id};
-            $message->[PAYLOAD] = join q{}, 'DELETE ', $delete, q( ),
+            $message->[PAYLOAD] = join q(), 'DELETE ', $delete, q( ),
                 $self->{last_commit_offset}, "\n";
             $self->{sink}->fill($message);
         }
@@ -578,7 +578,7 @@ sub unlink_segment {
     if ( $segment->[LOG_FH] ) {
         close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
     }
-    my $log_file = join q{}, $path, q(/), $segment->[LOG_OFFSET], '.log';
+    my $log_file = join q(), $path, q(/), $segment->[LOG_OFFSET], '.log';
     if ( not unlink $log_file ) {
         $self->stderr("WARNING: couldn't unlink $log_file: $!");
     }
@@ -776,7 +776,7 @@ sub create_segment {
 sub touch_files {
     my $self     = shift;
     my $path     = $self->{filename} or return;
-    my $log_file = join q{}, $path, q(/),
+    my $log_file = join q(), $path, q(/),
         $self->{segments}->[-1]->[LOG_OFFSET], '.log';
     my $offset_file = join q(/), $path, 'offsets',
         $self->{last_commit_offset};
@@ -918,7 +918,7 @@ sub get_valid_offsets {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q{}, 'GET_VALID_OFFSETS 0 ',
+    $message->[PAYLOAD] = join q(), 'GET_VALID_OFFSETS 0 ',
         $self->{broker_id}, "\n";
     $self->{expecting} = $Tachikoma::Now;
     $self->{sink}->fill($message);
@@ -931,7 +931,7 @@ sub get_batch {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q{}, 'GET ', $self->{offset} // 0, q( ),
+    $message->[PAYLOAD] = join q(), 'GET ', $self->{offset} // 0, q( ),
         $self->{broker_id},
         "\n";
     $self->{expecting} = $Tachikoma::Now;
@@ -946,7 +946,7 @@ sub send_ack {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q{}, 'ACK ', $offset, q( ), $self->{broker_id},
+    $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ), $self->{broker_id},
         "\n";
     $self->{sink}->fill($message);
     return;

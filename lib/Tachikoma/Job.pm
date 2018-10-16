@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Job.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Job;
@@ -58,11 +58,11 @@ sub prepare {
     my $self           = shift;
     my $type           = shift;
     my $name           = shift;
-    my $arguments      = shift // q{};
-    my $owner          = shift // q{};
-    my $should_restart = shift // q{};
-    my $username       = shift || q{};
-    my $config         = shift || q{};
+    my $arguments      = shift // q();
+    my $owner          = shift // q();
+    my $should_restart = shift // q();
+    my $username       = shift || q();
+    my $config         = shift || q();
     $self->{arguments}      = $arguments;
     $self->{type}           = $type;
     $self->{pid}            = q(-);
@@ -95,11 +95,11 @@ sub spawn {
     my $self           = shift;
     my $type           = shift;
     my $name           = shift;
-    my $arguments      = shift // q{};
-    my $owner          = shift // q{};
-    my $should_restart = shift // q{};
-    my $username       = shift || q{};
-    my $config         = shift || q{};
+    my $arguments      = shift // q();
+    my $owner          = shift // q();
+    my $should_restart = shift // q();
+    my $username       = shift || q();
+    my $config         = shift || q();
     my $filehandles    = {
         parent => {
             stdout => undef,
@@ -131,7 +131,7 @@ sub spawn {
     }
     else {
         my $location = $Tachikoma{Prefix} || '/usr/local/bin';
-        my $tachikoma_job = join q{}, $location, '/tachikoma-job';
+        my $tachikoma_job = join q(), $location, '/tachikoma-job';
         $type           = ( $type =~ m{^([\w:]+)$} )[0];
         $username       = ( $username =~ m{^(\S*)$} )[0];
         $config         = ( $config =~ m{^(\S*)$} )[0];
@@ -153,10 +153,10 @@ sub spawn {
         }
         push @command,
             $tachikoma_job, $config, $class,
-            $name // q{},
-            $arguments // q{},
-            $owner // q{},
-            $should_restart // q{};
+            $name // q(),
+            $arguments // q(),
+            $owner // q(),
+            $should_restart // q();
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;
     }
@@ -302,12 +302,12 @@ sub fill {
 
 sub execute {
     my $self        = shift;
-    my $safe_part   = shift || q{};
-    my $unsafe_part = shift || q{};
-    my $now_safe = ( $unsafe_part =~ m{^([\d\s\w@%"'/:,.=_-]*)$} )[0] || q{};
+    my $safe_part   = shift || q();
+    my $unsafe_part = shift || q();
+    my $now_safe = ( $unsafe_part =~ m{^([\d\s\w@%"'/:,.=_-]*)$} )[0] || q();
     if ( $unsafe_part eq $now_safe ) {
         my $command = join q( ), $safe_part, $now_safe;
-        local $ENV{ENV}  = q{};
+        local $ENV{ENV}  = q();
         local $ENV{PATH} = '/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin';
         local $/         = undef;
         my $rv = `$command 2>&1`;    ## no critic (ProhibitBacktickOperators)
@@ -318,12 +318,12 @@ sub execute {
 
 sub execute_unsafe {
     my $self        = shift;
-    my $safe_part   = shift || q{};
-    my $unsafe_part = shift || q{};
-    my $now_safe    = ( $unsafe_part =~ m{^(.*)$} )[0] || q{};
+    my $safe_part   = shift || q();
+    my $unsafe_part = shift || q();
+    my $now_safe    = ( $unsafe_part =~ m{^(.*)$} )[0] || q();
     if ( $unsafe_part eq $now_safe ) {
         my $command = join q( ), $safe_part, $now_safe;
-        local $ENV{ENV}  = q{};
+        local $ENV{ENV}  = q();
         local $ENV{PATH} = '/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin';
         local $/         = undef;
         my $rv = `$command 2>&1`;    ## no critic (ProhibitBacktickOperators)

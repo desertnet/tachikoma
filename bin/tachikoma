@@ -193,7 +193,7 @@ if ( $shell->errors and ( $validate or not $isa_tty ) ) {
     print $filename ? "$filename " : 'stdin ', "had compilation errors.\n";
     exit 1;
 }
-print $filename ? "$filename " : q{}, "syntax OK\n" if ($validate);
+print $filename ? "$filename " : q(), "syntax OK\n" if ($validate);
 
 sub usage {
     print "Usage:\n"

@@ -157,7 +157,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     } while ( $sth->fetchrow_arrayref->[0] );
     $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
     $sth->execute( $Tachikoma::Right_Now, 0, TM_BYTESTREAM | TM_PERSIST,
-        $message_id, q{}, $Tachikoma::Now, ${ $_[1] } );
+        $message_id, q(), $Tachikoma::Now, ${ $_[1] } );
     $_[0]->{buffer_size}++;
     $_[0]->set_timer( $Timer_Interval * 1000 )
         if ( $_[0]->{owner} and not $_[0]->{timer_is_active} );
@@ -392,7 +392,7 @@ $C{list_messages} = sub {
     my $list_all       = $arguments =~ m{a};
     my $verbose        = $arguments =~ m{v};
     my $buffer_size    = $self->patron->buffer_size || 0;
-    my $response       = q{};
+    my $response       = q();
     return if ( $list_all and $buffer_size > 10000 );
     my $hash;
     my $sth;

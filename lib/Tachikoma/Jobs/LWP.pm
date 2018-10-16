@@ -18,7 +18,7 @@ use version; our $VERSION = 'v2.0.349';
 
 sub initialize_graph {
     my $self = shift;
-    my ( $timeout, $tmp_path ) = split q( ), $self->arguments || q{}, 2;
+    my ( $timeout, $tmp_path ) = split q( ), $self->arguments || q(), 2;
     my $lwp = Tachikoma::Nodes::LWP->new;
     $self->connector->sink($lwp);
     $lwp->name('LWP');

@@ -142,7 +142,7 @@ sub run_generic_sql {
             $response->[TYPE] = TM_ERROR;
             $response->[TO]   = $message->[FROM]
                 if ( $message->[TO] eq '_return_to_sender' );
-            $response->[PAYLOAD] = join q{}, 'ERROR: ', $dbh->errstr, "\n";
+            $response->[PAYLOAD] = join q(), 'ERROR: ', $dbh->errstr, "\n";
             return $self->SUPER::fill($response);
         }
         while ( my $row = $sth->fetchrow_hashref ) {
@@ -158,7 +158,7 @@ sub run_generic_sql {
         $response->[TYPE] = TM_INFO;
         $response->[TO]   = $message->[FROM]
             if ( $message->[TO] eq '_return_to_sender' );
-        $response->[PAYLOAD] = join q{},
+        $response->[PAYLOAD] = join q(),
             $count, ' rows in ', Time::HiRes::time - $Tachikoma::Right_Now,
             " seconds\n";
         $self->SUPER::fill($response);
@@ -169,7 +169,7 @@ sub run_generic_sql {
             $response->[TYPE] = TM_ERROR;
             $response->[TO]   = $message->[FROM]
                 if ( $message->[TO] eq '_return_to_sender' );
-            $response->[PAYLOAD] = join q{}, 'ERROR: ', $dbh->errstr, "\n";
+            $response->[PAYLOAD] = join q(), 'ERROR: ', $dbh->errstr, "\n";
             return $self->SUPER::fill($response);
         }
         if ( $message->[TO] ) {
@@ -177,7 +177,7 @@ sub run_generic_sql {
             $response->[TYPE] = TM_INFO;
             $response->[TO]   = $message->[FROM]
                 if ( $message->[TO] eq '_return_to_sender' );
-            $response->[PAYLOAD] = join q{},
+            $response->[PAYLOAD] = join q(),
                 lc( ( split q( ), $statement, 2 )[0] ),
                 ' took ', Time::HiRes::time - $Tachikoma::Right_Now,
                 " seconds\n";
@@ -240,7 +240,7 @@ sub get {    ## no critic (ProhibitExcessComplexity)
             my $response = Tachikoma::Message->new;
             $response->[TYPE]    = TM_BYTESTREAM;
             $response->[TO]      = $to;
-            $response->[PAYLOAD] = join q{}, join( q( ), @segment ), "\n";
+            $response->[PAYLOAD] = join q(), join( q( ), @segment ), "\n";
             $self->SUPER::fill($response) or return;
         }
     }
@@ -366,7 +366,7 @@ sub set {    ## no critic (ProhibitAmbiguousNames)
     $response->[TO]      = $to;
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         $count,
         ' matches updated in ',
         Time::HiRes::time - $Tachikoma::Right_Now,
@@ -400,7 +400,7 @@ sub remove {
     $response->[TO]      = $to;
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         'remove took ', Time::HiRes::time - $Tachikoma::Right_Now,
         " seconds\n";
     return $self->SUPER::fill($response);
@@ -416,7 +416,7 @@ sub expire {
     $time ||= 0;
     die 'no field specified' if ( not $field );
     die 'invalid time' if ( $time !~ m{^\d+$} );
-    my $query_string = join q{}, $field, ' < ', $Tachikoma::Now - $time;
+    my $query_string = join q(), $field, ' < ', $Tachikoma::Now - $time;
     my $delete = $dbh->prepare(qq( DELETE FROM $table WHERE $query_string ));
 
     if ( not $delete or not $delete->execute ) {
@@ -429,7 +429,7 @@ sub expire {
     $response->[TO]      = $to;
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         'expire took ', Time::HiRes::time - $Tachikoma::Right_Now,
         " seconds\n";
     return $self->SUPER::fill($response);
@@ -445,8 +445,8 @@ sub send_bytestream {
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $to;
-    $response->[PAYLOAD] = join q{},
-        map { join q{}, $_, q{: }, $object->{$_} || q{}, "\n" } @{$fields};
+    $response->[PAYLOAD] = join q(),
+        map { join q(), $_, q{: }, $object->{$_} || q(), "\n" } @{$fields};
     return $self->SUPER::fill($response);
 }
 

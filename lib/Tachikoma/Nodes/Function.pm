@@ -101,7 +101,7 @@ sub fill {
     $response->[FROM]    = $message->[FROM];
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{}, @{$rv};
+    $response->[PAYLOAD] = join q(), @{$rv};
     return $self->SUPER::fill($response);
 }
 

@@ -74,7 +74,7 @@ sub fill {
         my ( $cmd, $key ) = split q( ), $message->[PAYLOAD], 2;
         if ( $cmd eq 'GET' ) {
             chomp $key;
-            my $value = $self->lookup($key) // q{};
+            my $value = $self->lookup($key) // q();
             $self->send_entry( $message->[FROM], $key, $value );
             $self->{counter}++;
         }
@@ -211,7 +211,7 @@ sub send_stats {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[FROM]    = $self->{name};
     $response->[TO]      = $to;
-    $response->[PAYLOAD] = join q{}, @stats;
+    $response->[PAYLOAD] = join q(), @stats;
     $self->{sink}->fill($response);
     return;
 }

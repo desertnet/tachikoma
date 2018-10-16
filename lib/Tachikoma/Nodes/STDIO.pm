@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: STDIO.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -38,7 +38,7 @@ sub new {
     my $flags = shift || 0;
     my $self  = $class->SUPER::new($flags);
     $self->{on_timeout}     = 'expire';
-    $self->{line_buffer}    = q{};
+    $self->{line_buffer}    = q();
     $self->{buffer_mode}    = 'binary';
     $self->{msg_unanswered} = 0;
     $self->{max_unanswered} = 0;
@@ -92,7 +92,7 @@ sub drain_fh {
     $got += $read;
     &{ $self->{drain_buffer} }( $self, $buffer )
         if ( $got > 0 and $self->{sink} );
-    my $new_buffer = q{};
+    my $new_buffer = q();
     $self->{input_buffer} = \$new_buffer;
     return $read;
 }
@@ -134,7 +134,7 @@ sub drain_buffer_normal {
 sub drain_buffer_blocks {
     my ( $self, $buffer, $stream ) = @_;
     my $payload = $self->{line_buffer} . ${$buffer};
-    my $part    = q{};
+    my $part    = q();
     if ( substr( $payload, -1, 1 ) ne "\n" ) {
         if ( $payload =~ s{\n(.+)$}{\n}i ) {
             $part = $1;
@@ -185,7 +185,7 @@ sub drain_buffer_lines {
         $message->[TO]       = $owner;
         $message->[STREAM]   = $stream if ( defined $stream );
         $message->[PAYLOAD]  = $self->{line_buffer} . $line;
-        $self->{line_buffer} = q{};
+        $self->{line_buffer} = q();
         $self->{bytes_read} += length $message->[PAYLOAD];
         $message->[ID] = $self->{bytes_read};
 
@@ -212,7 +212,7 @@ sub drain_buffer_edge {
 sub drain_buffer_edge_blocks {
     my ( $self, $buffer ) = @_;
     my $payload = $self->{line_buffer} . ${$buffer};
-    my $part    = q{};
+    my $part    = q();
     if ( substr( $payload, -1, 1 ) ne "\n" ) {
         if ( $payload =~ s{\n(.+)$}{\n}i ) {
             $part = $1;
@@ -235,7 +235,7 @@ sub drain_buffer_edge_lines {
             next;    # also last
         }
         my $payload = $self->{line_buffer} . $line;
-        $self->{line_buffer} = q{};
+        $self->{line_buffer} = q();
         $self->{bytes_read} += length $payload;
         $self->{edge}->activate( \$payload );
     }

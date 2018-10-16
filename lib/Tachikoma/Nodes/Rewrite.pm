@@ -19,7 +19,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{pattern} = qr{};
-    $self->{rewrite} = q{};
+    $self->{rewrite} = q();
     bless $self, $class;
     return $self;
 }
@@ -36,8 +36,8 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $pattern, $rewrite ) = split q( ), $self->{arguments}, 2;
-        $pattern ||= q{};
-        $rewrite ||= q{};
+        $pattern ||= q();
+        $rewrite ||= q();
         $pattern         = ( $pattern =~ m{^(.*)$} )[0];
         $rewrite         = ( $rewrite =~ m{^(.*)$} )[0];
         $self->{pattern} = qr{$pattern};
