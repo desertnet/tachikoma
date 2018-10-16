@@ -758,7 +758,8 @@ sub read_block {
     }
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
-        $self->print_less_often("WARNING: $caller couldn't read: $error");
+        $self->print_less_often("WARNING: $caller couldn't read: $error")
+            if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
     return;
