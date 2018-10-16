@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Tail.pm 35281 2018-10-16 11:09:07Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -39,7 +39,7 @@ sub new {
     $self->{on_timeout}      = 'expire';
     $self->{drain_fh}        = \&drain_fh;
     $self->{note_fh}         = \&note_fh;
-    $self->{line_buffer}     = q{};
+    $self->{line_buffer}     = q();
     $self->{buffer_mode}     = 'binary';
     $self->{msg_unanswered}  = 0;
     $self->{max_unanswered}  = 0;
@@ -95,7 +95,7 @@ sub arguments {
                 'on-enoent=s'      => \$on_enoent,
                 'timeout=i'        => \$timeout
             );
-            die "invalid option\n" if ( not $r );
+            die "ERROR: bad arguments for Tail\n" if ( not $r );
             $filename ||= $argv->[0];
             $offset         //= $argv->[1];
             $max_unanswered //= $argv->[2];
@@ -113,14 +113,14 @@ sub arguments {
         }
         my $fh;
         my $path = $self->check_path($filename);
-        $stream //= join q{:}, hostname(), $path;
+        $stream //= join q(:), hostname(), $path;
         $on_enoent = 'die' if ( defined $offset );
         $self->close_filehandle if ( $self->{fh} );
         $self->{arguments}      = $arguments;
         $self->{filename}       = $path;
         $self->{size}           = undef;
         $self->{stream}         = $stream;
-        $self->{line_buffer}    = q{};
+        $self->{line_buffer}    = q();
         $self->{buffer_mode}    = $buffer_mode;
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered || 0;
@@ -157,7 +157,8 @@ sub arguments {
 sub check_path {
     my $self     = shift;
     my $filename = shift;
-    my $path     = ( $filename =~ m{^(/.*)$} )[0];
+    die "ERROR: bad arguments for Tail\n" if ( not $filename );
+    my $path = ( $filename =~ m{^(/.*)$} )[0];
     die "ERROR: invalid path: $filename\n" if ( not defined $path );
     $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
     $path =~ s{(?:^|/)[.][.](?=/)}{}g;
@@ -175,7 +176,7 @@ sub drain_fh {
     my $kev  = shift;
     my $fh   = $self->{fh} or return;
     $self->file_shrank if ( $kev and $kev->[4] < 0 );
-    my $buffer = q{};
+    my $buffer = q();
     my $read = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
@@ -270,7 +271,7 @@ sub note_fh {
     $self->{bytes_read}     = 0;
     $self->{bytes_answered} = 0;
     $self->{size}           = undef;
-    $self->{line_buffer}    = q{};
+    $self->{line_buffer}    = q();
     $self->{reattempt}      = undef;
     return;
 }

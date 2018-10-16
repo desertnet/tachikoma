@@ -46,7 +46,7 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         $self->{arguments}  = $arguments;
-        $self->{topics}     = { map { $_ => 1 } split q{ }, $arguments };
+        $self->{topics}     = { map { $_ => 1 } split q( ), $arguments };
         $self->{is_leader}  = undef;
         $self->{timestamps} = {};
         $self->{mapping}    = {};
@@ -63,7 +63,7 @@ sub fill {
         if ( $self->{is_leader} ) {
             my $line = $message->[PAYLOAD];
             chomp $line;
-            my ( $cmd, $args ) = split q{ }, $line, 2;
+            my ( $cmd, $args ) = split q( ), $line, 2;
             if ( $cmd eq 'GET_PARTITIONS' ) {
                 $self->get_partitions( $message, $args );
             }

@@ -106,8 +106,8 @@ sub arguments {
             'hub_timeout=i'    => \$hub_timeout,
             'default_offset=s' => \$default_offset,
         );
-        die "ERROR: invalid option\n" if ( not $r );
-        die "ERROR: no topic\n"       if ( not $topic );
+        die "ERROR: bad arguments for ConsumerBroker\n" if ( not $r );
+        die "ERROR: no topic for ConsumerBroker\n"      if ( not $topic );
         $self->{arguments}      = $arguments;
         $self->{broker_path}    = $broker;
         $self->{topic}          = $topic;
@@ -136,7 +136,7 @@ sub fill {
         my $leader = $message->[PAYLOAD];
         chomp $leader;
         $self->make_broker_connection($leader);
-        $self->leader_path( join q{/}, $leader, $self->group );
+        $self->leader_path( join q(/), $leader, $self->group );
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_INFO;
         $response->[FROM]    = $self->name;
@@ -229,14 +229,14 @@ sub make_async_consumer {
     my $partitions    = shift;
     my $partition_id  = shift;
     my $broker_id     = $partitions->{$partition_id};
-    my $log_name      = join q{:}, $self->topic, 'partition', $partition_id;
-    my $log           = join q{/}, $broker_id, $log_name;
+    my $log_name      = join q(:), $self->topic, 'partition', $partition_id;
+    my $log           = join q(/), $broker_id, $log_name;
     my $consumer_name = undef;
     if ( $self->{group} ) {
-        $consumer_name = join q{:}, $log_name, $self->{group};
+        $consumer_name = join q(:), $log_name, $self->{group};
     }
     else {
-        $consumer_name = join q{:}, $self->name, $partition_id;
+        $consumer_name = join q(:), $self->name, $partition_id;
     }
     my $consumer = $Tachikoma::Nodes{$consumer_name};
     if ( not $consumer ) {
@@ -250,7 +250,7 @@ sub make_async_consumer {
                 $consumer->cache_dir( $self->cache_dir );
             }
             elsif ( $self->{auto_offset} ) {
-                my $offsets = join q{:}, $log, $self->{group};
+                my $offsets = join q(:), $log, $self->{group};
                 $consumer->offsetlog($offsets);
             }
             $consumer->group( $self->group );
@@ -558,7 +558,7 @@ sub make_sync_consumer {
     die "ERROR: no partition id\n" if ( not defined $partition_id );
     my $partitions = $self->get_partitions;
     my $broker_id  = $partitions->{$partition_id} or return;
-    my $log        = join q{:}, $self->{topic}, 'partition', $partition_id;
+    my $log        = join q(:), $self->{topic}, 'partition', $partition_id;
     my $consumer   = Tachikoma::Nodes::Consumer->new($log);
     $consumer->broker_id($broker_id);
     $consumer->partition_id($partition_id);
@@ -569,7 +569,7 @@ sub make_sync_consumer {
             $consumer->cache_dir( $self->{cache_dir} );
         }
         elsif ( $self->{auto_offset} ) {
-            my $offsets = join q{:}, $log, $self->{group};
+            my $offsets = join q(:), $log, $self->{group};
             $consumer->offsetlog($offsets);
         }
         $consumer->group( $self->{group} );

@@ -20,7 +20,7 @@ my $port = 5400;
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();
-my ( $topic, $field, $escaped ) = split q{/}, $path, 3;
+my ( $topic, $field, $escaped ) = split q(/), $path, 3;
 $escaped = $cgi->param('key') if ( not length $escaped );
 die "no topic\n" if ( not length $topic );
 die "no field\n" if ( not length $field );

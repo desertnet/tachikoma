@@ -28,8 +28,8 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
-    my ( $name, $path ) = split q{ }, $self->{arguments}, 2;
-    my $owner = join q{/}, grep defined, $message->[FROM], $path;
+    my ( $name, $path ) = split q( ), $self->{arguments}, 2;
+    my $owner = join q(/), grep defined, $message->[FROM], $path;
     $self->{counter}++;
     if ( $type & TM_INFO ) {
         my $okay = eval {

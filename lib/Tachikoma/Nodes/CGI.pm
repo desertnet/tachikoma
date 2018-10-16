@@ -42,7 +42,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $config_file, $tmp_path ) = split q{ }, $self->{arguments}, 2;
+        my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
         my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
         my $rv   = do $path;
         die "couldn't parse $path: $@" if ($@);
@@ -84,7 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $test_path       = $script_url;
     my @path_components = ();
 FIND_SCRIPT: while ($test_path) {
-        $script_path = $server_paths->{$test_path} || q{};
+        $script_path = $server_paths->{$test_path} || q();
         $script_name = $test_path;
         my $is_dir = ( $script_path =~ m{/$} ) ? 'true' : undef;
         if ( $script_path and not $is_dir ) {
@@ -95,8 +95,8 @@ FIND_SCRIPT: while ($test_path) {
         elsif ( $script_path and $is_dir ) {
             chop $script_path;
             while ( my $path_component = shift @path_components ) {
-                $script_path .= join q{}, q{/}, $path_component;
-                $script_name .= join q{}, q{/}, $path_component;
+                $script_path .= join q(), q(/), $path_component;
+                $script_name .= join q(), q(/), $path_component;
                 next if ( -d $script_path );
                 if ( -f _ ) {
                     $last_modified = ( stat _ )[9];
@@ -109,7 +109,7 @@ FIND_SCRIPT: while ($test_path) {
             unshift @path_components, $1 if ( length $1 );
         }
     }
-    my $path_info = join q{/}, q{}, @path_components;
+    my $path_info = join q(/), q(), @path_components;
 
     $self->{counter}++;
 
@@ -119,7 +119,7 @@ FIND_SCRIPT: while ($test_path) {
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = $message->[FROM];
         $response->[STREAM]  = $message->[STREAM];
-        $response->[PAYLOAD] = join q{},
+        $response->[PAYLOAD] = join q(),
             "HTTP/1.1 404 NOT FOUND\n",
             'Date: ', cached_strftime(), "\n",
             "Server: Tachikoma\n",
@@ -140,13 +140,13 @@ FIND_SCRIPT: while ($test_path) {
         my $value = $headers->{$key};
         $key =~ s{-}{_}g;
         $key = 'HTTP_' . uc $key;
-        $ENV{$key} = $value // q{};
+        $ENV{$key} = $value // q();
     }
-    $ENV{HTTP_AUTHORIZATION} = q{};
+    $ENV{HTTP_AUTHORIZATION} = q();
 
     my $request_uri  = $script_url;
     my $query_string = $request->{query_string};
-    $request_uri .= join q{}, q{?}, $query_string if ($query_string);
+    $request_uri .= join q(), q(?), $query_string if ($query_string);
     my $is_post = $request->{method} eq 'POST';
     $ENV{PATH}              = '/bin:/usr/bin';
     $ENV{DOCUMENT_ROOT}     = $document_root;
@@ -158,16 +158,16 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{REQUEST_URI}       = $request_uri;
     $ENV{REQUEST_METHOD}    = $request->{method};
     $ENV{PATH_INFO}         = $path_info;
-    $ENV{PATH_TRANSLATED}   = q{};
+    $ENV{PATH_TRANSLATED}   = q();
     $ENV{SCRIPT_FILENAME}   = $script_path;
     $ENV{SCRIPT_NAME}       = $script_name;
-    $ENV{SCRIPT_URI}        = join q{}, 'http://', $server_name, $script_url;
+    $ENV{SCRIPT_URI}        = join q(), 'http://', $server_name, $script_url;
     $ENV{SCRIPT_URL}        = $script_url;
     $ENV{QUERY_STRING}      = $query_string;
     $ENV{REMOTE_ADDR}       = $request->{remote_addr};
     $ENV{REMOTE_PORT}       = $request->{remote_port};
-    $ENV{AUTH_TYPE}         = $request->{auth_type} || q{};
-    $ENV{REMOTE_USER}       = $request->{remote_user} || q{};
+    $ENV{AUTH_TYPE}         = $request->{auth_type} || q();
+    $ENV{REMOTE_USER}       = $request->{remote_user} || q();
     $ENV{CONTENT_TYPE}      = $headers->{'content-type'} if ($is_post);
     $ENV{CONTENT_LENGTH}    = $headers->{'content-length'} if ($is_post);
     $ENV{UNIQUE_ID}         = md5_hex(rand);
@@ -185,7 +185,7 @@ FIND_SCRIPT: while ($test_path) {
     local *STDOUT;
     if ($is_post) {
         if ( $request->{tmp} ) {
-            my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+            my $tmp_path = join q(/), $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             open *STDIN, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
         }
@@ -223,7 +223,7 @@ FIND_SCRIPT: while ($test_path) {
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $message->[FROM];
             $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
-            $header->[PAYLOAD] = join q{},
+            $header->[PAYLOAD] = join q(),
                 "HTTP/1.1 500 NOT OK\n\n",
                 "Sorry, an error occurred while processing your request.\n";
             $self->{sink}->fill($header);
@@ -239,14 +239,14 @@ FIND_SCRIPT: while ($test_path) {
             $info->[PAYLOAD] = 'renderer_crashed';
             $self->{sink}->fill($info);
         }
-        $self->stderr( "ERROR: in script $script_path", $@ ? ": $@" : q{} );
+        $self->stderr( "ERROR: in script $script_path", $@ ? ": $@" : q() );
         $dirty = 'true';
     }
 
     # shut down STDIN and STDOUT
     if ($is_post) {
         if ( $request->{tmp} ) {
-            my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+            my $tmp_path = join q(/), $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             unlink $tmp or die "ERROR: couldn't unlink $tmp: $!";
             close STDIN or die "ERROR: couldn't close $tmp: $!";
@@ -282,7 +282,7 @@ sub include_path {
     my $package     = $script_path;
     $package =~ s{[^\w\d]+}{_}g;
     $package =~ s{^(\d)}{_$1};
-    $package .= join q{}, q{_}, $counter;
+    $package .= join q(), q(_), $counter;
     $counter = ( $counter + 1 ) % $Tachikoma::Max_Int;
     $self->{include_counter} = $counter;
     local $/ = undef;
@@ -291,7 +291,7 @@ sub include_path {
     close $fh or die "couldn't close $script_path: $!";
     ## no critic (ProhibitStringyEval)
     $self->{includes}->{$script_path} = eval
-        join q{},
+        join q(),
         "sub {\n",
         '    CGI::initialize_globals() ',
         "        if (defined &CGI::initialize_globals);\n",
@@ -315,7 +315,7 @@ sub READ {    ## no critic (RequireArgUnpacking)
     my $self   = shift;
     my $bufref = \$_[0];
     my ( undef, $length, $offset ) = @_;
-    ${$bufref} .= substr ${$self}->{post_data}, 0, $length, q{};
+    ${$bufref} .= substr ${$self}->{post_data}, 0, $length, q();
     return $length;
 }
 
@@ -332,7 +332,7 @@ sub WRITE {
         ${$self}->{sent_header} = 'true';
         log_entry( ${$self}, 200, $request );
     }
-    return if ( $payload eq q{} );
+    return if ( $payload eq q() );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
@@ -344,7 +344,7 @@ sub WRITE {
 
 sub PRINT {
     my ( $self, @args ) = @_;
-    my $payload = join q{}, grep defined, @args;
+    my $payload = join q(), grep defined, @args;
     my $request = ${$self}->{request};
     if ( not ${$self}->{sent_header} ) {
         my $header = Tachikoma::Message->new;
@@ -356,7 +356,7 @@ sub PRINT {
         ${$self}->{sent_header} = 'true';
         log_entry( ${$self}, 200, $request );
     }
-    return if ( $payload eq q{} );
+    return if ( $payload eq q() );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
@@ -379,7 +379,7 @@ sub PRINTF {
         log_entry( ${$self}, 200, $request );
     }
     my $payload = sprintf $fmt, @payload;
-    return if ( $payload eq q{} );
+    return if ( $payload eq q() );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];

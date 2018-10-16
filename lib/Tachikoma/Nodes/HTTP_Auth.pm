@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 35142 2018-10-13 12:13:24Z chris $
+# $Id: HTTP_Auth.pm 35279 2018-10-16 10:39:46Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -34,7 +34,8 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $filename, $realm ) = split q{ }, $self->{arguments}, 2;
+        my ( $filename, $realm ) = split q( ), $self->{arguments}, 2;
+        die "ERROR: bad arguments for HTTP_Auth\n" if ( not $filename );
         $self->{filename} = $filename;
         $self->{realm}    = $realm;
         $self->reload_htpasswd;
@@ -48,7 +49,7 @@ sub fill {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request = $message->payload;
     my $auth    = $request->{headers}->{'authorization'};
-    my $encoded = $auth ? ( split q{ }, $auth, 2 )[1] : undef;
+    my $encoded = $auth ? ( split q( ), $auth, 2 )[1] : undef;
     my $decoded = $encoded ? decode_base64($encoded) : undef;
     my ( $user, $passwd ) = $decoded ? split m{:}, $decoded, 2 : undef;
     $self->{counter}++;
@@ -69,7 +70,7 @@ sub fill {
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{},
+    $response->[PAYLOAD] = join q(),
         "HTTP/1.1 401 UNAUTHORIZED\n",
         "Content-Type: text/plain\n",
         'WWW-Authenticate: Basic realm="',

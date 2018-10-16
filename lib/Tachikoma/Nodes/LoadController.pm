@@ -75,7 +75,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 next if ( not $Tachikoma::Nodes{$name} );
                 my $path = $load_balancers->{$name};
                 $self->connect_node( $name, $path
-                    ? join q{/},
+                    ? join q(/),
                     $id, $path
                     : $id );
             }
@@ -84,7 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 next if ( not $Tachikoma::Nodes{$name} );
                 my $path = $tees->{$name};
                 $self->connect_node( $name, $path
-                    ? join q{/},
+                    ? join q(/),
                     $id, $path
                     : $id );
             }
@@ -95,16 +95,16 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             );
             if ( $tester and $tester->isa('Tachikoma::Nodes::CircuitTester') )
             {
-                $tester->circuits->{ join q{/}, $id, $_ } = 1
+                $tester->circuits->{ join q(/), $id, $_ } = 1
                     for ( keys %{ $self->{circuits} } );
             }
             for my $path ( keys %{ $self->{controllers}->{$id} } ) {
                 my $port = $self->{controllers}->{$id}->{$path};
                 my $note = Tachikoma::Message->new;
                 $note->[TYPE]    = TM_INFO;
-                $note->[TO]      = join q{/}, $id, $path;
+                $note->[TO]      = join q(/), $id, $path;
                 $note->[PAYLOAD] = hostname();
-                $note->[PAYLOAD] .= q{:} . $port if ($port);
+                $note->[PAYLOAD] .= q(:) . $port if ($port);
                 $note->[PAYLOAD] .= "\n";
                 $self->SUPER::fill($note);
             }
@@ -202,14 +202,14 @@ sub note_reconnect {
         for my $name ( keys %{$load_balancers} ) {
             my $path = $load_balancers->{$name};
             $self->disconnect_node( $name, $path
-                ? join q{/},
+                ? join q(/),
                 $id, $path
                 : $id );
         }
         for my $name ( keys %{$tees} ) {
             my $path = $tees->{$name};
             $self->disconnect_node( $name, $path
-                ? join q{/},
+                ? join q(/),
                 $id, $path
                 : $id );
         }
@@ -257,9 +257,9 @@ $C{list_connectors} = sub {
     my $connectors = $self->patron->connectors;
     my @output     = ();
     for my $id ( sort keys %{$connectors} ) {
-        push @output, $Tachikoma::Now - $connectors->{$id}, q{ }, $id, "\n";
+        push @output, $Tachikoma::Now - $connectors->{$id}, q( ), $id, "\n";
     }
-    return $self->response( $envelope, join q{}, @output );
+    return $self->response( $envelope, join q(), @output );
 };
 
 $C{ls} = $C{list_connectors};
@@ -332,7 +332,7 @@ $C{list_circuits} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $tees     = $self->patron->circuits;
-    my $response = q{};
+    my $response = q();
     for my $id ( sort keys %{$tees} ) {
         $response .= "$id\n";
     }
@@ -345,7 +345,7 @@ $C{connect} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $host_port, $use_SSL ) = split q{ }, $command->arguments, 2;
+    my ( $host_port, $use_SSL ) = split q( ), $command->arguments, 2;
     my ( $host, $port );
     if ( $host_port =~ m{^(.*):(\d+)$} ) {
         $host = $1;
@@ -391,7 +391,7 @@ $C{notify} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, $path, $port ) = split q{ }, $command->arguments, 3;
+    my ( $name, $path, $port ) = split q( ), $command->arguments, 3;
     if ( not $path ) {
         return $self->error( $envelope,
             "usage: notify <connector name> <controller> [ port[:ssl] ]\n" );
@@ -399,9 +399,9 @@ $C{notify} = sub {
     if ( $Tachikoma::Nodes{$name} ) {
         my $note = Tachikoma::Message->new;
         $note->[TYPE]    = TM_INFO;
-        $note->[TO]      = join q{/}, $name, $path;
+        $note->[TO]      = join q(/), $name, $path;
         $note->[PAYLOAD] = hostname();
-        $note->[PAYLOAD] .= q{:} . $port if ($port);
+        $note->[PAYLOAD] .= q(:) . $port if ($port);
         $note->[PAYLOAD] .= "\n";
         $self->patron->SUPER::fill($note);
     }
@@ -415,7 +415,7 @@ $C{unnotify} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, $path ) = split q{ }, $command->arguments, 2;
+    my ( $name, $path ) = split q( ), $command->arguments, 2;
     if ( not $path ) {
         return $self->error( $envelope,
             "usage: unnotify <connector name> <controller>\n" );
@@ -430,7 +430,7 @@ $C{buffer} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, $path ) = split q{ }, $command->arguments, 2;
+    my ( $name, $path ) = split q( ), $command->arguments, 2;
     if ( not $name ) {
         return $self->error( $envelope,
             "usage: buffer <node name> <path>\n" );
@@ -454,7 +454,7 @@ $C{balance} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, $path ) = split q{ }, $command->arguments, 2;
+    my ( $name, $path ) = split q( ), $command->arguments, 2;
     if ( not $name ) {
         return $self->error( $envelope,
             "usage: balance <node name> <path>\n" );
@@ -478,7 +478,7 @@ $C{tee} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, $path ) = split q{ }, $command->arguments, 2;
+    my ( $name, $path ) = split q( ), $command->arguments, 2;
     if ( not $name ) {
         return $self->error( $envelope, "usage: tee <node name> <path>\n" );
     }
@@ -581,7 +581,7 @@ sub add_connector {
         name      => $id,
         host      => $host,
         port      => $port,
-        use_SSL   => $use_SSL ? 1 : q{},
+        use_SSL   => $use_SSL ? 1 : q(),
         reconnect => 1
     ) if ( not $Tachikoma::Nodes{$id} );
     $Tachikoma::Nodes{$id}->register( 'reconnect' => $self->name );
@@ -595,7 +595,7 @@ sub add_connector {
     );
 
     if ( $tester and $tester->isa('Tachikoma::Nodes::CircuitTester') ) {
-        $tester->circuits->{ join q{/}, $id, $_ } = 1
+        $tester->circuits->{ join q(/), $id, $_ } = 1
             for ( keys %{ $self->{circuits} } );
     }
     return;
@@ -610,12 +610,12 @@ sub remove_connector {
     my $load_balancers = $self->load_balancers;
     for my $name ( keys %{$load_balancers} ) {
         my $path = $load_balancers->{$name};
-        $self->disconnect_node( $name, $path ? join q{/}, $id, $path : $id );
+        $self->disconnect_node( $name, $path ? join q(/), $id, $path : $id );
     }
     my $tees = $self->tees;
     for my $name ( keys %{$tees} ) {
         my $path = $tees->{$name};
-        $self->disconnect_node( $name, $path ? join q{/}, $id, $path : $id );
+        $self->disconnect_node( $name, $path ? join q(/), $id, $path : $id );
     }
     my $tester = (
           $self->{circuit_tester}
@@ -624,7 +624,7 @@ sub remove_connector {
     );
     if ( $tester and $tester->isa('Tachikoma::Nodes::CircuitTester') ) {
         for my $path ( keys %{ $self->{circuits} } ) {
-            my $circuit = join q{/}, $id, $path;
+            my $circuit = join q(/), $id, $path;
             delete $tester->circuits->{$circuit};
             delete $tester->waiting->{$circuit};
             delete $tester->offline->{$circuit};
@@ -665,15 +665,15 @@ sub dump_config {
     }
     for my $name ( sort keys %{$buffers} ) {
         my $path = $buffers->{$name};
-        $response .= "  buffer $name" . ( $path ? " $path" : q{} ) . "\n";
+        $response .= "  buffer $name" . ( $path ? " $path" : q() ) . "\n";
     }
     for my $name ( sort keys %{$load_balancers} ) {
         my $path = $load_balancers->{$name};
-        $response .= "  balance $name" . ( $path ? " $path" : q{} ) . "\n";
+        $response .= "  balance $name" . ( $path ? " $path" : q() ) . "\n";
     }
     for my $name ( sort keys %{$tees} ) {
         my $path = $tees->{$name};
-        $response .= "  tee $name" . ( $path ? " $path" : q{} ) . "\n";
+        $response .= "  tee $name" . ( $path ? " $path" : q() ) . "\n";
     }
     $response .= "  circuit_tester $circuit_tester\n" if ($circuit_tester);
     for my $name ( sort keys %{$circuits} ) {

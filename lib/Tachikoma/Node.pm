@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Node.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Node;
@@ -27,9 +27,9 @@ use constant MKDIR_MASK    => oct 777;
 sub new {
     my $class = shift;
     my $self  = {
-        name          => q{},
+        name          => q(),
         arguments     => undef,
-        owner         => q{},
+        owner         => q(),
         sink          => undef,
         edge          => undef,
         counter       => 0,
@@ -99,7 +99,7 @@ sub remove_node {
 sub dump_config {
     my ($self) = @_;
     my $name = $self->{name};
-    my $type = ( ref($self) =~ m{^\w+::Nodes::(.*)} )[0] or return q{};
+    my $type = ( ref($self) =~ m{^\w+::Nodes::(.*)} )[0] or return q();
     my $line = "make_node $type $name";
     if ( $self->{arguments} ) {
         my $arguments = $self->{arguments};
@@ -156,7 +156,7 @@ sub disconnect_node {
     die qq(no such node: "$name"\n) if ( not $node );
     if ( ref( $node->owner ) eq 'ARRAY' ) {
         my @keep = ();
-        if ( $owner and $owner ne q{*} ) {
+        if ( $owner and $owner ne q(*) ) {
             for my $node ( @{ $node->owner } ) {
                 if ( $node ne $owner ) {
                     push @keep, $node;
@@ -249,7 +249,7 @@ sub stamp_message {
     my ( $self, $message, $name ) = @_;
     my $from = $message->[FROM];
     if ( length $from ) {
-        $from = join q{/}, $name, $from;
+        $from = join q(/), $name, $from;
         if ( length($from) > MAX_FROM_SIZE ) {
             $self->stderr( 'ERROR: path exceeded '
                     . MAX_FROM_SIZE
@@ -267,10 +267,10 @@ sub stamp_message {
 sub make_parent_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q{};
+    my $path = q();
     pop @path_list;
     for my $dir (@path_list) {
-        $path .= q{/} . $dir;
+        $path .= q(/) . $dir;
         if (    not -d $path
             and not( mkdir $path, MKDIR_MASK )
             and $! !~ m{File exists} )
@@ -284,9 +284,9 @@ sub make_parent_dirs {
 sub make_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q{};
+    my $path = q();
     for my $dir (@path_list) {
-        $path .= q{/} . $dir;
+        $path .= q(/) . $dir;
         if (    not -d $path
             and not( mkdir $path, MKDIR_MASK )
             and $! !~ m{File exists} )
@@ -365,11 +365,11 @@ sub stderr {
 
 sub log_prefix {
     my ( $self, @raw ) = @_;
-    my $prefix = join q{},
+    my $prefix = join q(),
         strftime( '%F %T %Z ', localtime time ),
-        hostname(), q{ }, $0, '[', $$, ']: ';
+        hostname(), q( ), $0, '[', $$, ']: ';
     if (@raw) {
-        my $msg = join q{}, grep defined, @raw;
+        my $msg = join q(), grep defined, @raw;
         chomp $msg;
         my $router = $Tachikoma::Nodes{_router};
         $msg =~ s{^}{$prefix}mg
@@ -383,15 +383,15 @@ sub log_prefix {
 
 sub log_midfix {
     my ( $self, @raw ) = @_;
-    my $midfix = q{};
+    my $midfix = q();
     if (    ref $self
         and $self->{name}
         and $0 !~ m{^$self->{name}\b} )
     {
-        $midfix = join q{}, $self->{name}, ': ';
+        $midfix = join q(), $self->{name}, ': ';
     }
     if (@raw) {
-        my $msg = join q{}, grep defined, @raw;
+        my $msg = join q(), grep defined, @raw;
         chomp $msg;
         $msg =~ s{^}{$midfix}mg;
         return $msg . "\n";

@@ -1,13 +1,13 @@
 #!/usr/bin/env perl
 # ----------------------------------------------------------------------
-# tachikoma tests
+# tachikoma shell tests
 # ----------------------------------------------------------------------
 #
 # $Id$
 #
 use strict;
 use warnings;
-use Test::More tests => 80;
+use Test::More tests => 78;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -22,14 +22,13 @@ $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
 
 #####################################################################
-# shell->new
 my $shell = Tachikoma::Nodes::Shell2->new;
-is( ref($shell), 'Tachikoma::Nodes::Shell2', 'Shell2::new()' );
+is( ref $shell, 'Tachikoma::Nodes::Shell2', 'Shell2::new()' );
 
 # callback->new
 my $answer;
 my $destination = Tachikoma::Nodes::Callback->new;
-is( ref($destination), 'Tachikoma::Nodes::Callback', 'Callback::new()' );
+is( ref $destination, 'Tachikoma::Nodes::Callback', 'Callback::new()' );
 $shell->sink($destination);
 $destination->callback(
     sub {
@@ -37,8 +36,8 @@ $destination->callback(
         my $payload = $message->payload;
         if ( $message->type & TM_COMMAND ) {
             my $command = Tachikoma::Command->new($payload);
-            $answer .= join q{}, q{[}, $command->name, q{][},
-                $command->arguments, q{]}, "\n";
+            $answer .= join q(), q([), $command->name, q(][),
+                $command->arguments, q(]), "\n";
         }
         else {
             $answer .= "{$payload}\n";
@@ -48,21 +47,21 @@ $destination->callback(
 );
 
 #####################################################################
-# test parse
+
 my $parse_tree = $shell->parse('hello');
 is_deeply(
     $shell->trim($parse_tree),
     {   'type'  => 'ident',
         'value' => ['hello']
     },
-    'basic parse'
+    'parse returns basic parse tree'
 );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[hello][]\n", 'basic evaluate' );
+is( $answer, "[hello][]\n", 'send_command sends commands' );
 
 #####################################################################
-# test variables
+
 $parse_tree = $shell->parse('var foo=5');
 is_deeply(
     $shell->trim($parse_tree),
@@ -80,148 +79,158 @@ is_deeply(
             },
         ]
     },
-    'parse set variable'
+    'parse returns correct parse tree'
 );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate set variable' );
-is( $Var{foo}, 5,  'variable is set correctly' );
+is( $answer,   "", 'var builtin sends nothing' );
+is( $Var{foo}, 5,  'var builtin sets variables correctly' );
 
 #####################################################################
-# test variable with extended arguments 1
+
 $parse_tree = $shell->parse('var bar=(<foo> + 5)');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable with extended arguments 1' );
-is( $Var{bar}, 10, 'variable is set correctly' );
+is( $answer,   "", 'nothing is sent by var builtin' );
+is( $Var{bar}, 10, 'arithmetic in parenthesis is evaluated' );
 
 #####################################################################
-# test variable with extended arguments 2
+
 $parse_tree = $shell->parse('bar=<foo> + 3');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable with extended arguments 2' );
-is( $Var{bar}, 8,  'variable is set correctly' );
+is( $answer,   "", 'nothing is sent by assignment operator' );
+is( $Var{bar}, 8,  'arithmetic in assignment is evaluated' );
 
 #####################################################################
-# test variable with extended arguments 3
+
 $parse_tree = $shell->parse('date; bar = <foo> + 7');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "[date][]\n", 'evaluate variable with extended arguments 3' );
-is( $Var{bar}, 12,           'variable is set correctly' );
+is( $answer,   "[date][]\n", 'semicolon terminates commands' );
+is( $Var{bar}, 12,           'expressions after semicolon are evaluted' );
 
 #####################################################################
-# test variable with extended arguments 4
+
 $parse_tree = $shell->parse(<<'EOF');
     func true { return 1 };
     func false { return 0 };
     var baz={false;};
     var zab={true;};
 EOF
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable with extended arguments 4' );
-is( $Var{baz}, 0,  'variable is set correctly' );
-is( $Var{zab}, 1,  'variable is set correctly' );
+is( $answer,   "", 'nothing is sent by func builtin' );
+is( $Var{baz}, 0,  'expressions inside braces are evaluated' );
+is( $Var{zab}, 1,  'functions return correct values' );
 
 #####################################################################
-# test variable iteration
+
 $parse_tree = $shell->parse('var bar++');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'evaluate variable iteration' );
-is( $Var{bar}, 13, 'variable is set correctly' );
+is( $answer,   "", 'variable iteration sends nothing' );
+is( $Var{bar}, 13, 'variable iteration sets variables correctly' );
 
 #####################################################################
-# test math 1
+
 $parse_tree = $shell->parse('send echo (2 - -1)');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{3}\n", 'evaluate math 1' );
+is( $answer, "{3}\n", 'math operators 1' );
 
 #####################################################################
-# test math 2
+
 $parse_tree = $shell->parse('send echo (-2 + 1)');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{-1}\n", 'evaluate math 2' );
+is( $answer, "{-1}\n", 'math operators 2' );
 
 #####################################################################
-# test multiple commands
-$parse_tree = $shell->parse('send echo foo ; date');
-$answer     = '';
+
+$parse_tree = $shell->parse('version ; date');
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo }\n[date][]\n", 'evaluate multiple commands' );
+is( $answer, "[version][]\n[date][]\n", 'semicolon separates commands' );
 
 #####################################################################
-# test command inside a block
+
 $parse_tree = $shell->parse('{ date }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n", 'evaluate command inside a block' );
+is( $answer, "[date][]\n", 'braces send commands' );
 
 #####################################################################
-# test multiple commands inside a block
+
 $parse_tree = $shell->parse('{ send echo foo ; date }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
 is( $answer,
     "{foo }\n[date][]\n",
-    'evaluate multiple commands inside a block'
+    'commands and builtins can be mixed inside a block'
 );
 
 #####################################################################
-# test unescape
+
 $parse_tree = $shell->parse('send echo hi there\!');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{hi there!}\n", 'evaluate unescape' );
+is( $answer, "{hi there!}\n", 'backslash escapes characters' );
 
 #####################################################################
-# test unescape 2
+
 $parse_tree = $shell->parse('send echo "hi there\\\\"');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{hi there\\}\n", 'evaluate unescape 2' );
+is( $answer, "{hi there\\}\n", 'backslash escapes backslash' );
 
 #####################################################################
-# test unescape 3
+
 $parse_tree = $shell->parse("send echo 'foo'\\''bar'");
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo'bar}\n", 'evaluate unescape 3' );
+is( $answer, "{foo'bar}\n", 'backslash escapes quotes' );
 
 #####################################################################
-# test unescape 4
+
 $parse_tree = $shell->parse("send echo '\\\\'");
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{\\\\}\n", 'evaluate unescape 4' );
+is( $answer, "{\\\\}\n", 'single quotes escape backslash' );
 
 #####################################################################
-# test unescape 5
+
+$parse_tree = $shell->parse('send echo "\\\\"');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer, "{\\}\n", 'double quotes do not escape backslash' );
+
+#####################################################################
+
 $parse_tree = $shell->parse("send echo \\\\\\\n\n");
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{\\\n\n}\n", 'evaluate unescape 5' );
+is( $answer, "{\\\n\n}\n", 'multiple backslashes are escaped correctly' );
 
 #####################################################################
-# test whitespace
-$parse_tree = $shell->parse('send echo foo --set arg=\"one two\"');
-$answer     = '';
+
+$parse_tree = $shell->parse('send echo   foo --set arg=\"one two\"  ');
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, qq({foo --set arg="one two"}\n), 'evaluate whitespace' );
+is( $answer,
+    qq({foo --set arg="one two"  }\n),
+    'send builtin preserves trailing whitespace'
+);
 
 #####################################################################
-# test multiple commands in a loop
+
 $parse_tree = $shell->parse( '
     for name ("foo" "bar") {
         send echo hi <name>\n;
         send echo bye <name>\n;
     }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer, '{hi foo
 }
@@ -231,49 +240,52 @@ is( $answer, '{hi foo
 }
 {bye bar
 }
-', 'evaluate multiple commands in a loop'
+', 'for loops set variables and iterate correctly'
 );
 
 #####################################################################
-# test loop arguments 1
+
 $parse_tree = $shell->parse('for x (((1)+1)) { send echo <x> }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{2 }\n", 'evaluate loop arguments 1' );
+is( $answer, "{2 }\n",
+    'for loop arguments are evaluated as parenthesized expressions' );
 
 #####################################################################
-# test loop arguments 2
+
 $parse_tree = $shell->parse('for x ((1 + (0 || 1))) { send echo <x>; }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{2}\n", 'evaluate loop arguments 2' );
+is( $answer, "{2}\n",
+    'parenthesized expressions evaluate arithmetic and logical operators' );
 
 #####################################################################
-# test simple logic in a block
+
 $parse_tree = $shell->parse( '
 {
     if ( 1 ) { date };
     if ( 0 ) { uptime; };
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n", 'evaluate simple logic in a block' );
+is( $answer, "[date][]\n", 'if statements branch correctly' );
 
 #####################################################################
-# test logical operators and math
+
 $parse_tree = $shell->parse( '
 {
     if ( 2 + 2 == 4 ) { date };
     if ( 2 + 2 == 5 ) { uptime };
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n", 'evaluate logical operators and math' );
+is( $answer, "[date][]\n",
+    'if statements evaluate math and logical operators correctly' );
 
 #####################################################################
-# test blocks and math
+
 $parse_tree = $shell->parse( '
 {
     local foo = 2;
@@ -282,60 +294,60 @@ $parse_tree = $shell->parse( '
     send echo <test>;
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{6}\n", 'evaluate logical operators and math' );
+is( $answer, "{6}\n", 'expressions are evaluated before operators' );
 
 #####################################################################
-# test negation
-$parse_tree = $shell->parse( '
-{
-    if ( not 1 + 1 == 3; ) { date; };
-    if ( not 2 + 2 == 4; ) { uptime; };
-}
-' );
-$answer = '';
-$shell->send_command($parse_tree);
-is( $answer, "[date][]\n", 'evaluate negation' );
 
-#####################################################################
-# test negation on operators
 $parse_tree = $shell->parse( '
 {
     if ( not 1 > 10; ) { date };
     if ( not 0 <= 5; ) { uptime };
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n", 'evaluate negation on operators' );
+is( $answer, "[date][]\n", 'not negates operators' );
 
 #####################################################################
-# test negation on functions
+
+$parse_tree = $shell->parse( '
+{
+    if ( not 1 + 1 == 3; ) { date; };
+    if ( not 2 + 2 == 4; ) { uptime; };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n", 'not negates arithmetic' );
+
+#####################################################################
+
 $parse_tree = $shell->parse( '
 {
     if ( not { true }; ) { date };
     if ( not { false }; ) { uptime };
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[uptime][]\n", 'evaluate negation on functions' );
+is( $answer, "[uptime][]\n", 'not negates functions' );
 
 #####################################################################
-# test more logical operators
+
 $parse_tree = $shell->parse( '
 {
     if ( 0 || 1 && 2 ) { send echo yes; } else { send echo no; };
     if ( 0 || 1 && 0 ) { send echo yes; } else { send echo no; };
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{yes}\n{no}\n", 'evaluate more logical operators' );
+is( $answer, "{yes}\n{no}\n", 'else statements branch correctly' );
 
 #####################################################################
-# test nested loops
+
 $parse_tree = $shell->parse( '
     for x (1 .. 2) {
         for y (3 .. 4) {
@@ -343,7 +355,7 @@ $parse_tree = $shell->parse( '
         };
     }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer,
     '{1 - 1 - 3
@@ -354,11 +366,11 @@ is( $answer,
 }
 {2 - 2 - 4
 }
-', 'evaluate nested loop'
+', 'loops can be nested'
 );
 
 #####################################################################
-# test nested loops, logic, and variables
+
 $parse_tree = $shell->parse( '
 {
     var max_x=2;
@@ -375,7 +387,7 @@ $parse_tree = $shell->parse( '
     }
 }
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer, '{1 == 1
 }
@@ -385,99 +397,97 @@ is( $answer, '{1 == 1
 }
 {2 == 2
 }
-', 'evaluate nested loops, logic, and variables'
+', 'loops with complex logic can be nested'
 );
 
 #####################################################################
-# test nested logical operators
+
 $parse_tree = $shell->parse('if ( 0 == (1 && 0) ) { send echo ok; }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{ok}\n", 'evaluate nested logical operators' );
+is( $answer, "{ok}\n", 'logical operators can be nested' );
 
 #####################################################################
-# test nested math operators
+
 $parse_tree = $shell->parse('send echo ( ( 1 * 3 ) + 5 )');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{8}\n", 'evaluate nested math operators' );
+is( $answer, "{8}\n", 'math operators can be nested' );
 
 #####################################################################
-# test operators out of context 1
+
 $parse_tree = $shell->parse('cd ..');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "", 'evaluate operators out of context 1' );
+is( $answer, "", 'out of context operators are not evaluated' );
 
 #####################################################################
-# test operators out of context 2
+
 $parse_tree = $shell->parse('echo .*');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "[echo][.*]\n", 'evaluate operators out of context 2' );
+is( $answer, "[echo][.*]\n", 'out of context operators are passed through' );
 
 #####################################################################
-# test reserved words out of context
+
 $parse_tree = $shell->parse('send echo if foo var eval func return okay');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
 is( $answer,
     "{if foo var eval func return okay}\n",
-    'evaluate reserved words out of context'
+    'out of context reserved words are passed through'
 );
 
 #####################################################################
-# test quoted operators 1
+
 $parse_tree = $shell->parse('if ("foo eq bar" eq "foo eq bar") { version; }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "[version][]\n", 'evaluate quoted operators 1' );
-
-#####################################################################
-# test quoted operators 2
 $parse_tree = $shell->parse('if ("foo eq bar" ne "foo eq bar") { version; }');
-$answer     = '';
 $shell->send_command($parse_tree);
-is( $answer, '', 'evaluate quoted operators 2' );
+is( $answer, "[version][]\n", 'quoted operators are not evaluated' );
 
 #####################################################################
-# test operators on empty strings 1
+
 $parse_tree = $shell->parse('if ("" eq "foo") { version; }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, '', 'evaluate operators on empty strings 2' );
+is( $answer, q(), 'empty strings evaluate as values' );
 
 #####################################################################
-# test operators on empty strings 2
-$parse_tree = $shell->parse('if ("" ne "") { version; }');
-$answer     = '';
+
+$parse_tree = $shell->parse( '
+    var empty = "";
+    if ("" ne <empty>) { version; }
+' );
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, '', 'evaluate operators on empty strings 2' );
+is( $answer, q(), 'empty variables evaluate as values' );
 
 #####################################################################
-# test regex 1
-$parse_tree = $shell->parse(
-    '{
+
+$parse_tree = $shell->parse( '
+{
     if ("date" =~ "^\\w+$") { send echo yes; }
-}'
-);
-$answer = '';
+}
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{yes}\n", 'evaluate regex 1' );
+is( $answer, "{yes}\n", 'regexes can be used as expressions' );
 
 #####################################################################
-# test regex 2
-$parse_tree = $shell->parse(
-    '{
+
+$parse_tree = $shell->parse( '
+{
     if ("foo123bar" =~ "(\d+)") { send echo <_1>; }
-}'
-);
-$answer = '';
+}
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{123}\n", 'evaluate regex 2' );
+is( $answer, "{123}\n", 'regexes can capture matches' );
 
 #####################################################################
-# test functions
+
 $parse_tree = $shell->parse( '
     func test {
         var x=(<1> * 5);
@@ -487,160 +497,149 @@ $parse_tree = $shell->parse( '
     test 2 3;
     test 10 10;
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer, '{1: 2 2: 3 x: 10 y: 15
 }
 {1: 10 2: 10 x: 50 y: 50
 }
-', 'evaluate functions'
+', 'functions can be called with arguments'
 );
 
 #####################################################################
-# test functions 2
-$parse_tree = $shell->parse( '
-    func test2 {
-        var x2=(<1> * 5);
-        var y2=(<2> * 5);
-        send echo "1: <1> 2: <2> x: <x2> y: <y2>\n";
-    };
-    test2 2 3;
-    test2 10 10;
-' );
-$answer = '';
-$shell->send_command($parse_tree);
-is( $answer, '{1: 2 2: 3 x: 10 y: 15
-}
-{1: 10 2: 10 x: 50 y: 50
-}
-', 'evaluate functions 2'
-);
 
-#####################################################################
-# test function return 1
 $parse_tree = $shell->parse( '
     func test { return "hello\n"; };
     send echo { test; };
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{hello\n}\n", 'evaluate function return 1' );
+is( $answer, "{hello\n}\n", 'functions can return values' );
 
 #####################################################################
-# test function return 2
+
 $parse_tree = $shell->parse( '
     func test { version; return "hello\n"; };
     send echo { test; };
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[version][]\n{hello\n}\n", 'evaluate function return 2' );
+is( $answer, "[version][]\n{hello\n}\n", 'functions return correct values' );
 
 #####################################################################
-# test returned values 1
+
 $parse_tree = $shell->parse('if (1 < {date;}) { send echo yes; }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n{yes}\n", 'evaluate returned values 1' );
+is( $answer, "[date][]\n{yes}\n",
+    'braces can pass return values from commands with semicolons' );
 
 #####################################################################
-# test returned values 2
+
 $parse_tree = $shell->parse('if ({date} > 1) { send echo yes; }');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "[date][]\n{yes}\n", 'evaluate returned values 2' );
+is( $answer, "[date][]\n{yes}\n",
+    'braces can pass return values from commands without semicolons' );
 
 #####################################################################
-# test returned values 3
+
 $parse_tree = $shell->parse( '
     func echo { send echo "<@>\n"; };
     func test { return "okay"; };
     if ({test;} eq "okay") { echo "success"; };
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{success\n}\n", 'evaluate returned values 3' );
+is( $answer, "{success\n}\n",
+    'braces pass correct return values from functions' );
 
 #####################################################################
-# test floating point
+
 $parse_tree = $shell->parse('echo (.5 + -.2)');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{0.3\n}\n", 'evaluate floating point' );
+is( $answer, "{0.3\n}\n", 'floating point arithmetic can be used' );
 
 #####################################################################
-# test variable functions
+
 $parse_tree = $shell->parse( '
     var f=echo;
     <f>   foo   bar
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo   bar\n}\n", 'evaluate variable functions' );
+is( $answer, "{foo   bar\n}\n", 'variables can be used as function names' );
 
 #####################################################################
-# test function arguments 1
+
 $parse_tree = $shell->parse( '
     func test { send echo <0> <@>\n; };
     test "foo  bar"
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{test foo  bar\n}\n", 'evaluate function arguments 1' );
+is( $answer,
+    "{test foo  bar\n}\n",
+    'whitespace is preserved in function arguments'
+);
 
 #####################################################################
-# test function arguments 2
+
 $parse_tree = $shell->parse( '
     func test { echo <0> <@>; };
     test "foo  bar"
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{test foo  bar\n}\n", 'evaluate function arguments 2' );
+is( $answer,
+    "{test foo  bar\n}\n",
+    'whitespace is preserved through a stack of functions'
+);
 
 #####################################################################
-# test nested parentheses 1
+
+$parse_tree = $shell->parse('send echo ((foo eq foo)\n);');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer, "{1\n}\n", 'nested parenthesis are evaluted for operators' );
+
+#####################################################################
+
 $parse_tree = $shell->parse( '
     var i=;
     func test { var i++; echo <i>; return <i> };
     echo (((test();) + 100))
 ' );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{1\n}\n{101\n}\n", 'evaluate nested parentheses 1' );
+is( $answer, "{1\n}\n{101\n}\n", 'nested parentheses are otherwise ignored' );
 
 #####################################################################
-# test nested parentheses 2
-$parse_tree = $shell->parse('send echo ((foo eq foo)\n);');
-$answer     = '';
-$shell->send_command($parse_tree);
-is( $answer, "{1\n}\n", 'evaluate nested parentheses 2' );
 
-#####################################################################
-# test commands in nested blocks 1
 $parse_tree = $shell->parse(q({ local; { echo foo } }));
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[28][]\n", 'evaluate commands in nested blocks 1' );
+is( $answer, "{foo\n}\n[28][]\n", 'commands can be nested inside blocks' );
 
 #####################################################################
-# test commands in nested blocks 2
+
 $parse_tree = $shell->parse(q({ local; { echo foo } date }));
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
 is( $answer, "{foo\n}\n[28][date]\n",
-    'evaluate commands in nested blocks 2' );
+    'expressions after blocks are evaluated' );
 
 #####################################################################
-# test commands in nested blocks 3
+
 $parse_tree = $shell->parse(q({ local; { echo foo } ; date }));
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
 is( $answer, "{foo\n}\n[28][]\n[date][]\n",
-    'evaluate commands in nested blocks 3' );
+    'semicolons separate blocks and expressions' );
 
 #####################################################################
-# test variable expansion 1
+
 $parse_tree = $shell->parse(
     q(
     func replace {
@@ -655,19 +654,27 @@ $parse_tree = $shell->parse(
     echo {replace "echo1234date" '^(\D+)\d+(\D+)$' '<_1> <_2>'};
 )
 );
-$answer = '';
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{echo date\n}\n", 'evaluate variable expansion 1' );
+is( $answer, "{echo date\n}\n", 'variables are expanded correctly' );
 
 #####################################################################
-# test variable expansion 2
-$parse_tree = $shell->parse(
-    q(
-    var list=("one two" three);
+
+$parse_tree = $shell->parse( '
+    var list=(1 2);
+    for x (<list>) { echo <x>; };
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "{1\n}\n{2\n}\n", 'variables can be expanded as lists' );
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+    list=("one two" three);
     for x ("foo bar" <list> kk) { echo <x> };
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer, '{foo bar
 }
@@ -677,108 +684,92 @@ is( $answer, '{foo bar
 }
 {kk
 }
-', 'evaluate variable expansion 2'
+', 'variables with list values are expanded correctly'
 );
 
 #####################################################################
-# test variable expansion 3
-$parse_tree = $shell->parse(
-    q(
-    list=(1 2);
-    for x (<list>) { echo <x>; };
-)
-);
-$answer = '';
-$shell->send_command($parse_tree);
-is( $answer, "{1\n}\n{2\n}\n", 'evaluate variable expansion 3' );
 
-#####################################################################
-# test variable expansion 4
-$parse_tree = $shell->parse(
-    q(
+$parse_tree = $shell->parse( '
     var list=(one  two);
     echo <list>;
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{one  two\n}\n", 'evaluate variable expansion 4' );
+is( $answer,
+    "{one  two\n}\n",
+    'variables with last values still preserve whitespace'
+);
 
 #####################################################################
-# test variable expansion 5
-$parse_tree = $shell->parse(
-    q(
+
+$parse_tree = $shell->parse( '
     for x (1 .. 4) { cmd host<x> foo<x>bar }
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer,
     "[foo1bar][]\n[foo2bar][]\n[foo3bar][]\n[foo4bar][]\n",
-    'evaluate variable expansion 5'
+    'variables expand without additional whitespace'
 );
 
 #####################################################################
-# test variable escape
+
 $parse_tree = $shell->parse('echo "\<foo\>"');
-$answer     = '';
+$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{<foo>\n}\n", 'evaluate variable escape' );
+is( $answer, "{<foo>\n}\n", 'variables can be escaped with backslash' );
 
 #####################################################################
-# test list arguments
-$parse_tree = $shell->parse(
-    q(
+
+$parse_tree = $shell->parse( '
     func test { for this (<1>) { echo <this> } };
     test ("foo bar" baz)
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo bar\n}\n{baz\n}\n", 'evaluate list arguments' );
+is( $answer,
+    "{foo bar\n}\n{baz\n}\n",
+    'a parenthesized list is a single function argument'
+);
 
 #####################################################################
-# test comments
-$parse_tree = $shell->parse(
-    q(
+
+$parse_tree = $shell->parse( '
     foo=bar; # comment!
     # { var foo=bad };
     echo <foo>;
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{bar\n}\n", 'evaluate comments' );
+is( $answer, "{bar\n}\n", 'comments can be used' );
 
 #####################################################################
-# test list
-$parse_tree = $shell->parse(
-    q(
+
+$parse_tree = $shell->parse( '
     list=("one two" "three");
     <list>;
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[one][two three]\n", 'evaluate list' );
+is( $answer,
+    "[one][two three]\n",
+    'lists are expanded into commands on whitespace boundaries'
+);
 
 #####################################################################
-# test var list
-$parse_tree = $shell->parse(
-    q(
+
+$parse_tree = $shell->parse( '
     var list;
     var foo=(var list;);
     <foo>;
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[one][two three]\n", 'evaluate var list' );
+is( $answer, "[one][two three]\n", 'lists can be copied between variables' );
 
 #####################################################################
-# test variable localization 1
-$parse_tree = $shell->parse(
-    q(
+
+$parse_tree = $shell->parse( '
     {
         local sum=42;
         {
@@ -790,37 +781,12 @@ $parse_tree = $shell->parse(
         };
         echo sum == <sum>
     }
-)
-);
-$answer = '';
+' );
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer,
     "{sum == 0\n}\n[33][]\n{sum == 42\n}\n",
-    'evaluate variable localization 1'
-);
-
-#####################################################################
-# test variable localization 2
-$parse_tree = $shell->parse(
-    q(
-    {
-        local sum=23;
-        {
-            local sum=0;
-            for i (1 .. 10) [
-                local sum += <i>
-            ];
-            echo sum == <sum>
-        };
-        echo sum == <sum>
-    }
-)
-);
-$answer = '';
-$shell->send_command($parse_tree);
-is( $answer,
-    "{sum == 55\n}\n[34][]\n{sum == 23\n}\n",
-    'evaluate variable localization 2'
+    'local controls variable scope'
 );
 
 #####################################################################

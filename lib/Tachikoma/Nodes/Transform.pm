@@ -52,7 +52,7 @@ sub arguments {
         ## no critic (ProhibitStringyEval)
         eval "require $package"
             or die "couldn't require $package: $@"
-            if ( $package ne q{-} );
+            if ( $package ne q(-) );
         $self->{function} = eval "sub { $transform }";
         die $@ if ($@);
     }

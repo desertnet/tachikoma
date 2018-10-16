@@ -31,7 +31,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my @indexes = split q{ }, $self->{arguments};
+        my @indexes = split q( ), $self->{arguments};
         $self->{indexes} = { map { $_ => 1 } @indexes };
     }
     return $self->{arguments};
@@ -67,7 +67,7 @@ sub execute {
     }
     elsif ( ref $query eq 'HASH' ) {
         my $op = $query->{op};
-        die qq{"$op" is not a valid operator\n} if ( not $Operators{$op} );
+        die qq("$op" is not a valid operator\n) if ( not $Operators{$op} );
         $results = &{ $Operators{$op} }( $self, $query );
     }
     $results //= {};
@@ -221,7 +221,7 @@ sub send_request {
     $self->{connector} ||= {};
     for my $host ( @{ $self->{hosts} } ) {
         for my $port ( @{ $self->{ports} } ) {
-            my $host_port = join q{:}, $host, $port;
+            my $host_port = join q(:), $host, $port;
             my $tachikoma = $self->{connector}->{$host_port};
             if ( not $tachikoma ) {
                 $tachikoma =

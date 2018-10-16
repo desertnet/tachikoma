@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 34423 2018-07-07 00:39:24Z chris $
+# $Id: Buffer.pm 35277 2018-10-16 09:41:42Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -73,7 +73,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $filename, $max_unanswered ) =
-            split q{ }, $self->{arguments}, 2;
+            split q( ), $self->{arguments}, 2;
         $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->untie_hash;
@@ -85,7 +85,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
@@ -101,58 +101,35 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $buffer_size    = $self->{buffer_size} // $self->get_buffer_size;
     my $buffer_mode    = $self->{buffer_mode};
     my $copy           = bless [ @{$message} ], ref $message;
-    my $should_send =
-        ( $self->{owner} and $unanswered < $max_unanswered ) ? 1 : 0;
+    $self->set_timer(0)
+        if ( $self->{owner} and $unanswered < $max_unanswered );
+    return $self->stderr( 'ERROR: unexpected ',
+        $message->type_as_string, ' from ', $message->from )
+        if (not $type & TM_BYTESTREAM
+        and not $type & TM_STORABLE
+        and not $type & TM_INFO );
+    $self->{counter}++;
+    return if ( $buffer_mode eq 'null' );
+    do {
+        $message_id = $self->msg_counter;
+    } while ( exists $tiedhash->{$message_id} );
+    $copy->[TYPE]            = $type | TM_PERSIST;
+    $copy->[FROM]            = $self->{name};
+    $copy->[TO]              = $self->{owner};
+    $copy->[ID]              = $message_id;
+    $tiedhash->{$message_id} = pack 'F N a*',
+        $Tachikoma::Right_Now + $self->{delay}, 0, ${ $copy->packed };
+    $self->{buffer_fills}++;
+    $buffer_size++;
 
-    if ( $should_send and $buffer_mode eq 'ordered' ) {
-        $self->set_timer(0);
-        $should_send = 0;
+    if ( $type & TM_ERROR ) {
+        $self->{errors_passed}++;
+        $self->answer($message) if ( $type & TM_PERSIST );
     }
-    if ( $type & TM_BYTESTREAM or $type & TM_STORABLE or $type & TM_INFO ) {
-        $self->{counter}++;
-        return if ( $buffer_mode eq 'null' );
-        do {
-            $message_id = $self->msg_counter;
-        } while ( exists $tiedhash->{$message_id} );
-        $copy->type( $type | TM_PERSIST );
-        $copy->[FROM]            = $self->{name};
-        $copy->[TO]              = $self->{owner};
-        $copy->[ID]              = $message_id;
-        $tiedhash->{$message_id} = pack 'F N a*',
-              ( $should_send ? $self->{timeout} : 0 )
-            + $Tachikoma::Right_Now
-            + $self->{delay}, $should_send, ${ $copy->packed };
-        $self->{buffer_fills}++;
-        $buffer_size++;
-
-        if ( $type & TM_ERROR ) {
-            $self->{errors_passed}++;
-            $self->answer($message) if ( $type & TM_PERSIST );
-        }
-        elsif ( $type & TM_PERSIST ) {
-            $self->cancel($message);
-        }
-    }
-    else {
-        return $self->stderr( 'ERROR: unexpected ',
-            $message->type_as_string, ' from ', $message->from );
+    elsif ( $type & TM_PERSIST ) {
+        $self->cancel($message);
     }
     $self->{buffer_size} = $buffer_size;
-    if ( $copy->[TYPE] & TM_PERSIST ) {
-        if ($should_send) {
-            $self->set_timer( $Timer_Interval * 1000 )
-                if ( $buffer_size and not $self->{timer_is_active} );
-            $self->{pmsg_sent}++;
-            $self->{msg_unanswered}->{ $copy->[ID] } =
-                [ $Tachikoma::Right_Now, $copy->[TYPE] ];
-            $self->{sink}->fill($copy);
-        }
-    }
-    else {
-        $copy->[TO] ||= $self->{owner};
-        $self->{msg_sent}++;
-        $self->{sink}->fill($copy);
-    }
     return 1;
 }
 
@@ -285,7 +262,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                     if ($tied) {
                         undef $tied;
                         untie %{$tiedhash} or warn;
-                        unlink join q{/}, $self->db_dir, $self->filename
+                        unlink join q(/), $self->db_dir, $self->filename
                             or warn;
                         $self->tiedhash(undef);
                     }
@@ -423,7 +400,7 @@ $C{list_messages} = sub {
     my $list_all       = $arguments =~ m{a};
     my $verbose        = $arguments =~ m{v};
     my $buffer_size    = $self->patron->buffer_size || 0;
-    my $response       = q{};
+    my $response       = q();
     return if ( $list_all and $buffer_size > 10000 );
     my $hash = $list_all ? $tiedhash : $msg_unanswered;
 
@@ -458,10 +435,10 @@ $C{remove_message} = sub {
     my $envelope = shift;
     my $tiedhash = $self->patron->tiedhash;
     my $key      = $command->arguments;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         if ( $self->patron->filename ) {
             untie %{$tiedhash} or warn;
-            unlink join q{/}, $self->patron->db_dir, $self->patron->filename
+            unlink join q(/), $self->patron->db_dir, $self->patron->filename
                 or warn;
         }
         $self->patron->msg_unanswered( {} );
@@ -489,7 +466,7 @@ $C{dump_message} = sub {
     my $envelope = shift;
     my $key      = $command->arguments;
     my $tiedhash = $self->patron->tiedhash;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         $key = each %{ $self->patron->msg_unanswered };
         if ( not $key ) {
             return $self->response( $envelope, "no messages in flight\n" );
@@ -627,7 +604,7 @@ $C{list_responders} = sub {
     my $command    = shift;
     my $envelope   = shift;
     my $responders = $self->patron->responders;
-    my $response   = q{};
+    my $response   = q();
     for my $key ( sort keys %{$responders} ) {
         $response .= sprintf "%-30s %9d\n", $key, $responders->{$key};
     }
@@ -642,7 +619,7 @@ $C{list_times} = sub {
     my $envelope = shift;
     my $patron   = $self->patron;
     my $times    = $patron->trip_times;
-    my $response = q{};
+    my $response = q();
     for my $timestamp ( sort { $a <=> $b } keys %{$times} ) {
         my @pairs = @{ $times->{$timestamp} };
         while ( my $message_id = shift @pairs ) {
@@ -669,7 +646,7 @@ $C{stats} = sub {
     my $errors_passed   = $patron->errors_passed;
     my $unanswered      = keys %{ $patron->msg_unanswered };
     my $max             = $patron->max_unanswered;
-    my $max_attempts    = $patron->max_attempts || q{-};
+    my $max_attempts    = $patron->max_attempts || q(-);
     my $on_max_attempts = $patron->on_max_attempts;
     my $delay           = $patron->delay;
     my $timeout         = $patron->timeout;
@@ -779,7 +756,7 @@ sub dump_config {
     my $response        = undef;
     my $settings        = undef;
     my $name            = $self->{name};
-    my $filename        = $self->{filename} // q{};
+    my $filename        = $self->{filename} // q();
     my $max_unanswered  = $self->{max_unanswered};
     my $max_attempts    = $self->{max_attempts};
     my $on_max_attempts = $self->{on_max_attempts};

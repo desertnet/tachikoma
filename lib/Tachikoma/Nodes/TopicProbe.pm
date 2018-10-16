@@ -23,7 +23,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{my_hostname} = hostname();
-    $self->{prefix}      = q{};
+    $self->{prefix}      = q();
     $self->{last_time}   = $Tachikoma::Right_Now;
     bless $self, $class;
     return $self;
@@ -40,18 +40,19 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $seconds, $prefix ) = split q{ }, $self->{arguments}, 2;
-        die 'usage: ' . $self->help if ( $seconds =~ m{\D} );
+        my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
+        die "ERROR: bad arguments for TopicProbe\n"
+            if ( not $seconds or $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
-        $self->prefix( $prefix || q{} );
+        $self->prefix( $prefix || q() );
     }
     return $self->{arguments};
 }
 
 sub fire {
     my $self     = shift;
-    my $out      = q{};
+    my $out      = q();
     my $interval = $self->{timer_interval} / 1000;
     my $elapsed  = Time::HiRes::time - $self->{last_time};
     $self->stderr(
@@ -65,10 +66,10 @@ sub fire {
         if ( $node->isa('Tachikoma::Nodes::Partition') ) {
             next if ( $node->{leader} );
             my $partition_name = $node->{name};
-            $partition_name = join q{/}, $self->{prefix}, $partition_name
+            $partition_name = join q(/), $self->{prefix}, $partition_name
                 if ( $self->{prefix} );
             $partition_name =~ s{:}{_}g;
-            $out .= join q{},
+            $out .= join q(),
                 'partition:' => $partition_name,
                 ' p_offset:' => $node->{last_commit_offset} // 0,
                 "\n";
@@ -76,15 +77,15 @@ sub fire {
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
             my $partition_name = $node->{partition};
             $partition_name =~ s{.*/}{};
-            $partition_name = join q{/}, $self->{prefix}, $partition_name
+            $partition_name = join q(/), $self->{prefix}, $partition_name
                 if ( $self->{prefix} );
             $partition_name =~ s{:}{_}g;
             my $consumer_name = $node->{name};
             $consumer_name =~ s{^_}{};
-            $consumer_name = join q{/}, $self->{prefix}, $consumer_name
+            $consumer_name = join q(/), $self->{prefix}, $consumer_name
                 if ( $self->{prefix} );
             $consumer_name =~ s{:}{_}g;
-            $out .= join q{},
+            $out .= join q(),
                 'hostname:'        => $self->{my_hostname},
                 ' partition:'      => $partition_name,
                 ' consumer:'       => $consumer_name,

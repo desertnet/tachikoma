@@ -21,7 +21,7 @@ use parent qw( Tachikoma::Job );
 use version; our $VERSION = 'v2.0.368';
 
 # my $Separator   = chr 0;
-my $Separator = join q{}, chr 30, q{ -> }, chr 30;
+my $Separator = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -40,19 +40,19 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     return $self->stderr("ERROR: bad path: $relative")
         if ( $relative =~ m{^[.][.]$|^[.][.]/|/[.][.](?=/)|/[.][.]$} );
     my ( $prefix, $delete_threshold, $mode ) =
-        split q{ }, $self->{arguments}, 3;
+        split q( ), $self->{arguments}, 3;
     $mode ||= 'update';
     my $should_delete = ( $mode eq 'update' ) ? $delete_threshold : undef;
     $delete_threshold ||= 43200;
-    my $my_path = join q{/}, $prefix, $relative;
+    my $my_path = join q(/), $prefix, $relative;
     $my_path =~ s{/+$}{};
     my $message_to = $message->[FROM];
     $message_to =~ s{/DirStats:tee}{};
 
     if ( $relative eq '.intent' ) {
         my $fh;
-        my $payload = q{};
-        if ( open $fh, q{<}, $my_path ) {
+        my $payload = q();
+        if ( open $fh, q(<), $my_path ) {
             $payload .= $_ while (<$fh>);
             close $fh or $self->stderr("ERROR: couldn't close $my_path: $!");
         }
@@ -86,11 +86,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     or $self->stderr("ERROR: couldn't remove $my_path: $!");
             }
             for my $entry ( keys %other ) {
-                my $their_path_entry = join q{/}, $relative, $entry;
+                my $their_path_entry = join q(/), $relative, $entry;
                 my $response = Tachikoma::Message->new;
                 $response->[TYPE]    = TM_BYTESTREAM;
                 $response->[TO]      = $message_to;
-                $response->[PAYLOAD] = join q{}, 'update:',
+                $response->[PAYLOAD] = join q(), 'update:',
                     $their_path_entry, "\n";
                 $self->SUPER::fill($response);
             }
@@ -108,7 +108,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $entry = shift @entries;
         if ( $entry =~ m{^[.]} and not $Dot_Include{$entry} ) {
             if ( $entry =~ m{^[.]temp-\w{16}$} ) {
-                my $my_path_entry = join q{/}, $my_path, $entry;
+                my $my_path_entry = join q(/), $my_path, $entry;
                 my @lstat = lstat $my_path_entry;
                 next if ( not @lstat );
                 my $last_modified = $lstat[9];
@@ -124,22 +124,22 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             next;
         }
-        my $my_path_entry = join q{/}, $my_path, $entry;
+        my $my_path_entry = join q(/), $my_path, $entry;
         my @lstat = cached_lstat($my_path_entry);
         next if ( not @lstat );
 
         # my $stat          = (-l _) ? 'L' : (-d _) ? 'D' : 'F';
         my $stat          = $lstat[-1];
-        my $size          = ( $stat eq 'F' ) ? $lstat[7] : q{-};
+        my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};
-        my $their_stat    = $other_entry ? $other_entry->[0] : q{};
-        my $their_size    = $other_entry ? $other_entry->[1] : q{-};
-        my $their_perms   = $other_entry ? $other_entry->[2] : q{};
+        my $their_stat    = $other_entry ? $other_entry->[0] : q();
+        my $their_size    = $other_entry ? $other_entry->[1] : q(-);
+        my $their_perms   = $other_entry ? $other_entry->[2] : q();
         my $my_is_dir     = ( $stat eq 'D' ) ? 1 : 0;
         my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1 : 0;
         my $last_modified = $lstat[9];
-        my $digest        = q{-};
+        my $digest        = q(-);
         my $theirs_exists = exists $other{$entry};
         if ( not $theirs_exists or $my_is_dir != $theirs_is_dir ) {
             next if ( validate( $my_path_entry, $entry, \@entries ) );
@@ -203,9 +203,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 next;
             }
             my $their_digest = $other_entry->[4];
-            if ( $stat eq 'F' and $their_digest ne q{-} ) {
+            if ( $stat eq 'F' and $their_digest ne q(-) ) {
                 my $md5 = Digest::MD5->new;
-                if ( open my $fh, q{<}, $my_path_entry ) {
+                if ( open my $fh, q(<), $my_path_entry ) {
                     $md5->addfile($fh);
                     $digest = $md5->hexdigest;
                     close $fh
@@ -228,12 +228,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         next if ( $checked{$entry} );
         my $their_path_entry =
             $relative
-            ? join q{/}, $relative, $entry
+            ? join q(/), $relative, $entry
             : $entry;
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = $message_to;
-        $response->[PAYLOAD] = join q{}, 'update:', $their_path_entry, "\n";
+        $response->[PAYLOAD] = join q(), 'update:', $their_path_entry, "\n";
         $self->SUPER::fill($response);
     }
     scrub();

@@ -40,7 +40,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $max_rate, $window, $should_warn ) =
-            split q{ }, $self->{arguments}, 3;
+            split q( ), $self->{arguments}, 3;
         $self->{max_rate}    = $max_rate;
         $self->{window}      = $window || $Default_Window;
         $self->{should_warn} = $should_warn;

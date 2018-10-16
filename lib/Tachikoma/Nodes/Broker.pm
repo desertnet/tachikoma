@@ -69,7 +69,7 @@ sub new {
     $self->{brokers}          = {};
     $self->{caches}           = {};
     $self->{consumer_groups}  = {};
-    $self->{controller}       = q{};
+    $self->{controller}       = q();
     $self->{default_settings} = {
         num_partitions     => 1,
         replication_factor => 2,
@@ -126,7 +126,7 @@ sub arguments {
         my $arguments = shift;
         die "ERROR: Broker node requires a <host>:<port>\n"
             if ( not $arguments );
-        my ( $broker_id, $path, $stick ) = split q{ }, $arguments, 3;
+        my ( $broker_id, $path, $stick ) = split q( ), $arguments, 3;
         $path //= $Path;
         $self->{arguments} = $arguments;
         $self->{broker_id} = $broker_id;
@@ -216,7 +216,7 @@ sub load_topic_config {
 sub determine_lco {
     my $self        = shift;
     my $filename    = shift;
-    my $offsets_dir = join q{/}, $filename, 'offsets';
+    my $offsets_dir = join q(/), $filename, 'offsets';
     my $stats       = {
         lco       => undef,
         filename  => $filename,
@@ -261,16 +261,16 @@ sub fill {
         $self->stderr(
             'WARNING: stale message: ID ',
             $message->id,
-            q{ < },
+            q( < ),
             $self->{generation},
-            q{ - },
+            q( - ),
             $message->type_as_string
-                . ( $message->from ? ' from: ' . $message->from : q{} )
-                . ( $message->to   ? ' to: ' . $message->to     : q{} )
+                . ( $message->from ? ' from: ' . $message->from : q() )
+                . ( $message->to   ? ' to: ' . $message->to     : q() )
                 . (
                 ( $message->type & TM_INFO or $message->type & TM_ERROR )
                 ? ' payload: ' . $message->payload
-                : q{}
+                : q()
                 )
         );
     }
@@ -396,7 +396,7 @@ sub process_command {    ## no critic (ProhibitExcessComplexity)
     my $message = shift;
     my $line    = $message->[PAYLOAD];
     chomp $line;
-    my ( $cmd, $args ) = split q{ }, $line, 2;
+    my ( $cmd, $args ) = split q( ), $line, 2;
     $self->stderr( "DEBUG: $line - from ", $message->[FROM] )
         if (
             $cmd ne 'GET_CONTROLLER'
@@ -470,7 +470,7 @@ sub validate {
     }
     elsif ( $stage ne 'INIT' and $message->[ID] < $self->{generation} ) {
         $self->stderr( $self->{stage}, 'ERROR: stale message: ID ',
-            $message->id, q{ < }, $self->{generation} );
+            $message->id, q( < ), $self->{generation} );
     }
     else {
         $rv = 1;
@@ -495,7 +495,7 @@ sub determine_controller {
             $broker->{leader} = undef;
         }
     }
-    $self->{controller} = $controller // q{};
+    $self->{controller} = $controller // q();
     return $controller;
 }
 
@@ -958,7 +958,7 @@ sub determine_leader {
 
     # $self->stderr(
     #     "CANDIDATE LEADERS for $log_name - ",
-    #     join q{, },
+    #     join q(, ),
     #     grep $query->{candidates}->{$_},
     #     sort keys %{ $query->{candidates} }
     # );
@@ -1298,10 +1298,10 @@ sub inform_brokers {
     my $payload = shift;
     my $stage   = $self->{stage};
     if ( $stage eq 'COMPLETE' ) {
-        $stage = q{};
+        $stage = q();
     }
     else {
-        $stage .= q{ };
+        $stage .= q( );
     }
     $self->stderr( $stage, $self->{generation}, ' inform_brokers ', $payload )
         if ( $payload ne "REBALANCE_PARTITIONS\n" );
@@ -1336,7 +1336,7 @@ sub send_info {
 
     # chomp $info;
     # $self->stderr(
-    #     $info, q{ }, $self->{generation}, ' for ', $message->[FROM]
+    #     $info, q( ), $self->{generation}, ' for ', $message->[FROM]
     # );
     return $self->{sink}->fill($response);
 }
@@ -1431,7 +1431,7 @@ sub process_delete {    ## no critic (ProhibitExcessComplexity)
                         $log->{filename} );
                     my @path_components = split m{/}, $log->{filename};
                     while (@path_components) {
-                        my $path = join q{/}, @path_components;
+                        my $path = join q(/), @path_components;
                         last if ( length $path <= length $self->{path} );
                         ## no critic (RequireCheckedSyscalls)
                         rmdir $path;
@@ -1561,8 +1561,8 @@ sub save_topic_state {
         push @consumer_groups, $group_name
             if ( $groups->{$group_name}->{topics}->{$topic_name} );
     }
-    print {$fh} join( q{ },
-        '--topic_name="' . $topic_name . q{"},
+    print {$fh} join( q( ),
+        '--topic_name="' . $topic_name . q("),
         '--num_partitions=' . $topic->{num_partitions},
         '--replication_factor=' . $topic->{replication_factor},
         '--num_segments=' . $topic->{num_segments},
@@ -1636,7 +1636,7 @@ sub empty_topics {
             for my $group_name ( keys %{ $self->{consumer_groups} } ) {
                 my $group = $self->{consumer_groups}->{$group_name};
                 next if ( not $group->{topics}->{$topic_name} );
-                my $cache_name = join q{:}, $name, $group_name;
+                my $cache_name = join q(:), $name, $group_name;
                 $self->empty_partition($cache_name);
             }
         }
@@ -1670,7 +1670,7 @@ sub empty_groups {
         for my $topic_name ( keys %{ $group->{topics} } ) {
             next if ( $topic_glob and $topic_name !~ m{^$topic_glob} );
             for my $name ( keys %{ $mapping->{$topic_name} } ) {
-                my $cache_name = join q{:}, $name, $group_name;
+                my $cache_name = join q(:), $name, $group_name;
                 $self->empty_partition($cache_name);
             }
         }
@@ -1835,9 +1835,9 @@ $C{list_brokers} = sub {
             $broker->{host},
             $broker->{port},
             strftime( '%F %T %Z', localtime( $broker->{last_heartbeat} ) ),
-            $broker->{online}         ? q{*} : q{},
-            $broker->{leader}         ? q{*} : q{},
-            $broker_id eq $controller ? q{*} : q{},
+            $broker->{online}         ? q(*) : q(),
+            $broker->{leader}         ? q(*) : q(),
+            $broker_id eq $controller ? q(*) : q(),
             ];
     }
     return $self->response( $envelope, $self->tabulate($results) );
@@ -1889,7 +1889,7 @@ $C{set_consumer_group} = sub {
     my $envelope = shift;
     my $error    = $self->patron->check_status;
     return $self->error($error) if ($error);
-    my $topic_name = ( split q{ }, $command->arguments, 2 )[1];
+    my $topic_name = ( split q( ), $command->arguments, 2 )[1];
     return $self->error("ERROR: invalid arguments\n")
         if ( not $command->arguments );
     $self->patron->add_consumer_group( $command->arguments );
@@ -1966,12 +1966,12 @@ $C{list_partitions} = sub {
             next if ( $glob and $name !~ m{$glob} );
             my $log       = $broker_lco->{$name};
             my $stats     = $broker_stats->{$name};
-            my $count     = $stats ? $stats->{isr} : q{};
-            my $offset    = $stats ? $stats->{offset} : q{};
-            my $is_leader = $count ? q{*} : q{};
-            my $is_active = q{};
-            my $is_online = $broker->{online} ? q{*} : q{};
-            $is_active = q{*}
+            my $count     = $stats ? $stats->{isr} : q();
+            my $offset    = $stats ? $stats->{offset} : q();
+            my $is_leader = $count ? q(*) : q();
+            my $is_active = q();
+            my $is_online = $broker->{online} ? q(*) : q();
+            $is_active = q(*)
                 if ($log->{is_active}
                 and $Tachikoma::Now - $log->{is_active}
                 < $LCO_Send_Interval * 2 );
@@ -1980,7 +1980,7 @@ $C{list_partitions} = sub {
             if ($by_partition) {
                 my ( $topic_name, $type, $i, $etc ) = split m{:}, $name, 4;
                 my $key = sprintf '%s:%s:%09d:%s:%s',
-                    $topic_name, $type, $i, $etc // q{}, $broker_id;
+                    $topic_name, $type, $i, $etc // q(), $broker_id;
                 $unsorted{$key} = [
                     $name,       $broker_id, $offset,
                     $log->{lco}, $is_leader, $count
@@ -1991,7 +1991,7 @@ $C{list_partitions} = sub {
             else {
                 my ( $topic_name, $type, $i, $etc ) = split m{:}, $name, 4;
                 my $key = sprintf '%s:%s:%s:%09d:%s',
-                    $broker_id, $topic_name, $type, $i, $etc // q{};
+                    $broker_id, $topic_name, $type, $i, $etc // q();
                 $unsorted{$key} = [
                     $broker_id,  $name,      $offset,
                     $log->{lco}, $is_leader, $count

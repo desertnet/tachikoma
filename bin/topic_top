@@ -49,7 +49,7 @@ usage() if ( $help or not $r );
 $threshold //= 1;
 
 if ( not $select_fields ) {
-    $select_fields = join q{,}, qw(
+    $select_fields = join q(,), qw(
         hostname consumer p_offset cache
         recv_rate direction2 send_rate msg_sent msg_rate
         msg_unanswered max_unanswered distance eta

@@ -45,7 +45,7 @@ sub arguments {
             $self->{parse_tree} = $shell->parse($commands);
         }
         else {
-            die "ERROR: missing arguments\n";
+            die "ERROR: bad arguments for Function\n";
         }
     }
     return $self->{arguments};
@@ -69,7 +69,7 @@ sub fill {
     $self->climb( 'message', $copy, $arguments );
     if ( $message->[TYPE] & TM_BYTESTREAM or $message->[TYPE] & TM_INFO ) {
         my $name = $self->{name};
-        $arguments->{q{@}}  = join q{ }, $name, $payload;
+        $arguments->{q{@}}  = join q( ), $name, $payload;
         $arguments->{q{0}}  = $name;
         $arguments->{q{1}}  = $payload;
         $arguments->{q{_C}} = 1;
@@ -101,7 +101,7 @@ sub fill {
     $response->[FROM]    = $message->[FROM];
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q{}, @{$rv};
+    $response->[PAYLOAD] = join q(), @{$rv};
     return $self->SUPER::fill($response);
 }
 

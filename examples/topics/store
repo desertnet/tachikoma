@@ -12,6 +12,6 @@ my $partitions   = $topic->get_partitions;
 my $partition_id = 0;
 $partition_id += $_ for ( unpack "C*", md5($key) );
 $partition_id %= scalar @{$partitions};
-$topic->send_kv( $partition_id, { $key => [ join q{}, <STDIN> ] } )
+$topic->send_kv( $partition_id, { $key => [ join q(), <STDIN> ] } )
     or die $topic->sync_error;
 print "ok\n";

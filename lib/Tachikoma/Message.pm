@@ -60,7 +60,7 @@ sub new {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     bless(    ## no critic (ProhibitParensWithBuiltins)
         $_[1]
         ? [ unpack 'xxxx N n/a n/a n/a n/a N a*', ${ $_[1] } ]
-        : [ 0, q{}, q{}, q{}, q{}, $Tachikoma::Now || time, q{}, 1 ],
+        : [ 0, q(), q(), q(), q(), $Tachikoma::Now || time, q(), 1 ],
         $_[0]
     );
 }

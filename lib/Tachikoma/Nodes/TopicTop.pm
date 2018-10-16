@@ -45,8 +45,8 @@ sub new {
         max_unanswered => { label => 'MAX',       size => '6',   pad => 0 },
         cache          => { label => 'CACHE',     size => '9',   pad => 0 },
         recv_rate      => { label => 'RX/s',      size => '9',   pad => 0 },
-        direction      => { label => q{},         size => '1',   pad => 0 },
-        direction2     => { label => q{},         size => '1',   pad => 0 },
+        direction      => { label => q(),         size => '1',   pad => 0 },
+        direction2     => { label => q(),         size => '1',   pad => 0 },
         send_rate      => { label => 'TX/s',      size => '9',   pad => 0 },
         msg_rate       => { label => 'MSG/s',     size => '11',  pad => 0 },
         eta            => { label => 'ETA',       size => '11',  pad => 0 },
@@ -78,7 +78,7 @@ sub fill {
     my $partitions = $self->{partitions};
     my $consumers  = $self->{consumers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $stats = { map { split m{:}, $_, 2 } split q{ }, $line };
+        my $stats = { map { split m{:}, $_, 2 } split q( ), $line };
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];
         my $row = undef;
@@ -127,15 +127,15 @@ sub fire {
           sprintf "\e[H%3d consumers; key:"
         . " \e[41mAGE > %d\e[0m \e[91mDISTANCE > 10M\e[0m"
         . " \e[93mUNANSWERED >= MAX\e[0m%s\n",
-        $total, $Topic_Timeout, q{ } x ( $width - length $output );
+        $total, $Topic_Timeout, q( ) x ( $width - length $output );
     $totals->{$_} = human( $totals->{"_$_"} )
         for (qw( p_offset c_offset distance recv_rate send_rate cache ));
     $totals->{msg_rate} = sprintf '%.2f', $totals->{_msg_rate} // 0;
-    $output .= join q{},
+    $output .= join q(),
         sprintf(
-        join( q{}, $color, $self->{format}, $reset, "\n" ),
-        map substr( $totals->{$_} // q{}, 0, abs $fields->{$_}->{size} ),
-        map $_ || q{},
+        join( q(), $color, $self->{format}, $reset, "\n" ),
+        map substr( $totals->{$_} // q(), 0, abs $fields->{$_}->{size} ),
+        map $_ || q(),
         @{$selected}
         ),
         $self->{header};
@@ -147,7 +147,7 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
                 if ($sort eq '_distance'
                 and $key < $threshold
                 and $consumer->{age} < $Topic_Timeout );
-            $color = q{};
+            $color = q();
             if ( $consumer->{age} > $Topic_Timeout ) {
                 $color = "\e[41m";
             }
@@ -165,26 +165,26 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
                 for (qw( distance recv_rate send_rate ));
             $consumer->{msg_rate} = sprintf '%.2f', $consumer->{_msg_rate};
             $consumer->{direction} = (
-                ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q{=}
-                : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q{>}
-                :                                                         q{<}
+                ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q(=)
+                : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q(>)
+                :                                                         q(<)
             );
             $consumer->{direction2} = (
                 ( $consumer->{_recv_rate} > $consumer->{_send_rate} )
-                ? q{>}
-                : q{}
+                ? q(>)
+                : q()
             );
             $output .= sprintf
-                join( q{}, $color, $self->{format}, $reset ),
-                map substr( $consumer->{$_} // q{}, 0,
+                join( q(), $color, $self->{format}, $reset ),
+                map substr( $consumer->{$_} // q(), 0,
                 abs $fields->{$_}->{size} ),
-                map $_ || q{},
+                map $_ || q(),
                 @{$selected};
             last OUTPUT if ( $count++ > $height );
             $output .= "\n";
         }
     }
-    $output .= join q{}, q{ } x ( ( $height - ( $count - 2 ) ) * $width ),
+    $output .= join q(), q( ) x ( ( $height - ( $count - 2 ) ) * $width ),
         "\e[?25l";
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
@@ -397,12 +397,12 @@ sub select_fields {
             $total = $width;
             last;
         }
-        $self->{format} = join q{ },
-            map join( q{},
-            q{ } x $fields->{$_}->{pad}, q{%}, $fields->{$_}->{size},
-            's', q{ } x $fields->{$_}->{pad} ),
+        $self->{format} = join q( ),
+            map join( q(),
+            q( ) x $fields->{$_}->{pad}, q(%), $fields->{$_}->{size},
+            's', q( ) x $fields->{$_}->{pad} ),
             @selected;
-        $self->{format} .= q{ } x ( $width - $total );
+        $self->{format} .= q( ) x ( $width - $total );
         $self->{header} = sprintf $self->{format} . "\n",
             map $fields->{$_}->{label}, @selected;
         $self->{selected} = \@selected;

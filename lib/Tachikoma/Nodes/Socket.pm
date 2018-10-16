@@ -148,7 +148,7 @@ sub inet_server {
         or die "ERROR: bind: $!\n";
     listen $socket, SOMAXCONN or die "FAILED: listen: $!";
     my $server = $class->new;
-    $server->name( join q{:}, $hostname, $port );
+    $server->name( join q(:), $hostname, $port );
     $server->{type}                           = 'listen';
     $server->{registrations}->{connected}     = {};
     $server->{registrations}->{authenticated} = {};
@@ -170,7 +170,7 @@ sub inet_client {
         or die "FAILED: socket: $!";
     setsockopts($socket);
     my $client = $class->new($flags);
-    $client->name( join q{:}, $hostname, $port );
+    $client->name( join q(:), $hostname, $port );
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{address}       = $iaddr;
@@ -221,7 +221,7 @@ sub new {
     my $class        = ref($proto) || $proto;
     my $flags        = shift || 0;
     my $self         = $class->SUPER::new;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     $self->{type}             = 'socket';
     $self->{flags}            = $flags;
     $self->{on_EOF}           = 'close';
@@ -306,7 +306,7 @@ sub accept_connection {
             : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
         );
         if ( not $ssl_client or not ref $ssl_client ) {
-            $self->stderr( join q{: }, q{ERROR: couldn't start_SSL},
+            $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
                 grep $_, $!, IO::Socket::SSL::errstr() );
             return;
         }
@@ -327,11 +327,11 @@ sub accept_connection {
     if ($unix) {
         my $my_name = $self->{name};
         do {
-            $name = join q{:}, $my_name, Tachikoma->counter;
+            $name = join q(:), $my_name, Tachikoma->counter;
         } while ( exists $Tachikoma::Nodes{$name} );
     }
     else {
-        $name = join q{:}, inet_ntoa($address), $port;
+        $name = join q(:), inet_ntoa($address), $port;
         if ( exists $Tachikoma::Nodes{$name} ) {
             $self->stderr("WARNING: $name exists");
             return $node->remove_node;
@@ -424,13 +424,13 @@ sub start_SSL_connection {
         my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
         $ssl_error =~ s{(error)(error)}{$1: $2};
         if ( $self->{flags} & TK_SYNC ) {
-            die join q{: },
-                q{ERROR: couldn't start_SSL},
+            die join q(: ),
+                q(ERROR: couldn't start_SSL),
                 grep $_, $!, $ssl_error, "\n";
         }
         else {
-            $self->print_less_often( join q{: },
-                q{WARNING: couldn't start_SSL},
+            $self->print_less_often( join q(: ),
+                q(WARNING: couldn't start_SSL),
                 grep $_, $!, $ssl_error );
             return;
         }
@@ -440,14 +440,14 @@ sub start_SSL_connection {
     $self->register_writer_node;
     if ( $self->{flags} & TK_SYNC ) {
 
-        # my $peer = join q{},
+        # my $peer = join q(),
         #     'authority: "',
         #     $fh->peer_certificate('authority'),
         #     '" owner: "',
         #     $fh->peer_certificate('owner'),
         #     '" cipher: "',
         #     $fh->get_cipher,
-        #     qq{"\n};
+        #     qq("\n);
         # $self->stderr( 'connect_SSL() verified peer:', $peer );
         $self->{fill} = \&fill_fh_sync_SSL;
         $self->init_connect;
@@ -481,14 +481,14 @@ sub init_SSL_connection {
     my $fh     = $self->{fh};
     my $method = $type eq 'connect' ? 'connect_SSL' : 'accept_SSL';
     if ( $fh and $fh->$method ) {
-        my $peer = join q{},
+        my $peer = join q(),
             'authority: "',
             $fh->peer_certificate('authority'),
             '" owner: "',
             $fh->peer_certificate('owner'),
             '" cipher: "',
             $fh->get_cipher,
-            qq{"\n};
+            qq("\n);
 
         # $self->stderr($method, '() verified peer: ', $peer);
         if ( $type eq 'connect' ) {
@@ -506,7 +506,7 @@ sub init_SSL_connection {
     elsif ( $! != EAGAIN ) {
         my $ssl_error = IO::Socket::SSL::errstr();
         $ssl_error =~ s{(error)(error)}{$1: $2};
-        $self->print_less_often( join q{: }, "WARNING: $method failed",
+        $self->print_less_often( join q(: ), "WARNING: $method failed",
             grep $_, $!, $ssl_error );
 
         # this keeps the event framework from constantly
@@ -581,7 +581,7 @@ sub reply_to_server_challenge {
     if ( $got > 0 ) {
         $self->stderr(
             "WARNING: discarding $got extra bytes from server challenge.");
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
     return;
@@ -644,8 +644,8 @@ sub reply_to_challenge {
         return $self->handle_EOF;
     }
     elsif ( $command->{arguments} ne $type ) {
-        $self->stderr( 'ERROR: wrong challenge type: ',
-            $command->{arguments} );
+        $self->stderr(
+            'ERROR: reply_to_challenge failed: wrong challenge type');
         return $self->handle_EOF;
     }
     elsif ( length $ID
@@ -745,7 +745,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message = eval {
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         };
         if ( not $message ) {
             my $trap = $@ // 'unknown error';
@@ -758,7 +758,8 @@ sub read_block {
     }
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
-        $self->print_less_often("WARNING: $caller couldn't read: $error");
+        $self->print_less_often("WARNING: $caller couldn't read: $error")
+            if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
     return;
@@ -810,7 +811,7 @@ sub drain_buffer {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
@@ -831,7 +832,7 @@ sub drain_buffer {
         }
         $message->[FROM] =
             length $message->[FROM]
-            ? join q{/}, $name, $message->[FROM]
+            ? join q(/), $name, $message->[FROM]
             : $name;
         if ( $message->[TO] and $owner ) {
             $self->print_less_often(
@@ -900,7 +901,7 @@ sub fill_buffer_init {
         }
     }
     else {
-        $message->[TO] = join q{/}, grep length, $self->{name},
+        $message->[TO] = join q(/), grep length, $self->{name},
             $message->[TO];
         $Tachikoma::Nodes{_router}->send_error( $message, 'NOT_AVAILABLE' );
     }
@@ -1047,7 +1048,7 @@ sub dns_lookup {
     if ( not $job_controller ) {
         require Tachikoma::Nodes::JobController;
         my $interpreter = $Tachikoma::Nodes{'command_interpreter'}
-            or die q{FAILED: couldn't find interpreter};
+            or die q(FAILED: couldn't find interpreter);
         $job_controller = Tachikoma::Nodes::JobController->new;
         $job_controller->name('jobs');
         $job_controller->sink($interpreter);
@@ -1077,7 +1078,7 @@ sub dns_lookup {
 
 sub dump_config {    ## no critic (ProhibitExcessComplexity)
     my $self     = shift;
-    my $response = q{};
+    my $response = q();
     if ( $self->{type} eq 'listen' ) {
         $response = $self->{filename} ? 'listen_unix' : 'listen_inet';
         if ( ref $self eq 'Tachikoma::Nodes::STDIO' ) {

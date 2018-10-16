@@ -24,7 +24,7 @@ my $targets = $broker->targets;
 while ( length $messages < $batch_size ) {
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
-    $message->payload( ( q{.} x $message_size ) . "\n" );
+    $message->payload( ( q(.) x $message_size ) . "\n" );
     $messages .= ${ $message->packed };
     $message_payload_size ||= length $message->payload;
     $count++;

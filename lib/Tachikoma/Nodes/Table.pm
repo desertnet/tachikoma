@@ -71,10 +71,10 @@ sub arguments {
 sub fill {
     my ( $self, $message ) = @_;
     if ( $message->[TYPE] & TM_INFO ) {
-        my ( $cmd, $key ) = split q{ }, $message->[PAYLOAD], 2;
+        my ( $cmd, $key ) = split q( ), $message->[PAYLOAD], 2;
         if ( $cmd eq 'GET' ) {
             chomp $key;
-            my $value = $self->lookup($key) // q{};
+            my $value = $self->lookup($key) // q();
             $self->send_entry( $message->[FROM], $key, $value );
             $self->{counter}++;
         }
@@ -205,13 +205,13 @@ sub send_stats {
             push @cache_stats, sprintf '%6d',
                 $bucket ? scalar keys %{$bucket} : 0;
         }
-        push @stats, '[ ', ( join q{, }, @cache_stats ), " ]\n";
+        push @stats, '[ ', ( join q(, ), @cache_stats ), " ]\n";
     }
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[FROM]    = $self->{name};
     $response->[TO]      = $to;
-    $response->[PAYLOAD] = join q{}, @stats;
+    $response->[PAYLOAD] = join q(), @stats;
     $self->{sink}->fill($response);
     return;
 }

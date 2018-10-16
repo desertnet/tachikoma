@@ -41,12 +41,12 @@ sub fill {
     my $servers      = $self->{servers};
     my $server_class = (
           $servers
-        ? $servers->{ $request->{headers}->{host} || q{} }
+        ? $servers->{ $request->{headers}->{host} || q() }
         : undef
     );
     my $paths = (
           $servers
-        ? $self->{paths}->{ $server_class || q{} }
+        ? $self->{paths}->{ $server_class || q() }
         : $self->{paths}
     );
     if ( not $paths ) {
@@ -54,7 +54,7 @@ sub fill {
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = $message->[FROM];
         $response->[STREAM]  = $message->[STREAM];
-        $response->[PAYLOAD] = join q{},
+        $response->[PAYLOAD] = join q(),
             "HTTP/1.1 404 NOT FOUND\n",
             'Date: ', cached_strftime(), "\n",
             "Server: Tachikoma\n",
@@ -73,12 +73,12 @@ sub fill {
     my @components  = grep length, split m{/+}, $path;
     my @new_path    = ();
     while (@components) {
-        my $test_path = q{/} . join q{/}, @components;
+        my $test_path = q(/) . join q(/), @components;
         my $test = $paths->{$test_path};
         ( $destination = $test ) and last if ($test);
         unshift @new_path, pop @components;
     }
-    $request->{path} = join q{/}, q{}, @new_path;
+    $request->{path} = join q(/), q(), @new_path;
     $destination ||= $paths->{q{/}};
     $message->[TO] = $destination;
     $self->{counter}++;
@@ -120,14 +120,14 @@ $C{add_server} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $server, $server_class ) = split q{ }, $command->arguments, 2;
+    my ( $server, $server_class ) = split q( ), $command->arguments, 2;
     if ( not $server_class ) {
         return $self->error( $envelope, "please specify a server class\n" );
     }
     if ( not $self->servers ) {
         return $self->error(
             $envelope,
-            join q{},
+            join q(),
             'if specified, servers must be specified before paths.',
             "  you can remove the current paths and try again.\n"
         ) if ( keys %{ $self->paths } );
@@ -210,7 +210,7 @@ $C{add_path} = sub {
     my ( $server_class, $path, $destination );
     if ( $self->servers ) {
         ( $server_class, $path, $destination ) =
-            split q{ }, $command->arguments, 3;
+            split q( ), $command->arguments, 3;
         if ( not exists $paths->{$server_class} ) {
             $paths->{$server_class} = {};
         }
@@ -219,10 +219,10 @@ $C{add_path} = sub {
     else {
         my $extra;
         ( $path, $destination, $extra ) =
-            split q{ }, $command->arguments, 3;
+            split q( ), $command->arguments, 3;
         if ($extra) {
             return $self->error(
-                $envelope, join q{},
+                $envelope, join q(),
                 'extra arguments to add_path.',
                 "  did you mean to add servers first?\n"
             );
@@ -246,7 +246,7 @@ $C{remove_path} = sub {
     my $envelope = shift;
     my $paths    = $self->paths;
     if ( $self->servers ) {
-        my ( $server_class, $path ) = split q{ }, $command->arguments, 2;
+        my ( $server_class, $path ) = split q( ), $command->arguments, 2;
         if ( exists $paths->{$server_class} ) {
             my $server_paths = $paths->{$server_class};
             if ( exists $server_paths->{$path} ) {
@@ -288,7 +288,7 @@ sub dump_config {
     if ($servers) {
         for my $server ( sort keys %{$servers} ) {
             my $server_class = $servers->{$server};
-            $response .= join q{},
+            $response .= join q(),
                 "command $self->{name}",
                 " add_server $server $server_class\n";
         }
@@ -296,7 +296,7 @@ sub dump_config {
             my $server_paths = $paths->{$server_class};
             for my $path ( sort keys %{$server_paths} ) {
                 my $destination = $server_paths->{$path};
-                $response .= join q{},
+                $response .= join q(),
                     "command $self->{name}",
                     " add_path $server_class $path $destination\n";
             }
@@ -305,7 +305,7 @@ sub dump_config {
     else {
         for my $path ( sort keys %{$paths} ) {
             my $destination = $paths->{$path};
-            $response .= join q{},
+            $response .= join q(),
                 "command $self->{name}",
                 " add_path $path $destination\n";
         }

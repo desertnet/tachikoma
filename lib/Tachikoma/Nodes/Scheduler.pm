@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35220 2018-10-15 06:55:10Z chris $
+# $Id: Scheduler.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -93,7 +93,7 @@ sub fire {
         next if ( $when > 0 or not $enabled );
         my $message = eval { Tachikoma::Message->new( \$packed ) };
         if ($message) {
-            my $name = ( split m{/}, $message->[FROM], 2 )[0] || q{};
+            my $name = ( split m{/}, $message->[FROM], 2 )[0] || q();
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             if ($@) {
                 $self->stderr($@);
@@ -186,7 +186,7 @@ $C{list_events} = sub {
             }
         }
     }
-    return $self->response( $envelope, join q{}, @responses );
+    return $self->response( $envelope, join q(), @responses );
 };
 
 $C{events} = $C{list_events};
@@ -197,10 +197,10 @@ $C{in} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join q{ }, $command->name, $command->arguments;
+    my $text     = join q( ), $command->name, $command->arguments;
     if ( $command->arguments =~ m{^(\d+[dhms]+)(?:/(\d+))? (.+)}s ) {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
-        my ( $name, $arguments ) = split q{ }, $imperative, 2;
+        my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
         my $time = 0;
         if ( $spec =~ m{(\d+)d} ) {
@@ -236,7 +236,7 @@ $C{at} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join q{ }, $command->name, $command->arguments;
+    my $text     = join q( ), $command->name, $command->arguments;
     my $pattern  = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+)}s;
     if ( $command->arguments =~ m{$pattern} ) {
         my ( $year, $month, $day, $hour, $min, $sec, $imperative ) =
@@ -244,7 +244,7 @@ $C{at} = sub {
         $year -= 1900 if ($year);
         $month-- if ($month);
         $sec ||= 0;
-        my ( $name, $arguments ) = split q{ }, $imperative, 2;
+        my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
         my ( $nsec, $nmin, $nhour, $nday, $nmonth, $nyear ) =
             localtime $Tachikoma::Now;
@@ -268,10 +268,10 @@ $C{every} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join q{ }, $command->name, $command->arguments;
+    my $text     = join q( ), $command->name, $command->arguments;
     if ( $command->arguments =~ m{^(\d+[dhms]+)(?:/(\d+))? (.+)}s ) {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
-        my ( $name, $arguments ) = split q{ }, $imperative, 2;
+        my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
         my $time = 0;
         if ( $spec =~ m{(\d+)d} ) {
@@ -373,7 +373,7 @@ $C{dump_event} = sub {
     my $packed  = ( unpack 'N N N Z* a*', $event )[4];
     my $message = Tachikoma::Message->new( \$packed );
     my $payload = Tachikoma::Command->new( $message->payload );
-    $payload->{signature} = q{};
+    $payload->{signature} = q();
     $message->payload($payload);
     return $self->response( $envelope, Dumper $message);
 };
@@ -414,7 +414,7 @@ sub tiedhash {
         if ( $self->{filename} ) {
             ## no critic (ProhibitTies)
             my %h    = ();
-            my $path = join q{/}, $self->db_dir, $self->{filename};
+            my $path = join q(/), $self->db_dir, $self->{filename};
             my $ext  = ( $path =~ m{[.](tcb|tch|db|hash)$} )[0] || 'db';
             $self->make_parent_dirs($path);
             if ( -e "${path}.clean" ) {
@@ -460,7 +460,7 @@ sub untie_hash {
     my $self = shift;
     untie %{ $self->{tiedhash} } if ( $self->{tiedhash} );
     if ( $self->{filename} ) {
-        my $path = join q{/}, $self->db_dir, $self->{filename};
+        my $path = join q(/), $self->db_dir, $self->{filename};
         open my $fh, '>>', "${path}.clean"
             or $self->stderr("ERROR: couldn't open ${path}.clean: $!");
         print {$fh} $self->{buffer_size}, "\n"

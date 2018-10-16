@@ -32,10 +32,10 @@ sub new {
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments = shift;
-        my $format_string;
-        my $slots;
-        my $timeout;
+        my $arguments     = shift;
+        my $format_string = '';
+        my $slots         = '';
+        my $timeout       = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'format_string=s' => \$format_string,

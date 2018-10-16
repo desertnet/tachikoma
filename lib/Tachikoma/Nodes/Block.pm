@@ -22,7 +22,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{offset}      = 0;
-    $self->{line_buffer} = q{};
+    $self->{line_buffer} = q();
     bless $self, $class;
     return $self;
 }
@@ -50,15 +50,15 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     if ( $type & TM_EOF ) {
-        $message->[TO] ||= $self->{owner};
+        $message->[TO] = $self->{owner};
         return $self->{sink}->fill($message);
     }
     return if ( not $type & TM_BYTESTREAM );
     my $offset      = $message->[ID];
-    my $line_buffer = q{};
+    my $line_buffer = q();
     $line_buffer = $self->{line_buffer} if ( $offset > $self->{offset} );
     my $payload = $line_buffer . $message->[PAYLOAD];
-    my $part    = q{};
+    my $part    = q();
     if ( substr( $payload, -1, 1 ) ne "\n" ) {
 
         if ( $payload =~ s{\n(.+)$}{\n} ) {

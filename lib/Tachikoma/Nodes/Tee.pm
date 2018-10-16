@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 35157 2018-10-14 00:19:18Z chris $
+# $Id: Tee.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -97,7 +97,7 @@ sub fill {
         my ( $name, $path ) = split m{/}, $owner, 2;
         my $node = $Tachikoma::Nodes{$name} or next;
         my $copy = Tachikoma::Message->new($packed);
-        $copy->[TO] = join q{/}, grep length, $path, $copy->[TO];
+        $copy->[TO] = join q(/), grep length, $path, $copy->[TO];
         push @keep, $owner;
         if ($persist) {
             $self->stamp_message( $copy, $self->{name} ) or return;

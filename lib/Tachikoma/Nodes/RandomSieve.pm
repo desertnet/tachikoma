@@ -45,7 +45,7 @@ sub fill {
     if ( rand(100) >= $self->{probability} ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_ERROR;
-        $response->[FROM]    = $message->[TO] // q{};
+        $response->[FROM]    = $message->[TO] // q();
         $response->[TO]      = $message->[FROM];
         $response->[ID]      = $message->[ID];
         $response->[STREAM]  = $message->[STREAM];

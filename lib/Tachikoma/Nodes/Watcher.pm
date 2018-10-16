@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Watcher.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -61,7 +61,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $filter, $id, @notes ) = split q{ }, $arguments;
+        my ( $filter, $id, @notes ) = split q( ), $arguments;
         $self->{arguments} = $arguments;
         if ( $filter eq 'proc' ) {
             die "bad pid: $id" if ( $id !~ m{^\d+$} );
@@ -141,7 +141,7 @@ sub fire {
     elsif ( not kill 0, $self->{pid} and $! eq 'No such process' ) {
         if ( $self->{orly} ) {
             $kevent->[KQ_FFLAGS] = NOTE_EXIT;
-            $kevent->[KQ_DATA]   = q{};
+            $kevent->[KQ_DATA]   = q();
             $self->stderr(
                 "WARNING: KQueue missed process exit, working around...\n")
                 if ($Can_KQueue);
@@ -179,7 +179,7 @@ sub note_fh {
             and not $Can_KQueue
             and not $self->{orly} );
         $message->payload( "$self->{name}: process $self->{pid} "
-                . join( q{, }, @notes ) . q{ }
+                . join( q(, ), @notes ) . q( )
                 . $kevent->[KQ_DATA]
                 . "\n" );
         $self->{counter}++;
@@ -189,7 +189,7 @@ sub note_fh {
     else {
         if ( $kevent->[KQ_IDENT] ) {
             $message->payload( "$self->{name}: file $self->{filename} "
-                    . join( q{, }, @notes ) . q{ }
+                    . join( q(, ), @notes ) . q( )
                     . $kevent->[KQ_DATA]
                     . "\n" );
             $self->{counter}++;

@@ -64,7 +64,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $count_mode, $send_mode, $interval ) =
-            split q{ }, $self->{arguments}, 3;
+            split q( ), $self->{arguments}, 3;
         die 'invalid count mode'
             if ( $count_mode and not $Count_Modes{$count_mode} );
         die 'invalid send mode'
@@ -81,7 +81,7 @@ sub fill {
     my $message = shift;
     return $self->{interpreter}->fill($message)
         if ( $message->[TYPE] & TM_COMMAND );
-    $message->[TO] = join q{/}, $self->{owner}, $message->[TO]
+    $message->[TO] = join q(/), $self->{owner}, $message->[TO]
         if ( $self->{owner} and $message->[TO] );
     if ( $self->{count_mode} eq 'simple' ) {
         $self->{one_second}++;
@@ -206,12 +206,12 @@ $C{averages} = sub {
     my $self      = shift;
     my $command   = shift;
     my $envelope  = shift;
-    my $response  = q{};
+    my $response  = q();
     my $patron    = $self->patron;
     my $calculate = sub {
         my $this     = shift;
         my $count    = shift;
-        my $last_t   = join q{}, 'last_', $this;
+        my $last_t   = join q(), 'last_', $this;
         my @averages = ( @{ $patron->{$last_t} }, @{ $patron->{$this} } );
         splice @averages, 0, @averages - $count;
         my $average = 0;
@@ -225,7 +225,7 @@ $C{averages} = sub {
     my $hour_avg           = $patron->calculate( 'hour',           60 );
     my $day_avg            = $patron->calculate( 'day',            24 );
     if ( $command->arguments ne '-s' ) {
-        $response = join q{},
+        $response = join q(),
             'one minute average:     ', $one_minute_avg,     "\n",
             'five minute average:    ', $five_minute_avg,    "\n",
             'fifteen minute average: ', $fifteen_minute_avg, "\n",
@@ -233,11 +233,11 @@ $C{averages} = sub {
             'day average:            ', $day_avg,            "\n";
     }
     else {
-        $response = join q{},
-            'one_min_avg:',     $one_minute_avg,     q{ },
-            'five_min_avg:',    $five_minute_avg,    q{ },
-            'fifteen_min_avg:', $fifteen_minute_avg, q{ },
-            'hour_avg:',        $hour_avg,           q{ },
+        $response = join q(),
+            'one_min_avg:',     $one_minute_avg,     q( ),
+            'five_min_avg:',    $five_minute_avg,    q( ),
+            'fifteen_min_avg:', $fifteen_minute_avg, q( ),
+            'hour_avg:',        $hour_avg,           q( ),
             'day_avg:',         $day_avg,            "\n";
     }
     return $self->response( $envelope, $response );
@@ -269,7 +269,7 @@ sub calculate {
     my $self     = shift;
     my $this     = shift;
     my $count    = shift;
-    my $last_t   = join q{}, 'last_', $this;
+    my $last_t   = join q(), 'last_', $this;
     my @averages = ( @{ $self->{$last_t} }, @{ $self->{$this} } );
     splice @averages, 0, @averages - $count if ( @averages > $count );
     my $average = 0;

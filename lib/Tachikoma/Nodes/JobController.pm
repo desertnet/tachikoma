@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 34697 2018-09-01 13:40:47Z chris $
+# $Id: JobController.pm 35277 2018-10-16 09:41:42Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -83,8 +83,8 @@ sub fill {
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
-        my $to        = $message->[TO]             || q{};
-        my $job_owner = $job->{connector}->{owner} || q{};
+        my $to        = $message->[TO] // q();
+        my $job_owner = $job->{connector}->{owner} // q();
         my $job_edge  = $job->{connector}->{edge};
         $message->[FROM] = $from
             if ($next
@@ -174,7 +174,7 @@ $C{list_jobs} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     my $jobs     = $self->patron->jobs;
     if ( $command->arguments eq '-a' ) {
         $response = join( "\n", sort keys %{$jobs} ) . "\n";
@@ -198,7 +198,7 @@ $C{run_job} = sub {
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $type, $arguments ) =
-        split q{ }, ( $command->arguments =~ m{(.*)}s )[0], 2;
+        split q( ), ( $command->arguments =~ m{(.*)}s )[0], 2;
     die qq(no type specified\n) if ( not $type );
     $self->patron->start_job( $type,
         sprintf( '%s-%06d', $type, $self->patron->job_counter ),
@@ -215,7 +215,7 @@ $C{start_job} = sub {
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $type, $name, $arguments ) =
-        split q{ }, ( $command->arguments =~ m{(.*)}s )[0], 3;
+        split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
     $self->patron->start_job( $type, $name, $arguments );
     return $self->okay($envelope);
@@ -230,7 +230,7 @@ $C{maintain_job} = sub {
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $type, $name, $arguments ) =
-        split q{ }, ( $command->arguments =~ m{(.*)}s )[0], 3;
+        split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
     $self->patron->start_job( $type, $name, $arguments, undef,
         $Tachikoma::Now );
@@ -246,7 +246,7 @@ $C{lazy_job} = sub {
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $type, $name, $arguments ) =
-        split q{ }, ( $command->arguments =~ m{(.*)}s )[0], 3;
+        split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
     $self->patron->start_job( $type, $name, $arguments, undef,
         $Tachikoma::Now, 'lazy' );
@@ -315,7 +315,7 @@ $C{rename_job} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    my ( $old_name, $new_name ) = split q{ }, $command->arguments, 2;
+    my ( $old_name, $new_name ) = split q( ), $command->arguments, 2;
     my $job = $self->patron->jobs->{$old_name};
     $self->patron->rename_job( $old_name, $new_name );
     $job->original_name($new_name);
@@ -343,7 +343,7 @@ $C{dump_job} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, @keys ) = split q{ }, $command->arguments;
+    my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $node = $self->patron->jobs->{$name};
     if ( not $node ) {
@@ -487,7 +487,7 @@ sub kill_job {
     my $self = shift;
     my $name = shift;
     my $job  = $self->{jobs}->{$name} or die qq(no such job "$name"\n);
-    if ( $job->{pid} ne q{-} and not kill SIGKILL => $job->{pid} ) {
+    if ( $job->{pid} ne q(-) and not kill SIGKILL => $job->{pid} ) {
         $self->stderr("ERROR: kill_job failed: $!");
     }
     $job->{should_restart} = undef;
@@ -548,7 +548,7 @@ sub remove_node {
     for my $name ( keys %{ $self->{jobs} } ) {
         my $job = $self->{jobs}->{$name};
         if (    $mode eq 'kill'
-            and $job->{pid} ne q{-}
+            and $job->{pid} ne q(-)
             and not kill SIGKILL => $job->{pid} )
         {
             $self->stderr("ERROR: remove_node couldn't kill $name: $!");
@@ -562,7 +562,7 @@ sub remove_node {
 
 sub dump_config {
     my $self     = shift;
-    my $response = q{};
+    my $response = q();
     if ( not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') ) {
         $response = $self->SUPER::dump_config;
         my $jobs = $self->{jobs};
@@ -648,7 +648,7 @@ sub config {
     }
     if ( not $config ) {
         if ( $self->{username} ) {
-            $config = join q{},
+            $config = join q(),
                 '/usr/local/etc/tachikoma-', $self->{username}, '.conf';
         }
         else {

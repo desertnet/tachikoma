@@ -46,7 +46,7 @@ my $query = [];
 for my $op (@ops) {
     push @{$query},
         {
-        field => join( q{}, $topic, '.', $_, ':index' ),
+        field => join( q(), $topic, '.', $_, ':index' ),
         op    => $op,
         key   => $options{$op}->{$_}
         }
@@ -56,7 +56,7 @@ for my $op (@ops) {
 $query = $query->[0] if ( @{$query} == 1 );
 $query = {
     op    => 'keys',
-    field => join( q{}, $topic, '.', $keys, ':index' ),
+    field => join( q(), $topic, '.', $keys, ':index' ),
     }
     if ($keys);
 

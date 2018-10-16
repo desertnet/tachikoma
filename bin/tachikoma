@@ -41,7 +41,7 @@ my $verbose       = undef;
 my $debug         = undef;
 my $help          = undef;
 
-splice @ARGV, 1, 0, q{--} if ( @ARGV and $ARGV[0] !~ m{^-} );
+splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 
 my $r = GetOptions(
     'config=s'      => \$config,
@@ -142,7 +142,7 @@ if ($filename) {
     my @values = @ARGV;
     $Var{$_} = $values[$_] for ( 1 .. $#values );
     $Var{q{0}}  = shift @values;
-    $Var{q{@}}  = join q{ }, @values;
+    $Var{q{@}}  = join q( ), @values;
     $Var{q{_C}} = scalar @values;
     my @lines = ();
     my $fh;
@@ -193,7 +193,7 @@ if ( $shell->errors and ( $validate or not $isa_tty ) ) {
     print $filename ? "$filename " : 'stdin ', "had compilation errors.\n";
     exit 1;
 }
-print $filename ? "$filename " : q{}, "syntax OK\n" if ($validate);
+print $filename ? "$filename " : q(), "syntax OK\n" if ($validate);
 
 sub usage {
     print "Usage:\n"

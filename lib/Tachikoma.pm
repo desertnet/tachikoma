@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35236 2018-10-15 11:19:12Z chris $
+# $Id: Tachikoma.pm 35277 2018-10-16 09:41:42Z chris $
 #
 
 package Tachikoma;
@@ -61,7 +61,7 @@ $Tachikoma::Profiles          = undef;
 %Tachikoma::Recent_Log_Timers = ();
 $Tachikoma::Shutting_Down     = undef;
 $Tachikoma::Scheme            = 'rsa';
-$Tachikoma::SSL_Ciphers       = q{};
+$Tachikoma::SSL_Ciphers       = q();
 $Tachikoma::SSL_Version       = 'TLSv1';
 
 sub unix_client {
@@ -126,8 +126,8 @@ sub inet_client {
         if ( not $ssl_socket or not ref $ssl_socket ) {
             my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
             $ssl_error =~ s{(error)(error)}{$1: $2};
-            die join q{: },
-                q{ERROR: couldn't start_SSL},
+            die join q(: ),
+                q(ERROR: couldn't start_SSL),
                 grep {$_} $!, $ssl_error;
         }
         $socket = $ssl_socket;
@@ -144,7 +144,7 @@ sub inet_client {
 sub new {
     my $class        = shift;
     my $fh           = shift;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     my $self         = $class->SUPER::new;
     $self->{name}           = $$;
     $self->{fh}             = $fh;
@@ -191,7 +191,7 @@ sub reply_to_server_challenge {
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
-        die "ERROR: reply_to_server_challenge wrong challenge type\n";
+        die "ERROR: reply_to_server_challenge failed: wrong challenge type\n";
     }
     elsif ( length $ID ) {
         exit 1
@@ -215,7 +215,7 @@ sub reply_to_server_challenge {
     if ( $got > 0 ) {
         print {*STDERR}
             "WARNING: discarding $got excess bytes from server challenge.\n";
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
     return;
@@ -254,7 +254,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         return ( $got, $message );
     }
@@ -294,7 +294,7 @@ sub drain {
         my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         while ( $got >= $size and $size > 0 ) {
             my $message =
-                Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+                Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
             $got -= $size;
 
             # XXX:M
@@ -324,7 +324,7 @@ sub drain_cycle {
     my $rv = 1;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
 
         # XXX:M
@@ -428,11 +428,11 @@ sub answer {
 }
 
 sub cancel {
-    my ( $self, $message, $to ) = @_;
+    my ( $self, $message ) = @_;
     return if ( not $message->[TYPE] & TM_PERSIST );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
-    $response->[TO]      = ( $to // $message->[FROM] ) or return;
+    $response->[TO]      = $message->[FROM] or return;
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
     $response->[PAYLOAD] = 'cancel';
@@ -469,7 +469,7 @@ sub copy_variables {
     for my $name (@CONFIG_VARIABLES) {
         my $value = undef;
         if ( ref $Var{$name} ) {
-            $value = join q{}, @{ $Var{$name} };
+            $value = join q(), @{ $Var{$name} };
         }
         else {
             $value = $Var{$name};
@@ -515,7 +515,7 @@ sub reset_signal_handlers {
 sub open_log_file {
     my $self = shift;
     my $log = $self->log_file or die "ERROR: no log file specified\n";
-    chdir q{/} or die "ERROR: couldn't chdir /: $!";
+    chdir q(/) or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
         or die "ERROR: couldn't open log file $log: $!\n";
     $LOG_FILE_HANDLE->autoflush(1);
@@ -618,7 +618,7 @@ sub pid_file {
         $pid_file = $Tachikoma{Pid_File};
     }
     elsif ( $Tachikoma{Pid_Dir} ) {
-        $pid_file = join q{}, $Tachikoma{Pid_Dir}, q{/}, $name, '.pid';
+        $pid_file = join q(), $Tachikoma{Pid_Dir}, q(/), $name, '.pid';
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -634,7 +634,7 @@ sub log_file {
         $log_file = $Tachikoma{Log_File};
     }
     elsif ( $Tachikoma{Log_Dir} ) {
-        $log_file = join q{}, $Tachikoma{Log_Dir}, q{/}, $name, '.log';
+        $log_file = join q(), $Tachikoma{Log_Dir}, q(/), $name, '.log';
     }
     else {
         die "ERROR: couldn't determine log_file\n";
@@ -850,7 +850,7 @@ sub WRITE {
 
 sub PRINT {
     my ( $self, @args ) = @_;
-    my @msg = grep { defined and $_ ne q{} } @args;
+    my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
     push @Tachikoma::Recent_Log, @msg;
     shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );
@@ -859,7 +859,7 @@ sub PRINT {
 
 sub PRINTF {
     my ( $self, $fmt, @args ) = @_;
-    my @msg = grep { defined and $_ ne q{} } @args;
+    my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
     push @Tachikoma::Recent_Log, sprintf $fmt, @msg;
     shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );

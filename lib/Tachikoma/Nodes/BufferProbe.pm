@@ -23,7 +23,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{my_hostname} = hostname();
-    $self->{prefix}      = q{};
+    $self->{prefix}      = q();
     $self->{last_time}   = $Tachikoma::Right_Now;
     bless $self, $class;
     return $self;
@@ -40,8 +40,9 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $seconds, $prefix ) = split q{ }, $self->{arguments}, 2;
-        die 'usage: ' . $self->help if ( $seconds =~ m{\D} );
+        my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
+        die "ERROR: bad arguments for BufferProbe\n"
+            if ( not $seconds or $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
         $self->prefix( $prefix || $0 );
@@ -51,7 +52,7 @@ sub arguments {
 
 sub fire {
     my $self     = shift;
-    my $out      = q{};
+    my $out      = q();
     my $interval = $self->{timer_interval} / 1000;
     my $elapsed  = Time::HiRes::time - $self->{last_time};
     $self->stderr(
@@ -64,9 +65,9 @@ sub fire {
         my $node = $Tachikoma::Nodes{$name};
         if ( $node->isa('Tachikoma::Nodes::Buffer') ) {
             my $buff_name = $node->{filename};
-            $buff_name ||= join q{/}, $self->{prefix}, $node->{name};
+            $buff_name ||= join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
-            $out .= join q{},
+            $out .= join q(),
                 'hostname:',
                 $self->{my_hostname},
                 ' buff_name:',
@@ -94,10 +95,10 @@ sub fire {
                 "\n";
         }
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
-            my $buff_name = join q{/}, $self->{prefix}, $node->{name};
+            my $buff_name = join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
             my $partition = $Tachikoma::Nodes{ $node->{partition} } or next;
-            $out .= join q{},
+            $out .= join q(),
                 'hostname:',
                 $self->{my_hostname},
                 ' buff_name:',

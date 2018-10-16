@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::FileRemover
 # ----------------------------------------------------------------------
 #
-# $Id: FileRemover.pm 35026 2018-10-07 21:39:47Z chris $
+# $Id: FileRemover.pm 35265 2018-10-16 06:42:47Z chris $
 #
 # FileRemover simply accepts the path to a file, and after thoroughly
 # validating that path, moves it to a new location.
@@ -20,7 +20,7 @@ use version; our $VERSION = 'v2.0.349';
 
 sub initialize_graph {
     my $self = shift;
-    my ( $prefix, $logger ) = split q{ }, $self->arguments, 2;
+    my ( $prefix, $logger ) = split q( ), $self->arguments, 2;
     $self->prefix($prefix);
     $self->logger($logger);
     $self->connector->sink($self);
@@ -46,10 +46,10 @@ sub fill {
         my $new_path;
         if ( $relative =~ m{^/*deleted/(.*)$} ) {
             my $original = $1;
-            $new_path = join q{/}, $prefix, $original;
+            $new_path = join q(/), $prefix, $original;
         }
         else {
-            $new_path = join q{/}, $prefix, 'deleted', $relative;
+            $new_path = join q(/), $prefix, 'deleted', $relative;
         }
         if ( $path and -e $path ) {
             umask 0022 or die;
@@ -62,8 +62,8 @@ sub fill {
     if ( @log and $self->{logger} ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
-        $response->[TO]      = join q{/}, '_parent', $self->{logger};
-        $response->[PAYLOAD] = join q{}, @log;
+        $response->[TO]      = join q(/), '_parent', $self->{logger};
+        $response->[PAYLOAD] = join q(), @log;
         $self->SUPER::fill($response);
     }
     $self->cancel($message);

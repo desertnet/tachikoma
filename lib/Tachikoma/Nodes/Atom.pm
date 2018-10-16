@@ -36,7 +36,8 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $tmp_dir, $path ) = split q{ }, $self->{arguments}, 2;
+        my ( $tmp_dir, $path ) = split q( ), $self->{arguments}, 2;
+        die "ERROR: bad arguments for Atom\n" if ( not $tmp_dir );
         $self->{tmp_dir} = ( $tmp_dir =~ m{^(\S+)$} )[0];
         $self->{path}    = ( $path =~ m{^(\S+)$} )[0];
         $self->make_dirs( $self->{tmp_dir} )
@@ -56,7 +57,7 @@ sub fill {
     $self->{counter}++;
     my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_dir )
         or return $self->stderr("ERROR: couldn't mkstempt for $path: $!");
-    my $tmp = join q{/}, $tmp_dir, $template;
+    my $tmp = join q(/), $tmp_dir, $template;
     syswrite $fh, $message->[PAYLOAD]
         or return $self->stderr("ERROR: couldn't write $tmp: $!");
     close $fh

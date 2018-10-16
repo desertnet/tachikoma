@@ -53,7 +53,7 @@ sub verify_signature {
         $self->stderr("ERROR: $id not allowed to connect");
         return;
     }
-    my $signed = join q{:},
+    my $signed = join q(:),
         $id, $message->[TIMESTAMP], $command->{name}, $command->{arguments},
         $command->{payload};
     if ( $scheme eq 'ed25519' ) {

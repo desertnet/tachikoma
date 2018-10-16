@@ -67,7 +67,7 @@ sub arguments {
             'leader=s'           => \$leader,
         );
         $filename //= shift @{$argv};
-        die "ERROR: bad arguments\n" if ( not $r );
+        die "ERROR: bad arguments for Partition\n" if ( not $r );
         $self->{arguments}        = $arguments;
         $self->{filename}         = $filename;
         $self->{num_segments}     = $num_segments;
@@ -118,7 +118,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     if ( $message->[TYPE] & TM_INFO ) {
         my $payload = $message->[PAYLOAD];
         chomp $payload;
-        my ( $command, $offset, $args ) = split q{ }, $payload, 3;
+        my ( $command, $offset, $args ) = split q( ), $payload, 3;
         if ( $self->{leader} ) {
             if ( not $Follower_Commands{$command} ) {
                 if ( $Leader_Commands{$command} ) {
@@ -209,7 +209,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     push @{ $_[0]->{batch} },
         (
-        bless [ TM_BYTESTREAM, q{}, q{}, q{}, q{}, $Tachikoma::Now,
+        bless [ TM_BYTESTREAM, q(), q(), q(), q(), $Tachikoma::Now,
             ${ $_[1] } ],
         'Tachikoma::Message'
         );
@@ -239,7 +239,7 @@ sub fire {
         for my $message ( @{$batch} ) {
             next if ( not $message->[TYPE] & TM_PERSIST );
             $message->[$Offset] = $self->{offset};
-            $message->[PAYLOAD] = q{};
+            $message->[PAYLOAD] = q();
             push @{$responses}, $message;
         }
         @{$batch} = ();
@@ -319,7 +319,7 @@ sub send_offset {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_INFO;
         $message->[TO]      = $self->{followers}->{$broker_id};
-        $message->[PAYLOAD] = join q{}, 'COMMIT ', $offset, "\n";
+        $message->[PAYLOAD] = join q(), 'COMMIT ', $offset, "\n";
         $self->{sink}->fill($message);
     }
     return;
@@ -342,13 +342,13 @@ sub write_offset {
     else {
         # $self->{segments}->[-1]->[LOG_FH]->sync;
         if ( defined $lco and $lco != $self->{last_truncate_offset} ) {
-            my $offset_file = join q{/}, $self->{filename}, 'offsets', $lco;
+            my $offset_file = join q(/), $self->{filename}, 'offsets', $lco;
             if ( -e $offset_file ) {
                 unlink $offset_file
                     or die "ERROR: couldn't unlink $offset_file: $!";
             }
         }
-        my $new_file = join q{/}, $self->{filename}, 'offsets', $offset;
+        my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
         my $fh = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!";
@@ -360,7 +360,7 @@ sub write_offset {
 
 sub process_get_valid_offsets {
     my ( $self, $message, $broker_id ) = @_;
-    my $offsets = join q{,}, @{ $self->{valid_offsets} };
+    my $offsets = join q(,), @{ $self->{valid_offsets} };
     my $to = $message->[FROM];
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name} or return;
@@ -372,7 +372,7 @@ sub process_get_valid_offsets {
     $response->[TYPE]    = TM_INFO;
     $response->[FROM]    = $self->{name};
     $response->[TO]      = $path;
-    $response->[PAYLOAD] = join q{}, 'VALID_OFFSETS ', $offsets, "\n";
+    $response->[PAYLOAD] = join q(), 'VALID_OFFSETS ', $offsets, "\n";
     $node->fill($response);
     return;
 }
@@ -454,7 +454,7 @@ sub process_get {
         and ( $next_offset <= $self->{last_commit_offset} or $broker_id ) )
     {
         delete $self->{waiting}->{$to};
-        $response->[ID] = join q{:}, $offset, $next_offset;
+        $response->[ID] = join q(:), $offset, $next_offset;
         $response->[PAYLOAD] = $buffer;
         $node->fill($response);
         $offset = $next_offset;
@@ -508,7 +508,7 @@ sub process_delete {
             my $message = Tachikoma::Message->new;
             $message->[TYPE]    = TM_INFO;
             $message->[TO]      = $self->{followers}->{$broker_id};
-            $message->[PAYLOAD] = join q{}, 'DELETE ', $delete, q{ },
+            $message->[PAYLOAD] = join q(), 'DELETE ', $delete, q( ),
                 $self->{last_commit_offset}, "\n";
             $self->{sink}->fill($message);
         }
@@ -578,7 +578,7 @@ sub unlink_segment {
     if ( $segment->[LOG_FH] ) {
         close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
     }
-    my $log_file = join q{}, $path, q{/}, $segment->[LOG_OFFSET], '.log';
+    my $log_file = join q(), $path, q(/), $segment->[LOG_OFFSET], '.log';
     if ( not unlink $log_file ) {
         $self->stderr("WARNING: couldn't unlink $log_file: $!");
     }
@@ -587,7 +587,7 @@ sub unlink_segment {
 
 sub update_offsets {
     my ( $self, $lco ) = @_;
-    my $offsets_dir = join q{/}, $self->{filename}, 'offsets';
+    my $offsets_dir = join q(/), $self->{filename}, 'offsets';
     return if ( not -d $offsets_dir );
     my $lowest_offset = $self->{segments}->[0]->[LOG_OFFSET];
     my $valid_offsets = $self->{valid_offsets};
@@ -613,7 +613,7 @@ sub update_offsets {
         while ( @{$valid_offsets} and $valid_offsets->[0] < $self->{offset} )
         {
             my $offset = shift @{$valid_offsets};
-            my $new_file = join q{/}, $self->{filename}, 'offsets', $offset;
+            my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
             next if ( -e $new_file );
             my $fh = undef;
             open $fh, '>', $new_file
@@ -672,7 +672,7 @@ sub restart_follower {
 sub purge_offsets {
     my $self            = shift;
     my $truncate_offset = shift;
-    my $offsets_dir     = join q{/}, $self->{filename}, 'offsets';
+    my $offsets_dir     = join q(/), $self->{filename}, 'offsets';
     my @offsets         = ();
     if ( -d $offsets_dir ) {
         my $dh = undef;
@@ -697,7 +697,7 @@ sub open_segments {
     my $dh                 = undef;
     my $path               = $self->{filename};
     $self->close_segments;
-    $self->make_dirs( join q{/}, $path, 'offsets' );
+    $self->make_dirs( join q(/), $path, 'offsets' );
     opendir $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @unsorted = ();
 
@@ -776,9 +776,9 @@ sub create_segment {
 sub touch_files {
     my $self     = shift;
     my $path     = $self->{filename} or return;
-    my $log_file = join q{}, $path, q{/},
+    my $log_file = join q(), $path, q(/),
         $self->{segments}->[-1]->[LOG_OFFSET], '.log';
-    my $offset_file = join q{/}, $path, 'offsets',
+    my $offset_file = join q(/), $path, 'offsets',
         $self->{last_commit_offset};
     utime $Tachikoma::Now, $Tachikoma::Now, $log_file
         or $self->stderr("ERROR: couldn't utime $log_file: $!");
@@ -796,24 +796,25 @@ sub purge_tree {
     my $dh        = undef;
     if ( opendir $dh, $path ) {
         @filenames = grep m{^[^.]}, readdir $dh;
-        closedir $dh or die "ERROR: couldn't closedir $path: $!";
+        closedir $dh or $self->stderr("ERROR: couldn't closedir $path: $!");
     }
+    ## no critic (RequireCheckedSyscalls)
     for my $filename (@filenames) {
         if ( -d "$path/$filename" ) {
             Tachikoma::Nodes::Partition->purge_tree("$path/$filename");
         }
         else {
-            unlink "$path/$filename" or 1;
+            unlink "$path/$filename";
         }
     }
-    rmdir $path or 1;
+    rmdir $path;
     return;
 }
 
 sub get_last_commit_offset {
     my $self = shift;
     return if ( not $self->{filename} );
-    my $offsets_dir        = join q{/}, $self->{filename}, 'offsets';
+    my $offsets_dir        = join q(/), $self->{filename}, 'offsets';
     my $last_commit_offset = undef;
     my $valid_offsets      = [];
     if ( -d $offsets_dir ) {
@@ -838,7 +839,7 @@ sub get_last_commit_offset {
     if ( not defined $last_commit_offset ) {
         $last_commit_offset = 0;
         $valid_offsets      = [0];
-        my $new_file = join q{/}, $offsets_dir, $last_commit_offset;
+        my $new_file = join q(/), $offsets_dir, $last_commit_offset;
         my $fh = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!\n";
@@ -905,7 +906,7 @@ sub halt {
 
 sub remove_node {
     my $self = shift;
-    $self->close_segments;
+    $self->close_segments if ( $self->{segments} );
     $self->{filename} = undef;
     return $self->SUPER::remove_node;
 }
@@ -917,7 +918,7 @@ sub get_valid_offsets {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q{}, 'GET_VALID_OFFSETS 0 ',
+    $message->[PAYLOAD] = join q(), 'GET_VALID_OFFSETS 0 ',
         $self->{broker_id}, "\n";
     $self->{expecting} = $Tachikoma::Now;
     $self->{sink}->fill($message);
@@ -930,7 +931,7 @@ sub get_batch {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q{}, 'GET ', $self->{offset} // 0, q{ },
+    $message->[PAYLOAD] = join q(), 'GET ', $self->{offset} // 0, q( ),
         $self->{broker_id},
         "\n";
     $self->{expecting} = $Tachikoma::Now;
@@ -945,7 +946,7 @@ sub send_ack {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q{}, 'ACK ', $offset, q{ }, $self->{broker_id},
+    $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ), $self->{broker_id},
         "\n";
     $self->{sink}->fill($message);
     return;

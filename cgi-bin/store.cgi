@@ -18,7 +18,7 @@ use URI::Escape;
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();
-my ( $topic, $escaped ) = split q{/}, $path, 2;
+my ( $topic, $escaped ) = split q(/), $path, 2;
 my $json     = JSON->new;
 my $postdata = $cgi->param('POSTDATA');
 die "wrong method\n" if ( not length $postdata );

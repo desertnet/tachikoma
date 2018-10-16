@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: HTTP_Responder.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -42,7 +42,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $tmp_path, $port ) = split q{ }, $self->{arguments}, 2;
+        my ( $tmp_path, $port ) = split q( ), $self->{arguments}, 2;
         $self->{tmp_path} = $tmp_path;
         $self->{port}     = $port;
         $self->set_timer;
@@ -57,14 +57,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $name     = $message->[FROM];
     my $payloads = $self->{payloads};
     my $payload  = $payloads->{$name};
-    my $lastfour = q{};
+    my $lastfour = q();
     my $requests = $self->{requests};
     my $request  = $requests->{$name};
     my $headers  = undef;
 
     # collect request payloads
     if ( not $payload ) {
-        my $scalar = q{};
+        my $scalar = q();
         $payloads->{$name} = \$scalar;
         $payload = \$scalar;
     }
@@ -91,7 +91,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             return;
         }
         $line =~ s{\r?\n$}{};
-        my ( $method, $uri, $version ) = split q{ }, $line, 3;
+        my ( $method, $uri, $version ) = split q( ), $line, 3;
         if ( not $uri ) {
             delete $requests->{$name};
             delete $payloads->{$name};
@@ -109,7 +109,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $request->{version}      = $version;
         $request->{path}         = $script_url;
         $request->{script_url}   = $script_url;
-        $request->{query_string} = $query_string || q{};
+        $request->{query_string} = $query_string || q();
 
         for my $line (@lines) {
             my ( $key, $value ) = split m{:\s*}, $line, 2;
@@ -132,14 +132,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         if ( $length > 131072 ) {
             if ( not $request->{tmp} ) {
-                my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+                my $tmp_path = join q(/), $self->{tmp_path}, 'post';
                 $self->make_dirs($tmp_path)
                     or return $self->stderr(
                     "ERROR: couldn't mkdir $tmp_path: $!")
                     if ( not -d $tmp_path );
                 my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
                 $request->{fh} = $fh;
-                $request->{tmp} = join q{/}, $tmp_path, $template;
+                $request->{tmp} = join q(/), $tmp_path, $template;
             }
             $request->{length} += length ${$payload};
             if ( length ${$payload} and not syswrite $request->{fh},
@@ -148,7 +148,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->stderr("ERROR: couldn't write: $!");
             }
             else {
-                ${$payload} = q{};
+                ${$payload} = q();
                 return if ( $length > $request->{length} );
             }
             close $request->{fh}
@@ -169,12 +169,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     $request_message->[FROM] = $message->[FROM];
     $request_message->[TO]   = $self->{owner};
     $request_message->[STREAM] =
-        join q{},
+        join q(),
         $headers->{host}
         ? $request->{uri} =~ m{^http://$headers->{host}}
             ? $request->{uri}
-            : join q{}, 'http://', $headers->{host}, $request->{uri}
-        : join q{}, 'http://default', $request->{uri};
+            : join q(), 'http://', $headers->{host}, $request->{uri}
+        : join q(), 'http://default', $request->{uri};
     $request_message->[PAYLOAD] = $request;
     $self->{counter}++;
     return $self->{sink}->fill($request_message);
@@ -221,20 +221,20 @@ sub log_entry {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request    = $message->payload;
     my $headers    = $request->{headers};
-    my $host       = $headers->{'host'} || q{""};
-    my $referer    = $headers->{'referer'} || q{};
-    my $user_agent = $headers->{'user-agent'} || q{};
+    my $host       = $headers->{'host'} || q("");
+    my $referer    = $headers->{'referer'} || q();
+    my $user_agent = $headers->{'user-agent'} || q();
     my $log_entry  = Tachikoma::Message->new;
     $log_entry->[TYPE]    = TM_BYTESTREAM;
     $log_entry->[TO]      = 'http:log';
-    $log_entry->[PAYLOAD] = join q{},
-        $host, q{ },
-        $request->{remote_addr}, q{ - },
-        $request->{remote_user} || q{-},
-        q{ [}, cached_log_strftime(),
-        q{] "}, $request->{line}, q{" },
-        $status, q{ }, $size || q{-},
-        q{ "}, $referer, q{" "}, $user_agent, q{"},
+    $log_entry->[PAYLOAD] = join q(),
+        $host, q( ),
+        $request->{remote_addr}, q( - ),
+        $request->{remote_user} || q(-),
+        q( [), cached_log_strftime(),
+        q(] "), $request->{line}, q(" ),
+        $status, q( ), $size || q(-),
+        q( "), $referer, q(" "), $user_agent, q("),
         "\n";
     return $self->{sink}->fill($log_entry);
 }

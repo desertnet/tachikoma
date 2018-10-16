@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35236 2018-10-15 11:19:12Z chris $
+# $Id: Timer.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -35,7 +35,7 @@ sub arguments {
             . " to be a subclass of Timer\n"
             if ( $class ne 'Tachikoma::Nodes::Timer' );
         $self->{arguments} = shift;
-        my ( $time, $oneshot ) = split q{ }, $self->{arguments}, 2;
+        my ( $time, $oneshot ) = split q( ), $self->{arguments}, 2;
         $self->set_timer( $time, $oneshot );
     }
     return $self->{arguments};

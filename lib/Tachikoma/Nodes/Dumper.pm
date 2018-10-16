@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 34670 2018-09-01 06:44:49Z chris $
+# $Id: Dumper.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -125,7 +125,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
     if ($debug) {
         if ( $debug > 1 ) {
-            $message->[PAYLOAD] = join q{},
+            $message->[PAYLOAD] = join q(),
                 Dumper(
                 {   type      => $message->type_as_string,
                     from      => $message->[FROM],
@@ -140,7 +140,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 );
         }
         else {
-            $message->[PAYLOAD] = join q{},
+            $message->[PAYLOAD] = join q(),
                 $message->type_as_string, ' from ', $message->[FROM], ":\n",
                 $message->[PAYLOAD];
         }
@@ -148,7 +148,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     $message->[TYPE] = $new_type;
     if ( $new_type & TM_BYTESTREAM ) {
         if ( $use_readline and $self->{newline} ) {
-            my $clear  = q{};
+            my $clear  = q();
             my $length = $stdin->line_length;
             my $width  = $stdin->width;
             if ( $length > $width ) {
@@ -156,13 +156,13 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $clear .= "\e[A" x int $lines;
             }
             $clear .= "\r\e[J";
-            $message->[PAYLOAD] = join q{}, $clear, $message->[PAYLOAD];
+            $message->[PAYLOAD] = join q(), $clear, $message->[PAYLOAD];
         }
         elsif ( $client and $client eq 'SILCbot' ) {
-            my $payload = q{};
+            my $payload = q();
             for my $line ( split m{^}, $message->[PAYLOAD] ) {
                 chomp $line;
-                $payload .= join q{}, "\e[31m", $line, "\e[0m\n";
+                $payload .= join q(), "\e[31m", $line, "\e[0m\n";
             }
             $message->[PAYLOAD] = $payload;
         }

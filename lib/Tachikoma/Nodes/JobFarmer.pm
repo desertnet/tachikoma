@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35210 2018-10-14 21:04:44Z chris $
+# $Id: JobFarmer.pm 35279 2018-10-16 10:39:46Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -56,10 +56,12 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         my ( $job_count, $job_type, $job_arguments ) =
-            ( split q{ }, $arguments, 3 );
+            ( split q( ), $arguments, 3 );
         my $name = $self->{name};
-        die "invalid job count\n" if ( $job_count =~ m{\D} );
-        die "no job type specified\n" if ( not $job_type );
+        die "ERROR: bad arguments for JobFarmer\n"
+            if ( not defined $job_count
+            or $job_count =~ m{\D}
+            or not $job_type );
         die "can't make $name, $name:job_controller exists\n"
             if ( exists $Tachikoma::Nodes{"$name:job_controller"} );
         die "can't make $name, $name:load_balancer exists\n"
@@ -196,7 +198,7 @@ $C{list_jobs} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q{};
+    my $response = q();
     my $jobs     = $self->patron->job_controller->jobs;
     if ( $command->arguments eq '-a' ) {
         $response = join( "\n", sort keys %{$jobs} ) . "\n";
@@ -240,7 +242,7 @@ $C{restart_job} = sub {
     my $tee           = $self->patron->tee;
     my $jobc          = $self->patron->job_controller;
     my $jobs          = $jobc->jobs;
-    if ( $name eq q{*} ) {
+    if ( $name eq q(*) ) {
 
         for my $name ( keys %{$jobs} ) {
             $self->disconnect_node( $load_balancer->name, $name );
@@ -269,7 +271,7 @@ $C{kill_job} = sub {
     my $name     = $command->arguments;
     my $jobc     = $self->patron->job_controller;
     my $jobs     = $jobc->jobs;
-    if ( $name eq q{*} ) {
+    if ( $name eq q(*) ) {
         for my $name ( keys %{$jobs} ) {
             $jobc->kill_job($name);
         }
@@ -293,8 +295,8 @@ $C{cut_job} = sub {
     my $name     = $command->arguments;
     my $jobc     = $self->patron->job_controller;
     my $jobs     = $jobc->jobs;
-    my $error    = q{};
-    if ( $name eq q{*} ) {
+    my $error    = q();
+    if ( $name eq q(*) ) {
 
         for my $name ( keys %{$jobs} ) {
             my $rv = $jobc->cut_job($name);

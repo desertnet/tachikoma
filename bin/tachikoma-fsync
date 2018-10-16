@@ -37,7 +37,7 @@ my $Lower = 128;
 my $Upper = 256;
 
 # my $Separator = chr(0);
-my $Separator = join q{}, chr 30, ' -> ', chr 30;
+my $Separator = join q(), chr 30, ' -> ', chr 30;
 my $Home      = ( getpwuid $< )[7];
 my $config    = '/usr/local/etc/tachikoma.conf';
 my $host      = 'localhost';
@@ -143,7 +143,7 @@ if ( -f $disabled_file ) {
         or die "ERROR: couldn't open $disabled_file: $!";
     while ( my $line = <$fh> ) {
         chomp $line;
-        my ( $timestmap, $moncmd, $hostname ) = split q{ }, $line, 3;
+        my ( $timestmap, $moncmd, $hostname ) = split q( ), $line, 3;
         $hostname =~ s{[.].*}{};
         $disabled{$hostname} = 1
             if ( $moncmd eq 'host' or $moncmd eq 'rhost' );
@@ -167,9 +167,9 @@ for my $hostname ( sort keys %roll ) {
 }
 
 # check intent
-my $intent = q{};
+my $intent = q();
 my $fail   = undef;
-open $fh, '<', join q{/}, $prefix, '.intent'
+open $fh, '<', join q(/), $prefix, '.intent'
     or die "couldn't open $prefix/.intent: $!\n";
 $intent .= $_ while (<$fh>);
 chomp $intent;
@@ -186,9 +186,9 @@ $tachikoma->callback(
         my $payload = $message->[PAYLOAD];
         chomp $payload;
         if ( $payload ne $intent ) {
-            print {*STDERR} join q{},
-                'wrong intent: "', $payload, q{"},
-                ' should be: "',   $intent,  q{"},
+            print {*STDERR} join q(),
+                'wrong intent: "', $payload, q("),
+                ' should be: "',   $intent,  q("),
                 ' from ', $message->from, "\n";
             $fail = 1;
         }
@@ -249,7 +249,7 @@ while (1) {
         for my $update (@updates) {
             my $path = ( split m{:}, $update )[1];
             next if ( $path =~ m{[.]svn/(?:entries|wc[.]db)} );
-            cleanline( join q{}, 'update ', $prefix, q{/}, $path );
+            cleanline( join q(), 'update ', $prefix, q(/), $path );
         }
         last;
     }
@@ -282,7 +282,7 @@ while (1) {
         my $update = shift @updates;
         if ($update) {
             my $relative = ( split m{:}, $update, 2 )[1];
-            send_update( join q{}, 'update:', $prefix, q{/}, $relative );
+            send_update( join q(), 'update:', $prefix, q(/), $relative );
         }
         $tachikoma->drain if ( $count >= $Upper );
     }
@@ -291,9 +291,9 @@ while (1) {
                 # $withsums = 1;
 }
 
-print 'ok: ', join( q{, }, sort @hostnames ), "\n" if ( not $quiet );
+print 'ok: ', join( q(, ), sort @hostnames ), "\n" if ( not $quiet );
 print {*STDERR} 'WARNING: missing from client list: ',
-    join( q{, }, sort @missing ), "\n"
+    join( q(, ), sort @missing ), "\n"
     if (@missing);
 
 sub explore_path {
@@ -319,7 +319,7 @@ sub explore_path {
     $message->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
     $message->[TO]      = 'DirStats:tee';
     $message->[STREAM]  = $path;
-    $message->[PAYLOAD] = join q{}, @{$out};
+    $message->[PAYLOAD] = join q(), @{$out};
     $tachikoma->fill($message);
     $tachikoma->drain if ( $count >= $Upper );
     explore_path($_) for ( @{$directories} );
@@ -344,7 +344,7 @@ sub oneline {
     my $line   = shift;
     my $output = substr $line, 0, $width;
     my $size   = length $output;
-    print "\r", $output, q{ } x ( $width - $size );
+    print "\r", $output, q( ) x ( $width - $size );
     return;
 }
 
@@ -353,7 +353,7 @@ sub cleanline {
     chomp $output;
     my $size = length $output;
     print "\r", $output,
-        ( ( $width > $size ) ? q{ } x ( $width - $size ) : q{} ),
+        ( ( $width > $size ) ? q( ) x ( $width - $size ) : q() ),
         "\n";
     return;
 }

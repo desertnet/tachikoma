@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Log.pm 35281 2018-10-16 11:09:07Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -41,7 +41,8 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $filename, $mode, $max_size ) = split q{ }, $arguments, 3;
+        my ( $filename, $mode, $max_size ) = split q( ), $arguments, 3;
+        die "ERROR: bad arguments for Log\n" if ( not $filename );
         $mode ||= 'append';
         my $fh;
         $self->close_filehandle if ( $self->{fh} );
@@ -66,7 +67,7 @@ sub fill {
         return;
     }
     elsif ( $message->[TYPE] & TM_INFO ) {
-        my ( $command, $arguments ) = split q{ }, $message->[PAYLOAD], 2;
+        my ( $command, $arguments ) = split q( ), $message->[PAYLOAD], 2;
         if ( $command eq 'rotate' ) {
             $self->rotate($arguments);
         }
@@ -99,7 +100,7 @@ sub rotate {
         $new_name = strftime( $format, localtime $Tachikoma::Now );
     }
     else {
-        $new_name = join q{-},
+        $new_name = join q(-),
             $self->{filename},
             strftime( '%F-%T', localtime $Tachikoma::Now ),
             Tachikoma->counter;

@@ -109,7 +109,7 @@ $C{list} = sub {
         next if ( length $glob and $item !~ m{$glob} );
         push @responses, $item;
     }
-    return $self->response( $envelope, join q{}, @responses );
+    return $self->response( $envelope, join q(), @responses );
 };
 
 $C{ls} = $C{list};
@@ -174,8 +174,8 @@ sub write_list {
         my $error = $@ // 'unknown error';
         return $self->stderr("ERROR: mkstempt failed: $error");
     }
-    my $tmp = join q{/}, $parent, $template;
-    print {$fh} join q{}, @{ $self->{list} };
+    my $tmp = join q(/), $parent, $template;
+    print {$fh} join q(), @{ $self->{list} };
     close $fh
         or $self->stderr("ERROR: couldn't close $tmp: $!");
     rename $tmp, $path

@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: FileHandle.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -53,7 +53,7 @@ sub new {
     my $class        = ref($proto) || $proto;
     my $flags        = shift || 0;
     my $self         = $class->SUPER::new;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     $self->{type}             = 'filehandle';
     $self->{flags}            = $flags;
     $self->{on_EOF}           = 'close';
@@ -139,7 +139,7 @@ sub drain_fh {
     $got += $read;
     $got = $self->drain_buffer($buffer) if ( $got > 0 );
     if ( not defined $got or $got < 1 ) {
-        my $new_buffer = q{};
+        my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
     return $read;
@@ -161,7 +161,7 @@ sub drain_buffer {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
@@ -174,7 +174,7 @@ sub drain_buffer {
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         $message->[FROM] =
             length $message->[FROM]
-            ? join q{/}, $name, $message->[FROM]
+            ? join q(/), $name, $message->[FROM]
             : $name;
         if ( $message->[TO] and $owner ) {
             $self->print_less_often(
@@ -315,14 +315,16 @@ sub close_filehandle_and_remove_node {
 
 sub close_filehandle {
     my $self         = shift;
-    my $input_buffer = q{};
+    my $input_buffer = q();
     $Tachikoma::Event_Framework->close_filehandle($self);
-    delete( $Tachikoma::Nodes_By_FD->{ $self->{fd} } )
+    delete $Tachikoma::Nodes_By_FD->{ $self->{fd} }
         if ( defined $self->{fd} );
     undef $!;
-    close $self->{fh} or 1 if ( $self->{fh} and fileno $self->{fh} );
     $self->stderr("WARNING: couldn't close: $!")
-        if ( $! and $! ne 'Connection reset by peer' );
+        if ($self->{fh}
+        and fileno $self->{fh}
+        and not close $self->{fh}
+        and $! ne 'Connection reset by peer' );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );
 
     if ( $self->{type} ne 'regular_file' ) {
@@ -428,7 +430,8 @@ sub fh {
         $self->{fd} = $fd;
         $self->{fh} = $fh;
         if ( $self->{flags} & TK_SYNC ) {
-            fcntl $fh, F_SETFL, 0 or 1;    # fails for /dev/null on freebsd
+            ## no critic (RequireCheckedSyscalls)
+            fcntl $fh, F_SETFL, 0;    # fails for /dev/null on freebsd
         }
         else {
             fcntl $fh, F_SETFL, O_NONBLOCK or die "FAILED: fcntl: $!";

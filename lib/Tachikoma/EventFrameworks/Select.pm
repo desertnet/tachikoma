@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 35151 2018-10-13 23:44:57Z chris $
+# $Id: Select.pm 35268 2018-10-16 06:52:24Z chris $
 #
 
 package Tachikoma::EventFrameworks::Select;
@@ -152,7 +152,7 @@ sub handle_signal {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
         $this->stderr('got SIGHUP - sending SIGUSR1');
         my $usr1 = SIGUSR1;
-        kill -$usr1, $$ or die q{FAILURE: couldn't signal self};
+        kill -$usr1, $$ or die q(FAILURE: couldn't signal self);
         $Got_HUP = undef;
     }
     if ($Reload_Config) {

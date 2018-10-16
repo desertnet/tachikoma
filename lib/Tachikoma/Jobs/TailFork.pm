@@ -32,7 +32,7 @@ my $Update_Interval = 1;
 sub initialize_graph {
     my $self = shift;
     my ( $destination_settings, $node_path, $tail_settings ) =
-        split q{ }, $self->arguments, 3;
+        split q( ), $self->arguments, 3;
     my $tail  = Tachikoma::Nodes::Tail->new;
     my $timer = Tachikoma::Nodes::Timer->new;
     my ( $host, $port, $use_SSL ) = split m{:}, $destination_settings, 3;
@@ -120,7 +120,7 @@ sub send_offset {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]     = TM_BYTESTREAM;
     $message->[ID]       = $self->{offset};
-    $message->[PAYLOAD]  = join q{}, $self->{offset}, "\n";
+    $message->[PAYLOAD]  = join q(), $self->{offset}, "\n";
     $self->{last_offset} = $self->{offset};
     return $self->SUPER::fill($message);
 }

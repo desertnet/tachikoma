@@ -73,7 +73,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             my $destination =
                 (      ( $type eq 'allow' ? $message_to : $to )
                     || $self->{owner}
-                    || q{} );
+                    || q() );
             my ( $name, $path ) = split m{/}, $destination, 2;
             my $node = $name ? $Tachikoma::Nodes{$name} : $self->{sink};
             if ( not $node ) {
@@ -151,7 +151,7 @@ $C{list_rules} = sub {
         $response = join( "\n", sort keys %{$rules} ) . "\n";
     }
     else {
-        $response = q{};
+        $response = q();
         my @enum = qw( type from to id stream timestamp payload );
         for my $id ( sort { $a <=> $b } keys %{$rules} ) {
             my ( $type, $from, $to, $field_id, $regex ) = @{ $rules->{$id} };

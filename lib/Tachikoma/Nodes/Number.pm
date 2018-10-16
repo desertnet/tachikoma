@@ -44,7 +44,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         if ( $self->{arguments} ) {
-            my ( $filename, $start_offset ) = split q{ }, $self->{arguments},
+            my ( $filename, $start_offset ) = split q( ), $self->{arguments},
                 2;
             $start_offset //= $Default_Start_Offset;
             my $offset   = $start_offset - 1;
@@ -56,7 +56,7 @@ sub arguments {
             }
             else {
                 while ( my $line = <$fh> ) {
-                    my ( $number, $value ) = split q{ }, $line, 2;
+                    my ( $number, $value ) = split q( ), $line, 2;
                     $new_list{$value} = $number;
                     $offset = $number if ( $number > $offset );
                 }
@@ -74,10 +74,10 @@ sub fill {
     my $message = shift;
     return $self->{interpreter}->fill($message)
         if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $output = q{};
+    my $output = q();
     for my $item ( split m{^}, $message->[PAYLOAD] ) {
         my $number = $self->add_item($item);
-        $output .= join q{ }, $number, $item;
+        $output .= join q( ), $number, $item;
     }
     $self->write_list;
     $message->[PAYLOAD] = $output;
@@ -124,9 +124,9 @@ $C{list} = sub {
     my @responses = ();
     for my $item ( sort { $list->{$a} <=> $list->{$b} } keys %{$list} ) {
         next if ( length $glob and $item !~ m{$glob} );
-        push @responses, $list->{$item}, q{ }, $item;
+        push @responses, $list->{$item}, q( ), $item;
     }
-    return $self->response( $envelope, join q{}, @responses );
+    return $self->response( $envelope, join q(), @responses );
 };
 
 $C{ls} = $C{list};
@@ -188,9 +188,9 @@ sub write_list {
         return $self->stderr("ERROR: mkstempt failed: $error");
     }
     my $list = $self->{list};
-    my $tmp = join q{/}, $parent, $template;
+    my $tmp = join q(/), $parent, $template;
     for my $item ( sort { $list->{$a} <=> $list->{$b} } keys %{$list} ) {
-        print {$fh} $list->{$item}, q{ }, $item;
+        print {$fh} $list->{$item}, q( ), $item;
     }
     close $fh or warn;
     rename $tmp, $path

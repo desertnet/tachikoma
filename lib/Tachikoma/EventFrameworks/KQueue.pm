@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35236 2018-10-15 11:19:12Z chris $
+# $Id: KQueue.pm 35288 2018-10-16 13:45:45Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -134,7 +134,7 @@ sub drain {
             }
             elsif ( $kev->[KQ_FILTER] == EVFILT_TIMER ) {
                 $node->{timer_is_active} = undef
-                    if ( ( $node->{timer_is_active} // q{} ) ne 'forever' );
+                    if ( ( $node->{timer_is_active} // q() ) ne 'forever' );
                 $node->fire;
                 next;
             }
@@ -176,7 +176,7 @@ sub handle_signal {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
         $this->stderr('got SIGHUP - sending SIGUSR1');
         my $usr1 = SIGUSR1;
-        kill -$usr1, $$ or die q{FAILURE: couldn't signal self};
+        kill -$usr1, $$ or die q(FAILURE: couldn't signal self);
     }
     elsif ( $id == SIGUSR1 ) {
         $this->stderr('got SIGUSR1 - reloading config');
@@ -198,7 +198,7 @@ sub handle_error {
         $this->stderr(
             "WARNING: $method error kevent for ",
             ( $node ? $node->name : $kev->[KQ_IDENT] ),
-            $error ? q{: } . $error : q{}
+            $error ? q(: ) . $error : q()
         );
     }
     POSIX::close( $kev->[KQ_IDENT] )

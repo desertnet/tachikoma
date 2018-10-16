@@ -41,7 +41,7 @@ sub initialize_graph {
     my $load_controller = Tachikoma::Nodes::LoadController->new;
     my $collector       = Tachikoma::Nodes::Tee->new;
     my $arguments       = $self->arguments;
-    my @destinations    = split q{ }, $arguments;
+    my @destinations    = split q( ), $arguments;
     $self->connector->sink($interpreter);
     $interpreter->name('command_interpreter');
     $interpreter->sink($self);
@@ -64,7 +64,7 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        my ( $file, $node_path ) = split q{ }, $command->arguments, 2;
+        my ( $file, $node_path ) = split q( ), $command->arguments, 2;
         for my $expanded ( glob $file ) {
             my $quoted = $expanded;
             $quoted =~ s{/}{:}g;
@@ -127,7 +127,7 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        my $response = q{};
+        my $response = q();
         for my $file ( sort keys %{ $self->tails } ) {
             $response .= "$file\n";
         }
@@ -344,7 +344,7 @@ sub tiedhash {
         ## no critic (ProhibitTie)
         my %h    = ();
         my %copy = ();
-        my $path = $self->db_dir . q{/} . $self->filename;
+        my $path = $self->db_dir . q(/) . $self->filename;
         $self->make_parent_dirs($path);
         if ( -f $path ) {
 

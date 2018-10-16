@@ -54,7 +54,8 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $filename, $max_unanswered ) =
-            split q{ }, $self->{arguments}, 2;
+            split q( ), $self->{arguments}, 2;
+        die "ERROR: no filename specified\n" if ( not $filename );
         $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );
@@ -65,7 +66,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
@@ -83,63 +84,53 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $copy           = bless [ @{$message} ], ref $message;
     $self->set_timer(0)
         if ( $self->{owner} and $unanswered < $max_unanswered );
-
-    if ( $type & TM_BYTESTREAM or $type & TM_STORABLE or $type & TM_INFO ) {
-        $self->{counter}++;
-        return if ( $buffer_mode eq 'null' );
-        my $sth =
-            $dbh->prepare('SELECT count(1) FROM queue WHERE message_id=?');
-        do {
-            $message_id = $self->msg_counter;
-            $sth->execute($message_id);
-        } while ( $sth->fetchrow_arrayref->[0] );
-        $copy->type( $type | TM_PERSIST );
-        $copy->[FROM] = $self->{name};
-        $copy->[TO]   = $self->{owner};
-        $copy->[ID]   = $message_id;
-        my $has_payload = undef;
-        if ( $self->{check_payloads} ) {
-            if ( $copy->[TYPE] & TM_STORABLE ) {
-                $Storable::canonical = 1;
-                $copy->[PAYLOAD]     = nfreeze( $copy->payload );
-                $copy->[IS_UNTHAWED] = 0;
-            }
-            $sth = $dbh->prepare(
-                'SELECT attempts FROM queue WHERE message_payload=?');
-            $sth->execute( $copy->[PAYLOAD] );
-            while ( my $row = $sth->fetchrow_arrayref ) {
-                $has_payload = 1 if ( $row->[0] == 0 );
-            }
+    return $self->stderr( 'ERROR: unexpected ',
+        $message->type_as_string, ' from ', $message->from )
+        if (not $type & TM_BYTESTREAM
+        and not $type & TM_STORABLE
+        and not $type & TM_INFO );
+    $self->{counter}++;
+    return if ( $buffer_mode eq 'null' );
+    my $sth = $dbh->prepare('SELECT count(1) FROM queue WHERE message_id=?');
+    do {
+        $message_id = $self->msg_counter;
+        $sth->execute($message_id);
+    } while ( $sth->fetchrow_arrayref->[0] );
+    $copy->[TYPE] = $type | TM_PERSIST;
+    $copy->[FROM] = $self->{name};
+    $copy->[TO]   = $self->{owner};
+    $copy->[ID]   = $message_id;
+    my $has_payload = undef;
+    if ( $self->{check_payloads} ) {
+        if ( $copy->[TYPE] & TM_STORABLE ) {
+            $Storable::canonical = 1;
+            $copy->[PAYLOAD]     = nfreeze( $copy->payload );
+            $copy->[IS_UNTHAWED] = 0;
         }
-        if ( not $has_payload ) {
-            $sth =
-                $dbh->prepare(
-                'INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
-            $sth->execute( $Tachikoma::Right_Now + $self->{delay},
-                0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
-                $copy->[TIMESTAMP], $copy->[PAYLOAD], );
-            $buffer_size++;
-            $self->{buffer_fills}++;
-        }
-        if ( $type & TM_ERROR ) {
-            $self->{errors_passed}++;
-            $self->answer($message) if ( $type & TM_PERSIST );
-        }
-        elsif ( $type & TM_PERSIST ) {
-            $self->cancel($message);
+        $sth = $dbh->prepare(
+            'SELECT attempts FROM queue WHERE message_payload=?');
+        $sth->execute( $copy->[PAYLOAD] );
+        while ( my $row = $sth->fetchrow_arrayref ) {
+            $has_payload = 1 if ( $row->[0] == 0 );
         }
     }
-    else {
-        return $self->stderr( 'ERROR: unexpected ',
-            $message->type_as_string, ' from ', $message->from );
+    if ( not $has_payload ) {
+        $sth =
+            $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $sth->execute( $Tachikoma::Right_Now + $self->{delay},
+            0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
+            $copy->[TIMESTAMP], $copy->[PAYLOAD], );
+        $buffer_size++;
+        $self->{buffer_fills}++;
+    }
+    if ( $type & TM_ERROR ) {
+        $self->{errors_passed}++;
+        $self->answer($message) if ( $type & TM_PERSIST );
+    }
+    elsif ( $type & TM_PERSIST ) {
+        $self->cancel($message);
     }
     $self->{buffer_size} = $buffer_size;
-    $self->{counter}++;
-    if ( not $copy->[TYPE] & TM_PERSIST ) {
-        $copy->[TO] ||= $self->{owner};
-        $self->{msg_sent}++;
-        $self->{sink}->fill($copy);
-    }
     return 1;
 }
 
@@ -157,7 +148,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     } while ( $sth->fetchrow_arrayref->[0] );
     $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
     $sth->execute( $Tachikoma::Right_Now, 0, TM_BYTESTREAM | TM_PERSIST,
-        $message_id, q{}, $Tachikoma::Now, ${ $_[1] } );
+        $message_id, q(), $Tachikoma::Now, ${ $_[1] } );
     $_[0]->{buffer_size}++;
     $_[0]->set_timer( $Timer_Interval * 1000 )
         if ( $_[0]->{owner} and not $_[0]->{timer_is_active} );
@@ -263,7 +254,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                 and not $self->get_buffer_size )
             {
                 $dbh->disconnect;
-                unlink join q{/}, $self->db_dir, $self->filename or warn;
+                unlink join q(/), $self->db_dir, $self->filename or warn;
                 $self->dbh(undef);
                 $self->{last_clear_time} = $Tachikoma::Now;
                 $is_empty = 'true';
@@ -392,7 +383,7 @@ $C{list_messages} = sub {
     my $list_all       = $arguments =~ m{a};
     my $verbose        = $arguments =~ m{v};
     my $buffer_size    = $self->patron->buffer_size || 0;
-    my $response       = q{};
+    my $response       = q();
     return if ( $list_all and $buffer_size > 10000 );
     my $hash;
     my $sth;
@@ -448,9 +439,9 @@ $C{remove_message} = sub {
     my $envelope = shift;
     my $dbh      = $self->patron->dbh;
     my $key      = $command->arguments;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         $dbh->disconnect;
-        unlink join q{/}, $self->patron->db_dir, $self->patron->filename
+        unlink join q(/), $self->patron->db_dir, $self->patron->filename
             or warn;
         $self->patron->msg_unanswered( {} );
         $self->patron->buffer_size(undef);
@@ -484,7 +475,7 @@ $C{dump_message} = sub {
     my $envelope = shift;
     my $key      = $command->arguments;
     my $dbh      = $self->patron->dbh;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         $key = each %{ $self->patron->msg_unanswered };
         if ( not $key ) {
             return $self->response( $envelope, "no messages in flight\n" );
@@ -584,7 +575,7 @@ sub dbh {
     }
     if ( not defined $self->{dbh} ) {
         $self->make_dirs( $self->db_dir );
-        my $path = join q{/}, $self->db_dir, $self->filename;
+        my $path = join q(/), $self->db_dir, $self->filename;
         if ( -e "${path}.clean" ) {
             unlink "${path}.clean" or warn;
         }
@@ -619,7 +610,7 @@ EOF
 sub close_db {
     my $self = shift;
     $self->{dbh}->disconnect if ( $self->{dbh} );
-    my $path = join q{/}, $self->db_dir, $self->{filename};
+    my $path = join q(/), $self->db_dir, $self->{filename};
     open my $fh, '>>', "${path}.clean" or warn;
     close $fh or warn;
     $self->buffer_size(undef);
@@ -644,7 +635,7 @@ sub db_dir {
 
 sub remove_node {
     my $self = shift;
-    $self->close_db;
+    $self->close_db if ( $self->{filename} );
     return $self->SUPER::remove_node(@_);
 }
 

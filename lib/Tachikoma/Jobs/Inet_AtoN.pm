@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Inet_AtoN
 # ----------------------------------------------------------------------
 #
-# $Id: Inet_AtoN.pm 34410 2018-07-06 14:10:47Z chris $
+# $Id: Inet_AtoN.pm 35265 2018-10-16 06:42:47Z chris $
 #
 
 package Tachikoma::Jobs::Inet_AtoN;
@@ -84,8 +84,8 @@ sub fill {
         }
     }
     $message->[TO]      = $message->[FROM] if ( not $message->[TO] );
-    $message->[FROM]    = q{};
-    $message->[PAYLOAD] = $number ? join q{}, inet_ntoa($number), "\n" : q{};
+    $message->[FROM]    = q();
+    $message->[PAYLOAD] = $number ? join q(), inet_ntoa($number), "\n" : q();
     return $self->SUPER::fill($message);
 }
 

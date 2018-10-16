@@ -35,7 +35,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $position, $offset ) = split q{ }, $self->{arguments}, 2;
+        my ( $position, $offset ) = split q( ), $self->{arguments}, 2;
         $self->{position} = $position // 'prefix';
         $self->{offset}   = $offset // 0;
     }
@@ -49,17 +49,17 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $copy   = bless [ @{$message} ], ref $message;
     my $offset = $self->{offset};
-    my $out    = q{};
+    my $out    = q();
     if ( $self->{position} eq 'prefix' ) {
         for my $line ( split m{^}, $message->[PAYLOAD] ) {
             chomp $line;
-            $out .= join q{}, $Tachikoma::Now + $offset, q{ }, $line, "\n";
+            $out .= join q(), $Tachikoma::Now + $offset, q( ), $line, "\n";
         }
     }
     else {
         for my $line ( split m{^}, $message->[PAYLOAD] ) {
             chomp $line;
-            $out .= join q{}, $line, q{ }, $Tachikoma::Now + $offset, "\n";
+            $out .= join q(), $line, q( ), $Tachikoma::Now + $offset, "\n";
         }
     }
     $copy->[PAYLOAD] = $out;
