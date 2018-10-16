@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: Tachikoma.pm 35277 2018-10-16 09:41:42Z chris $
 #
 
 package Tachikoma;
@@ -428,11 +428,11 @@ sub answer {
 }
 
 sub cancel {
-    my ( $self, $message, $to ) = @_;
+    my ( $self, $message ) = @_;
     return if ( not $message->[TYPE] & TM_PERSIST );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
-    $response->[TO]      = ( $to // $message->[FROM] ) or return;
+    $response->[TO]      = $message->[FROM] or return;
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
     $response->[PAYLOAD] = 'cancel';

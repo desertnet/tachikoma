@@ -18,14 +18,10 @@ use version; our $VERSION = 'v2.0.349';
 
 sub initialize_graph {
     my $self = shift;
-    my ( $config_file, $tmp_path ) = split q( ), $self->arguments || q(), 2;
-    my $cgi = Tachikoma::Nodes::CGI->new;
+    my $cgi  = Tachikoma::Nodes::CGI->new;
     $self->connector->sink($cgi);
     $cgi->name('CGI');
-    $cgi->arguments( $tmp_path
-        ? join q( ),
-        $config_file, $tmp_path
-        : $config_file );
+    $cgi->arguments( $self->arguments );
     $cgi->sink($self);
     $self->sink( $self->router );
     return;
