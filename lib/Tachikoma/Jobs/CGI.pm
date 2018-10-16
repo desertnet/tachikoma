@@ -18,12 +18,12 @@ use version; our $VERSION = 'v2.0.349';
 
 sub initialize_graph {
     my $self = shift;
-    my ( $config_file, $tmp_path ) = split q{ }, $self->arguments || q{}, 2;
+    my ( $config_file, $tmp_path ) = split q( ), $self->arguments || q{}, 2;
     my $cgi = Tachikoma::Nodes::CGI->new;
     $self->connector->sink($cgi);
     $cgi->name('CGI');
     $cgi->arguments( $tmp_path
-        ? join q{ },
+        ? join q( ),
         $config_file, $tmp_path
         : $config_file );
     $cgi->sink($self);
@@ -34,7 +34,7 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    $message->[TO] = join q{/}, '_parent', $message->[TO]
+    $message->[TO] = join q(/), '_parent', $message->[TO]
         if ( $message->[TO] !~ m{^_parent} );
     return $self->SUPER::fill($message);
 }

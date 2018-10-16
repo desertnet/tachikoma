@@ -142,7 +142,7 @@ if ($filename) {
     my @values = @ARGV;
     $Var{$_} = $values[$_] for ( 1 .. $#values );
     $Var{q{0}}  = shift @values;
-    $Var{q{@}}  = join q{ }, @values;
+    $Var{q{@}}  = join q( ), @values;
     $Var{q{_C}} = scalar @values;
     my @lines = ();
     my $fh;

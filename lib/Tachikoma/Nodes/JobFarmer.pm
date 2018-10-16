@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35210 2018-10-14 21:04:44Z chris $
+# $Id: JobFarmer.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -56,7 +56,7 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         my ( $job_count, $job_type, $job_arguments ) =
-            ( split q{ }, $arguments, 3 );
+            ( split q( ), $arguments, 3 );
         my $name = $self->{name};
         die "invalid job count\n" if ( $job_count =~ m{\D} );
         die "no job type specified\n" if ( not $job_type );
@@ -240,7 +240,7 @@ $C{restart_job} = sub {
     my $tee           = $self->patron->tee;
     my $jobc          = $self->patron->job_controller;
     my $jobs          = $jobc->jobs;
-    if ( $name eq q{*} ) {
+    if ( $name eq q(*) ) {
 
         for my $name ( keys %{$jobs} ) {
             $self->disconnect_node( $load_balancer->name, $name );
@@ -269,7 +269,7 @@ $C{kill_job} = sub {
     my $name     = $command->arguments;
     my $jobc     = $self->patron->job_controller;
     my $jobs     = $jobc->jobs;
-    if ( $name eq q{*} ) {
+    if ( $name eq q(*) ) {
         for my $name ( keys %{$jobs} ) {
             $jobc->kill_job($name);
         }
@@ -294,7 +294,7 @@ $C{cut_job} = sub {
     my $jobc     = $self->patron->job_controller;
     my $jobs     = $jobc->jobs;
     my $error    = q{};
-    if ( $name eq q{*} ) {
+    if ( $name eq q(*) ) {
 
         for my $name ( keys %{$jobs} ) {
             my $rv = $jobc->cut_job($name);

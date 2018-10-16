@@ -174,7 +174,7 @@ sub write_list {
         my $error = $@ // 'unknown error';
         return $self->stderr("ERROR: mkstempt failed: $error");
     }
-    my $tmp = join q{/}, $parent, $template;
+    my $tmp = join q(/), $parent, $template;
     print {$fh} join q{}, @{ $self->{list} };
     close $fh
         or $self->stderr("ERROR: couldn't close $tmp: $!");

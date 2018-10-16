@@ -31,7 +31,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $prefix, $receiver ) = split q{ }, $self->{arguments}, 2;
+        my ( $prefix, $receiver ) = split q( ), $self->{arguments}, 2;
         $self->set_timer( $Expire_Interval * 1000 );
         $self->prefix($prefix);
         $self->receiver($receiver);
@@ -57,11 +57,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         else {
             return $self->stderr("ERROR: bad path: $tail->{filename}");
         }
-        $message->[STREAM] = join q{:}, 'update', $filename;
+        $message->[STREAM] = join q(:), 'update', $filename;
         $message->[TO] = $self->{receiver};
         if ( $type & TM_EOF ) {
             $message->[TYPE] = TM_EOF | TM_PERSIST;
-            $message->[PAYLOAD] = join q{:}, lstat $tail->{filename};
+            $message->[PAYLOAD] = join q(:), lstat $tail->{filename};
             $tail->{msg_unanswered}++;
             $tail->{on_EOF} = 'ignore';
         }
@@ -129,7 +129,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
     }
     else {
-        my @paths = split q{ }, $path;
+        my @paths = split q( ), $path;
         @paths = split $Separator, $path, 2 if ( @paths > 2 );
         my ( $from_path, $to_path ) = @paths;
         $from_path =~ s{(?:^|/)[.][.](?=/)}{}g if ($from_path);
@@ -154,7 +154,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $relative = join $Separator, $from_relative, $to_relative;
     }
-    $stream = join q{:}, $op, $relative;
+    $stream = join q(:), $op, $relative;
     my $requests = $self->{requests};
     if ( $requests->{$stream} ) {
         $self->stderr("WARNING: resetting $stream");
@@ -171,13 +171,13 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         elsif ( -l _ ) {
             $op        = 'symlink';
-            $stream    = join q{:}, $op, $relative;
+            $stream    = join q(:), $op, $relative;
             $arguments = readlink $path;
         }
         elsif ( -d _ ) {
             $op        = 'mkdir';
-            $stream    = join q{:}, $op, $relative;
-            $arguments = join q{:}, lstat _;
+            $stream    = join q(:), $op, $relative;
+            $arguments = join q(:), lstat _;
         }
         else {
             # set up tails
@@ -234,7 +234,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->stderr("WARNING: couldn't find $path");
             return $self->cancel($message);
         }
-        $arguments = join q{:}, @lstat;
+        $arguments = join q(:), @lstat;
     }
     if ( $op ne 'update' ) {
 

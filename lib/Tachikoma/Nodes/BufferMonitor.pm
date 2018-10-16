@@ -78,8 +78,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $buffers     = $self->{buffers};
     my $new_buffers = {};
 LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $buffer = { map { split m{:}, $_, 2 } split q{ }, $line };
-        my $buffer_id = join q{:}, $buffer->{hostname}, $buffer->{buff_name};
+        my $buffer = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $buffer_id = join q(:), $buffer->{hostname}, $buffer->{buff_name};
         my $old_buffer = $buffers->{$buffer_id};
         $new_buffers->{$buffer_id} = $buffer;
         $buffer->{id}              = $buffer_id;
@@ -227,7 +227,7 @@ $C{add_email_threshold} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $regex, $threshold ) = split q{ }, $command->arguments, 2;
+    my ( $regex, $threshold ) = split q( ), $command->arguments, 2;
     $self->patron->email_thresholds->{$regex} = $threshold;
     $self->patron->email_alerts( {} );
     return $self->okay;
@@ -275,7 +275,7 @@ $C{add_trap_threshold} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $regex, $threshold ) = split q{ }, $command->arguments, 2;
+    my ( $regex, $threshold ) = split q( ), $command->arguments, 2;
     $self->patron->trap_thresholds->{$regex} = $threshold;
     $self->patron->trap_alerts( {} );
     return $self->okay;
@@ -301,7 +301,7 @@ $C{rm_trap} = $C{remove_trap_threshold};
 #     my $buffer     = shift;
 #     my $warning    = shift;
 #     my $short_host = ( $buffer->{hostname} =~ m{^([^.]+)} )[0];
-#     my $subject    = join q{ },
+#     my $subject    = join q( ),
 #         $warning, 'on', $short_host, $buffer->{buff_name};
 #     return
 #         if ($Tachikoma::Now - $buffer->{"last_$type"} < $Alert_Interval);
@@ -334,7 +334,7 @@ sub alert {
     my $alerts     = $self->{"${type}_alerts"};
     my $id         = $buffer->{id};
     my $short_host = ( $buffer->{hostname} =~ m{^([^.]+)} )[0];
-    my $subject    = join q{ }, $warning, 'on', $short_host,
+    my $subject    = join q( ), $warning, 'on', $short_host,
         $buffer->{buff_name};
     $alerts->{$id} ||= {};
     $alerts->{$id}->{$subject} ||= [ $Tachikoma::Now => $callback ];

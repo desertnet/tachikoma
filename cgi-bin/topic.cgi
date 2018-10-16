@@ -16,7 +16,7 @@ use JSON -support_by_pp;
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();
-my ( $topic, $partition, $offset, $count ) = split q{/}, $path, 4;
+my ( $topic, $partition, $offset, $count ) = split q(/), $path, 4;
 die "no topic\n" if ( not $topic );
 $partition ||= 0;
 $offset    ||= 'start';
@@ -56,13 +56,13 @@ else {
     my $i           = 1;
     my $next_offset = $offset eq 'end' ? $consumer->offset : $offset;
     for my $message (@messages) {
-        $next_offset = ( split q{:}, $message->id, 2 )[1];
+        $next_offset = ( split q(:), $message->id, 2 )[1];
         push @output, $message->payload;
         last if ( $i++ >= $count );
     }
     $results = {
         next_url =>
-            join( q{/}, $cgi->url, $topic, $partition, $next_offset, $count ),
+            join( q(/), $cgi->url, $topic, $partition, $next_offset, $count ),
         payload => \@output
     };
 }

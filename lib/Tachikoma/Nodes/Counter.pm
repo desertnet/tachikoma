@@ -64,7 +64,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $count_mode, $send_mode, $interval ) =
-            split q{ }, $self->{arguments}, 3;
+            split q( ), $self->{arguments}, 3;
         die 'invalid count mode'
             if ( $count_mode and not $Count_Modes{$count_mode} );
         die 'invalid send mode'
@@ -81,7 +81,7 @@ sub fill {
     my $message = shift;
     return $self->{interpreter}->fill($message)
         if ( $message->[TYPE] & TM_COMMAND );
-    $message->[TO] = join q{/}, $self->{owner}, $message->[TO]
+    $message->[TO] = join q(/), $self->{owner}, $message->[TO]
         if ( $self->{owner} and $message->[TO] );
     if ( $self->{count_mode} eq 'simple' ) {
         $self->{one_second}++;
@@ -234,10 +234,10 @@ $C{averages} = sub {
     }
     else {
         $response = join q{},
-            'one_min_avg:',     $one_minute_avg,     q{ },
-            'five_min_avg:',    $five_minute_avg,    q{ },
-            'fifteen_min_avg:', $fifteen_minute_avg, q{ },
-            'hour_avg:',        $hour_avg,           q{ },
+            'one_min_avg:',     $one_minute_avg,     q( ),
+            'five_min_avg:',    $five_minute_avg,    q( ),
+            'fifteen_min_avg:', $fifteen_minute_avg, q( ),
+            'hour_avg:',        $hour_avg,           q( ),
             'day_avg:',         $day_avg,            "\n";
     }
     return $self->response( $envelope, $response );

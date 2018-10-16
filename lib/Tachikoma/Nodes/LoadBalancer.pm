@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 35137 2018-10-13 09:19:13Z chris $
+# $Id: LoadBalancer.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -54,7 +54,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $max_unanswered, $timeout ) =
-            split q{ }, $self->{arguments}, 2;
+            split q( ), $self->{arguments}, 2;
         $self->{max_unanswered} = $max_unanswered || 0;
         $self->{timeout}        = $timeout        || $Default_Timeout;
     }
@@ -87,7 +87,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        $message->[TO] = $to ? join q{/}, $owner, $to : $owner;
+        $message->[TO] = $to ? join q(/), $owner, $to : $owner;
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -306,7 +306,7 @@ sub get_next_owner {
     my $owner          = undef;
     if ( $id and $method eq 'hash' ) {
         my $i = 0;
-        $i += $_ for ( unpack 'C*', md5( join q{:}, $self->{hash}, $id ) );
+        $i += $_ for ( unpack 'C*', md5( join q(:), $self->{hash}, $id ) );
         $owner = $owners->[ $i % @{$owners} ];
     }
     elsif ($method eq 'round-robin'

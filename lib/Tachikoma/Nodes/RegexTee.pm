@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 35179 2018-10-14 09:45:33Z chris $
+# $Id: RegexTee.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::RegexTee;
@@ -100,7 +100,7 @@ $C{add_branch} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $destination, $regex ) = split q{ }, $command->arguments, 3;
+    my ( $name, $destination, $regex ) = split q( ), $command->arguments, 3;
     if ( not exists $self->branches->{$name} ) {
         $self->branches->{$name} =
             [ $destination, $regex ? qr{$regex} : undef ];

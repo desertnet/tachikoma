@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 34423 2018-07-07 00:39:24Z chris $
+# $Id: Buffer.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -73,7 +73,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $filename, $max_unanswered ) =
-            split q{ }, $self->{arguments}, 2;
+            split q( ), $self->{arguments}, 2;
         $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->untie_hash;
@@ -285,7 +285,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                     if ($tied) {
                         undef $tied;
                         untie %{$tiedhash} or warn;
-                        unlink join q{/}, $self->db_dir, $self->filename
+                        unlink join q(/), $self->db_dir, $self->filename
                             or warn;
                         $self->tiedhash(undef);
                     }
@@ -458,10 +458,10 @@ $C{remove_message} = sub {
     my $envelope = shift;
     my $tiedhash = $self->patron->tiedhash;
     my $key      = $command->arguments;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         if ( $self->patron->filename ) {
             untie %{$tiedhash} or warn;
-            unlink join q{/}, $self->patron->db_dir, $self->patron->filename
+            unlink join q(/), $self->patron->db_dir, $self->patron->filename
                 or warn;
         }
         $self->patron->msg_unanswered( {} );
@@ -489,7 +489,7 @@ $C{dump_message} = sub {
     my $envelope = shift;
     my $key      = $command->arguments;
     my $tiedhash = $self->patron->tiedhash;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         $key = each %{ $self->patron->msg_unanswered };
         if ( not $key ) {
             return $self->response( $envelope, "no messages in flight\n" );
@@ -669,7 +669,7 @@ $C{stats} = sub {
     my $errors_passed   = $patron->errors_passed;
     my $unanswered      = keys %{ $patron->msg_unanswered };
     my $max             = $patron->max_unanswered;
-    my $max_attempts    = $patron->max_attempts || q{-};
+    my $max_attempts    = $patron->max_attempts || q(-);
     my $on_max_attempts = $patron->on_max_attempts;
     my $delay           = $patron->delay;
     my $timeout         = $patron->timeout;

@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Node.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Node;
@@ -156,7 +156,7 @@ sub disconnect_node {
     die qq(no such node: "$name"\n) if ( not $node );
     if ( ref( $node->owner ) eq 'ARRAY' ) {
         my @keep = ();
-        if ( $owner and $owner ne q{*} ) {
+        if ( $owner and $owner ne q(*) ) {
             for my $node ( @{ $node->owner } ) {
                 if ( $node ne $owner ) {
                     push @keep, $node;
@@ -249,7 +249,7 @@ sub stamp_message {
     my ( $self, $message, $name ) = @_;
     my $from = $message->[FROM];
     if ( length $from ) {
-        $from = join q{/}, $name, $from;
+        $from = join q(/), $name, $from;
         if ( length($from) > MAX_FROM_SIZE ) {
             $self->stderr( 'ERROR: path exceeded '
                     . MAX_FROM_SIZE
@@ -270,7 +270,7 @@ sub make_parent_dirs {
     my $path = q{};
     pop @path_list;
     for my $dir (@path_list) {
-        $path .= q{/} . $dir;
+        $path .= q(/) . $dir;
         if (    not -d $path
             and not( mkdir $path, MKDIR_MASK )
             and $! !~ m{File exists} )
@@ -286,7 +286,7 @@ sub make_dirs {
     my @path_list = grep {length} split m{/}, $path_string;
     my $path = q{};
     for my $dir (@path_list) {
-        $path .= q{/} . $dir;
+        $path .= q(/) . $dir;
         if (    not -d $path
             and not( mkdir $path, MKDIR_MASK )
             and $! !~ m{File exists} )
@@ -367,7 +367,7 @@ sub log_prefix {
     my ( $self, @raw ) = @_;
     my $prefix = join q{},
         strftime( '%F %T %Z ', localtime time ),
-        hostname(), q{ }, $0, '[', $$, ']: ';
+        hostname(), q( ), $0, '[', $$, ']: ';
     if (@raw) {
         my $msg = join q{}, grep defined, @raw;
         chomp $msg;

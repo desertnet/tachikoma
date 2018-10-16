@@ -40,7 +40,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $seconds, $prefix ) = split q{ }, $self->{arguments}, 2;
+        my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
         die 'usage: ' . $self->help if ( $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
@@ -64,7 +64,7 @@ sub fire {
         my $node = $Tachikoma::Nodes{$name};
         if ( $node->isa('Tachikoma::Nodes::Buffer') ) {
             my $buff_name = $node->{filename};
-            $buff_name ||= join q{/}, $self->{prefix}, $node->{name};
+            $buff_name ||= join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
             $out .= join q{},
                 'hostname:',
@@ -94,7 +94,7 @@ sub fire {
                 "\n";
         }
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
-            my $buff_name = join q{/}, $self->{prefix}, $node->{name};
+            my $buff_name = join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
             my $partition = $Tachikoma::Nodes{ $node->{partition} } or next;
             $out .= join q{},

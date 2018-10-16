@@ -56,7 +56,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( not $path ) {
             $path    = $op;
             $op      = 'update';
-            $payload = join q{:}, $op, $path;
+            $payload = join q(:), $op, $path;
         }
         my $last_op = $self->{op};
         $self->{op} = $op;

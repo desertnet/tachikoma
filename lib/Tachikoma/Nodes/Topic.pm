@@ -70,7 +70,7 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         $self->{arguments} = $arguments;
-        my ( $broker, $topic ) = split q{ }, $arguments, 2;
+        my ( $broker, $topic ) = split q( ), $arguments, 2;
         $self->{broker_path}    = $broker;
         $self->{topic}          = $topic // $self->{name};
         $self->{next_partition} = 0;
@@ -640,7 +640,7 @@ sub broker_ids {
         my %broker_ids = ();
         for my $host ( keys %{ $self->{hosts} } ) {
             for my $port ( @{ $self->{hosts}->{$host} } ) {
-                my $broker_id = join q{:}, $host, $port;
+                my $broker_id = join q(:), $host, $port;
                 $broker_ids{$broker_id} = undef;
             }
         }

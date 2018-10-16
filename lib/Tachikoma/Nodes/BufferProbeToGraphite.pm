@@ -56,13 +56,13 @@ sub fill {
     my $prefix    = $self->{prefix};
     my $timestamp = $message->[TIMESTAMP];
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $buffer    = { map { split m{:}, $_, 2 } split q{ }, $line };
+        my $buffer    = { map { split m{:}, $_, 2 } split q( ), $line };
         my $hostname  = $buffer->{hostname};
         my $buff_name = $buffer->{buff_name};
         $hostname =~ s{[.].*}{};
         $buff_name =~ s{[^\w\d]+}{_}g;
         for my $field (@Fields) {
-            my $key = join q{.},
+            my $key = join q(.),
                 $prefix, $hostname, 'tachikoma',
                 'buffers', $buff_name, $field;
             $output->{$key} = "$key $buffer->{$field} $timestamp\n";

@@ -42,7 +42,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $config_file, $tmp_path ) = split q{ }, $self->{arguments}, 2;
+        my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
         my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
         my $rv   = do $path;
         die "couldn't parse $path: $@" if ($@);
@@ -95,8 +95,8 @@ FIND_SCRIPT: while ($test_path) {
         elsif ( $script_path and $is_dir ) {
             chop $script_path;
             while ( my $path_component = shift @path_components ) {
-                $script_path .= join q{}, q{/}, $path_component;
-                $script_name .= join q{}, q{/}, $path_component;
+                $script_path .= join q{}, q(/), $path_component;
+                $script_name .= join q{}, q(/), $path_component;
                 next if ( -d $script_path );
                 if ( -f _ ) {
                     $last_modified = ( stat _ )[9];
@@ -109,7 +109,7 @@ FIND_SCRIPT: while ($test_path) {
             unshift @path_components, $1 if ( length $1 );
         }
     }
-    my $path_info = join q{/}, q{}, @path_components;
+    my $path_info = join q(/), q{}, @path_components;
 
     $self->{counter}++;
 
@@ -146,7 +146,7 @@ FIND_SCRIPT: while ($test_path) {
 
     my $request_uri  = $script_url;
     my $query_string = $request->{query_string};
-    $request_uri .= join q{}, q{?}, $query_string if ($query_string);
+    $request_uri .= join q{}, q(?), $query_string if ($query_string);
     my $is_post = $request->{method} eq 'POST';
     $ENV{PATH}              = '/bin:/usr/bin';
     $ENV{DOCUMENT_ROOT}     = $document_root;
@@ -185,7 +185,7 @@ FIND_SCRIPT: while ($test_path) {
     local *STDOUT;
     if ($is_post) {
         if ( $request->{tmp} ) {
-            my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+            my $tmp_path = join q(/), $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             open *STDIN, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
         }
@@ -246,7 +246,7 @@ FIND_SCRIPT: while ($test_path) {
     # shut down STDIN and STDOUT
     if ($is_post) {
         if ( $request->{tmp} ) {
-            my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+            my $tmp_path = join q(/), $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             unlink $tmp or die "ERROR: couldn't unlink $tmp: $!";
             close STDIN or die "ERROR: couldn't close $tmp: $!";
@@ -282,7 +282,7 @@ sub include_path {
     my $package     = $script_path;
     $package =~ s{[^\w\d]+}{_}g;
     $package =~ s{^(\d)}{_$1};
-    $package .= join q{}, q{_}, $counter;
+    $package .= join q{}, q(_), $counter;
     $counter = ( $counter + 1 ) % $Tachikoma::Max_Int;
     $self->{include_counter} = $counter;
     local $/ = undef;

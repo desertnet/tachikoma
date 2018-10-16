@@ -28,7 +28,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $gate, $timeout ) = split q{ }, $self->{arguments}, 2;
+        my ( $gate, $timeout ) = split q( ), $self->{arguments}, 2;
         $self->{gate} = $gate;
         $self->{timeout} = $timeout || $Default_Timeout;
         $self->set_timer( $self->{timeout} * 1000 );

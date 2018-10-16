@@ -35,7 +35,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $pattern, $rewrite ) = split q{ }, $self->{arguments}, 2;
+        my ( $pattern, $rewrite ) = split q( ), $self->{arguments}, 2;
         $pattern ||= q{};
         $rewrite ||= q{};
         $pattern         = ( $pattern =~ m{^(.*)$} )[0];

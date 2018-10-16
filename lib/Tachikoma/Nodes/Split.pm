@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 35165 2018-10-14 04:38:22Z chris $
+# $Id: Split.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -67,7 +67,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
         }
         elsif ( $delimiter eq 'whitespace' ) {
             $_[0]->{edge}->activate( \"$_\n" )
-                for ( split q{ }, $_[1]->[PAYLOAD] );
+                for ( split q( ), $_[1]->[PAYLOAD] );
         }
         else {
             $_[0]->{edge}->activate( \"$_\n" )
@@ -135,7 +135,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
         }
     }
     elsif ( $delimiter eq 'whitespace' ) {
-        for my $block ( split q{ }, $message->[PAYLOAD] ) {
+        for my $block ( split q( ), $message->[PAYLOAD] ) {
             my $response = Tachikoma::Message->new;
             $response->[TYPE]      = $message->[TYPE];
             $response->[FROM]      = $self->{name};

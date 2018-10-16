@@ -40,7 +40,7 @@ my %SVN_Include = map { $_ => 1 } qw(
 sub initialize_graph {
     my $self = shift;
     my ( $prefix, $target_settings, $max_files, $pedantic ) =
-        split q{ }, $self->arguments, 4;
+        split q( ), $self->arguments, 4;
     my ( $host, $port ) = split m{:}, $target_settings, 2;
     $prefix ||= q{};
     $prefix =~ s{^'|'$}{}g;
@@ -61,7 +61,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     return if ( not $message->type & TM_BYTESTREAM );
-    my ( $path, $withsums ) = split q{ }, $message->payload, 3;
+    my ( $path, $withsums ) = split q( ), $message->payload, 3;
     chomp $path;
     $path =~ s{^'|'$}{}g;
     $path =~ s{/+$}{};
@@ -144,7 +144,7 @@ sub send_stats {
         my $update = shift @updates;
         if ($update) {
             my $relative = ( split m{:}, $update, 2 )[1];
-            $self->send_update( join q{}, 'update:', $prefix, q{/},
+            $self->send_update( join q{}, 'update:', $prefix, q(/),
                 $relative );
             $count++;
         }
@@ -239,18 +239,18 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             print {*STDERR} "LMAO: $path/$entry\n";
             next;
         }
-        my $path_entry = join q{/}, $path, $entry;
+        my $path_entry = join q(/), $path, $entry;
         my @lstat = lstat $path_entry;
         next if ( not @lstat );
         my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
-        my $size = ( $stat eq 'F' ) ? $lstat[7] : q{-};
+        my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $last_modified = $lstat[9];
-        my $digest        = q{-};
+        my $digest        = q(-);
 
         if ( $withsums and $stat eq 'F' ) {
             my $md5 = Digest::MD5->new;
-            open my $fh, q{<}, $path_entry
+            open my $fh, q(<), $path_entry
                 or die "ERROR: couldn't open $path_entry: $!";
             $md5->addfile($fh);
             $digest = $md5->hexdigest;
@@ -260,7 +260,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
         $entry = join q{}, $entry, $Separator, readlink $path_entry
             if ( $stat eq 'L' );
         push @out,
-            join( q{ },
+            join( q( ),
             $stat, $size, $perms, $last_modified, $digest, $entry )
             . "\n";
         push @directories, $path_entry if ( $stat eq 'D' );

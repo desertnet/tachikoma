@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35246 2018-10-15 18:40:59Z chris $
+# $Id: CommandInterpreter.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -149,7 +149,7 @@ sub interpret {
                 . $cmd_name
                 . (
                 $command->{arguments} ne q{}
-                ? q{ } . $command->{arguments} . "\n"
+                ? q( ) . $command->{arguments} . "\n"
                 : "\n"
                 )
         )
@@ -171,9 +171,9 @@ sub call_function {
     my $okay = eval {
         $rv = $responder->shell->call_function(
             $name,
-            {   q{@}            => $command->arguments,
-                q{0}            => $name,
-                q{1}            => $command->arguments,
+            {   q(@)            => $command->arguments,
+                q(0)            => $name,
+                q(1)            => $command->arguments,
                 q{_C}           => 1,
                 q{message.from} => $envelope->from
             }
@@ -365,8 +365,8 @@ $C{list_nodes} = sub {
         }
         push @row, $node->{counter} if ($show_count);
         push @row, $name;
-        push @row, $sink ? "> $sink"  : q{ } if ($show_sink);
-        push @row, $edge ? ">> $edge" : q{ } if ($show_edge);
+        push @row, $sink ? "> $sink"  : q( ) if ($show_sink);
+        push @row, $edge ? ">> $edge" : q( ) if ($show_edge);
         if ($show_owner) {
             my $rv = $node->owner;
             if ( ref $rv eq 'ARRAY' ) {
@@ -376,7 +376,7 @@ $C{list_nodes} = sub {
                 $owner = $rv;
             }
         }
-        push @row, $owner ? "-> $owner" : q{ } if ($show_owner);
+        push @row, $owner ? "-> $owner" : q( ) if ($show_owner);
         push @{$response}, \@row;
     }
     if ( $list_matches and $glob and $response eq q{} ) {
@@ -498,7 +498,7 @@ $C{make_node} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    my ( $type, $name, $arguments ) = split q{ }, $command->arguments, 3;
+    my ( $type, $name, $arguments ) = split q( ), $command->arguments, 3;
     $self->make_node( $type, $name, $arguments );
     return $self->okay($envelope);
 };
@@ -519,8 +519,8 @@ $C{make_connected_node} = sub {
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $owner, $type, $name, $arguments ) =
-        split q{ }, $command->arguments, 4;
-    $owner = $envelope->from if ( $owner eq q{-} );
+        split q( ), $command->arguments, 4;
+    $owner = $envelope->from if ( $owner eq q(-) );
     $self->make_node( $type, $name, $arguments, $owner );
     return $self->okay($envelope);
 };
@@ -538,7 +538,7 @@ $C{set_arguments} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $name, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no node specified\n) if ( not $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
@@ -576,7 +576,7 @@ $C{register} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $path, $event ) = split q{ }, $command->arguments, 3;
+    my ( $name, $path, $event ) = split q( ), $command->arguments, 3;
     die qq(no node specified\n) if ( not $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
@@ -593,7 +593,7 @@ $C{unregister} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $path, $event ) = split q{ }, $command->arguments, 3;
+    my ( $name, $path, $event ) = split q( ), $command->arguments, 3;
     die qq(no node specified\n) if ( not $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
@@ -610,7 +610,7 @@ $C{move_node} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $new_name ) = split q{ }, $command->arguments, 2;
+    my ( $name, $new_name ) = split q( ), $command->arguments, 2;
     my ( $old_name, $path ) = split m{/}, $envelope->[FROM], 2;
     die qq(no name specified\n) if ( not $name or not $new_name );
     my $node = $Tachikoma::Nodes{$name};
@@ -749,7 +749,7 @@ $C{dump_metadata} = sub {
             }
         }
         $owner = join q{, }, @{$owner} if ( ref $owner eq 'ARRAY' );
-        $response .= join( q{|},
+        $response .= join( q(|),
             $received, $sent, $name, $sink, $owner || q{},
             $class, $type, @extra )
             . "\n";
@@ -763,7 +763,7 @@ $C{dump_node} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, @keys ) = split q{ }, $command->arguments;
+    my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $response = q{};
     if ( not $name ) {
@@ -821,7 +821,7 @@ $C{dump_hex} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, @keys ) = split q{ }, $command->arguments;
+    my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $response = q{};
     if ( not $name ) {
@@ -847,7 +847,7 @@ $C{dump_hex} = sub {
                 if ( ref ${$value} ne 'SCALAR' );
             $value = ${$value};
         }
-        $copy->{$key} = join q{:},
+        $copy->{$key} = join q(:),
             map sprintf( '%02X', ord ), split m{}, ${$value}
             if ( defined ${$value} );
     }
@@ -864,7 +864,7 @@ $C{dump_dec} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $name, @keys ) = split q{ }, $command->arguments;
+    my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $response = q{};
     if ( not $name ) {
@@ -890,7 +890,7 @@ $C{dump_dec} = sub {
                 if ( ref ${$value} ne 'SCALAR' );
             $value = ${$value};
         }
-        $copy->{$key} = join q{.}, map sprintf( '%d', ord ), split m{},
+        $copy->{$key} = join q(.), map sprintf( '%d', ord ), split m{},
             ${$value}
             if ( defined ${$value} );
     }
@@ -924,20 +924,20 @@ $C{list_connections} = sub {
         my $address = '...';
         if ( $node->{port} ) {
             $address =
-                join q{:},
+                join q(:),
                 $node->{address}
-                ? join q{.},
+                ? join q(.),
                 map sprintf( '%d', ord ), split m{}, $node->{address}
                 : '...',
                 $node->{port};
         }
         elsif ( $node->{filename} ) {
-            $address = join q{:}, 'unix', $node->{filename};
+            $address = join q(:), 'unix', $node->{filename};
         }
         my $score =
             $node->{latency_score}
             ? sprintf '%.4f', $node->{latency_score}
-            : q{-};
+            : q(-);
         push @{$response}, [ $name, $address, $score ];
     }
     return $self->response( $envelope, $self->tabulate($response) );
@@ -1045,7 +1045,7 @@ $C{listen_inet} = sub {
         $node->on_EOF('wait_to_close');
     }
     $owner = $envelope->from
-        if ( defined $owner and ( not length $owner or $owner eq q{-} ) );
+        if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
     $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
@@ -1131,7 +1131,7 @@ $C{listen_unix} = sub {
         $node->on_EOF('wait_to_close');
     }
     $owner = $envelope->from
-        if ( defined $owner and ( not length $owner or $owner eq q{-} ) );
+        if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
     $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
@@ -1195,7 +1195,7 @@ $C{connect_inet} = sub {
     }
     $name ||= shift @{$argv};
     $owner = $envelope->from
-        if ( defined $owner and ( not length $owner or $owner eq q{-} ) );
+        if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $self->connect_inet(
         host    => $host,
         port    => $port,
@@ -1256,7 +1256,7 @@ $C{connect_unix} = sub {
     $name ||= shift @{$argv};
     die qq(no node name specified\n) if ( not $name );
     $owner = $envelope->from
-        if ( defined $owner and ( not length $owner or $owner eq q{-} ) );
+        if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $self->connect_unix(
         filename => $filename,
         name     => $name,
@@ -1279,7 +1279,7 @@ $C{connect_node} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $owner ) = split q{ }, $command->arguments, 2;
+    my ( $name, $owner ) = split q( ), $command->arguments, 2;
     $self->connect_node( $name, $owner || $envelope->from );
     return $self->okay($envelope);
 };
@@ -1296,7 +1296,7 @@ $C{connect_sink} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_sink' )
         or return $self->error("verification failed\n");
-    my ( $first_name, $second_name ) = split q{ }, $command->arguments, 2;
+    my ( $first_name, $second_name ) = split q( ), $command->arguments, 2;
     die qq(no node specified\n) if ( not $second_name );
     $self->connect_sink( $first_name, $second_name );
     return $self->okay($envelope);
@@ -1310,7 +1310,7 @@ $C{connect_edge} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_edge' )
         or return $self->error("verification failed\n");
-    my ( $first_name, $second_name ) = split q{ }, $command->arguments, 2;
+    my ( $first_name, $second_name ) = split q( ), $command->arguments, 2;
     die qq(no node specified\n) if ( not $second_name );
     $self->connect_edge( $first_name, $second_name );
     return $self->okay($envelope);
@@ -1335,7 +1335,7 @@ $C{disconnect_node} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $owner ) = split q{ }, $command->arguments, 2;
+    my ( $name, $owner ) = split q( ), $command->arguments, 2;
     $self->disconnect_node( $name, $owner || $envelope->from );
     return $self->okay($envelope);
 };
@@ -1365,7 +1365,7 @@ $C{slurp_file} = sub {
     my $buffer_mode = shift;
     $self->verify_key( $envelope, ['meta'], 'slurp' )
         or return $self->error("verification failed\n");
-    my ( $path, $edge_name ) = split q{ }, $command->arguments, 2;
+    my ( $path, $edge_name ) = split q( ), $command->arguments, 2;
     my $owner = $envelope->[FROM];
     my $name  = ( split m{/}, $owner, 2 )[0];
     my $edge  = undef;
@@ -1385,7 +1385,7 @@ $C{slurp_file} = sub {
         require Tachikoma::Nodes::Tail;
         $node = Tachikoma::Nodes::Tail->new;
         $node->name($name);
-        $node->arguments( join q{ }, $path, 0,
+        $node->arguments( join q( ), $path, 0,
             $edge ? 0
             : (         $buffer_mode
                     and $buffer_mode eq 'line-buffered' ) ? 256
@@ -1439,7 +1439,7 @@ $C{tell_node} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $path, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no path specified\n) if ( not $path );
     my $name = ( split m{/}, $path, 2 )[0];
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
@@ -1460,7 +1460,7 @@ $C{send_node} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $path, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no path specified\n) if ( not $path );
     my $name = ( split m{/}, $path, 2 )[0];
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
@@ -1482,7 +1482,7 @@ $C{send_hex} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $path, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no path specified\n) if ( not $path );
     die qq(no hex values specified\n) if ( not defined $arguments );
     my $name = ( split m{/}, $path, 2 )[0];
@@ -1523,11 +1523,11 @@ $C{reply_to} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'command_node' )
         or return $self->error("verification failed\n");
-    my ( $path, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no path specified\n) if ( not $path );
     my $name = ( split m{/}, $path, 2 )[0];
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
-    my ( $cmd_name, $cmd_arguments ) = split q{ }, $arguments, 2;
+    my ( $cmd_name, $cmd_arguments ) = split q( ), $arguments, 2;
     my $message = $self->command( $cmd_name, $cmd_arguments );
     $message->from($path);
     $self->fill($message);
@@ -1541,12 +1541,12 @@ $C{command_node} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'command_node' )
         or return $self->error("verification failed\n");
-    my ( $path, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no path specified\n)    if ( not $path );
     die qq(no command specified\n) if ( not $arguments );
     my $name = ( split m{/}, $path, 2 )[0];
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
-    my ( $cmd_name, $cmd_arguments ) = split q{ }, $arguments, 2;
+    my ( $cmd_name, $cmd_arguments ) = split q( ), $arguments, 2;
     my $message = $self->command( $cmd_name, $cmd_arguments );
     $message->type( $envelope->type );
     $message->from( $envelope->from );
@@ -1567,7 +1567,7 @@ $C{on} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'command_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $event ) = split q{ }, $command->arguments, 2;
+    my ( $name, $event ) = split q( ), $command->arguments, 2;
     my $func_tree = thaw( $command->payload );
     die qq(no name specified\n)     if ( not $name );
     die qq(no event specified\n)    if ( not $event );
@@ -1598,7 +1598,7 @@ $C{activate} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $path, $arguments ) = split q{ }, $command->arguments, 2;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
     die qq(no path specified\n) if ( not $path );
     my $name = ( split m{/}, $path, 2 )[0];
     my $node = $Tachikoma::Nodes{$name};
@@ -1776,7 +1776,7 @@ $C{list_env} = sub {
     if ( $command->arguments ) {
         my $key = $command->arguments;
         if ( $ENV{$key} ) {
-            $response = join q{}, $key, q{=}, $ENV{$key}, "\n";
+            $response = join q{}, $key, q(=), $ENV{$key}, "\n";
         }
         else {
             return $self->error( $envelope,
@@ -1785,7 +1785,7 @@ $C{list_env} = sub {
     }
     else {
         for my $key ( sort keys %ENV ) {
-            $response .= join q{}, $key, q{=}, $ENV{$key}, "\n";
+            $response .= join q{}, $key, q(=), $ENV{$key}, "\n";
         }
     }
     return $self->response( $envelope, $response );
@@ -1803,7 +1803,7 @@ $C{set_env} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'env' )
         or return $self->error("verification failed\n");
-    my ( $key, $value ) = split q{ }, $command->arguments, 2;
+    my ( $key, $value ) = split q( ), $command->arguments, 2;
     return $self->error( $envelope, qq(usage: set_env <name> [ <value> ]\n) )
         if ( not $key );
     ## no critic (RequireLocalizedPunctuationVars)
@@ -1832,8 +1832,8 @@ $C{remote_var} = sub {
         my $v = $Var{$key};
         $v = [] if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
-        if ( $op eq q{.=} and @{$v} ) { push @{$v}, q{ }; }
-        if ( $op eq q{=} ) { $v = [$value]; }
+        if ( $op eq q{.=} and @{$v} ) { push @{$v}, q( ); }
+        if ( $op eq q(=) ) { $v = [$value]; }
         elsif ( $op eq q{.=} ) { push @{$v}, $value; }
         elsif ( $op eq q{+=} ) { $v->[0] //= 0; $v->[0] += $value; }
         elsif ( $op eq q{-=} ) { $v->[0] //= 0; $v->[0] -= $value; }
@@ -1851,7 +1851,7 @@ $C{remote_var} = sub {
         }
     }
     elsif ( defined $op ) {
-        return $self->error("invalid operator: $op") if ( $op ne q{=} );
+        return $self->error("invalid operator: $op") if ( $op ne q(=) );
         delete $Var{$key};
     }
     elsif ( defined $key ) {
@@ -1860,7 +1860,7 @@ $C{remote_var} = sub {
                 return $self->response( $envelope,
                           '["'
                         . join( q{", "}, grep m{\S}, @{ $Var{$key} } )
-                        . qq{"]\n} );
+                        . qq("]\n) );
             }
             else {
                 return $self->response( $envelope, $Var{$key} . "\n" );
@@ -2267,7 +2267,7 @@ sub verify_command {
     $self->verify_key( $message, [ 'command', 'meta' ], $command->{name} )
         or return;
     my $response = undef;
-    my $signed   = join q{:},
+    my $signed   = join q(:),
         $id, $message->[TIMESTAMP], $command->{name},
         $command->{arguments}, $command->{payload};
     if ( $scheme eq 'ed25519' ) {
@@ -2359,8 +2359,8 @@ sub log_command {
         my $node = $self->patron || $self;
         my $cmd_arguments = $command->{arguments};
         $cmd_arguments =~ s{\n}{\\n}g;
-        $node->stderr( join q{ }, 'FROM:', $message->[FROM], 'ID:',
-            $id // q{-},
+        $node->stderr( join q( ), 'FROM:', $message->[FROM], 'ID:',
+            $id // q(-),
             'COMMAND:', $cmd_name, $cmd_arguments );
     }
     return;
@@ -2522,8 +2522,8 @@ sub pwd {
     my $command  = shift;
     my $envelope = shift;
     return $self->response( $envelope,
-              q{ }
-            . ( $command->arguments || q{/} ) . ' -> '
+              q( )
+            . ( $command->arguments || q(/) ) . ' -> '
             . $envelope->from
             . "\n" );
 }
@@ -2549,10 +2549,10 @@ sub tabulate {
         my $dir = $show_title ? $header->[$col]->[1] : $header->[$col];
         push @format,
             join q{},
-            ( $dir eq 'left' ? q{%-} : q{%} ),
+            ( $dir eq 'left' ? q{%-} : q(%) ),
             ( $dir eq 'right' or $col < $#max ) ? $max[$col] : q{}, 's';
     }
-    my $format = join( q{ }, @format ) . "\n";
+    my $format = join( q( ), @format ) . "\n";
     my $output = $show_title ? sprintf $format, map $_->[0], @{$header} : q{};
     for my $row ( @{$data} ) {
         $output .= sprintf $format, @{$row};

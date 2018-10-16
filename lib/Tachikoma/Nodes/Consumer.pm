@@ -300,9 +300,9 @@ sub drain_buffer {
         else {
             $message->[FROM] =
                 defined $i
-                ? join q{/}, $self->{name}, $i
+                ? join q(/), $self->{name}, $i
                 : $self->{name};
-            $message->[ID] = join q{:}, $offset, $offset + $size;
+            $message->[ID] = join q(:), $offset, $offset + $size;
             $self->{counter}++;
             if ($edge) {
                 $edge->{cache} = $edge->{caches}->[$i]
@@ -340,7 +340,7 @@ sub get_batch_async {
     my $offset = $self->{next_offset};
     if ( not defined $offset ) {
         if ( $self->cache_dir ) {
-            my $file = join q{}, $self->{cache_dir}, q{/}, $self->{name},
+            my $file = join q{}, $self->{cache_dir}, q(/), $self->{name},
                 q{.db};
             $self->load_cache( retrieve($file) ) if ( -f $file );
             $self->stderr( 'INFO: starting from ',
@@ -409,7 +409,7 @@ sub commit_offset_async {
             if ( exists $self->{edge}->{caches} and defined $i );
     }
     if ( $self->{cache_dir} ) {
-        my $file = join q{}, $self->{cache_dir}, q{/}, $self->{name}, q{.db};
+        my $file = join q{}, $self->{cache_dir}, q(/), $self->{name}, q{.db};
         my $tmp = join q{}, $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
@@ -554,8 +554,8 @@ sub get_offset {
     $self->cache(undef);
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->{group} );
-        my $name = join q{:}, $self->{partition}, $self->{group};
-        my $file = join q{}, $self->{cache_dir}, q{/}, $name, q{.db};
+        my $name = join q(:), $self->{partition}, $self->{group};
+        my $file = join q{}, $self->{cache_dir}, q(/), $name, q{.db};
         $stored         = retrieve($file);
         $self->{offset} = $stored->{offset};
         $self->{cache}  = $stored->{cache};
@@ -654,7 +654,7 @@ sub get_messages {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q{} );
         $message->[FROM] = $from;
-        $message->[ID] = join q{:}, $offset, $offset + $size;
+        $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
 
@@ -676,8 +676,8 @@ sub commit_offset {
     my $rv = undef;
     if ( $self->{cache_dir} ) {
         die "ERROR: no group specified\n" if ( not $self->{group} );
-        my $name = join q{:}, $self->{partition}, $self->{group};
-        my $file = join q{}, $self->{cache_dir}, q{/}, $name, q{.db};
+        my $name = join q(:), $self->{partition}, $self->{group};
+        my $file = join q{}, $self->{cache_dir}, q(/), $name, q{.db};
         my $tmp = join q{}, $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
@@ -766,7 +766,7 @@ sub broker_id {
         $self->{port} = $port;
     }
     if ( not defined $self->{broker_id} ) {
-        $self->{broker_id} = join q{:}, $self->{host}, $self->{port};
+        $self->{broker_id} = join q(:), $self->{host}, $self->{port};
     }
     return $self->{broker_id};
 }

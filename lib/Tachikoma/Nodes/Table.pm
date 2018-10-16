@@ -71,7 +71,7 @@ sub arguments {
 sub fill {
     my ( $self, $message ) = @_;
     if ( $message->[TYPE] & TM_INFO ) {
-        my ( $cmd, $key ) = split q{ }, $message->[PAYLOAD], 2;
+        my ( $cmd, $key ) = split q( ), $message->[PAYLOAD], 2;
         if ( $cmd eq 'GET' ) {
             chomp $key;
             my $value = $self->lookup($key) // q{};

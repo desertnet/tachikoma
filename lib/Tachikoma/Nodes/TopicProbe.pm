@@ -40,7 +40,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $seconds, $prefix ) = split q{ }, $self->{arguments}, 2;
+        my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
         die 'usage: ' . $self->help if ( $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
@@ -65,7 +65,7 @@ sub fire {
         if ( $node->isa('Tachikoma::Nodes::Partition') ) {
             next if ( $node->{leader} );
             my $partition_name = $node->{name};
-            $partition_name = join q{/}, $self->{prefix}, $partition_name
+            $partition_name = join q(/), $self->{prefix}, $partition_name
                 if ( $self->{prefix} );
             $partition_name =~ s{:}{_}g;
             $out .= join q{},
@@ -76,12 +76,12 @@ sub fire {
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
             my $partition_name = $node->{partition};
             $partition_name =~ s{.*/}{};
-            $partition_name = join q{/}, $self->{prefix}, $partition_name
+            $partition_name = join q(/), $self->{prefix}, $partition_name
                 if ( $self->{prefix} );
             $partition_name =~ s{:}{_}g;
             my $consumer_name = $node->{name};
             $consumer_name =~ s{^_}{};
-            $consumer_name = join q{/}, $self->{prefix}, $consumer_name
+            $consumer_name = join q(/), $self->{prefix}, $consumer_name
                 if ( $self->{prefix} );
             $consumer_name =~ s{:}{_}g;
             $out .= join q{},

@@ -35,7 +35,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $tmp_path, $prefix, @topics ) = split q{ }, $self->{arguments};
+        my ( $tmp_path, $prefix, @topics ) = split q( ), $self->{arguments};
         my $json = JSON->new;
         $json->canonical(1);
         $json->pretty(1);
@@ -64,7 +64,7 @@ sub fill {
     my $postdata = undef;
 
     if ( $request->{tmp} ) {
-        my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+        my $tmp_path = join q(/), $self->{tmp_path}, 'post';
         my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
         local $/ = undef;
         my $fh = undef;

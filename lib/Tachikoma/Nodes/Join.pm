@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Join
 # ----------------------------------------------------------------------
 #
-# $Id: Join.pm 35165 2018-10-14 04:38:22Z chris $
+# $Id: Join.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Join;
@@ -40,7 +40,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $interval, $bufsize ) = split q{ }, $self->{arguments}, 2;
+        my ( $interval, $bufsize ) = split q( ), $self->{arguments}, 2;
         $self->set_timer( $interval || $Default_Interval );
         $self->buffer_size($bufsize) if ($bufsize);
     }

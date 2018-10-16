@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 34883 2018-09-04 13:13:40Z chris $
+# $Id: Shell.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Shell;
@@ -43,7 +43,7 @@ sub parse_line {
     my $command = Tachikoma::Command->new;
     chomp $line;
     $line =~ s{^\s*|\s*$}{}g;
-    my ( $name, $arguments ) = split q{ }, $line, 2;
+    my ( $name, $arguments ) = split q( ), $line, 2;
     if ( $line =~ m{^#} ) {
         return;
     }
@@ -79,7 +79,7 @@ sub parse_line {
     }
     elsif ( $name eq 'command' or $name eq 'cmd' ) {
         my ( $path, $new_name, $new_arguments ) =
-            ( split q{ }, $arguments // q{}, 3 );
+            ( split q( ), $arguments // q{}, 3 );
         $message->to( $self->prefix($path) );
         $command->name( $new_name // q{} );
         $command->arguments( $new_arguments // q{} );
@@ -153,7 +153,7 @@ sub prefix {
     my @paths = ();
     push @paths, $self->{path} if ( length $self->{path} );
     push @paths, $path         if ( length $path );
-    return join q{/}, @paths;
+    return join q(/), @paths;
 }
 
 1;

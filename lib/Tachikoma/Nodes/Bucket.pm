@@ -39,7 +39,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $base, $interval ) = split q{ }, $self->{arguments}, 2;
+        my ( $base, $interval ) = split q( ), $self->{arguments}, 2;
         $self->{base} = $base;
         $self->{interval} = $interval || $Default_Interval;
         $self->make_dirs($base);
@@ -52,14 +52,14 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $base    = $self->{base};
-    my ( $time, $payload ) = split q{ }, $message->[PAYLOAD], 2;
+    my ( $time, $payload ) = split q( ), $message->[PAYLOAD], 2;
     return $self->stderr('ERROR: unexpected payload')
         if ( not $message->[TYPE] & TM_BYTESTREAM or not $time );
     $self->{counter}++;
     my $interval = $self->{interval};
-    my $dir      = join q{/},
+    my $dir      = join q(/),
         $base, strftime( '%F-%T', localtime $time - $time % $interval );
-    my $path = join q{/}, $dir, $self->msg_counter;
+    my $path = join q(/), $dir, $self->msg_counter;
     $self->make_dirs($dir);
     open my $fh, '>', $path or die "ERROR: couldn't open $path: $!";
     syswrite $fh, $payload or die "ERROR: couldn't write $path: $!";
@@ -77,7 +77,7 @@ sub fire {
     opendir my $dh, $base or die "ERROR: couldn't opendir $base: $!";
     for my $date ( sort grep m{^[^.]}, readdir $dh ) {
         last if ( $date gt $now );
-        $self->process_dir( join q{/}, $base, $date );
+        $self->process_dir( join q(/), $base, $date );
     }
     closedir $dh or die "ERROR: clouldn't closedir $base: $!";
     return;
@@ -88,7 +88,7 @@ sub process_dir {
     my $dir  = shift;
     opendir my $dh, $dir or die "ERROR: couldn't opendir $dir: $!";
     for my $file ( grep m{^[^.]}, readdir $dh ) {
-        my $path = join q{/}, $dir, $file;
+        my $path = join q(/), $dir, $file;
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_BYTESTREAM;
         open my $fh, '<', $path or die "ERROR: couldn't open $path: $!";

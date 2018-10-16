@@ -35,7 +35,7 @@ sub remove_item {
     my $self = shift;
     my $item = shift;
     $item .= "\n" if ( substr( $item, -1, 1 ) ne "\n" );
-    my $entry = ( split q{ }, $item, 2 )[1];
+    my $entry = ( split q( ), $item, 2 )[1];
     my @new_list = ();
     for my $old_item ( @{ $self->{list} } ) {
         next if ( $old_item =~ m{^\d+ $entry$} );
@@ -50,7 +50,7 @@ sub fire {
     my @keep  = ();
     my $dirty = undef;
     for my $item ( @{ $self->{list} } ) {
-        my ( $timestamp, $entry ) = split q{ }, $item, 2;
+        my ( $timestamp, $entry ) = split q( ), $item, 2;
         if ( $timestamp =~ m{\D} or $timestamp < $Tachikoma::Now ) {
             $self->notify( 'rm' => "rm $item" );
             $dirty = 1;

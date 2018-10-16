@@ -26,7 +26,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my %arguments = split q{ }, $self->{arguments};
+        my %arguments = split q( ), $self->{arguments};
         my $table = $arguments{table};
         delete $arguments{table};
         $self->{table}                       = $table;
@@ -42,7 +42,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $type    = $message->[TYPE];
     if ( $type & TM_BYTESTREAM ) {
         return if ( $message->[PAYLOAD] !~ m{\S} );
-        my ( $command, $arguments ) = split q{ }, $message->[PAYLOAD], 2;
+        my ( $command, $arguments ) = split q( ), $message->[PAYLOAD], 2;
         chomp $arguments;
         if ( $Commands{$command} ) {
             my $okay = eval {
@@ -101,7 +101,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $write ||= $object;
             }
             if ($write) {
-                my $field_settings = join q{ }, map qq($_=?),
+                my $field_settings = join q( ), map qq($_=?),
                     sort keys %{$write};
                 my $statement =
                       qq(UPDATE $table)
@@ -178,7 +178,7 @@ sub run_generic_sql {
             $response->[TO]   = $message->[FROM]
                 if ( $message->[TO] eq '_return_to_sender' );
             $response->[PAYLOAD] = join q{},
-                lc( ( split q{ }, $statement, 2 )[0] ),
+                lc( ( split q( ), $statement, 2 )[0] ),
                 ' took ', Time::HiRes::time - $Tachikoma::Right_Now,
                 " seconds\n";
             $self->SUPER::fill($response);
@@ -214,7 +214,7 @@ sub get {    ## no critic (ProhibitExcessComplexity)
             $
         }sx
     );
-    $fields       ||= q{*};
+    $fields       ||= q(*);
     $query_string ||= '_objid not eq ""';
     $limit        ||= 1000;
     my @fields = split m{,\s*}, $fields;
@@ -240,7 +240,7 @@ sub get {    ## no critic (ProhibitExcessComplexity)
             my $response = Tachikoma::Message->new;
             $response->[TYPE]    = TM_BYTESTREAM;
             $response->[TO]      = $to;
-            $response->[PAYLOAD] = join q{}, join( q{ }, @segment ), "\n";
+            $response->[PAYLOAD] = join q{}, join( q( ), @segment ), "\n";
             $self->SUPER::fill($response) or return;
         }
     }
@@ -278,7 +278,7 @@ sub mget {
     my $self      = shift;
     my $arguments = shift;
     my $message   = shift;
-    my $objids    = join q{", "}, split q{ }, $arguments;
+    my $objids    = join q{", "}, split q( ), $arguments;
     my $dbh       = $self->dbh;
     my $table     = $self->table or die 'ERROR: no table specified';
     my $sth =
@@ -386,7 +386,7 @@ sub remove {
         $delete = $dbh->prepare(qq( DELETE FROM $table WHERE $query_string ));
     }
     else {
-        my $objids = join q{", "}, split q{ }, $arguments;
+        my $objids = join q{", "}, split q( ), $arguments;
         $delete =
             $dbh->prepare(qq( DELETE FROM $table WHERE _objid IN "$objids" ));
     }
@@ -412,7 +412,7 @@ sub expire {
     my $message   = shift;
     my $dbh       = $self->dbh;
     my $table     = $self->table or die 'ERROR: no table specified';
-    my ( $field, $time ) = split q{ }, $arguments, 2;
+    my ( $field, $time ) = split q( ), $arguments, 2;
     $time ||= 0;
     die 'no field specified' if ( not $field );
     die 'invalid time' if ( $time !~ m{^\d+$} );

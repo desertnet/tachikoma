@@ -25,7 +25,7 @@ sub fill {
         or $message->[TYPE] & TM_ERROR );
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
-    my $process   = ( split q{ }, $message->[PAYLOAD], 6 )[4] // '-';
+    my $process   = ( split q( ), $message->[PAYLOAD], 6 )[4] // '-';
     $process =~ s{\[\d+\]:$}{};
     $process =~ s{-\d{6}$}{};
     my $response = Tachikoma::Message->new;

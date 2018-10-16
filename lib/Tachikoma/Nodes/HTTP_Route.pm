@@ -73,12 +73,12 @@ sub fill {
     my @components  = grep length, split m{/+}, $path;
     my @new_path    = ();
     while (@components) {
-        my $test_path = q{/} . join q{/}, @components;
+        my $test_path = q(/) . join q(/), @components;
         my $test = $paths->{$test_path};
         ( $destination = $test ) and last if ($test);
         unshift @new_path, pop @components;
     }
-    $request->{path} = join q{/}, q{}, @new_path;
+    $request->{path} = join q(/), q{}, @new_path;
     $destination ||= $paths->{q{/}};
     $message->[TO] = $destination;
     $self->{counter}++;
@@ -120,7 +120,7 @@ $C{add_server} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $server, $server_class ) = split q{ }, $command->arguments, 2;
+    my ( $server, $server_class ) = split q( ), $command->arguments, 2;
     if ( not $server_class ) {
         return $self->error( $envelope, "please specify a server class\n" );
     }
@@ -210,7 +210,7 @@ $C{add_path} = sub {
     my ( $server_class, $path, $destination );
     if ( $self->servers ) {
         ( $server_class, $path, $destination ) =
-            split q{ }, $command->arguments, 3;
+            split q( ), $command->arguments, 3;
         if ( not exists $paths->{$server_class} ) {
             $paths->{$server_class} = {};
         }
@@ -219,7 +219,7 @@ $C{add_path} = sub {
     else {
         my $extra;
         ( $path, $destination, $extra ) =
-            split q{ }, $command->arguments, 3;
+            split q( ), $command->arguments, 3;
         if ($extra) {
             return $self->error(
                 $envelope, join q{},
@@ -246,7 +246,7 @@ $C{remove_path} = sub {
     my $envelope = shift;
     my $paths    = $self->paths;
     if ( $self->servers ) {
-        my ( $server_class, $path ) = split q{ }, $command->arguments, 2;
+        my ( $server_class, $path ) = split q( ), $command->arguments, 2;
         if ( exists $paths->{$server_class} ) {
             my $server_paths = $paths->{$server_class};
             if ( exists $server_paths->{$path} ) {

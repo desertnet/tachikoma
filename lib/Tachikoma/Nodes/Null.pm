@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Null
 # ----------------------------------------------------------------------
 #
-# $Id: Null.pm 35113 2018-10-12 21:04:44Z chris $
+# $Id: Null.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Null;
@@ -40,7 +40,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $time, $max_unanswered, $payload_size ) = split q{ },
+        my ( $time, $max_unanswered, $payload_size ) = split q( ),
             $self->{arguments}, 3;
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered // $Default_Max_Unanswered;
@@ -102,7 +102,7 @@ sub cached_message {
         $message->type( TM_BYTESTREAM | TM_PERSIST );
         $message->from( $self->{name} );
         $message->to( $self->{owner} );
-        $message->payload( ( q{.} x ( $self->{payload_size} - 1 ) ) . "\n" );
+        $message->payload( ( q(.) x ( $self->{payload_size} - 1 ) ) . "\n" );
         $self->{cached_message} = $message;
         $self->{msg_unanswered} = 0;
         $self->set_timer( $self->{timer_interval}, 'oneshot' )

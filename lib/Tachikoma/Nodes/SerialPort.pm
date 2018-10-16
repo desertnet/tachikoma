@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::SerialPort
 # ----------------------------------------------------------------------
 #
-# $Id: SerialPort.pm 35179 2018-10-14 09:45:33Z chris $
+# $Id: SerialPort.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::SerialPort;
@@ -50,7 +50,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $filename, $delay, $max_unanswered ) = split q{ }, $arguments, 3;
+        my ( $filename, $delay, $max_unanswered ) = split q( ), $arguments, 3;
         $filename = ( $filename =~ m{^(.*)$} )[0];
         $self->close_filehandle if ( $self->{fh} );
         ## no critic (ProhibitLocalVars)
@@ -150,7 +150,7 @@ $C{set} = sub {
     ## no critic (ProhibitLocalVars)
     local *FH = $self->patron->{fh};
     my $portobj = tied *FH;
-    my ( $key, $value ) = split q{ }, $command->arguments, 2;
+    my ( $key, $value ) = split q( ), $command->arguments, 2;
     if ( not exists $settings->{$key} ) {
         return $self->error( $envelope, "no such setting: $key\n" );
     }

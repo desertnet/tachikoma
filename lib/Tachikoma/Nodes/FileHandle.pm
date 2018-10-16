@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35249 2018-10-16 01:30:30Z chris $
+# $Id: FileHandle.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -174,7 +174,7 @@ sub drain_buffer {
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         $message->[FROM] =
             length $message->[FROM]
-            ? join q{/}, $name, $message->[FROM]
+            ? join q(/), $name, $message->[FROM]
             : $name;
         if ( $message->[TO] and $owner ) {
             $self->print_less_often(

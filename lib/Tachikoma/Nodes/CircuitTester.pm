@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 35165 2018-10-14 04:38:22Z chris $
+# $Id: CircuitTester.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::CircuitTester;
@@ -52,7 +52,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $interval, $timeout ) =
-            split q{ }, $self->{arguments}, 3;
+            split q( ), $self->{arguments}, 3;
         $self->{interval} = $interval || $Default_Interval;
         $self->{timeout}  = $timeout  || $Default_Timeout;
         $self->set_timer( $self->{interval} * 1000 );

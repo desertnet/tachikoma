@@ -31,7 +31,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $timeout, $interval ) = split q{ }, $self->{arguments}, 2;
+        my ( $timeout, $interval ) = split q( ), $self->{arguments}, 2;
         $timeout  ||= $Default_Timeout;
         $interval ||= $timeout / 60;
         $self->timeout($timeout);

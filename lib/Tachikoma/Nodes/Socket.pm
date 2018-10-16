@@ -148,7 +148,7 @@ sub inet_server {
         or die "ERROR: bind: $!\n";
     listen $socket, SOMAXCONN or die "FAILED: listen: $!";
     my $server = $class->new;
-    $server->name( join q{:}, $hostname, $port );
+    $server->name( join q(:), $hostname, $port );
     $server->{type}                           = 'listen';
     $server->{registrations}->{connected}     = {};
     $server->{registrations}->{authenticated} = {};
@@ -170,7 +170,7 @@ sub inet_client {
         or die "FAILED: socket: $!";
     setsockopts($socket);
     my $client = $class->new($flags);
-    $client->name( join q{:}, $hostname, $port );
+    $client->name( join q(:), $hostname, $port );
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{address}       = $iaddr;
@@ -327,11 +327,11 @@ sub accept_connection {
     if ($unix) {
         my $my_name = $self->{name};
         do {
-            $name = join q{:}, $my_name, Tachikoma->counter;
+            $name = join q(:), $my_name, Tachikoma->counter;
         } while ( exists $Tachikoma::Nodes{$name} );
     }
     else {
-        $name = join q{:}, inet_ntoa($address), $port;
+        $name = join q(:), inet_ntoa($address), $port;
         if ( exists $Tachikoma::Nodes{$name} ) {
             $self->stderr("WARNING: $name exists");
             return $node->remove_node;
@@ -447,7 +447,7 @@ sub start_SSL_connection {
         #     $fh->peer_certificate('owner'),
         #     '" cipher: "',
         #     $fh->get_cipher,
-        #     qq{"\n};
+        #     qq("\n);
         # $self->stderr( 'connect_SSL() verified peer:', $peer );
         $self->{fill} = \&fill_fh_sync_SSL;
         $self->init_connect;
@@ -488,7 +488,7 @@ sub init_SSL_connection {
             $fh->peer_certificate('owner'),
             '" cipher: "',
             $fh->get_cipher,
-            qq{"\n};
+            qq("\n);
 
         # $self->stderr($method, '() verified peer: ', $peer);
         if ( $type eq 'connect' ) {
@@ -831,7 +831,7 @@ sub drain_buffer {
         }
         $message->[FROM] =
             length $message->[FROM]
-            ? join q{/}, $name, $message->[FROM]
+            ? join q(/), $name, $message->[FROM]
             : $name;
         if ( $message->[TO] and $owner ) {
             $self->print_less_often(
@@ -900,7 +900,7 @@ sub fill_buffer_init {
         }
     }
     else {
-        $message->[TO] = join q{/}, grep length, $self->{name},
+        $message->[TO] = join q(/), grep length, $self->{name},
             $message->[TO];
         $Tachikoma::Nodes{_router}->send_error( $message, 'NOT_AVAILABLE' );
     }

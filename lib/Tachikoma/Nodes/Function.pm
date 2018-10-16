@@ -69,7 +69,7 @@ sub fill {
     $self->climb( 'message', $copy, $arguments );
     if ( $message->[TYPE] & TM_BYTESTREAM or $message->[TYPE] & TM_INFO ) {
         my $name = $self->{name};
-        $arguments->{q{@}}  = join q{ }, $name, $payload;
+        $arguments->{q{@}}  = join q( ), $name, $payload;
         $arguments->{q{0}}  = $name;
         $arguments->{q{1}}  = $payload;
         $arguments->{q{_C}} = 1;

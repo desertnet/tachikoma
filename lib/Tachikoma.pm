@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35247 2018-10-15 21:52:49Z chris $
+# $Id: Tachikoma.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma;
@@ -515,7 +515,7 @@ sub reset_signal_handlers {
 sub open_log_file {
     my $self = shift;
     my $log = $self->log_file or die "ERROR: no log file specified\n";
-    chdir q{/} or die "ERROR: couldn't chdir /: $!";
+    chdir q(/) or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
         or die "ERROR: couldn't open log file $log: $!\n";
     $LOG_FILE_HANDLE->autoflush(1);
@@ -618,7 +618,7 @@ sub pid_file {
         $pid_file = $Tachikoma{Pid_File};
     }
     elsif ( $Tachikoma{Pid_Dir} ) {
-        $pid_file = join q{}, $Tachikoma{Pid_Dir}, q{/}, $name, '.pid';
+        $pid_file = join q{}, $Tachikoma{Pid_Dir}, q(/), $name, '.pid';
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -634,7 +634,7 @@ sub log_file {
         $log_file = $Tachikoma{Log_File};
     }
     elsif ( $Tachikoma{Log_Dir} ) {
-        $log_file = join q{}, $Tachikoma{Log_Dir}, q{/}, $name, '.log';
+        $log_file = join q{}, $Tachikoma{Log_Dir}, q(/), $name, '.log';
     }
     else {
         die "ERROR: couldn't determine log_file\n";

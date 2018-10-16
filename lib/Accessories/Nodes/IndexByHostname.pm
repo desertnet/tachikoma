@@ -25,7 +25,7 @@ sub fill {
         or $message->[TYPE] & TM_ERROR );
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
-    my $hostname  = ( split q{ }, $message->[PAYLOAD], 5 )[3] // '-';
+    my $hostname  = ( split q( ), $message->[PAYLOAD], 5 )[3] // '-';
     my $response  = Tachikoma::Message->new;
     $response->[TYPE]      = TM_BYTESTREAM | TM_PERSIST;
     $response->[FROM]      = $message->[FROM];

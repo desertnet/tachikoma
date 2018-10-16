@@ -48,7 +48,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $prefix, @tables ) = split q{ }, $self->{arguments};
+        my ( $prefix, @tables ) = split q( ), $self->{arguments};
         my $json = JSON->new;
 
         # $json->canonical(1);

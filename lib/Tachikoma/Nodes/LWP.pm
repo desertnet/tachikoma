@@ -42,7 +42,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $timeout, $tmp_path ) = split q{ }, $self->{arguments}, 2;
+        my ( $timeout, $tmp_path ) = split q( ), $self->{arguments}, 2;
         my $ua = LWP::UserAgent->new;
         $ua->agent('Tachikoma (DesertNet LWP::UserAgent/2.0)');
         $ua->timeout( $timeout || $Default_Timeout );
@@ -88,7 +88,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         # to a true value and then do something with a callback.
         my $content = undef;
         if ( $request->{tmp} ) {
-            my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+            my $tmp_path = join q(/), $self->{tmp_path}, 'post';
             my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             local $/ = undef;
             open my $fh, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
@@ -154,7 +154,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $header->[TO]      = $to;
                 $header->[STREAM]  = $message->[STREAM] . "\n"; # XXX: LB hack
                 $header->[PAYLOAD] = join q{},
-                    'HTTP/1.1 ', $r->{_rc}, q{ }, $r->{_msg}, "\n",
+                    'HTTP/1.1 ', $r->{_rc}, q( ), $r->{_msg}, "\n",
                     $r->{_headers}->as_string, "\n";
                 $self->{sink}->fill($header);
                 $sent_header = 'true';
@@ -184,7 +184,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $header->[TO]      = $to;
             $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
             $header->[PAYLOAD] = join q{},
-                join( q{ },
+                join( q( ),
                 $res->protocol || 'HTTP/1.1',
                 $res->code, $res->message ),
                 "\n",
@@ -213,7 +213,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         #     }));
         # }
         if ( $res->code >= 400 and $res->content ) {
-            $self->stderr( join q{ }, $res->protocol || 'HTTP/1.1',
+            $self->stderr( join q( ), $res->protocol || 'HTTP/1.1',
                 $res->code, $res->message );
         }
     }

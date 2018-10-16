@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: Tail.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -113,7 +113,7 @@ sub arguments {
         }
         my $fh;
         my $path = $self->check_path($filename);
-        $stream //= join q{:}, hostname(), $path;
+        $stream //= join q(:), hostname(), $path;
         $on_enoent = 'die' if ( defined $offset );
         $self->close_filehandle if ( $self->{fh} );
         $self->{arguments}      = $arguments;

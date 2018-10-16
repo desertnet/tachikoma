@@ -65,8 +65,8 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $buffers = $self->{buffers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $stats = { map { split m{:}, $_, 2 } split q{ }, $line };
-        my $buffer_id = join q{:}, $stats->{hostname}, $stats->{buff_name};
+        my $stats = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $buffer_id = join q(:), $stats->{hostname}, $stats->{buff_name};
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];
         my $buffer = $buffers->{$buffer_id} // {};
@@ -187,7 +187,7 @@ COLLECT: for my $buffer_id ( keys %{$buffers} ) {
           sprintf "\e[H%3d buffers; key:"
         . " \e[41mAGE > %d\e[0m \e[91mIN_BUF > 1000\e[0m"
         . " \e[93mUNANSWERED >= MAX\e[0m%s\n",
-        $total, $Buffer_Timeout, q{ } x ( $width - length $output );
+        $total, $Buffer_Timeout, q( ) x ( $width - length $output );
     $totals->{$_} = sprintf '%.2f', $totals->{"_$_"} // 0
         for (qw( recv_rate send_rate ));
     $output .= join q{},
@@ -220,13 +220,13 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
             $buffer->{recv_rate} = sprintf '%.2f', $buffer->{_recv_rate};
             $buffer->{send_rate} = sprintf '%.2f', $buffer->{_send_rate};
             $buffer->{direction} = (
-                  ( $buffer->{_recv_rate} == $buffer->{_send_rate} ) ? q{=}
-                : ( $buffer->{_recv_rate} > $buffer->{_send_rate} )  ? q{>}
-                :                                                      q{<}
+                  ( $buffer->{_recv_rate} == $buffer->{_send_rate} ) ? q(=)
+                : ( $buffer->{_recv_rate} > $buffer->{_send_rate} )  ? q(>)
+                :                                                      q(<)
             );
             $buffer->{direction2} = (
                 ( $buffer->{_recv_rate} > $buffer->{_send_rate} )
-                ? q{>}
+                ? q(>)
                 : q{}
             );
             $output .= sprintf
@@ -239,7 +239,7 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
             $output .= "\n";
         }
     }
-    $output .= join q{}, q{ } x ( ( $height - ( $count - 2 ) ) * $width ),
+    $output .= join q{}, q( ) x ( ( $height - ( $count - 2 ) ) * $width ),
         "\e[?25l";
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;

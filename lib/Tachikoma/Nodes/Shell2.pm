@@ -518,7 +518,7 @@ $Evaluators{'open_paren'} = sub {
         my @padded = ();
         for my $i ( 0 .. $#result ) {
             push @padded, $result[$i];
-            push @padded, q{ } if ( $i < $#result );
+            push @padded, q( ) if ( $i < $#result );
         }
         $rv = \@padded;
     }
@@ -768,7 +768,7 @@ $Builtins{'shift'} = sub {
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     my $key_tree   = $parse_tree->{value}->[1];
-    my $key        = q{@};
+    my $key        = q(@);
     $key = join q{}, @{ $self->evaluate($key_tree) } if ($key_tree);
     $self->fatal_parse_error('bad arguments for shift')
         if ( @{ $parse_tree->{value} } > 2 );
@@ -1000,11 +1000,11 @@ $Builtins{'include'} = sub {
     my %old       = ();
     my @lines     = ();
     my $home      = $Tachikoma{Home} || ( getpwuid $< )[7];
-    my $prefix    = join q{/}, $home, '.tachikoma';
+    my $prefix    = join q(/), $home, '.tachikoma';
     my $path =
           $relative =~ m{^/}
         ? $relative
-        : join q{/}, $prefix, $relative;
+        : join q(/), $prefix, $relative;
 
     if ( $parse_tree and @{ $parse_tree->{value} } > 2 ) {
         push @arguments, $parse_tree->{value}->[$_]
@@ -1027,7 +1027,7 @@ $Builtins{'include'} = sub {
         my $op    = join q{}, @{ $self->evaluate($op_tree) };
         my $value = join q{}, @{ $self->evaluate($value_tree) };
         $self->fatal_parse_error("expected =, got $op")
-            if ( $op ne q{=} );
+            if ( $op ne q(=) );
         $new_local{$key} = $value;
     }
     open my $fh, '<', $path
@@ -1190,7 +1190,7 @@ $Builtins{'command_node'} = sub {
     my $cmd_tree = $self->fake_tree( 'open_brace', $values, $i );
     my $sub_path = join q{}, @{ $self->evaluate($path_tree) };
     my $old_path = $self->path;
-    my $path     = $old_path ? join q{/}, $old_path, $sub_path : $sub_path;
+    my $path     = $old_path ? join q(/), $old_path, $sub_path : $sub_path;
     $self->path($path);    # set $message->[TO]
     $self->cwd($path);     # don't run functions with send_command()
     $self->send_command($cmd_tree);
@@ -1208,7 +1208,7 @@ $Builtins{'tell_node'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
     my $line     = join q{}, @{ $self->evaluate($raw_tree) };
-    my ( $proto, $path, $payload ) = split q{ }, $line, 3;
+    my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_INFO);
     $message->from( $Local{'message.from'} // $self->{responder}->{name} );
@@ -1226,7 +1226,7 @@ $Builtins{'send_node'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
     my $line     = join q{}, @{ $self->evaluate($raw_tree) };
-    my ( $proto, $path, $payload ) = split q{ }, $line, 3;
+    my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
     $message->from( $Local{'message.from'} // $self->{responder}->{name} );
@@ -1246,7 +1246,7 @@ $Builtins{'send_hash'} = sub {
     die "ERROR: no JSON support\n" if ( not $USE_JSON );
     my $json = JSON->new;
     my $line = join q{}, @{ $self->evaluate($raw_tree) };
-    my ( $proto, $path, $payload ) = split q{ }, $line, 3;
+    my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_STORABLE);
     $message->from( $Local{'message.from'} // $self->{responder}->{name} );
@@ -1281,7 +1281,7 @@ $Builtins{'ping'} = sub {
     my $raw_tree = shift;
     my $line     = join q{}, @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
-    my ( $proto, $path ) = split q{ }, $line, 2;
+    my ( $proto, $path ) = split q( ), $line, 2;
     my $message = Tachikoma::Message->new;
     $message->type(TM_PING);
     $message->from( $Local{'message.from'} // $self->{responder}->{name} );
@@ -1366,7 +1366,7 @@ $Builtins{'chdir'} = sub {
     my $raw_tree = shift;
     my $line     = join q{}, @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
-    my ( $proto, $path ) = split q{ }, $line, 2;
+    my ( $proto, $path ) = split q( ), $line, 2;
     my $cwd = $self->path;
     $self->path( $self->cd( $cwd, $path ) );
     $self->get_completions;
@@ -1390,7 +1390,7 @@ $Builtins{'sleep'} = sub {
     my $raw_tree = shift;
     my $line     = join q{}, @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
-    my ( $proto, $seconds ) = split q{ }, $line, 2;
+    my ( $proto, $seconds ) = split q( ), $line, 2;
     $self->fatal_parse_error("bad arguments for sleep: $seconds")
         if ( $seconds =~ m{\D} );
     sleep $seconds;
@@ -1521,9 +1521,9 @@ sub send_command {
             while ( my $branch = $raw_tree->{value}->[ $i++ ] ) {
                 push @arguments, @{ $self->evaluate($branch) };
             }
-            $line .= join q{}, q{ }, @arguments;
+            $line .= join q{}, q( ), @arguments;
         }
-        $rv = $self->_send_command( split q{ }, $line, 2 )
+        $rv = $self->_send_command( split q( ), $line, 2 )
             if ( $line =~ m{\S} );
     }
     return $rv;
@@ -1572,8 +1572,8 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
         pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
         my $joined = join q{}, @{$result};
-        if ( $op eq q{.=} and @{$v} ) { unshift @{$result}, q{ }; }
-        if ( $op eq q{=} ) { $v = $result; }
+        if ( $op eq q{.=} and @{$v} ) { unshift @{$result}, q( ); }
+        if ( $op eq q(=) ) { $v = $result; }
         elsif ( $op eq q{.=} ) { push @{$v}, @{$result}; }
         elsif ( $op eq q{+=} ) { $v->[0] //= 0; $v->[0] += $joined; }
         elsif ( $op eq q{-=} ) { $v->[0] //= 0; $v->[0] -= $joined; }
@@ -1592,7 +1592,7 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         $rv = $v;
     }
     elsif ( length $op ) {
-        if    ( $op eq q{=} )  { delete $hash->{$key}; }
+        if    ( $op eq q(=) )  { delete $hash->{$key}; }
         elsif ( $op eq q{++} ) { $v->[0]++; $hash->{$key} = $v->[0]; }
         elsif ( $op eq q{--} ) { $v->[0]--; $hash->{$key} = $v->[0]; }
         else { $self->fatal_parse_error("bad arguments: $op"); }
@@ -1834,7 +1834,7 @@ sub prefix {
     my @paths = ();
     push @paths, $self->{path} if ( length $self->{path} );
     push @paths, $path         if ( length $path );
-    return join q{/}, @paths;
+    return join q(/), @paths;
 }
 
 sub mode {

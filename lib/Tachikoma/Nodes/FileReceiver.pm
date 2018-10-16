@@ -57,12 +57,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $path = undef;
     if ( $op ne 'rename' ) {
         $relative =~ s{(?:^|/)[.][.](?=/)}{}g;
-        $path = join q{/}, $prefix, $relative;
+        $path = join q(/), $prefix, $relative;
     }
     if ( $op eq 'update' ) {
         my $source = $message->[FROM];
         $source =~ s{_parent/|[^/]+:tee/}{}g;
-        my $key         = join q{ }, $source, $stream;
+        my $key         = join q( ), $source, $stream;
         my $filehandles = $self->{filehandles};
         my $fhp         = $filehandles->{$key};
         my $fh          = $fhp ? $fhp->[0] : undef;
@@ -111,7 +111,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->stderr("ERROR: $error");
             }
             else {
-                my $tmp = join q{/}, $parent, $template;
+                my $tmp = join q(/), $parent, $template;
                 $fhp = [ $fh, $tmp, $Tachikoma::Now ];
                 $filehandles->{$key} = $fhp;
             }
@@ -149,8 +149,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         ( $relative, $new_relative ) = split $Separator, $relative, 2;
         $relative =~ s{(?:^|/)[.][.](?=/)}{}g     if ($relative);
         $new_relative =~ s{(?:^|/)[.][.](?=/)}{}g if ($new_relative);
-        $path = join q{/}, $prefix, $relative;
-        my $new_path = join q{/}, $prefix, $new_relative;
+        $path = join q(/), $prefix, $relative;
+        my $new_path = join q(/), $prefix, $new_relative;
         $self->make_parent_dirs($path);
         rename $path, $new_path
             or $self->stderr("ERROR: couldn't rename $path to $new_path: $!");

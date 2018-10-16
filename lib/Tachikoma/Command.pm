@@ -3,7 +3,7 @@
 # Tachikoma::Command
 # ----------------------------------------------------------------------
 #
-# $Id: Command.pm 35083 2018-10-12 04:52:12Z chris $
+# $Id: Command.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Command;
@@ -82,7 +82,7 @@ sub sign {
     my $self      = shift;
     my $scheme    = shift or die 'no scheme';
     my $timestamp = shift or die 'no timestamp';
-    my $plaintext = join q{:},
+    my $plaintext = join q(:),
         $ID, $timestamp,
         ( $self->{name} // q{} ),
         ( $self->{arguments} // q{} ),

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35226 2018-10-15 10:24:26Z chris $
+# $Id: HTTP_Responder.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -42,7 +42,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $tmp_path, $port ) = split q{ }, $self->{arguments}, 2;
+        my ( $tmp_path, $port ) = split q( ), $self->{arguments}, 2;
         $self->{tmp_path} = $tmp_path;
         $self->{port}     = $port;
         $self->set_timer;
@@ -91,7 +91,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             return;
         }
         $line =~ s{\r?\n$}{};
-        my ( $method, $uri, $version ) = split q{ }, $line, 3;
+        my ( $method, $uri, $version ) = split q( ), $line, 3;
         if ( not $uri ) {
             delete $requests->{$name};
             delete $payloads->{$name};
@@ -132,14 +132,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         if ( $length > 131072 ) {
             if ( not $request->{tmp} ) {
-                my $tmp_path = join q{/}, $self->{tmp_path}, 'post';
+                my $tmp_path = join q(/), $self->{tmp_path}, 'post';
                 $self->make_dirs($tmp_path)
                     or return $self->stderr(
                     "ERROR: couldn't mkdir $tmp_path: $!")
                     if ( not -d $tmp_path );
                 my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
                 $request->{fh} = $fh;
-                $request->{tmp} = join q{/}, $tmp_path, $template;
+                $request->{tmp} = join q(/), $tmp_path, $template;
             }
             $request->{length} += length ${$payload};
             if ( length ${$payload} and not syswrite $request->{fh},
@@ -228,13 +228,13 @@ sub log_entry {
     $log_entry->[TYPE]    = TM_BYTESTREAM;
     $log_entry->[TO]      = 'http:log';
     $log_entry->[PAYLOAD] = join q{},
-        $host, q{ },
+        $host, q( ),
         $request->{remote_addr}, q{ - },
-        $request->{remote_user} || q{-},
+        $request->{remote_user} || q(-),
         q{ [}, cached_log_strftime(),
         q{] "}, $request->{line}, q{" },
-        $status, q{ }, $size || q{-},
-        q{ "}, $referer, q{" "}, $user_agent, q{"},
+        $status, q( ), $size || q(-),
+        q{ "}, $referer, q{" "}, $user_agent, q("),
         "\n";
     return $self->{sink}->fill($log_entry);
 }

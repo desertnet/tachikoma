@@ -54,7 +54,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $filename, $max_unanswered ) =
-            split q{ }, $self->{arguments}, 2;
+            split q( ), $self->{arguments}, 2;
         $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );
@@ -263,7 +263,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                 and not $self->get_buffer_size )
             {
                 $dbh->disconnect;
-                unlink join q{/}, $self->db_dir, $self->filename or warn;
+                unlink join q(/), $self->db_dir, $self->filename or warn;
                 $self->dbh(undef);
                 $self->{last_clear_time} = $Tachikoma::Now;
                 $is_empty = 'true';
@@ -448,9 +448,9 @@ $C{remove_message} = sub {
     my $envelope = shift;
     my $dbh      = $self->patron->dbh;
     my $key      = $command->arguments;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         $dbh->disconnect;
-        unlink join q{/}, $self->patron->db_dir, $self->patron->filename
+        unlink join q(/), $self->patron->db_dir, $self->patron->filename
             or warn;
         $self->patron->msg_unanswered( {} );
         $self->patron->buffer_size(undef);
@@ -484,7 +484,7 @@ $C{dump_message} = sub {
     my $envelope = shift;
     my $key      = $command->arguments;
     my $dbh      = $self->patron->dbh;
-    if ( $key eq q{*} ) {
+    if ( $key eq q(*) ) {
         $key = each %{ $self->patron->msg_unanswered };
         if ( not $key ) {
             return $self->response( $envelope, "no messages in flight\n" );
@@ -584,7 +584,7 @@ sub dbh {
     }
     if ( not defined $self->{dbh} ) {
         $self->make_dirs( $self->db_dir );
-        my $path = join q{/}, $self->db_dir, $self->filename;
+        my $path = join q(/), $self->db_dir, $self->filename;
         if ( -e "${path}.clean" ) {
             unlink "${path}.clean" or warn;
         }
@@ -619,7 +619,7 @@ EOF
 sub close_db {
     my $self = shift;
     $self->{dbh}->disconnect if ( $self->{dbh} );
-    my $path = join q{/}, $self->db_dir, $self->{filename};
+    my $path = join q(/), $self->db_dir, $self->{filename};
     open my $fh, '>>', "${path}.clean" or warn;
     close $fh or warn;
     $self->buffer_size(undef);

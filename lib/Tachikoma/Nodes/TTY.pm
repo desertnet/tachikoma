@@ -5,7 +5,7 @@
 #
 # Tachikoma::Nodes::STDIO plus Readline support
 #
-# $Id: TTY.pm 34375 2018-07-03 12:17:22Z chris $
+# $Id: TTY.pm 35263 2018-10-16 06:32:59Z chris $
 #
 
 package Tachikoma::Nodes::TTY;
@@ -65,7 +65,7 @@ sub set_completions {
         my $help = [];
         for my $line ( split m{\n}, $list ) {
             $line =~ s{^\S+.*?:\s+}{}g;
-            push @{$help}, ( split q{ }, $line )[0];
+            push @{$help}, ( split q( ), $line )[0];
         }
         $self->completions->{'help'} = $help;
     }
@@ -74,7 +74,7 @@ sub set_completions {
         for my $line ( split m{\n}, $list ) {
             next if ( not defined $line );
             $line =~ s{^\S+.*?:\s+}{}g;
-            push @completions, ( split q{ }, $line, 2 )[0];
+            push @completions, ( split q( ), $line, 2 )[0];
         }
         $self->completions->{'ls'} = \@completions;
     }
