@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 657;
+use Test::More tests => 699;
 use Tachikoma;
 
 sub test_construction {
@@ -24,15 +24,15 @@ sub test_node {
     my $class = ref $node;
     my $name  = lc $class;
     $name =~ s{.*:}{};
-    is( $node->name($name),       $name, "${class}::name can be set" );
-    is( $node->name,              $name, "${class}::name is set correctly" );
-    is( $Tachikoma::Nodes{$name}, $node, "${class}::name is ok" );
-    is( $node->remove_node, undef, "${class}::remove_node returns undef" );
+    is( $node->name($name),       $name, "$class->name can be set" );
+    is( $node->name,              $name, "$class->name is set correctly" );
+    is( $Tachikoma::Nodes{$name}, $node, "$class->name is ok" );
+    is( $node->remove_node, undef, "$class->remove_node returns undef" );
 
     while ( my $close_cb = shift @Tachikoma::Closing ) {
         &{$close_cb}();
     }
-    is( $Tachikoma::Nodes{$name}, undef, "${class}::remove_node is ok" );
+    is( $Tachikoma::Nodes{$name}, undef, "$class->remove_node is ok" );
     return;
 }
 
@@ -81,8 +81,10 @@ my @nodes = qw(
     Tachikoma::Nodes::Hopper
     Tachikoma::Nodes::HTTP_Auth
     Tachikoma::Nodes::HTTP_File
+    Tachikoma::Nodes::HTTP_Fetch
     Tachikoma::Nodes::HTTP_Responder
     Tachikoma::Nodes::HTTP_Route
+    Tachikoma::Nodes::HTTP_Store
     Tachikoma::Nodes::HTTP_Timeout
     Tachikoma::Nodes::Index
     Tachikoma::Nodes::IndexByField
@@ -120,6 +122,7 @@ my @nodes = qw(
     Tachikoma::Nodes::Split
     Tachikoma::Nodes::StdErr
     Tachikoma::Nodes::Substr
+    Tachikoma::Nodes::SudoFarmer
     Tachikoma::Nodes::Table
     Tachikoma::Nodes::Tail
     Tachikoma::Nodes::Tee
@@ -128,20 +131,28 @@ my @nodes = qw(
     Tachikoma::Nodes::Timer
     Tachikoma::Nodes::Timestamp
     Tachikoma::Nodes::Topic
+    Tachikoma::Nodes::TopicProbe
     Tachikoma::Nodes::Transform
     Tachikoma::Nodes::Uniq
     Tachikoma::Nodes::Watchdog
     Accessories::Nodes::ByteSplit
     Accessories::Nodes::HexDump
+    Accessories::Nodes::IndexByHostname
+    Accessories::Nodes::IndexByProcess
     Accessories::Nodes::Panel
     Accessories::Nodes::SFESerLCD
     Accessories::Nodes::SilentDeFlapper
     Accessories::Nodes::Smooth
 );
-# Tachikoma::Nodes::Shell
-# Tachikoma::Nodes::Shell2
-# Tachikoma::Nodes::BufferTop
-# Tachikoma::Nodes::TopicTop
+    # Tachikoma::Nodes::BufferTop
+    # Tachikoma::Nodes::JSONtoStorable
+    # Tachikoma::Nodes::SerialPort
+    # Tachikoma::Nodes::Shell
+    # Tachikoma::Nodes::Shell2
+    # Tachikoma::Nodes::SQL
+    # Tachikoma::Nodes::StorableToJSON
+    # Tachikoma::Nodes::TopicTop
+    # Accessories::Nodes::SFE4DigitLED
 
 for my $class (@nodes) {
     test_node( test_construction($class) );
