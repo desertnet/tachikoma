@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35315 2018-10-17 02:38:09Z chris $
+# $Id: CommandInterpreter.pm 35324 2018-10-17 04:33:53Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2163,11 +2163,10 @@ $C{secure} = sub {
     my $envelope  = shift;
     my $num       = $command->arguments;
     my $responder = $Tachikoma::Nodes{_responder};
-    die "can't find _responder\n" if ( not $responder );
-    my $shell = $responder->shell;
-    die "can't find shell\n" if ( not $shell );
-    $shell->{last_prompt} = 0;
-
+    if ($responder) {
+        my $shell = $responder->shell;
+        $shell->{last_prompt} = 0 if ($shell);
+    }
     if ( length $num ) {
         if ( $num =~ m{\D} or $num < 1 ) {
             die "ERROR: invalid secure level\n";
@@ -2199,10 +2198,10 @@ $C{insecure} = sub {
     my $command   = shift;
     my $envelope  = shift;
     my $responder = $Tachikoma::Nodes{_responder};
-    die "can't find _responder\n" if ( not $responder );
-    my $shell = $responder->shell;
-    die "can't find shell\n" if ( not $shell );
-    $shell->{last_prompt} = 0;
+    if ($responder) {
+        my $shell = $responder->shell;
+        $shell->{last_prompt} = 0 if ($shell);
+    }
     die "ERROR: process already secured\n"
         if ( defined $Secure_Level and $Secure_Level > 0 );
     $Secure_Level = -1;
