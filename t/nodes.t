@@ -98,7 +98,7 @@ my %nodes = (
     'Tachikoma::Nodes::AgeSieve'              => q(),
     'Tachikoma::Nodes::Atom'                  => q(/tmp /tmp),
     'Tachikoma::Nodes::Block'                 => q(),
-    'Tachikoma::Nodes::Bucket'                => qq($t.bucket),
+    'Tachikoma::Nodes::Bucket'                => qq($t/bucket),
     'Tachikoma::Nodes::Buffer'                => q(),
     'Tachikoma::Nodes::Broker'                => q(localhost:5501),
     'Tachikoma::Nodes::BufferMonitor'         => q(),
@@ -141,14 +141,14 @@ my %nodes = (
     'Tachikoma::Nodes::List'                  => q(),
     'Tachikoma::Nodes::LoadBalancer'          => q(),
     'Tachikoma::Nodes::LoadController'        => q(),
-    'Tachikoma::Nodes::Log'                   => qq($t.log),
+    'Tachikoma::Nodes::Log'                   => qq($t/log),
     'Tachikoma::Nodes::LogPrefix'             => q(),
     'Tachikoma::Nodes::Lookup'                => q(),
     'Tachikoma::Nodes::LWP'                   => q(),
     'Tachikoma::Nodes::MemorySieve'           => q(),
     'Tachikoma::Nodes::Null'                  => q(),
     'Tachikoma::Nodes::Number'                => q(),
-    'Tachikoma::Nodes::Partition'             => qq(--filename=$t.partition),
+    'Tachikoma::Nodes::Partition'             => qq(--filename=$t/partition),
     'Tachikoma::Nodes::PidWatcher'            => q(),
     'Tachikoma::Nodes::QueryEngine'           => q(),
     'Tachikoma::Nodes::Queue'                 => undef,
@@ -207,4 +207,4 @@ for my $class ( sort keys %nodes ) {
     test_node( test_construction($class), $nodes{$class} );
 }
 local $ENV{PATH} = q();
-system '/bin/rm', '-rf', "$t.bucket", "$t.log", "$t.partition";
+system '/bin/rm', '-rf', $t;
