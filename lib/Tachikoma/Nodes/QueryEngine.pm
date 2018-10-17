@@ -220,7 +220,7 @@ sub send_request {
     my ( $self, $request, $responses ) = @_;
     $self->{connector} ||= {};
     for my $host_port ( @{ $self->{hosts} } ) {
-        my ($host, $port) = split m(:), $host_port;
+        my ( $host, $port ) = split m{:}, $host_port;
         my $tachikoma = $self->{connector}->{$host_port};
         if ( not $tachikoma ) {
             $tachikoma =

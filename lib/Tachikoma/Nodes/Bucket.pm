@@ -39,7 +39,8 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $base, $interval ) = split q( ), $self->{arguments}, 2;
+        my ( $filename, $interval ) = split q( ), $self->{arguments}, 2;
+        my $base = ( $filename =~ m{^(/.*)$} )[0];
         $self->{base} = $base;
         $self->{interval} = $interval || $Default_Interval;
         $self->make_dirs($base);
