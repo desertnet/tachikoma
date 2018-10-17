@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 35310 2018-10-17 00:54:47Z chris $
+# $Id: Dumper.pm 35313 2018-10-17 01:23:59Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -114,6 +114,8 @@ sub dump_response {
     $message->[TYPE] = TM_BYTESTREAM;
     return TM_BYTESTREAM if ( not $type & TM_COMMAND );
     $command = Tachikoma::Command->new( $message->[PAYLOAD] );
+    my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;
+    $command->{signature} = $id;
 
     if ($use_readline) {
         if ( $command->{name} eq 'prompt' ) {
