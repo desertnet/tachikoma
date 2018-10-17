@@ -192,7 +192,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $self->{counter}++;
         my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
         my $parse_tree = undef;
-        $self->parse_buffer(q{});
+        $self->parse_buffer(q());
         local $SIG{INT} = sub { die "^C\n" }
             if ( $self->{isa_tty} );
         my $okay = eval {
@@ -228,7 +228,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
     else {
         if ( $message->type & TM_EOF ) {
-            $message->from(q{});
+            $message->from(q());
             $self->sink->fill($message);
             $self->path( $self->cwd );
             $self->cwd(undef);
@@ -1404,15 +1404,15 @@ $Operators{'le'} = sub { $_[0] le $_[1] };
 $Operators{'ge'} = sub { $_[0] ge $_[1] };
 $Operators{'ne'} = sub { $_[0] ne $_[1] };
 $Operators{'eq'} = sub { $_[0] eq $_[1] };
-$Operators{q{=~}} = sub {
+$Operators{q(=~)} = sub {
     my @rv = ( ( $_[0] // q() ) =~ ( $_[1] // q() ) );
     for my $i ( 0 .. $#rv ) {
         $Local{ '_' . ( $i + 1 ) } = [ $rv[$i] ];
     }
     return @rv;
 };
-$Operators{q{!~}} = sub { $_[0] !~ $_[1] };
-$Operators{q{..}} = sub { $_[0] .. $_[1] };
+$Operators{q(!~)} = sub { $_[0] !~ $_[1] };
+$Operators{q(..)} = sub { $_[0] .. $_[1] };
 
 sub fake_tree {
     my $self   = shift;
@@ -1624,10 +1624,10 @@ sub _call_function {
     }
     pop @values if ( $values[-1] =~ m{^\s+$} );
     $arguments->{$_} = $trimmed[$_] for ( 1 .. $#trimmed );
-    $arguments->{q{0}} = shift @values;
+    $arguments->{q(0)} = shift @values;
     shift @values if ( @values and $values[0] =~ m{^\s+$} );
-    $arguments->{q{@}}  = \@values;
-    $arguments->{q{_C}} = $#trimmed;
+    $arguments->{q(@)}  = \@values;
+    $arguments->{q(_C)} = $#trimmed;
     return $self->call_function( $name, $arguments );
 }
 
@@ -1690,16 +1690,16 @@ sub callback {
         my %arguments = ();
         $arguments{'0'} = $id;
         if ( not $error ) {
-            $arguments{q{1}}      = $payload;
-            $arguments{q{@}}      = $payload;
-            $arguments{q{_C}}     = 1;
-            $arguments{q{_ERROR}} = q();
+            $arguments{q(1)}      = $payload;
+            $arguments{q(@)}      = $payload;
+            $arguments{q(_C)}     = 1;
+            $arguments{q(_ERROR)} = q();
         }
         else {
-            $arguments{q{1}}      = q();
-            $arguments{q{@}}      = q();
-            $arguments{q{_C}}     = 0;
-            $arguments{q{_ERROR}} = $payload;
+            $arguments{q(1)}      = q();
+            $arguments{q(@)}      = q();
+            $arguments{q(_C)}     = 0;
+            $arguments{q(_ERROR)} = $payload;
         }
         my %old_local = %Local;
         $Local{$_} = $arguments{$_} for ( keys %arguments );

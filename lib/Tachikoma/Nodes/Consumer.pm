@@ -489,7 +489,7 @@ sub edge {
 
 sub remove_node {
     my $self = shift;
-    $self->name(q{});
+    $self->name(q());
     return $self->SUPER::remove_node(@_);
 }
 

@@ -656,7 +656,7 @@ $parse_tree = $shell->parse(
 );
 $answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "{echo date\n}\n", 'variables are expanded correctly' );
+is( $answer, "{echo date\n}\n", 'variables are expanded correctly in eval' );
 
 #####################################################################
 
