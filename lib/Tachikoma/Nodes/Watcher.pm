@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: Watcher.pm 35357 2018-10-17 08:53:26Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -21,6 +21,7 @@ my $Check_Proc_Interval = 10;
 my $Can_KQueue          = 1;
 if ( $Config{osname} eq 'freebsd' ) {
     ## no critic (ProhibitBacktickOperators)
+    local %ENV = ();
     my $version = `/usr/bin/uname -r`;
     my ( $major, $minor ) = ( $version =~ m{^(\d+)[.](\d+)} );
     $Can_KQueue = undef

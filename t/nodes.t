@@ -206,5 +206,5 @@ for my $class ( sort keys %nodes ) {
 for my $class ( sort keys %nodes ) {
     test_node( test_construction($class), $nodes{$class} );
 }
-local $ENV{PATH} = q();
+local %ENV = ();
 system '/bin/rm', '-rf', $t;
