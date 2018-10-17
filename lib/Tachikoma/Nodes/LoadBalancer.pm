@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: LoadBalancer.pm 35293 2018-10-16 20:32:45Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM
-    TM_COMMAND TM_INFO TM_PERSIST TM_RESPONSE TM_EOF
+    TM_COMMAND TM_INFO TM_PERSIST TM_RESPONSE TM_EOF TM_ERROR
 );
 use Digest::MD5 qw( md5 );
 use parent qw( Tachikoma::Nodes::Timer );
@@ -66,6 +66,7 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     my $to      = $message->[TO];
+    return if ( $type == TM_ERROR and not $to );
     if ( $type & TM_COMMAND or ( $type & TM_EOF and not $message->[STREAM] ) )
     {
         return $self->interpreter->fill($message);

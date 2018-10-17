@@ -7,8 +7,9 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 877;
+use Test::More tests => 1206;
 use Tachikoma;
+use Tachikoma::Message qw( TM_ERROR );
 
 sub test_construction {
     my $class = shift;
@@ -18,6 +19,23 @@ sub test_construction {
     is( ref $node, $class, "$class->new is ok" );
     return $node;
 }
+
+my $class = 'Tachikoma';
+test_construction($class);
+$class->event_framework(
+    test_construction('Tachikoma::EventFrameworks::Select') );
+
+my $router    = test_construction('Tachikoma::Nodes::Router');
+my $responder = test_construction('Tachikoma::Nodes::Responder');
+my $shell     = test_construction('Tachikoma::Nodes::Shell2');
+my $trap      = test_construction('Tachikoma::Nodes::Callback');
+
+$router->name('_router');
+$responder->name('_responder');
+$responder->shell($shell);
+
+$Tachikoma::Now       = time;
+$Tachikoma::Right_Now = time;
 
 sub test_node {
     my $node      = shift;
@@ -33,9 +51,26 @@ sub test_node {
             $test_args, "$class->arguments can be set" );
         is( $node->arguments, $test_args,
             "$class->arguments are set correctly" );
+        is( $node->sink($trap), $trap, "$class->sink can be set" );
+        is( $node->sink,        $trap, "$class->sink is set correctly" );
+        $trap->callback(
+            sub {
+                my $message = shift;
+                is( $message->from, $class,
+                    "$class->fill does not stamp errors" );
+                is( $message->to, q(), "$class->fill does not route errors" );
+                is( $message->payload, "NOT_AVAILABLE\n",
+                    "$class->fill does not rewrite errors" );
+                return;
+            }
+        );
+        my $message = Tachikoma::Message->new;
+        $message->type(TM_ERROR);
+        $message->from($class);
+        $message->payload("NOT_AVAILABLE\n");
+        is( $node->fill($message), undef, "$class->fill returns undef" );
     }
     is( $node->remove_node, undef, "$class->remove_node returns undef" );
-
     while ( my $close_cb = shift @Tachikoma::Closing ) {
         &{$close_cb}();
     }
@@ -43,22 +78,8 @@ sub test_node {
     return;
 }
 
-my $class = 'Tachikoma';
-test_construction($class);
-$class->event_framework(
-    test_construction('Tachikoma::EventFrameworks::Select') );
-
-my $router = test_construction('Tachikoma::Nodes::Router');
-$router->name('_router');
-
-my $responder = test_construction('Tachikoma::Nodes::Responder');
-$responder->name('_responder');
-
-my $shell = test_construction('Tachikoma::Nodes::Shell2');
-$responder->shell($shell);
-
 my %nodes = (
-    'Tachikoma::Node'                         => 1,
+    'Tachikoma::Node'                         => undef,
     'Tachikoma::Nodes::Router'                => undef,
     'Tachikoma::Nodes::FileHandle'            => undef,
     'Tachikoma::Nodes::Socket'                => undef,
@@ -83,9 +104,9 @@ my %nodes = (
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
     'Tachikoma::Nodes::Counter'               => q(),
     'Tachikoma::Nodes::Date'                  => q(),
-    'Tachikoma::Nodes::Dumper'                => q(),
+    'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
-    'Tachikoma::Nodes::Edge'                  => q(),
+    'Tachikoma::Nodes::Edge'                  => undef,
     'Tachikoma::Nodes::FileController'        => q(),
     'Tachikoma::Nodes::FileReceiver'          => q(),
     'Tachikoma::Nodes::FileSender'            => q(),

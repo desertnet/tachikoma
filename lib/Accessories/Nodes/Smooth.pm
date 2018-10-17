@@ -10,7 +10,7 @@ package Accessories::Nodes::Smooth;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
-use Tachikoma::Message qw( PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::Timer );
 
 sub new {
@@ -40,6 +40,7 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $payload = $message->payload;
     if ( $payload =~ /^(\d+\.?\d*?)$/ ) {
         $self->{target_out} = $1;

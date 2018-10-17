@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Split.pm 35293 2018-10-16 20:32:45Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -80,6 +80,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
     my $messages   = undef;
     my $message_id = undef;
     my $persist    = undef;
+    return if ( $message->[TYPE] == TM_ERROR );
     if ( $message->[TYPE] & TM_PERSIST ) {
         $messages = $self->{messages};
         if ( $message->[TYPE] & TM_RESPONSE ) {

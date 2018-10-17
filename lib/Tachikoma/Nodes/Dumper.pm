@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Dumper.pm 35313 2018-10-17 01:23:59Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -46,138 +46,180 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self         = shift;
     my $message      = shift;
-    my $type         = $message->[TYPE];
-    my $new_type     = $type;
-    my $client       = $self->{client};
-    my $stdin        = $self->{stdin};
-    my $debug        = $self->{debug};
-    my $use_readline = $stdin && $stdin->use_readline;
-    if ( $type & TM_STORABLE ) {
-        $new_type = TM_BYTESTREAM;
-        if ( $debug and $debug >= 2 ) {
-            $message->payload;
-        }
-        else {
-            my $dumped = Dumper $message->payload;
-            $message->payload($dumped);
-        }
+    my $type         = undef;
+    my $use_readline = undef;
+    $use_readline = $self->{stdin}->use_readline if ( $self->{stdin} );
+    if ( $message->[TYPE] & TM_STORABLE ) {
+        $type = $self->dump_storable($message);
     }
-    elsif ( $type & TM_PING ) {
-        $new_type = TM_BYTESTREAM;
-        if ( not $debug or $debug <= 1 ) {
-            my $rtt = sprintf '%.2f',
-                ( $Tachikoma::Right_Now - $message->payload ) * 1000;
-            $message->payload("round trip time: $rtt ms\n");
-        }
+    elsif ( $message->[TYPE] & TM_PING ) {
+        $type = $self->dump_ping($message);
     }
-    elsif ( $type & TM_RESPONSE or $type & TM_ERROR ) {
-        return 1 if ( $type & TM_COMPLETION and $type & TM_ERROR );
-        my $command;
-        if ( $type & TM_COMMAND ) {
-            $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-        }
-        if ( $command and $use_readline ) {
-            if ( $command->{name} eq 'prompt' ) {
-                my $prompt = $command->{payload};
-                if ( $type & TM_ERROR ) {
-                    chomp $prompt;
-                    $prompt .= '> ' if ( $prompt !~ m{> $} );
-                }
-                $stdin->prompt($prompt);
-                return 1;
-            }
-            elsif ( $type & TM_COMPLETION ) {
-                $stdin->set_completions( $command->{name},
-                    $command->{payload} );
-                return 1;    # TLDNR
-            }
-        }
-        $new_type = TM_BYTESTREAM;
-        if ($command) {
-            if ( $debug and $debug >= 2 ) {
-                $message->payload($command);
-            }
-            else {
-                $message->[PAYLOAD] = $command->{payload};
-            }
-        }
+    elsif ( $message->[TYPE] & TM_RESPONSE or $message->[TYPE] & TM_ERROR ) {
+        $type = $self->dump_response( $message, $use_readline ) or return;
     }
-    elsif ( $type & TM_COMMAND ) {
-        my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-        $new_type = TM_BYTESTREAM;
-        my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;
-        $command->{signature} = $id;
-        if ( $debug and $debug >= 2 ) {
-            $message->[PAYLOAD] = $command;
-        }
-        else {
-            $message->[PAYLOAD] = Dumper $command;
-        }
+    elsif ( $message->[TYPE] & TM_COMMAND ) {
+        $type = $self->dump_command($message);
     }
-    elsif ($type & TM_INFO
-        or $type & TM_BATCH
-        or ( $type & TM_EOF and $debug ) )
+    elsif ($message->[TYPE] & TM_INFO
+        or $message->[TYPE] & TM_BATCH
+        or ( $message->[TYPE] & TM_EOF and $self->{debug} ) )
     {
-        $new_type = TM_BYTESTREAM;
+        $type = TM_BYTESTREAM;
     }
-    if ($debug) {
-        if ( $debug > 1 ) {
-            $message->[PAYLOAD] = join q(),
-                Dumper(
-                {   type      => $message->type_as_string,
-                    from      => $message->[FROM],
-                    to        => $message->[TO],
-                    id        => $message->[ID],
-                    stream    => $message->[STREAM],
-                    timestamp => strftime(
-                        '%F %T %Z', localtime( $message->[TIMESTAMP] )
-                    ),
-                    payload => $message->[PAYLOAD],
-                }
-                );
-        }
-        else {
-            $message->[PAYLOAD] = join q(),
-                $message->type_as_string, ' from ', $message->[FROM], ":\n",
-                $message->[PAYLOAD];
-        }
+    $self->dump_message($message) if ( $self->{debug} );
+    $message->[TYPE] = $type if ($type);
+    $self->add_style( $message, $use_readline )
+        if ( $message->[TYPE] & TM_BYTESTREAM );
+    $self->SUPER::fill($message);
+    $self->update_prompt($message)
+        if ($use_readline);
+    return;
+}
+
+sub dump_storable {
+    my $self    = shift;
+    my $message = shift;
+    if ( $self->{debug} and $self->{debug} >= 2 ) {
+        $message->payload;
     }
-    $message->[TYPE] = $new_type;
-    if ( $new_type & TM_BYTESTREAM ) {
-        if ( $use_readline and $self->{newline} ) {
-            my $clear  = q();
-            my $length = $stdin->line_length;
-            my $width  = $stdin->width;
-            if ( $length > $width ) {
-                my $lines = $length / $width;
-                $clear .= "\e[A" x int $lines;
+    else {
+        my $dumped = Dumper $message->payload;
+        $message->payload($dumped);
+    }
+    return TM_BYTESTREAM;
+}
+
+sub dump_ping {
+    my $self    = shift;
+    my $message = shift;
+    if ( not $self->{debug} or $self->{debug} <= 1 ) {
+        my $rtt = sprintf '%.2f',
+            ( $Tachikoma::Right_Now - $message->payload ) * 1000;
+        $message->payload("round trip time: $rtt ms\n");
+    }
+    return TM_BYTESTREAM;
+}
+
+sub dump_response {
+    my $self         = shift;
+    my $message      = shift;
+    my $use_readline = shift;
+    my $type         = $message->[TYPE];
+    my $command;
+    return if ( $type & TM_COMPLETION and $type & TM_ERROR );
+    $message->[TYPE] = TM_BYTESTREAM;
+    return TM_BYTESTREAM if ( not $type & TM_COMMAND );
+    $command = Tachikoma::Command->new( $message->[PAYLOAD] );
+    my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;
+    $command->{signature} = $id;
+
+    if ($use_readline) {
+        if ( $command->{name} eq 'prompt' ) {
+            my $prompt = $command->{payload};
+            if ( $type & TM_ERROR ) {
+                chomp $prompt;
+                $prompt .= '> ' if ( $prompt !~ m{> $} );
             }
-            $clear .= "\r\e[J";
-            $message->[PAYLOAD] = join q(), $clear, $message->[PAYLOAD];
+            $self->{stdin}->prompt($prompt);
+            return;
         }
-        elsif ( $client and $client eq 'SILCbot' ) {
-            my $payload = q();
-            for my $line ( split m{^}, $message->[PAYLOAD] ) {
-                chomp $line;
-                $payload .= join q(), "\e[31m", $line, "\e[0m\n";
+        elsif ( $type & TM_COMPLETION ) {
+            $self->{stdin}
+                ->set_completions( $command->{name}, $command->{payload} );
+            return;    # TLDNR
+        }
+    }
+    if ( $self->{debug} and $self->{debug} >= 2 ) {
+        $message->payload($command);
+    }
+    else {
+        $message->[PAYLOAD] = $command->{payload};
+    }
+    return TM_BYTESTREAM;
+}
+
+sub dump_command {
+    my $self    = shift;
+    my $message = shift;
+    my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
+    my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;
+    $command->{signature} = $id;
+    if ( $self->{debug} and $self->{debug} >= 2 ) {
+        $message->[PAYLOAD] = $command;
+    }
+    else {
+        $message->[PAYLOAD] = Dumper $command;
+    }
+    return TM_BYTESTREAM;
+}
+
+sub dump_message {
+    my $self    = shift;
+    my $message = shift;
+    if ( $self->{debug} > 1 ) {
+        $message->[PAYLOAD] = join q(),
+            Dumper(
+            {   type   => $message->type_as_string,
+                from   => $message->[FROM],
+                to     => $message->[TO],
+                id     => $message->[ID],
+                stream => $message->[STREAM],
+                timestamp =>
+                    strftime( '%F %T %Z', localtime $message->[TIMESTAMP] ),
+                payload => $message->[PAYLOAD],
             }
-            $message->[PAYLOAD] = $payload;
-        }
+            );
     }
-    my $rv = $self->SUPER::fill($message);
-    if ( $use_readline and $new_type & TM_BYTESTREAM ) {
-        if ( $message->[PAYLOAD] =~ m{\n$} ) {
-            $self->{newline} = 1;
-            $stdin->prompt;
-        }
-        else {
-            $self->{newline} = undef;
-        }
+    else {
+        $message->[PAYLOAD] = join q(),
+            $message->type_as_string, ' from ', $message->[FROM], ":\n",
+            $message->[PAYLOAD];
     }
-    return $rv;
+    return;
+}
+
+sub add_style {
+    my $self         = shift;
+    my $message      = shift;
+    my $use_readline = shift;
+    return if ( not length $message->[PAYLOAD] );
+    if ( $use_readline and $self->{newline} ) {
+        my $clear  = q();
+        my $length = $self->{stdin}->line_length;
+        my $width  = $self->{stdin}->width;
+        if ( $length > $width ) {
+            my $lines = $length / $width;
+            $clear .= "\e[A" x int $lines;
+        }
+        $clear .= "\r\e[J";
+        $message->[PAYLOAD] = join q(), $clear, $message->[PAYLOAD];
+    }
+    elsif ( $self->{client} and $self->{client} eq 'SILCbot' ) {
+        my $payload = q();
+        for my $line ( split m{^}, $message->[PAYLOAD] ) {
+            chomp $line;
+            $payload .= join q(), "\e[31m", $line, "\e[0m\n";
+        }
+        $message->[PAYLOAD] = $payload;
+    }
+    return;
+}
+
+sub update_prompt {
+    my $self    = shift;
+    my $message = shift;
+    if ( not length $message->[PAYLOAD] or $message->[PAYLOAD] =~ m{\n$} ) {
+        $self->{newline} = 1;
+        $self->{stdin}->prompt;
+    }
+    else {
+        $self->{newline} = undef;
+    }
+    return;
 }
 
 sub debug {

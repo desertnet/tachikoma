@@ -33,13 +33,13 @@ is( ref $router, 'Tachikoma::Nodes::Router',
 
 my $server = inet_server Tachikoma::Nodes::STDIO( $address, $port );
 is( ref $server, 'Tachikoma::Nodes::STDIO',
-    'Tachikoma::Nodes::STDIO->new is ok' );
+    'Tachikoma::Nodes::STDIO->inet_server is ok' );
 
 $server->name( $server->name . ':server' );
 
 my $destination = Tachikoma::Nodes::Callback->new;
-is( ref $destination, 'Tachikoma::Nodes::Callback',
-    'Tachikoma::Nodes::Callback->new is ok' );
+is( ref $destination,
+    'Tachikoma::Nodes::Callback', 'Tachikoma::Nodes::Callback->new is ok' );
 
 $server->sink($destination);
 $destination->callback(

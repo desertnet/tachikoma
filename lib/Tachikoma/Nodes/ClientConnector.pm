@@ -10,7 +10,7 @@ package Tachikoma::Nodes::ClientConnector;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE FROM TM_INFO TM_EOF );
+use Tachikoma::Message qw( TYPE FROM TM_INFO TM_EOF TM_ERROR );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -32,28 +32,20 @@ sub fill {
     my $owner = join q(/), grep defined, $message->[FROM], $path;
     $self->{counter}++;
     if ( $type & TM_INFO ) {
-        my $okay = eval {
-            $self->connect_node( $name, $owner );
-            return 1;
-        };
+        my $okay = eval { $self->connect_node( $name, $owner ); };
         if ( not $okay ) {
             my $error = $@ // 'unknown error';
             $self->stderr("ERROR: connect_node failed: $error");
         }
-        return 1;
     }
     elsif ( $type & TM_EOF ) {
-        my $okay = eval {
-            $self->disconnect_node( $name, $owner );
-            return 1;
-        };
+        my $okay = eval { $self->disconnect_node( $name, $owner ); };
         if ( not $okay ) {
             my $error = $@ // 'unknown error';
             $self->stderr("ERROR: disconnect_node failed: $error");
         }
-        return 1;
     }
-    return $self->SUPER::fill($message);
+    return;
 }
 
 1;

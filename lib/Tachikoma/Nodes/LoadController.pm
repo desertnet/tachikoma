@@ -139,7 +139,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
     }
     $self->{counter}++;
-    return 1;
+    return;
 }
 
 sub fire {

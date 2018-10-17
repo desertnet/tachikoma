@@ -145,6 +145,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{cwd}           = undef;
     $self->{path}          = undef;
+    $self->{prefix}        = undef;
     $self->{mode}          = 'command';
     $self->{isa_tty}       = undef;
     $self->{should_reply}  = undef;
@@ -1832,9 +1833,18 @@ sub prefix {
     my $self  = shift;
     my $path  = shift;
     my @paths = ();
-    push @paths, $self->{path} if ( length $self->{path} );
-    push @paths, $path         if ( length $path );
+    push @paths, $self->{prefix} if ( length $self->{prefix} );
+    push @paths, $self->{path}   if ( length $self->{path} );
+    push @paths, $path           if ( length $path );
     return join q(/), @paths;
+}
+
+sub set_prefix {
+    my $self = shift;
+    if (@_) {
+        $self->{prefix} = shift;
+    }
+    return $self->{prefix};
 }
 
 sub mode {

@@ -16,12 +16,11 @@ use parent qw( Tachikoma::Node );
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return $self->SUPER::fill($message)
-        if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $copy = bless( [@$message], ref($message) );
-    $copy->[PAYLOAD] = join( ' ',
-        ( map { sprintf( "%02X", ord($_) ) } split( '', $copy->[PAYLOAD] ) ),
-        "\n" );
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
+    my $copy = bless [ @{$message} ], ref $message;
+    $copy->[PAYLOAD] = join q( ),
+        ( map { sprintf '%02X', ord $_ } split q(), $copy->[PAYLOAD] ),
+        "\n";
     return $self->SUPER::fill($copy);
 }
 

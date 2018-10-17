@@ -3,14 +3,14 @@
 # Tachikoma::Nodes::Echo
 # ----------------------------------------------------------------------
 #
-# $Id: Echo.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Echo.pm 35304 2018-10-16 23:08:54Z chris $
 #
 
 package Tachikoma::Nodes::Echo;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( FROM TO );
+use Tachikoma::Message qw( TYPE FROM TO TM_ERROR );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -27,6 +27,7 @@ sub fill {
     my $message = shift;
     my $owner   = $self->{owner};
     my $to      = $message->[TO];
+    return if ( $message->[TYPE] == TM_ERROR and not $to );
     $message->[TO] = join q(/), $owner, $to if ( $owner and $to );
     $message->[TO] = $message->[FROM] if ( not $owner and not $to );
     return $self->SUPER::fill($message);

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: CommandInterpreter.pm 35324 2018-10-17 04:33:53Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -39,6 +39,8 @@ use version; our $VERSION = qv('v2.0.280');
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
+
+Getopt::Long::Configure('bundling');
 
 my %C = ();
 my %H = ();
@@ -293,7 +295,7 @@ sub tabulate_help {
 
 $H{list_nodes} = [
     "list_nodes [ -celos ] [ <node name> ]\n",
-    "list_nodes -a[celos] [ <regex glob> ]\n",
+    "list_nodes -a [ -celos ] [ <regex glob> ]\n",
     "    -c show message counters\n",
     "    -e show edges\n",
     "    -l show message counters and owners\n",
@@ -312,17 +314,28 @@ $H{list_nodes} = [
 ];
 
 $C{list_nodes} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my ( $options, $glob ) =
-        ( $command->{arguments} =~ m{(-[acelos]+)?\s*(\S*)} );
-    my $list_matches = $options ? $options =~ m{a} : undef;
-    my $show_count   = $options ? $options =~ m{c} : undef;
-    my $show_owner   = $options ? $options =~ m{o} : undef;
-    my $show_sink    = $options ? $options =~ m{s} : undef;
-    my $show_edge    = $options ? $options =~ m{e} : undef;
-    if ( $options and $options =~ m{l} ) {
+    my $self         = shift;
+    my $command      = shift;
+    my $envelope     = shift;
+    my $list_matches = undef;
+    my $show_count   = undef;
+    my $show_edge    = undef;
+    my $show_etc     = undef;
+    my $show_owner   = undef;
+    my $show_sink    = undef;
+    my ( $r, $argv ) = GetOptionsFromString(
+        $command->arguments,
+        'a' => \$list_matches,
+        'c' => \$show_count,
+        'e' => \$show_edge,
+        'l' => \$show_etc,
+        'o' => \$show_owner,
+        's' => \$show_sink,
+    );
+    die qq(invalid option\n) if ( not $r );
+    my $glob = $argv->[0] // q();
+
+    if ($show_etc) {
         $show_count = 'true';
         $show_owner = 'true';
     }
@@ -331,9 +344,17 @@ $C{list_nodes} = sub {
     }
     my $response = [ ['left'] ];
     unshift @{ $response->[0] }, 'right' if ($show_count);
-    push @{ $response->[0] }, 'left' if ($show_owner);
     push @{ $response->[0] }, 'left' if ($show_sink);
     push @{ $response->[0] }, 'left' if ($show_edge);
+    push @{ $response->[0] }, 'left' if ($show_owner);
+    if ( $show_owner or $show_sink or $show_edge ) {
+        my $header = ['NAME'];
+        unshift @{$header}, 'COUNT' if ($show_count);
+        push @{$header}, 'SINK'  if ($show_sink);
+        push @{$header}, 'EDGE'  if ($show_edge);
+        push @{$header}, 'OWNER' if ($show_owner);
+        push @{$response}, $header;
+    }
     for my $name ( sort keys %Tachikoma::Nodes ) {
         next if ( $list_matches and $glob ne q() and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
@@ -365,8 +386,8 @@ $C{list_nodes} = sub {
         }
         push @row, $node->{counter} if ($show_count);
         push @row, $name;
-        push @row, $sink ? "> $sink"  : q( ) if ($show_sink);
-        push @row, $edge ? ">> $edge" : q( ) if ($show_edge);
+        push @row, $sink ? "> $sink"  : q(- ) if ($show_sink);
+        push @row, $edge ? ">> $edge" : q(- ) if ($show_edge);
         if ($show_owner) {
             my $rv = $node->owner;
             if ( ref $rv eq 'ARRAY' ) {
@@ -376,7 +397,7 @@ $C{list_nodes} = sub {
                 $owner = $rv;
             }
         }
-        push @row, $owner ? "-> $owner" : q( ) if ($show_owner);
+        push @row, $owner ? "-> $owner" : q(- ) if ($show_owner);
         push @{$response}, \@row;
     }
     if ( $list_matches and $glob and $response eq q() ) {
@@ -2137,10 +2158,15 @@ $C{disable_profiling} = sub {
 $H{secure} = ["secure [ <level> ]\n"];
 
 $C{secure} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $num      = $command->arguments;
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $num       = $command->arguments;
+    my $responder = $Tachikoma::Nodes{_responder};
+    if ($responder) {
+        my $shell = $responder->shell;
+        $shell->{last_prompt} = 0 if ($shell);
+    }
     if ( length $num ) {
         if ( $num =~ m{\D} or $num < 1 ) {
             die "ERROR: invalid secure level\n";
@@ -2168,9 +2194,14 @@ $C{secure} = sub {
 };
 
 $C{insecure} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $responder = $Tachikoma::Nodes{_responder};
+    if ($responder) {
+        my $shell = $responder->shell;
+        $shell->{last_prompt} = 0 if ($shell);
+    }
     die "ERROR: process already secured\n"
         if ( defined $Secure_Level and $Secure_Level > 0 );
     $Secure_Level = -1;

@@ -140,7 +140,7 @@ sub fill {
     else {
         $self->stderr( $message->type_as_string, ' from ', $message->from );
     }
-    return scalar @{ $self->{batch} };
+    return;
 }
 
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)

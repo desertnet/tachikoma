@@ -10,7 +10,7 @@ package Tachikoma::Nodes::Bucket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
-use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -52,6 +52,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $base    = $self->{base};
+    return if ( $message->[TYPE] == TM_ERROR );
     my ( $time, $payload ) = split q( ), $message->[PAYLOAD], 2;
     return $self->stderr('ERROR: unexpected payload')
         if ( not $message->[TYPE] & TM_BYTESTREAM or not $time );

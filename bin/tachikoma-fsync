@@ -89,6 +89,7 @@ $tachikoma->callback(
         my $command = Tachikoma::Command->new( $message->payload );
         my $payload = $command->payload;
         chomp $payload;
+        $payload =~ s{^NAME\s+OWNER\n}{};
         $payload =~ s{^.*?-> }{};
         @targets = split m{,\s+}, $payload;
         return;

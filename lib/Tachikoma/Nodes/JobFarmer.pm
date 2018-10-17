@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35279 2018-10-16 10:39:46Z chris $
+# $Id: JobFarmer.pm 35293 2018-10-16 20:32:45Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -123,18 +123,19 @@ sub fill {
     }
     else {
         $self->{counter}++;
-        if (    $self->{autokill}
-            and $message->[TYPE] & TM_ERROR
+        if (    $message->[TYPE] == TM_ERROR
             and $message->[PAYLOAD] eq "NOT_AVAILABLE\n" )
         {
-            $self->job_controller->kill_job( $message->[TO] );
-            $self->fire;
+            if ( $self->{autokill} ) {
+                $self->job_controller->kill_job( $message->[TO] );
+                $self->fire;
+            }
         }
         else {
             $self->{load_balancer}->fill($message);
         }
     }
-    return 1;
+    return;
 }
 
 sub fire {

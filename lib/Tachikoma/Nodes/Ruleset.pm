@@ -45,7 +45,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self         = shift;
     my $message      = shift;
     my $message_type = $message->[TYPE];
-    my $response     = 0;
+    my $response     = undef;
     my $rules        = $self->{rules};
     my $message_from = $message->[FROM];
     my $message_to   = $message->[TO];

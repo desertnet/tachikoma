@@ -42,6 +42,7 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    return if ( $message->[TYPE] == TM_ERROR );
     if ( rand(100) >= $self->{probability} ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_ERROR;
