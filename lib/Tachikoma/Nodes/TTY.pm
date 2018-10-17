@@ -5,7 +5,7 @@
 #
 # Tachikoma::Nodes::STDIO plus Readline support
 #
-# $Id: TTY.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: TTY.pm 35327 2018-10-17 04:54:45Z chris $
 #
 
 package Tachikoma::Nodes::TTY;
@@ -97,7 +97,7 @@ sub resume {
             q(),
             sub {
                 my $buf = shift;
-                $self->prompt(q{});
+                $self->prompt(q());
                 if ( defined $buf ) {
                     $term->addhistory($buf) if ( $buf =~ /\S/ );
                     my $message = Tachikoma::Message->new;

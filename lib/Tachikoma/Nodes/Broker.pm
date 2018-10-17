@@ -1158,7 +1158,7 @@ sub apply_mapping {
             $node = Tachikoma::Nodes::ConsumerGroup->new;
             $node->name($group_name);
         }
-        $node->arguments(q{});
+        $node->arguments(q());
         $node->sink( $self->sink );
         for my $topic_name ( keys %{ $group->{topics} } ) {
             next if ( not $group->{topics}->{$topic_name} );
@@ -1187,7 +1187,7 @@ sub apply_mapping {
                 $node = Tachikoma::Nodes::Partition->new;
                 $node->name($log_name);
             }
-            $node->arguments(q{});
+            $node->arguments(q());
             $node->filename("$path/$topic_name/partition/$i");
             $node->num_segments( $topic->{num_segments} );
             $node->segment_size( $topic->{segment_size} );
@@ -1210,7 +1210,7 @@ sub apply_mapping {
                     $node = Tachikoma::Nodes::Partition->new;
                     $node->name($group_log);
                 }
-                $node->arguments(q{});
+                $node->arguments(q());
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
                 $node->num_segments( $topic->{num_segments} );
                 $node->segment_size( $caches->{$group_name} );

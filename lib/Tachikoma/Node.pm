@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Node.pm 35327 2018-10-17 04:54:45Z chris $
 #
 
 package Tachikoma::Node;
@@ -166,7 +166,7 @@ sub disconnect_node {
         @{ $node->owner } = @keep;
     }
     else {
-        $node->owner(q{});
+        $node->owner(q());
     }
     return 1;
 }

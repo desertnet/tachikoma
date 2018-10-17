@@ -34,7 +34,7 @@ sub verify_signature {
     my $challenge = $command->{payload};
     my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
     if ( not $id ) {
-        $self->stderr(q{ERROR: couldn't find ID});
+        $self->stderr(q(ERROR: couldn't find ID));
         return;
     }
     elsif ( $type eq 'server' ) {
@@ -66,7 +66,7 @@ sub verify_signature {
         return if ( not $self->verify_rsa( $signed, $id, $signature ) );
     }
     if ( ( $Tachikoma::Now // time ) - $message->[TIMESTAMP] > 300 ) {
-        $self->stderr(q{ERROR: message too old});
+        $self->stderr('ERROR: message too old');
         return;
     }
     return 1;

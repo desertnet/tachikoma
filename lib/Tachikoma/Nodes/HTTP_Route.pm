@@ -79,7 +79,7 @@ sub fill {
         unshift @new_path, pop @components;
     }
     $request->{path} = join q(/), q(), @new_path;
-    $destination ||= $paths->{q{/}};
+    $destination ||= $paths->{q(/)};
     $message->[TO] = $destination;
     $self->{counter}++;
     return $self->{sink}->fill($message);
