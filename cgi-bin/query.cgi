@@ -13,8 +13,7 @@ require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
 
-my $hosts = [ 'localhost' ];
-my $ports = [ 5401, 5402 ];
+my $hosts = [ 'localhost:5401', 'localhost:5402' ];
 my $cgi   = CGI->new;
 my $topic = $cgi->path_info;
 $topic =~ s(^/)();
@@ -31,7 +30,6 @@ CORE::state %engine;
 if ( not defined $engine{$topic} ) {
     $engine{$topic} = Tachikoma::Nodes::QueryEngine->new;
     $engine{$topic}->hosts($hosts);
-    $engine{$topic}->ports($ports);
     $engine{$topic}->topic($topic);
 }
 print $cgi->header(
