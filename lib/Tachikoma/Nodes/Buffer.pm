@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35277 2018-10-16 09:41:42Z chris $
+# $Id: Buffer.pm 35361 2018-10-17 10:32:33Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -262,8 +262,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                     if ($tied) {
                         undef $tied;
                         untie %{$tiedhash} or warn;
-                        unlink join q(/), $self->db_dir, $self->filename
-                            or warn;
+                        unlink $self->filename or warn;
                         $self->tiedhash(undef);
                     }
                     $self->{last_clear_time} = $Tachikoma::Now;
@@ -438,8 +437,7 @@ $C{remove_message} = sub {
     if ( $key eq q(*) ) {
         if ( $self->patron->filename ) {
             untie %{$tiedhash} or warn;
-            unlink join q(/), $self->patron->db_dir, $self->patron->filename
-                or warn;
+            unlink $self->patron->filename or warn;
         }
         $self->patron->msg_unanswered( {} );
         $self->patron->tiedhash(undef);

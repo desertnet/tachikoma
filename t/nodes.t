@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 2410;
+use Test::More tests => 2420;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR );
 
@@ -99,7 +99,7 @@ my %nodes = (
     'Tachikoma::Nodes::Atom'                  => q(/tmp /tmp),
     'Tachikoma::Nodes::Block'                 => q(),
     'Tachikoma::Nodes::Bucket'                => qq($t/bucket),
-    'Tachikoma::Nodes::Buffer'                => q(),
+    'Tachikoma::Nodes::Buffer'                => qq($t/buffer.db),
     'Tachikoma::Nodes::Broker'                => q(localhost:5501),
     'Tachikoma::Nodes::BufferMonitor'         => q(),
     'Tachikoma::Nodes::BufferProbe'           => q(1),
@@ -151,7 +151,7 @@ my %nodes = (
     'Tachikoma::Nodes::Partition'             => qq(--filename=$t/partition),
     'Tachikoma::Nodes::PidWatcher'            => q(),
     'Tachikoma::Nodes::QueryEngine'           => q(),
-    'Tachikoma::Nodes::Queue'                 => undef,
+    'Tachikoma::Nodes::Queue'                 => qq($t/queue.q),
     'Tachikoma::Nodes::RandomSieve'           => q(),
     'Tachikoma::Nodes::RateSieve'             => q(),
     'Tachikoma::Nodes::Reducer'               => q(),

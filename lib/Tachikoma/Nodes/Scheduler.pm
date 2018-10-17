@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Scheduler.pm 35361 2018-10-17 10:32:33Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -414,8 +414,8 @@ sub tiedhash {
         if ( $self->{filename} ) {
             ## no critic (ProhibitTies)
             my %h    = ();
-            my $path = join q(/), $self->db_dir, $self->{filename};
-            my $ext  = ( $path =~ m{[.](tcb|tch|db|hash)$} )[0] || 'db';
+            my $path = $self->filename;
+            my $ext  = ( $path =~ m{[.](db|hash)$} )[0] || 'db';
             $self->make_parent_dirs($path);
             if ( -e "${path}.clean" ) {
                 open my $fh, '<', "${path}.clean"
@@ -460,7 +460,7 @@ sub untie_hash {
     my $self = shift;
     untie %{ $self->{tiedhash} } if ( $self->{tiedhash} );
     if ( $self->{filename} ) {
-        my $path = join q(/), $self->db_dir, $self->{filename};
+        my $path = $self->filename;
         open my $fh, '>>', "${path}.clean"
             or $self->stderr("ERROR: couldn't open ${path}.clean: $!");
         print {$fh} $self->{buffer_size}, "\n"
@@ -474,10 +474,21 @@ sub untie_hash {
 
 sub filename {
     my $self = shift;
+    my $path = undef;
     if (@_) {
-        $self->{filename} = shift;
+        my $filename = shift;
+        $path = ( $filename =~ m{^(.*)$} )[0] if ($filename);
+        $self->{filename} = $path;
     }
-    return $self->{filename};
+    if ( $self->{filename} ) {
+        if ( $self->{filename} =~ m{^/} ) {
+            $path = $self->{filename};
+        }
+        else {
+            $path = join q(/), $self->db_dir, $self->{filename};
+        }
+    }
+    return $path;
 }
 
 sub db_dir {
