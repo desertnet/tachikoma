@@ -31,7 +31,7 @@ sub new {
     $self->{sort_by}   = '_distance';
     $self->{height}    = undef;
     $self->{width}     = undef;
-    $self->{threshold} = 1;
+    $self->{threshold} = 0;
     $self->{delay}     = $Default_Output_Interval;
     $self->{fields}    = {
         hostname       => { label => 'HOSTNAME',  size => '16',  pad => 0 },
