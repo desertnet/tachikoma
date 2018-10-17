@@ -25,6 +25,14 @@ my $size    = length($test);
 my $answer  = '';
 my $total   = 10;
 my $i       = $total;
+my $taint   = undef;
+{
+    local $/ = undef;
+    open my $fh, '<', '/dev/null';
+    $taint = <$fh>;
+    close $fh;
+}
+$test .= $taint;
 
 my $router = Tachikoma::Nodes::Router->new;
 $router->name('_router');
