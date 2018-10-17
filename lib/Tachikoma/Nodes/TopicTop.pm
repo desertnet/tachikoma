@@ -102,7 +102,7 @@ sub fire {
     my $consumers  = $self->{consumers};
     my $threshold  = $self->{threshold};
     my $sort       = $self->{sort_by};
-    my $reverse    = $sort =~ s(^-)()o;
+    my $reverse    = $sort =~ s{^-}{}o;
     my $sorted     = {};
     my $totals     = {};
     for my $id ( keys %{$partitions} ) {
@@ -148,7 +148,6 @@ OUTPUT:
             my $consumer = $sorted->{$key}->{$id};
             next
                 if ($sort eq '_distance'
-                and $threshold
                 and $key < $threshold
                 and $consumer->{age} < $Topic_Timeout );
             $color = q();
@@ -279,7 +278,7 @@ sub calculate_row {
     }
 
     # calculate distance
-    $row->{_distance} = $row->{p_offset} - $row->{c_offset};
+    $row->{_distance} = abs $row->{p_offset} - $row->{c_offset};
 
     # outgoing rates
     my $span = $row->{timestamp} - $row->{last_send};
@@ -334,7 +333,7 @@ sub sort_rows {
     my $where     = $self->{where};
     my $where_not = $self->{where_not};
     my $total     = 0;
-    $sort =~ s(^-)()o;
+    $sort =~ s{^-}{};
 COLLECT: for my $id ( keys %{$consumers} ) {
         my $consumer = $consumers->{$id};
         $consumer->{lag} = sprintf '%.1f',
