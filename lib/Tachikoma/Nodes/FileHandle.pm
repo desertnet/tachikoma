@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35367 2018-10-17 21:17:38Z chris $
+# $Id: FileHandle.pm 35372 2018-10-18 05:15:40Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -200,7 +200,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[PAYLOAD] = ${ $_[1] };
     push @{ $_[0]->{output_buffer} }, $message->packed;
-    $_[0]->register_writer_node;
+    $_[0]->register_writer_node if ( not $_[0]->{flags} & TK_W );
 }
 
 sub fill_buffer {

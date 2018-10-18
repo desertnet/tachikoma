@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35351 2018-10-17 08:11:13Z chris $
+# $Id: STDIO.pm 35372 2018-10-18 05:15:40Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -290,7 +290,7 @@ sub fill {
 
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     push @{ $_[0]->{output_buffer} }, $_[1];
-    $_[0]->register_writer_node;
+    $_[0]->register_writer_node if ( not $_[0]->{flags} & TK_W );
 }
 
 sub fill_buffer {
