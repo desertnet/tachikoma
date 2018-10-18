@@ -254,7 +254,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                 and not $self->get_buffer_size )
             {
                 $dbh->disconnect;
-                unlink join q(/), $self->db_dir, $self->filename or warn;
+                unlink $self->filename or warn;
                 $self->dbh(undef);
                 $self->{last_clear_time} = $Tachikoma::Now;
                 $is_empty = 'true';
@@ -441,8 +441,7 @@ $C{remove_message} = sub {
     my $key      = $command->arguments;
     if ( $key eq q(*) ) {
         $dbh->disconnect;
-        unlink join q(/), $self->patron->db_dir, $self->patron->filename
-            or warn;
+        unlink $self->patron->filename or warn;
         $self->patron->msg_unanswered( {} );
         $self->patron->buffer_size(undef);
         $self->patron->dbh(undef);
@@ -575,7 +574,7 @@ sub dbh {
     }
     if ( not defined $self->{dbh} ) {
         $self->make_dirs( $self->db_dir );
-        my $path = join q(/), $self->db_dir, $self->filename;
+        my $path = $self->filename;
         if ( -e "${path}.clean" ) {
             unlink "${path}.clean" or warn;
         }
@@ -610,7 +609,7 @@ EOF
 sub close_db {
     my $self = shift;
     $self->{dbh}->disconnect if ( $self->{dbh} );
-    my $path = join q(/), $self->db_dir, $self->{filename};
+    my $path = $self->filename;
     open my $fh, '>>', "${path}.clean" or warn;
     close $fh or warn;
     $self->buffer_size(undef);

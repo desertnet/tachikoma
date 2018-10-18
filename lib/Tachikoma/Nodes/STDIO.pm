@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: STDIO.pm 35372 2018-10-18 05:15:40Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -247,7 +247,6 @@ sub fill {
     my $message        = shift;
     my $max_unanswered = $self->{max_unanswered};
     my $type           = $message->[TYPE];
-    my $rv             = undef;
     if ( $type & TM_PERSIST and $type & TM_RESPONSE ) {
         my $msg_unanswered = $self->{msg_unanswered};
         return $self->stderr( 'WARNING: unexpected response from ',
@@ -284,14 +283,14 @@ sub fill {
         }
     }
     else {
-        $rv = $self->SUPER::fill($message);
+        $self->SUPER::fill($message);
     }
-    return $rv;
+    return;
 }
 
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     push @{ $_[0]->{output_buffer} }, $_[1];
-    $_[0]->register_writer_node;
+    $_[0]->register_writer_node if ( not $_[0]->{flags} & TK_W );
 }
 
 sub fill_buffer {
@@ -309,7 +308,7 @@ sub fill_buffer {
     $self->{last_fill} ||= $Tachikoma::Now
         if ( defined $self->{last_fill} );
     $self->register_writer_node if ( not $self->{flags} & TK_W );
-    return scalar @{$buffer};
+    return;
 }
 
 sub fill_fh_sync {
@@ -332,7 +331,7 @@ sub fill_fh_sync {
         if ( $packed_size > $self->{largest_msg_sent} );
     $self->{bytes_written} += $wrote;
     $self->cancel($message) if ( $message->[TYPE] & TM_PERSIST );
-    return $wrote;
+    return;
 }
 
 sub fill_fh {

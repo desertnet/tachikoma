@@ -31,7 +31,7 @@ sub new {
     $self->{sort_by}   = '_distance';
     $self->{height}    = undef;
     $self->{width}     = undef;
-    $self->{threshold} = 1;
+    $self->{threshold} = 0;
     $self->{delay}     = $Default_Output_Interval;
     $self->{fields}    = {
         hostname       => { label => 'HOSTNAME',  size => '16',  pad => 0 },
@@ -102,6 +102,7 @@ sub fire {
     my $consumers  = $self->{consumers};
     my $threshold  = $self->{threshold};
     my $sort       = $self->{sort_by};
+    my $reverse    = $sort =~ s{^-}{}o;
     my $sorted     = {};
     my $totals     = {};
     for my $id ( keys %{$partitions} ) {
@@ -139,7 +140,9 @@ sub fire {
         @{$selected}
         ),
         $self->{header};
-OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
+OUTPUT:
+
+    for my $key ( sort { smart_sort( $a, $b, $reverse ) } keys %{$sorted} ) {
 
         for my $id ( sort keys %{ $sorted->{$key} } ) {
             my $consumer = $sorted->{$key}->{$id};
@@ -195,20 +198,20 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
 
 sub human {
     my $value = shift // 0;
-    return $value if ( $value !~ m{^[\d.]+$} );
-    if ( $value >= 1000 * 1024**4 ) {
+    return $value if ( $value !~ m{^-?[\d.]+$} );
+    if ( abs($value) >= 1000 * 1024**4 ) {
         $value = sprintf '%0.2fP', $value / 1024**4;
     }
-    elsif ( $value >= 1000 * 1024**3 ) {
+    elsif ( abs($value) >= 1000 * 1024**3 ) {
         $value = sprintf '%0.2fT', $value / 1024**4;
     }
-    elsif ( $value >= 1000 * 1024**2 ) {
+    elsif ( abs($value) >= 1000 * 1024**2 ) {
         $value = sprintf '%0.2fG', $value / 1024**3;
     }
-    elsif ( $value >= 1000 * 1024 ) {
+    elsif ( abs($value) >= 1000 * 1024 ) {
         $value = sprintf '%0.2fM', $value / 1024**2;
     }
-    elsif ( $value >= 1000 ) {
+    elsif ( abs($value) >= 1000 ) {
         $value = sprintf '%0.2fK', $value / 1024;
     }
     else {
@@ -256,8 +259,6 @@ sub calculate_row {
     my $partition = $self->{partitions}->{ $row->{partition} };
     $row->{p_offset} = $partition->{p_offset} if ($partition);
     $row->{p_offset} //= 0;
-    $row->{c_offset} = $row->{p_offset}
-        if ( $row->{c_offset} > $row->{p_offset} );
     $row->{_recv_rate} = $partition->{_recv_rate} if ($partition);
     $row->{_recv_rate} //= 0;
 
@@ -277,7 +278,7 @@ sub calculate_row {
     }
 
     # calculate distance
-    $row->{_distance} = $row->{p_offset} - $row->{c_offset};
+    $row->{_distance} = abs $row->{p_offset} - $row->{c_offset};
 
     # outgoing rates
     my $span = $row->{timestamp} - $row->{last_send};
@@ -332,6 +333,7 @@ sub sort_rows {
     my $where     = $self->{where};
     my $where_not = $self->{where_not};
     my $total     = 0;
+    $sort =~ s{^-}{};
 COLLECT: for my $id ( keys %{$consumers} ) {
         my $consumer = $consumers->{$id};
         $consumer->{lag} = sprintf '%.1f',

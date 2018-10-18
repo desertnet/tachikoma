@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -T
 # ----------------------------------------------------------------------
 # tachikoma socket tests
 # ----------------------------------------------------------------------
@@ -21,10 +21,18 @@ Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 my $address = '127.0.0.1';
 my $port    = '9197';
 my $test    = "foo\n";
-my $size    = length($test);
+my $size    = length $test;
 my $answer  = '';
 my $total   = 10;
 my $i       = $total;
+my $taint   = undef;
+{
+    local $/ = undef;
+    open my $fh, '<', '/dev/null';
+    $taint = <$fh>;
+    close $fh;
+}
+$test .= $taint;
 
 my $router = Tachikoma::Nodes::Router->new;
 $router->name('_router');

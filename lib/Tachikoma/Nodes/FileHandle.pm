@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: FileHandle.pm 35372 2018-10-18 05:15:40Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -200,7 +200,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[PAYLOAD] = ${ $_[1] };
     push @{ $_[0]->{output_buffer} }, $message->packed;
-    $_[0]->register_writer_node;
+    $_[0]->register_writer_node if ( not $_[0]->{flags} & TK_W );
 }
 
 sub fill_buffer {
@@ -215,7 +215,7 @@ sub fill_buffer {
     $self->{largest_msg_sent} = $packed_size
         if ( $packed_size > $self->{largest_msg_sent} );
     $self->register_writer_node if ( not $self->{flags} & TK_W );
-    return $buffer_size;
+    return;
 }
 
 sub fill_fh_sync {
@@ -231,7 +231,7 @@ sub fill_fh_sync {
     $self->{largest_msg_sent} = $packed_size
         if ( $packed_size > $self->{largest_msg_sent} );
     $self->{bytes_written} += $wrote;
-    return $wrote;
+    return;
 }
 
 sub fill_fh {
@@ -324,7 +324,8 @@ sub close_filehandle {
         if ($self->{fh}
         and fileno $self->{fh}
         and not close $self->{fh}
-        and $! ne 'Connection reset by peer' );
+        and $! ne 'Connection reset by peer'
+        and $! ne 'Broken pipe' );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );
 
     if ( $self->{type} ne 'regular_file' ) {

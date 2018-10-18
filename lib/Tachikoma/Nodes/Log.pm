@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35281 2018-10-16 11:09:07Z chris $
+# $Id: Log.pm 35353 2018-10-17 08:17:26Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_SYNC );
 use Tachikoma::Nodes::STDIO;
-use Tachikoma::Message qw( TYPE FROM STREAM PAYLOAD TM_INFO TM_EOF );
+use Tachikoma::Message qw( TYPE FROM STREAM PAYLOAD TM_INFO TM_EOF TM_ERROR );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::FileHandle );
 
@@ -43,13 +43,15 @@ sub arguments {
         my $arguments = shift;
         my ( $filename, $mode, $max_size ) = split q( ), $arguments, 3;
         die "ERROR: bad arguments for Log\n" if ( not $filename );
+        my $path = ( $filename =~ m{^(/.*)$} )[0];
+        die "ERROR: invalid path: $filename\n" if ( not defined $path );
         $mode ||= 'append';
         my $fh;
         $self->close_filehandle if ( $self->{fh} );
-        open $fh, $mode eq 'append' ? '>>' : '>', $filename
-            or die "couldn't open $filename: $!";
+        open $fh, $mode eq 'append' ? '>>' : '>', $path
+            or die "couldn't open $path: $!";
         $self->{arguments} = $arguments;
-        $self->{filename}  = $filename;
+        $self->{filename}  = $path;
         $self->{mode}      = $mode;
         $self->{max_size}  = $max_size;
         $self->{size}      = tell($fh) || 0;
@@ -62,6 +64,7 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    return if ( $message->[TYPE] == TM_ERROR );
     if ( $message->[TYPE] & TM_EOF ) {
         $self->remove_node if ( $self->{mode} ne 'append' );
         return;

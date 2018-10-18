@@ -46,7 +46,7 @@ my $r = GetOptions(
     'help'        => \$help,
 );
 usage() if ( $help or not $r );
-$threshold //= 1;
+$threshold //= 0;
 
 if ( not $select_fields ) {
     $select_fields = join q(,), qw(

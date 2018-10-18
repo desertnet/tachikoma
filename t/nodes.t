@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -T
 # ----------------------------------------------------------------------
 # tachikoma node tests
 # ----------------------------------------------------------------------
@@ -7,9 +7,17 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 1206;
+use Test::More tests => 2420;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR );
+
+my $taint = undef;
+{
+    local $/ = undef;
+    open my $fh, '<', '/dev/null';
+    $taint = <$fh>;
+    close $fh;
+}
 
 sub test_construction {
     my $class = shift;
@@ -47,6 +55,7 @@ sub test_node {
     is( $node->name,              $name, "$class->name is set correctly" );
     is( $Tachikoma::Nodes{$name}, $node, "$class->name is ok" );
     if ( defined $test_args ) {
+        $test_args .= $taint;
         is( $node->arguments($test_args),
             $test_args, "$class->arguments can be set" );
         is( $node->arguments, $test_args,
@@ -67,7 +76,7 @@ sub test_node {
         my $message = Tachikoma::Message->new;
         $message->type(TM_ERROR);
         $message->from($class);
-        $message->payload("NOT_AVAILABLE\n");
+        $message->payload( "NOT_AVAILABLE\n" . $taint );
         is( $node->fill($message), undef, "$class->fill returns undef" );
     }
     is( $node->remove_node, undef, "$class->remove_node returns undef" );
@@ -78,6 +87,7 @@ sub test_node {
     return;
 }
 
+my $t     = "/tmp/tachikoma.test.$$";
 my %nodes = (
     'Tachikoma::Node'                         => undef,
     'Tachikoma::Nodes::Router'                => undef,
@@ -88,8 +98,8 @@ my %nodes = (
     'Tachikoma::Nodes::AgeSieve'              => q(),
     'Tachikoma::Nodes::Atom'                  => q(/tmp /tmp),
     'Tachikoma::Nodes::Block'                 => q(),
-    'Tachikoma::Nodes::Bucket'                => q(/tmp),
-    'Tachikoma::Nodes::Buffer'                => q(),
+    'Tachikoma::Nodes::Bucket'                => qq($t/bucket),
+    'Tachikoma::Nodes::Buffer'                => qq($t/buffer.db),
     'Tachikoma::Nodes::Broker'                => q(localhost:5501),
     'Tachikoma::Nodes::BufferMonitor'         => q(),
     'Tachikoma::Nodes::BufferProbe'           => q(1),
@@ -131,17 +141,17 @@ my %nodes = (
     'Tachikoma::Nodes::List'                  => q(),
     'Tachikoma::Nodes::LoadBalancer'          => q(),
     'Tachikoma::Nodes::LoadController'        => q(),
-    'Tachikoma::Nodes::Log'                   => undef,
+    'Tachikoma::Nodes::Log'                   => qq($t/log),
     'Tachikoma::Nodes::LogPrefix'             => q(),
     'Tachikoma::Nodes::Lookup'                => q(),
     'Tachikoma::Nodes::LWP'                   => q(),
     'Tachikoma::Nodes::MemorySieve'           => q(),
     'Tachikoma::Nodes::Null'                  => q(),
     'Tachikoma::Nodes::Number'                => q(),
-    'Tachikoma::Nodes::Partition'             => q(),
+    'Tachikoma::Nodes::Partition'             => qq(--filename=$t/partition),
     'Tachikoma::Nodes::PidWatcher'            => q(),
     'Tachikoma::Nodes::QueryEngine'           => q(),
-    'Tachikoma::Nodes::Queue'                 => undef,
+    'Tachikoma::Nodes::Queue'                 => qq($t/queue.q),
     'Tachikoma::Nodes::RandomSieve'           => q(),
     'Tachikoma::Nodes::RateSieve'             => q(),
     'Tachikoma::Nodes::Reducer'               => q(),
@@ -149,7 +159,7 @@ my %nodes = (
     'Tachikoma::Nodes::Responder'             => q(),
     'Tachikoma::Nodes::Rewrite'               => q(),
     'Tachikoma::Nodes::Ruleset'               => q(),
-    'Tachikoma::Nodes::Scheduler'             => q(),
+    'Tachikoma::Nodes::Scheduler'             => qq($t/scheduler.db),
     'Tachikoma::Nodes::SetStream'             => q(),
     'Tachikoma::Nodes::SetType'               => q(),
     'Tachikoma::Nodes::Shutdown'              => q(),
@@ -193,3 +203,8 @@ my %nodes = (
 for my $class ( sort keys %nodes ) {
     test_node( test_construction($class), $nodes{$class} );
 }
+for my $class ( sort keys %nodes ) {
+    test_node( test_construction($class), $nodes{$class} );
+}
+local %ENV = ();
+system '/bin/rm', '-rf', $t;

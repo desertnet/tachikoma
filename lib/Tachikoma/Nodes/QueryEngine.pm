@@ -219,30 +219,28 @@ sub query {
 sub send_request {
     my ( $self, $request, $responses ) = @_;
     $self->{connector} ||= {};
-    for my $host ( @{ $self->{hosts} } ) {
-        for my $port ( @{ $self->{ports} } ) {
-            my $host_port = join q(:), $host, $port;
-            my $tachikoma = $self->{connector}->{$host_port};
-            if ( not $tachikoma ) {
-                $tachikoma =
-                    eval { return Tachikoma->inet_client( $host, $port ) };
-                next if ( not $tachikoma );
-                $self->{connector}->{$host_port} = $tachikoma;
-            }
-            $tachikoma->callback(
-                sub {
-                    my $message = shift;
-                    if ( $message->type & TM_STORABLE ) {
-                        $responses->{$host_port} = $message->payload;
-                    }
-                    else {
-                        die 'ERROR: query failed';
-                    }
-                    return;
-                }
-            );
-            $tachikoma->fill($request);
+    for my $host_port ( @{ $self->{hosts} } ) {
+        my ( $host, $port ) = split m{:}, $host_port;
+        my $tachikoma = $self->{connector}->{$host_port};
+        if ( not $tachikoma ) {
+            $tachikoma =
+                eval { return Tachikoma->inet_client( $host, $port ) };
+            next if ( not $tachikoma );
+            $self->{connector}->{$host_port} = $tachikoma;
         }
+        $tachikoma->callback(
+            sub {
+                my $message = shift;
+                if ( $message->type & TM_STORABLE ) {
+                    $responses->{$host_port} = $message->payload;
+                }
+                else {
+                    die 'ERROR: query failed';
+                }
+                return;
+            }
+        );
+        $tachikoma->fill($request);
     }
     return;
 }
@@ -288,23 +286,6 @@ sub host {
         $self->{hosts} = [ $self->{host} ];
     }
     return $self->{host};
-}
-
-sub ports {
-    my $self = shift;
-    if (@_) {
-        $self->{ports} = shift;
-    }
-    return $self->{ports};
-}
-
-sub port {
-    my $self = shift;
-    if (@_) {
-        $self->{port}  = shift;
-        $self->{ports} = [ $self->{port} ];
-    }
-    return $self->{port};
 }
 
 sub results {

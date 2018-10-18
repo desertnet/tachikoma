@@ -53,11 +53,13 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments = shift;
-        my ( $filename, $leader );
+        my $arguments        = shift;
+        my $filename         = undef;
+        my $path             = undef;
         my $num_segments     = $Default_Num_Segments;
         my $segment_size     = $Default_Segment_Size;
         my $segment_lifespan = $Default_Segment_Lifespan;
+        my $leader           = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'filename=s'         => \$filename,
@@ -66,10 +68,15 @@ sub arguments {
             'segment_lifespan=i' => \$segment_lifespan,
             'leader=s'           => \$leader,
         );
-        $filename //= shift @{$argv};
         die "ERROR: bad arguments for Partition\n" if ( not $r );
+        $filename //= shift @{$argv};
+
+        if ($filename) {
+            $path = ( $filename =~ m{^(/.*)$} )[0];
+            die "ERROR: invalid path: $filename\n" if ( not defined $path );
+        }
         $self->{arguments}        = $arguments;
-        $self->{filename}         = $filename;
+        $self->{filename}         = $path;
         $self->{num_segments}     = $num_segments;
         $self->{segment_size}     = $segment_size;
         $self->{segment_lifespan} = $segment_lifespan;
@@ -701,7 +708,8 @@ sub open_segments {
     opendir $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @unsorted = ();
 
-    for my $file ( readdir $dh ) {
+    for my $readdir_file ( readdir $dh ) {
+        my $file = ( $readdir_file =~ m{^(.*)$} )[0];
         $file =~ m{^(\d+)[.]log$} or next;
         my $offset = $1;
         if ( $offset > $last_commit_offset ) {

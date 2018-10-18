@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 35313 2018-10-17 01:23:59Z chris $
+# $Id: Dumper.pm 35369 2018-10-18 02:21:03Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -75,8 +75,8 @@ sub fill {
     $self->add_style( $message, $use_readline )
         if ( $message->[TYPE] & TM_BYTESTREAM );
     $self->SUPER::fill($message);
-    $self->update_prompt($message)
-        if ($use_readline);
+    $self->update_prompt( $message, $use_readline )
+        if ( $message->[TYPE] & TM_BYTESTREAM );
     return;
 }
 
@@ -210,8 +210,10 @@ sub add_style {
 }
 
 sub update_prompt {
-    my $self    = shift;
-    my $message = shift;
+    my $self         = shift;
+    my $message      = shift;
+    my $use_readline = shift;
+    return if ( not $use_readline );
     if ( not length $message->[PAYLOAD] or $message->[PAYLOAD] =~ m{\n$} ) {
         $self->{newline} = 1;
         $self->{stdin}->prompt;
