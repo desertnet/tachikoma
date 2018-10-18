@@ -27,20 +27,20 @@ while ( $buf_size <= 1048576 ) {
 sub check_pack {
     my $message = shift;
     my $size    = shift;
-    my $sent    = 0;
+    my $check   = 0;
     my $count   = 0;
     my $then    = time;
     while (1) {
         $message->packed;
         my $span = time - $then;
         $count++;
-        if ( $sent++ >= $total ) {
+        if ( $check++ >= $total ) {
             my $span = time - $then;
             if ( $span >= $delay ) {
                 report( 'pack', $count, $size, $span );
                 last;
             }
-            $sent = 0;
+            $check = 0;
         }
     }
 }
@@ -48,20 +48,20 @@ sub check_pack {
 sub check_unpack {
     my $packed = shift;
     my $size   = shift;
-    my $sent   = 0;
+    my $check  = 0;
     my $count  = 0;
     my $then   = time;
     while (1) {
         Tachikoma::Message->new($packed);
         my $span = time - $then;
         $count++;
-        if ( $sent++ >= $total ) {
+        if ( $check++ >= $total ) {
             my $span = time - $then;
             if ( $span >= $delay ) {
                 report( 'unpack', $count, $size, $span );
                 last;
             }
-            $sent = 0;
+            $check = 0;
         }
     }
 }
