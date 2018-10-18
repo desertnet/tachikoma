@@ -1,0 +1,76 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw( TM_BYTESTREAM TM_EOF );
+use Time::HiRes qw( time );
+require '/usr/local/etc/tachikoma.conf';
+
+my (@sizes)  = @ARGV;
+my $total    = 10000;
+my $buf_size = 64;
+my $delay    = 1;
+
+while ( $buf_size <= 1048576 ) {
+    my $buf = "\0" x ( $buf_size - 20 );
+    my $message = Tachikoma::Message->new;
+    $message->type(TM_BYTESTREAM);
+    $message->payload($buf);
+    my $packed = $message->packed;
+    my $size   = length ${$packed};
+    print "\nsize: $size\n";
+    check_pack( $message, $size );
+    check_unpack( $packed, $size );
+    $buf_size *= 2;
+}
+
+sub check_pack {
+    my $message = shift;
+    my $size    = shift;
+    my $sent    = 0;
+    my $count   = 0;
+    my $then    = time;
+    while (1) {
+        $message->packed;
+        my $span = time - $then;
+        $count++;
+        if ( $sent++ >= $total ) {
+            my $span = time - $then;
+            if ( $span >= $delay ) {
+                report( 'pack', $count, $size, $span );
+                last;
+            }
+            $sent = 0;
+        }
+    }
+}
+
+sub check_unpack {
+    my $packed = shift;
+    my $size   = shift;
+    my $sent   = 0;
+    my $count  = 0;
+    my $then   = time;
+    while (1) {
+        Tachikoma::Message->new($packed);
+        my $span = time - $then;
+        $count++;
+        if ( $sent++ >= $total ) {
+            my $span = time - $then;
+            if ( $span >= $delay ) {
+                report( 'unpack', $count, $size, $span );
+                last;
+            }
+            $sent = 0;
+        }
+    }
+}
+
+sub report {
+    my ( $type, $count, $size, $span ) = @_;
+    printf
+        "%6s %.2f MB per second - %.2f messages per second\n",
+        $type,
+        $count * $size / 1024 / 1024 / $span,
+        $count / $span;
+}

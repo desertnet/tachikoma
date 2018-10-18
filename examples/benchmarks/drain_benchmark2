@@ -24,12 +24,11 @@ connect( $socket, pack_sockaddr_in( $port, $iaddr ) )
 while (1) {
     $size += sysread( $socket, $buf, 65536 );
     if ( $recv++ >= 10000 ) {
-        my $now  = time;
-        my $span = $now - $then;
+        my $span = time - $then;
         if ( $span >= $delay ) {
             printf( "%.2f MB per second\n", $size / 1024 / 1024 / $span );
             $size = 0;
-            $then = $now;
+            $then = time;
         }
         $recv = 0;
     }

@@ -21,8 +21,7 @@ $tachikoma->callback(
         my $message = shift;
         $count++;
         if ( $recv++ >= 10000 ) {
-            my $now  = time;
-            my $span = $now - $then;
+            my $span = time - $then;
             if ( $span >= $delay ) {
                 if ( not $size ) {
                     $size = $message->size;
@@ -33,7 +32,7 @@ $tachikoma->callback(
                     $count * $size / 1024 / 1024 / $span,
                     $count / $span;
                 $count = 0;
-                $then  = $now;
+                $then  = time;
             }
             $recv = 0;
         }
