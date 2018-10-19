@@ -347,22 +347,22 @@ sub get_partitions {
         or time - $self->{last_check} > $Check_Interval )
     {
         my $partitions = undef;
-        if ( $self->{group} ) {
+        if ( $self->group ) {
             $partitions = $self->request_partitions;
         }
         else {
             $partitions = $self->broker->get_mapping;
         }
-        for my $partition_id ( keys %{ $self->{consumers} } ) {
+        for my $partition_id ( keys %{ $self->consumers } ) {
             $self->remove_consumer($partition_id)
                 if ( not $partitions
                 or not $partitions->{$partition_id}
                 or $self->{consumers}->{$partition_id}->{broker_id} ne
                 $partitions->{$partition_id} );
         }
-        $self->{last_check} = time;
-        $self->{partitions} = $partitions;
-        $self->{sync_error} = undef if ($partitions);
+        $self->last_check(time);
+        $self->partitions($partitions);
+        $self->sync_error(undef) if ($partitions);
     }
     return $self->{partitions};
 }
@@ -375,7 +375,7 @@ sub request_partitions {
     my $request_payload = "GET_PARTITIONS $self->{topic}\n";
     my $request         = Tachikoma::Message->new;
     $request->[TYPE]    = TM_INFO;
-    $request->[TO]      = $self->{group};
+    $request->[TO]      = $self->group;
     $request->[PAYLOAD] = $request_payload;
     $target->callback(
         sub {
@@ -384,12 +384,12 @@ sub request_partitions {
                 $partitions = $response->payload;
             }
             elsif ( $response->[PAYLOAD] eq "NOT_LEADER\n" ) {
-                $self->{leader} = undef;
+                $self->leader(undef);
             }
             elsif ( $response->[PAYLOAD] ) {
                 my $error = $response->[PAYLOAD];
                 chomp $error;
-                $self->{sync_error} = "REQUEST_PARTITIONS: $error\n";
+                $self->sync_error("REQUEST_PARTITIONS: $error\n");
             }
             else {
                 die $response->type_as_string . "\n";
@@ -406,7 +406,7 @@ sub request_partitions {
         my $error = $@ || 'lost connection';
         $self->remove_consumers;
         chomp $error;
-        $self->{sync_error} = "REQUEST_PARTITIONS: $error\n";
+        $self->sync_error("REQUEST_PARTITIONS: $error\n");
         $partitions = undef;
     }
     return $partitions;
@@ -417,13 +417,13 @@ sub get_leader {
     if ( not $self->{leader} ) {
         my $broker_ids = $self->broker_ids;
         my $leader     = undef;
-        die "ERROR: no group specified\n" if ( not $self->{group} );
+        die "ERROR: no group specified\n" if ( not $self->group );
         for my $name ( keys %{$broker_ids} ) {
             $leader = $self->request_leader($name);
             last if ($leader);
         }
-        $self->{leader} = $leader;
-        $self->{sync_error} = undef if ($leader);
+        $self->leader($leader);
+        $self->sync_error(undef) if ($leader);
     }
     return $self->{leader};
 }
@@ -463,7 +463,7 @@ sub request_leader {
         my $error = $@ || 'lost connection';
         $self->remove_consumers;
         chomp $error;
-        $self->{sync_error} = "REQUEST_LEADER: $error\n";
+        $self->sync_error("REQUEST_LEADER: $error\n");
         $leader = undef;
     }
     return $leader;
@@ -477,7 +477,7 @@ sub get_controller {
 sub get_group_cache {
     my $self   = shift;
     my $caches = {};
-    die "ERROR: no group\n" if ( not $self->{group} );
+    die "ERROR: no group\n" if ( not $self->group );
     my $mapping = $self->broker->get_mapping( $self->topic );
     $self->make_sync_consumers($mapping)
         if ( not keys %{ $self->consumers } );
@@ -493,22 +493,22 @@ sub get_cache {
     my $self   = shift;
     my $i      = shift;
     my $caches = {};
-    die "ERROR: no group\n" if ( not $self->{group} );
+    die "ERROR: no group\n" if ( not $self->group );
     my $partitions = $self->broker->get_mapping( $self->topic );
     my $mapping    = { $i => $partitions->{$i} };
-    my $consumer   = $self->{consumers}->{$i}
+    my $consumer   = $self->consumers->{$i}
         || $self->make_sync_consumer($i);
     die "ERROR: couldn't get consumer for group\n"
         if ( not $consumer );
     $consumer->get_offset;
-    $self->{sync_error} ||= $@;
+    $self->sync_error($@) if ( not $self->sync_error );
     return $consumer->cache;
 }
 
 sub get_offset {
     my $self = shift;
-    for my $partition_id ( keys %{ $self->{consumers} } ) {
-        my $consumer = $self->{consumers}->{$partition_id};
+    for my $partition_id ( keys %{ $self->consumers } ) {
+        my $consumer = $self->consumers->{$partition_id};
         $consumer->get_offset;
         if ( $consumer->sync_error ) {
             $self->sync_error( $consumer->sync_error );
@@ -521,8 +521,8 @@ sub get_offset {
 
 sub commit_offset {
     my $self = shift;
-    for my $partition_id ( keys %{ $self->{consumers} } ) {
-        my $consumer = $self->{consumers}->{$partition_id};
+    for my $partition_id ( keys %{ $self->consumers } ) {
+        my $consumer = $self->consumers->{$partition_id};
         $consumer->commit_offset;
         if ( $consumer->sync_error ) {
             $self->sync_error( $consumer->sync_error );
@@ -558,27 +558,27 @@ sub make_sync_consumer {
     die "ERROR: no partition id\n" if ( not defined $partition_id );
     my $partitions = $self->get_partitions;
     my $broker_id  = $partitions->{$partition_id} or return;
-    my $log        = join q(:), $self->{topic}, 'partition', $partition_id;
+    my $log        = join q(:), $self->topic, 'partition', $partition_id;
     my $consumer   = Tachikoma::Nodes::Consumer->new($log);
     $consumer->broker_id($broker_id);
     $consumer->partition_id($partition_id);
     $consumer->target( $self->get_target($broker_id) );
 
-    if ( $self->{group} ) {
-        if ( $self->{cache_dir} ) {
-            $consumer->cache_dir( $self->{cache_dir} );
+    if ( $self->group ) {
+        if ( $self->cache_dir ) {
+            $consumer->cache_dir( $self->cache_dir );
         }
-        elsif ( $self->{auto_offset} ) {
-            my $offsets = join q(:), $log, $self->{group};
+        elsif ( $self->auto_offset ) {
+            my $offsets = join q(:), $log, $self->group;
             $consumer->offsetlog($offsets);
         }
-        $consumer->group( $self->{group} );
-        $consumer->auto_commit( $self->{auto_commit} );
+        $consumer->group( $self->group );
+        $consumer->auto_commit( $self->auto_commit );
     }
-    $consumer->default_offset( $self->{default_offset} );
+    $consumer->default_offset( $self->default_offset );
     $consumer->poll_interval(undef);
     $consumer->hub_timeout( $self->hub_timeout );
-    $self->{consumers}->{$partition_id} = $consumer;
+    $self->consumers->{$partition_id} = $consumer;
     return $consumer;
 }
 
@@ -588,7 +588,7 @@ sub disconnect {
     my $target  = $self->get_target($leader) or return;
     my $request = Tachikoma::Message->new;
     $request->[TYPE]    = TM_INFO;
-    $request->[TO]      = $self->{group};
+    $request->[TO]      = $self->group;
     $request->[PAYLOAD] = "DISCONNECT\n";
     $target->fill($request);
     $self->remove_consumers;
@@ -602,8 +602,8 @@ sub get_target {
 
 sub remove_consumers {
     my $self = shift;
-    $self->{leader}     = undef;
-    $self->{partitions} = undef;
+    $self->leader(undef);
+    $self->partitions(undef);
     for my $partition_id ( keys %{ $self->consumers } ) {
         $self->remove_consumer($partition_id);
     }

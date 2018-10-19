@@ -207,7 +207,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->set_timer(0) if ( $self->{timer_interval} );
             }
             elsif ( $self->{status} eq 'OFFSET' ) {
-                $self->{status} = 'ACTIVE';
+                $self->{status}      = 'ACTIVE';
+                $self->{last_commit} = $Tachikoma::Now;
                 $self->stderr( 'INFO: starting from ',
                     $self->{saved_offset} // $self->{default_offset} );
                 $self->next_offset( $self->{saved_offset} );
@@ -296,7 +297,6 @@ sub drain_buffer {
                 $self->print_less_often( 'WARNING: unexpected ',
                     $message->type_as_string, ' in cache' );
             }
-            $self->{last_commit} = $Tachikoma::Now;
         }
         else {
             $message->[FROM] =
@@ -550,12 +550,12 @@ sub get_offset {
     my $stored = undef;
     $self->cache(undef);
     if ( $self->cache_dir ) {
-        die "ERROR: no group specified\n" if ( not $self->{group} );
-        my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q(), $self->{cache_dir}, q(/), $name, q(.db);
-        $stored         = retrieve($file);
-        $self->{offset} = $stored->{offset};
-        $self->{cache}  = $stored->{cache};
+        die "ERROR: no group specified\n" if ( not $self->group );
+        my $name = join q(:), $self->partition, $self->group;
+        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
+        $stored = retrieve($file);
+        $self->offset( $stored->{offset} );
+        $self->cache( $stored->{cache} );
     }
     elsif ( $self->offsetlog ) {
         my $consumer = Tachikoma::Nodes::Consumer->new( $self->offsetlog );
@@ -567,11 +567,11 @@ sub get_offset {
             my $messages = $consumer->fetch;
             my $error    = $consumer->{sync_error} // q();
             chomp $error;
-            $self->{sync_error} = "GET_OFFSET: $error\n" if ($error);
+            $self->sync_error("GET_OFFSET: $error\n") if ($error);
             $stored = $messages->[-1]->payload if ( @{$messages} );
             last if ( not @{$messages} );
         }
-        if ( $self->{sync_error} ) {
+        if ( $self->sync_error ) {
             $self->remove_target;
             return;
         }
@@ -671,15 +671,15 @@ sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
     my $rv = undef;
-    if ( $self->{cache_dir} ) {
-        die "ERROR: no group specified\n" if ( not $self->{group} );
-        my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q(), $self->{cache_dir}, q(/), $name, q(.db);
+    if ( $self->cache_dir ) {
+        die "ERROR: no group specified\n" if ( not $self->group );
+        my $name = join q(:), $self->partition, $self->group;
+        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
-            {   offset => $self->{offset},
-                cache  => $self->{cache}
+            {   offset => $self->offset,
+                cache  => $self->cache
             },
             $tmp
         );
@@ -689,13 +689,13 @@ sub commit_offset {
     }
     else {
         my $target = $self->target or return;
-        die "ERROR: no offsetlog specified\n" if ( not $self->{offsetlog} );
+        die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_STORABLE;
-        $message->[TO]   = $self->{offsetlog};
+        $message->[TO]   = $self->offsetlog;
         $message->payload(
-            {   offset => $self->{offset},
-                cache  => $self->{cache}
+            {   offset => $self->offset,
+                cache  => $self->cache
             }
         );
         $rv = eval {
@@ -704,17 +704,16 @@ sub commit_offset {
         };
         if ( not $rv ) {
             if ( not $target->fh ) {
-                $self->{sync_error} = "COMMIT_OFFSET: lost connection\n";
+                $self->sync_error("COMMIT_OFFSET: lost connection\n");
             }
-            else {
-                $self->{sync_error} //=
-                    "COMMIT_OFFSET: send_messages failed\n";
+            elsif ( not defined $self->sync_error ) {
+                $self->sync_error("COMMIT_OFFSET: send_messages failed\n");
             }
             $self->retry_offset;
             $rv = undef;
         }
     }
-    $self->{last_commit} = $self->{last_receive};
+    $self->last_commit( $self->last_receive );
     return $rv;
 }
 
@@ -722,15 +721,15 @@ sub reset_offset {
     my $self  = shift;
     my $cache = shift;
     $self->next_offset(0);
-    $self->{cache}       = $cache;
-    $self->{last_commit} = 0;
+    $self->cache($cache);
+    $self->last_commit(0);
     return $self->commit_offset;
 }
 
 sub retry_offset {
     my $self = shift;
     $self->next_offset(undef);
-    $self->{cache} = undef;
+    $self->cache(undef);
     $self->remove_target;
     return;
 }
