@@ -82,7 +82,7 @@ sub fill {
     };
     $shell->restore_local($old_local);
     if ( not $okay ) {
-        my $trap = $@ // 'unknown error';
+        my $trap = $@ || 'unknown error';
         chomp $trap;
         my ( $type, $value ) = split m{:}, $trap, 2;
         if ( $type and $type eq 'RV' ) {

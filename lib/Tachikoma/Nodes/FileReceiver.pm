@@ -103,7 +103,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error   = $@ // 'mkstempt failed';
+                my $error   = $@ || 'mkstempt failed';
                 my $details = $!;
                 chomp $error;
                 $error =~ s{ at /\S+ line \d+[.]$}{};
@@ -198,7 +198,7 @@ sub make_parent_dirs {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'make_parent_dirs failed';
+        my $error = $@ || 'make_parent_dirs failed';
         $self->stderr("ERROR: $error");
     }
     return;
@@ -212,7 +212,7 @@ sub make_dirs {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'make_dirs failed';
+        my $error = $@ || 'make_dirs failed';
         $self->stderr("ERROR: $error");
     }
     return;

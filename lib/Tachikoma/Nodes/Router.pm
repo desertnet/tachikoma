@@ -61,7 +61,7 @@ sub drain {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $self->stderr("WARNING: forcing shutdown - $error");
         }
         $self->stderr('removing pid file');
@@ -152,7 +152,7 @@ sub fire {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $node->stderr("ERROR: reconnect failed: $error");
             $node->remove_node;
         }
