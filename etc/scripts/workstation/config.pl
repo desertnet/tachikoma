@@ -149,7 +149,7 @@ command jobs  run_job Shell <services>/tables.tsl
 command hosts connect_inet localhost:<tachikoma.tables.port>    tables:service
 
 command jobs  run_job Shell <services>/engines.tsl
-command hosts connect_inet localhost:5499                       engines:service
+command hosts connect_inet localhost:<tachikoma.engines.port>   engines:service
 
 command jobs  run_job Shell <services>/hunter.tsl
 command hosts connect_inet localhost:<tachikoma.hunter.port>    hunter:service

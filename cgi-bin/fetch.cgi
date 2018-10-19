@@ -16,7 +16,7 @@ use JSON; # -support_by_pp;
 use URI::Escape;
 
 my $host = 'localhost';
-my $port = 5400;
+my $port = 5100;
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();

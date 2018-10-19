@@ -19,7 +19,7 @@ my @keys = ();
 push @keys, $key for ( 1 .. $count );
 my $table = Tachikoma::Nodes::Table->new;
 $table->host('localhost');
-$table->port(5400);
+$table->port(5100);
 $table->field($field);
 
 while (1) {
