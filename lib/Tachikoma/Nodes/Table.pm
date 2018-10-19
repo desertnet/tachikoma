@@ -35,6 +35,18 @@ make_node Table <node name> --num_partitions=<int> \
 EOF
 }
 
+sub new {
+    my $class = shift;
+    my $self  = $class->SUPER::new;
+    $self->{caches}         = [];
+    $self->{num_partitions} = $Default_Num_Partitions;
+    $self->{window_size}    = $Default_Window_Size;
+    $self->{num_buckets}    = $Default_Num_Buckets;
+    $self->{next_window}    = undef;
+    bless $self, $class;
+    return $self;
+}
+
 sub arguments {
     my $self = shift;
     if (@_) {
@@ -152,7 +164,7 @@ sub collect {
     return 1 if ( not length $value );
     my $cache = $self->get_cache($key);
     my $bucket = $self->get_bucket( $cache, $timestamp );
-    $bucket->{$key} = $value;
+    $bucket->{$key} = $value if ($bucket);
     return;
 }
 
@@ -169,15 +181,15 @@ sub get_cache {
 
 sub get_bucket {
     my ( $self, $cache, $timestamp ) = @_;
-    my $i      = 0;
+    my $j      = 0;
     my $bucket = undef;
     if ( $self->{window_size} ) {
         my $span = $self->{next_window} - $timestamp;
-        $i = int $span / $self->{window_size};
+        $j = int $span / $self->{window_size};
     }
-    if ( $i < $self->{num_buckets} ) {
-        $cache->[$i] //= {};
-        $bucket = $cache->[$i];
+    if ( $j < $self->{num_buckets} ) {
+        $cache->[$j] //= {};
+        $bucket = $cache->[$j];
     }
     return $bucket;
 }
@@ -213,6 +225,26 @@ sub send_stats {
     $response->[TO]      = $to;
     $response->[PAYLOAD] = join q(), @stats;
     $self->{sink}->fill($response);
+    return;
+}
+
+sub load_cache {
+    my ( $self, $i, $stored ) = @_;
+    $self->{caches}->[$i] = $stored->{cache} || [];
+    if ( $self->{window_size} ) {
+        my $cache = $self->{caches}->[$i];
+        my $span  = $self->{next_window} - ( $stored->{timestamp} || 0 );
+        my $count = int $span / $self->{window_size};
+        $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
+        if ($count) {
+            for ( 1 .. $count ) {
+                unshift @{$cache}, {};
+            }
+            while ( @{$cache} > $self->{num_buckets} ) {
+                pop @{$cache};
+            }
+        }
+    }
     return;
 }
 

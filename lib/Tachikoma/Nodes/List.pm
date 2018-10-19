@@ -171,7 +171,7 @@ sub write_list {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'unknown error';
+        my $error = $@ || 'unknown error';
         return $self->stderr("ERROR: mkstempt failed: $error");
     }
     my $tmp = join q(/), $parent, $template;

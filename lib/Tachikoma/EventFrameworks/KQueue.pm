@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35288 2018-10-16 13:45:45Z chris $
+# $Id: KQueue.pm 35385 2018-10-19 03:38:23Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -75,7 +75,7 @@ sub register_writer_node {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'unknown error';
+        my $error = $@ || 'unknown error';
         $error =~ s{ at \S+/KQueue[.]pm line \d+[.]$}{};
         $this->stderr("WARNING: register_writer_node failed: $@");
         return $this->handle_EOF;
@@ -260,7 +260,7 @@ sub set_timer {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             chomp $error;
             $this->print_less_often(
                 "WARNING: $error - falling back to internal timer");

@@ -207,7 +207,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->set_timer(0) if ( $self->{timer_interval} );
             }
             elsif ( $self->{status} eq 'OFFSET' ) {
-                $self->{status} = 'ACTIVE';
+                $self->{status}      = 'ACTIVE';
+                $self->{last_commit} = $Tachikoma::Now;
                 $self->stderr( 'INFO: starting from ',
                     $self->{saved_offset} // $self->{default_offset} );
                 $self->next_offset( $self->{saved_offset} );
@@ -296,7 +297,6 @@ sub drain_buffer {
                 $self->print_less_often( 'WARNING: unexpected ',
                     $message->type_as_string, ' in cache' );
             }
-            $self->{last_commit} = $Tachikoma::Now;
         }
         else {
             $message->[FROM] =
@@ -306,10 +306,6 @@ sub drain_buffer {
             $message->[ID] = join q(:), $offset, $offset + $size;
             $self->{counter}++;
             if ($edge) {
-                $edge->{cache} = $edge->{caches}->[$i]
-                    if (exists $edge->{caches}
-                    and exists $edge->{cache}
-                    and defined $i );
                 $edge->fill($message);
             }
             else {
@@ -414,8 +410,9 @@ sub commit_offset_async {
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
-            {   offset => $self->{lowest_offset},
-                cache  => $cache
+            {   timestamp => $Tachikoma::Now,
+                offset    => $self->{lowest_offset},
+                cache     => $cache
             },
             $tmp
         );
@@ -429,8 +426,9 @@ sub commit_offset_async {
         $message->[FROM]    = $self->{name};
         $message->[TO]      = $self->{offsetlog};
         $message->[PAYLOAD] = {
-            offset => $self->{lowest_offset},
-            cache  => $cache
+            timestamp => $Tachikoma::Now,
+            offset    => $self->{lowest_offset},
+            cache     => $cache
         };
         $self->{sink}->fill($message);
         $self->{cache_size} = $message->size;
@@ -443,19 +441,11 @@ sub load_cache {
     my $self   = shift;
     my $stored = shift;
     if ( ref $stored ) {
-        my $edge = $self->{edge};
         $self->{saved_offset} = $stored->{offset};
-
-        # Make sure $stored->{cache} is defined.  Otherwise
-        # our edge might lose data if it expects a reference
-        # and does something like this:
-        #     my $cache = $self->{cache};  # not defined
-        #     $cache->{$key} = $value;     # auto hash! :(
-        if ( $edge and defined $stored->{cache} ) {
-            my $i = $self->{partition_id};
-            $edge->{caches}->[$i] = $stored->{cache}
-                if ( exists $edge->{caches} and defined $i );
-        }
+        $self->{edge}->load_cache( $self->{partition_id}, $stored )
+            if (defined $stored->{cache}
+            and $self->{edge}
+            and $self->{edge}->can('load_cache') );
     }
     else {
         $self->print_less_often('WARNING: bad data in cache');
@@ -490,6 +480,12 @@ sub edge {
 sub remove_node {
     my $self = shift;
     $self->name(q());
+    if ( $self->{edge} ) {
+        my $edge = $self->{edge};
+        my $i    = $self->{partition_id};
+        $edge->{caches}->[$i] = $edge->new_cache
+            if ( $edge and exists $edge->{caches} and defined $i );
+    }
     return $self->SUPER::remove_node(@_);
 }
 
@@ -554,12 +550,12 @@ sub get_offset {
     my $stored = undef;
     $self->cache(undef);
     if ( $self->cache_dir ) {
-        die "ERROR: no group specified\n" if ( not $self->{group} );
-        my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q(), $self->{cache_dir}, q(/), $name, q(.db);
-        $stored         = retrieve($file);
-        $self->{offset} = $stored->{offset};
-        $self->{cache}  = $stored->{cache};
+        die "ERROR: no group specified\n" if ( not $self->group );
+        my $name = join q(:), $self->partition, $self->group;
+        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
+        $stored = retrieve($file);
+        $self->offset( $stored->{offset} );
+        $self->cache( $stored->{cache} );
     }
     elsif ( $self->offsetlog ) {
         my $consumer = Tachikoma::Nodes::Consumer->new( $self->offsetlog );
@@ -571,11 +567,11 @@ sub get_offset {
             my $messages = $consumer->fetch;
             my $error    = $consumer->{sync_error} // q();
             chomp $error;
-            $self->{sync_error} = "GET_OFFSET: $error\n" if ($error);
+            $self->sync_error("GET_OFFSET: $error\n") if ($error);
             $stored = $messages->[-1]->payload if ( @{$messages} );
             last if ( not @{$messages} );
         }
-        if ( $self->{sync_error} ) {
+        if ( $self->sync_error ) {
             $self->remove_target;
             return;
         }
@@ -675,15 +671,15 @@ sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
     my $rv = undef;
-    if ( $self->{cache_dir} ) {
-        die "ERROR: no group specified\n" if ( not $self->{group} );
-        my $name = join q(:), $self->{partition}, $self->{group};
-        my $file = join q(), $self->{cache_dir}, q(/), $name, q(.db);
+    if ( $self->cache_dir ) {
+        die "ERROR: no group specified\n" if ( not $self->group );
+        my $name = join q(:), $self->partition, $self->group;
+        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
-            {   offset => $self->{offset},
-                cache  => $self->{cache}
+            {   offset => $self->offset,
+                cache  => $self->cache
             },
             $tmp
         );
@@ -693,13 +689,13 @@ sub commit_offset {
     }
     else {
         my $target = $self->target or return;
-        die "ERROR: no offsetlog specified\n" if ( not $self->{offsetlog} );
+        die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_STORABLE;
-        $message->[TO]   = $self->{offsetlog};
+        $message->[TO]   = $self->offsetlog;
         $message->payload(
-            {   offset => $self->{offset},
-                cache  => $self->{cache}
+            {   offset => $self->offset,
+                cache  => $self->cache
             }
         );
         $rv = eval {
@@ -708,17 +704,16 @@ sub commit_offset {
         };
         if ( not $rv ) {
             if ( not $target->fh ) {
-                $self->{sync_error} = "COMMIT_OFFSET: lost connection\n";
+                $self->sync_error("COMMIT_OFFSET: lost connection\n");
             }
-            else {
-                $self->{sync_error} //=
-                    "COMMIT_OFFSET: send_messages failed\n";
+            elsif ( not defined $self->sync_error ) {
+                $self->sync_error("COMMIT_OFFSET: send_messages failed\n");
             }
             $self->retry_offset;
             $rv = undef;
         }
     }
-    $self->{last_commit} = $self->{last_receive};
+    $self->last_commit( $self->last_receive );
     return $rv;
 }
 
@@ -726,15 +721,15 @@ sub reset_offset {
     my $self  = shift;
     my $cache = shift;
     $self->next_offset(0);
-    $self->{cache}       = $cache;
-    $self->{last_commit} = 0;
+    $self->cache($cache);
+    $self->last_commit(0);
     return $self->commit_offset;
 }
 
 sub retry_offset {
     my $self = shift;
     $self->next_offset(undef);
-    $self->{cache} = undef;
+    $self->cache(undef);
     $self->remove_target;
     return;
 }
@@ -1005,7 +1000,7 @@ sub target {
         $self->{target}->timeout( $self->{hub_timeout} )
             if ( $self->{target} );
         if ( not $self->{target} ) {
-            $self->{sync_error} = $@ // "ERROR: connect: unknown error\n";
+            $self->{sync_error} = $@ || "ERROR: connect: unknown error\n";
             usleep( $self->{poll_interval} * 1000000 )
                 if ( $self->{poll_interval} );
         }

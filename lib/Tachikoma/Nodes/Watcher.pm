@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35357 2018-10-17 08:53:26Z chris $
+# $Id: Watcher.pm 35385 2018-10-19 03:38:23Z chris $
 #
 
 package Tachikoma::Nodes::Watcher;
@@ -206,7 +206,7 @@ sub note_fh {
                     return 1;
                 };
                 if ( not $okay ) {
-                    my $error = $@ // 'unknown error';
+                    my $error = $@ || 'unknown error';
                     $self->stderr("ERROR: EV_DELETE failed: $error");
                 }
                 close $self->{fh}

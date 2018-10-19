@@ -34,14 +34,14 @@ sub fill {
     if ( $type & TM_INFO ) {
         my $okay = eval { $self->connect_node( $name, $owner ); };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $self->stderr("ERROR: connect_node failed: $error");
         }
     }
     elsif ( $type & TM_EOF ) {
         my $okay = eval { $self->disconnect_node( $name, $owner ); };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $self->stderr("ERROR: disconnect_node failed: $error");
         }
     }

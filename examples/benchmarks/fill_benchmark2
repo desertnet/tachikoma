@@ -25,12 +25,11 @@ while (1) {
     syswrite( $socket, $buf );
     $size++;
     if ( $sent++ >= 1000 ) {
-        my $now  = time;
-        my $span = $now - $then;
+        my $span = time - $then;
         if ( $span >= $delay ) {
             printf( "%.2f MB per second\n", $size / 16 / $span );
             $size = 0;
-            $then = $now;
+            $then = time;
         }
         $sent = 0;
     }

@@ -18,9 +18,10 @@ die "no field\n" if ( not $field );
 die "no key\n"   if ( not length $key );
 my $table = Tachikoma::Nodes::Table->new;
 $table->host('localhost');
-$table->port(5400);
+$table->port(5100);
 $table->topic($topic);
 $table->field($field);
+
 while (1) {
     my $payload = $table->fetch($key) or last;
     my ( $partition, $offset ) = split m{:}, $payload, 2;

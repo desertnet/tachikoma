@@ -291,18 +291,18 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     if ( not $okay ) {
         my $error = $@ || 'lost connection';
         chomp $error;
-        $self->{sync_error} = "SEND_MESSAGES: $error\n";
+        $self->sync_error("SEND_MESSAGES: $error\n");
         $expecting = -2;
     }
     elsif ( not $target->{fh} ) {
-        $self->{sync_error} = "SEND_MESSAGES: lost connection\n";
+        $self->sync_error("SEND_MESSAGES: lost connection\n");
         $expecting = -3;
     }
     if ( $expecting != 0 ) {
         $self->remove_target($broker_id);
         $self->partitions(undef);
-        if ( not $self->{sync_error} ) {
-            $self->{sync_error} = "SEND_MESSAGES: failed: $expecting\n";
+        if ( not $self->sync_error ) {
+            $self->sync_error("SEND_MESSAGES: failed: $expecting\n");
         }
         $rv = undef;
     }
@@ -360,18 +360,18 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     if ( not $okay ) {
         my $error = $@ || 'lost connection';
         chomp $error;
-        $self->{sync_error} = "SEND_STREAM: $error\n";
+        $self->sync_error("SEND_STREAM: $error\n");
         $expecting = -1;
     }
     elsif ( not $target->{fh} ) {
-        $self->{sync_error} = "SEND_STREAM: lost connection\n";
+        $self->sync_error("SEND_STREAM: lost connection\n");
         $expecting = -1;
     }
     if ( $expecting != 0 ) {
         $self->remove_target($broker_id);
         $self->partitions(undef);
-        if ( not $self->{sync_error} ) {
-            $self->{sync_error} = "SEND_STREAM: failed\n";
+        if ( not $self->sync_error ) {
+            $self->sync_error("SEND_STREAM: failed\n");
         }
         $rv = undef;
     }
@@ -392,27 +392,25 @@ sub get_mapping {
 }
 
 sub get_partitions {
-    my $self  = shift;
-    my $topic = $self->{topic};
-    die "ERROR: no topic\n" if ( not $topic );
-    my $broker_ids = $self->broker_ids;
+    my $self = shift;
+    die "ERROR: no topic\n" if ( not $self->topic );
     my $partitions = undef;
-    $self->{sync_error} = undef;
-    for my $broker_id ( keys %{$broker_ids} ) {
-        $partitions = $self->request_partitions( $broker_id, $topic );
+    $self->sync_error(undef);
+    for my $broker_id ( keys %{ $self->broker_ids } ) {
+        $partitions = $self->request_partitions($broker_id);
         if ($partitions) {
-            $self->{sync_error} = undef;
+            $self->sync_error(undef);
             last;
         }
     }
-    $self->{partitions} = $partitions;
-    return $self->{partitions};
+    $self->partitions($partitions);
+    return $partitions;
 }
 
 sub request_partitions {
     my $self            = shift;
     my $broker_id       = shift;
-    my $topic           = $self->{topic};
+    my $topic           = $self->topic;
     my $target          = $self->get_target($broker_id) or return;
     my $partitions      = undef;
     my $request_payload = "GET_PARTITIONS $topic\n";
@@ -451,7 +449,7 @@ sub request_partitions {
         else {
             $self->remove_target($broker_id);
             chomp $error;
-            $self->{sync_error} = "GET_PARTITIONS: $error\n";
+            $self->sync_error("GET_PARTITIONS: $error\n");
         }
     }
     return $partitions;
@@ -459,11 +457,10 @@ sub request_partitions {
 
 sub get_controller {
     my $self       = shift;
-    my $broker_ids = $self->broker_ids;
     my $controller = undef;
-    for my $broker_id ( keys %{$broker_ids} ) {
+    for my $broker_id ( keys %{ $self->broker_ids } ) {
         my $target = $self->get_target($broker_id) or next;
-        $self->{sync_error} = undef;
+        $self->sync_error(undef);
         my $request = Tachikoma::Message->new;
         $request->[TYPE]    = TM_INFO;
         $request->[TO]      = 'broker';
@@ -496,7 +493,7 @@ sub get_controller {
             my $error = $@ || 'lost connection';
             $self->remove_target($broker_id);
             chomp $error;
-            $self->{sync_error} = "GET_CONTROLLER: $error\n";
+            $self->sync_error("GET_CONTROLLER: $error\n");
         }
         last if ($controller);
     }
@@ -506,7 +503,7 @@ sub get_controller {
 sub get_target {
     my $self      = shift;
     my $broker_id = shift;
-    my $target    = $self->{targets}->{$broker_id};
+    my $target    = $self->targets->{$broker_id};
     if ( not $target or not $target->{fh} ) {
         my ( $host, $port ) = split m{:}, $broker_id, 2;
         $target = undef;
@@ -520,11 +517,11 @@ sub get_target {
             my $caller = uc( ( split m{::}, ( caller 1 )[3] )[-1] );
             $caller = uc( ( split m{::}, ( caller 2 )[3] )[-1] )
                 if ( $caller eq 'GET_TARGET' );
-            $self->{sync_error} = "$caller: get_target($broker_id): $@";
+            $self->sync_error("$caller: get_target($broker_id): $@");
             $self->partitions(undef);
         }
         else {
-            $self->{targets}->{$broker_id} = $target;
+            $self->targets->{$broker_id} = $target;
         }
     }
     return $target;
@@ -532,7 +529,7 @@ sub get_target {
 
 sub remove_targets {
     my $self = shift;
-    for my $broker_id ( keys %{ $self->{targets} } ) {
+    for my $broker_id ( keys %{ $self->targets } ) {
         $self->remove_target($broker_id);
     }
     return;
@@ -541,9 +538,9 @@ sub remove_targets {
 sub remove_target {
     my $self      = shift;
     my $broker_id = shift;
-    if ( $self->{targets}->{$broker_id} ) {
-        $self->{targets}->{$broker_id}->close_filehandle;
-        delete $self->{targets}->{$broker_id};
+    if ( $self->targets->{$broker_id} ) {
+        $self->targets->{$broker_id}->close_filehandle;
+        delete $self->targets->{$broker_id};
     }
     return;
 }
@@ -638,8 +635,8 @@ sub broker_ids {
     }
     if ( not defined $self->{broker_ids} ) {
         my %broker_ids = ();
-        for my $host ( keys %{ $self->{hosts} } ) {
-            for my $port ( @{ $self->{hosts}->{$host} } ) {
+        for my $host ( keys %{ $self->hosts } ) {
+            for my $port ( @{ $self->hosts->{$host} } ) {
                 my $broker_id = join q(:), $host, $port;
                 $broker_ids{$broker_id} = undef;
             }

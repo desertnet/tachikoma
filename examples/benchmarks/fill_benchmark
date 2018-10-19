@@ -6,9 +6,9 @@ use Tachikoma::Message qw( TM_BYTESTREAM TM_EOF );
 use Time::HiRes qw( time );
 require '/usr/local/etc/tachikoma.conf';
 
-my $to         = shift(@ARGV) // '';
-my $batch_size = shift(@ARGV) // 1;
-my $buf_size   = shift(@ARGV) // 65516 - length $to;
+my $to         = shift @ARGV // '';
+my $batch_size = shift @ARGV // 1;
+my $buf_size   = ( shift @ARGV // 65516 ) - length $to;
 my $tachikoma  = Tachikoma->inet_client( 'localhost', $to ? 4230 : 5000 );
 my $buf        = "\0" x $buf_size;
 my $sent       = 0;
@@ -34,15 +34,14 @@ while (1) {
     }
     $count++;
     if ( $sent++ >= 100 ) {
-        my $now  = time;
-        my $span = $now - $then;
+        my $span = time - $then;
         if ( $span >= $delay ) {
             printf
                 "%.2f MB per second - %.2f messages per second\n",
                 $count * $size / 1024 / 1024 / $span,
                 ( $count * $batch_size ) / $span;
             $count = 0;
-            $then  = $now;
+            $then  = time;
         }
         $sent = 0;
     }

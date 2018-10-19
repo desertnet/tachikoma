@@ -639,7 +639,7 @@ sub reply_to_challenge {
     }
     my $command = eval { Tachikoma::Command->new( $message->[PAYLOAD] ) };
     if ( not $command ) {
-        my $error = $@ // 'unknown error';
+        my $error = $@ || 'unknown error';
         $self->stderr("WARNING: reply_to_challenge failed: $error");
         return $self->handle_EOF;
     }
@@ -672,7 +672,7 @@ sub auth_response {
     my $version = $message->[ID];
     my $command = eval { Tachikoma::Command->new( $message->[PAYLOAD] ) };
     if ( not $command ) {
-        my $error = $@ // 'unknown error';
+        my $error = $@ || 'unknown error';
         $self->stderr("ERROR: $caller failed: $error");
         return $self->handle_EOF;
     }
@@ -748,7 +748,7 @@ sub read_block {
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         };
         if ( not $message ) {
-            my $trap = $@ // 'unknown error';
+            my $trap = $@ || 'unknown error';
             $self->stderr("WARNING: read_block failed: $trap");
             return $self->handle_EOF;
         }
@@ -895,7 +895,7 @@ sub fill_buffer_init {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $self->stderr("ERROR: init_socket failed: $error");
             $self->close_filehandle('reconnect');
         }
@@ -1014,7 +1014,7 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $self->stderr("WARNING: register_reader_node failed: $error");
             $self->close_filehandle;
             return 'try again';

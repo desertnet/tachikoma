@@ -13,7 +13,7 @@ require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
 
-my $hosts = [ 'localhost:5401', 'localhost:5402' ];
+my $hosts = [ 'localhost:5201', 'localhost:5202' ];
 my $cgi   = CGI->new;
 my $topic = $cgi->path_info;
 $topic =~ s(^/)();

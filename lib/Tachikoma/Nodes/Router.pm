@@ -24,7 +24,7 @@ my $Heartbeat_Interval = 15;    # seconds
 
 sub new {
     my $class = shift;
-    my $self  = Tachikoma::Node->new;
+    my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
     $self->{handling_error}         = undef;
     $self->{last_fire}              = 0;
@@ -61,7 +61,7 @@ sub drain {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $self->stderr("WARNING: forcing shutdown - $error");
         }
         $self->stderr('removing pid file');
@@ -152,7 +152,7 @@ sub fire {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             $node->stderr("ERROR: reconnect failed: $error");
             $node->remove_node;
         }

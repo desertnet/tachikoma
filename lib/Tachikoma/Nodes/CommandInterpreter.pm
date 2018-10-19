@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35324 2018-10-17 04:33:53Z chris $
+# $Id: CommandInterpreter.pm 35385 2018-10-19 03:38:23Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -106,7 +106,7 @@ sub interpret {
             return 1;
         };
         if ( not $okay ) {
-            my $error = $@ // 'unknown error';
+            my $error = $@ || 'unknown error';
             return $self->send_response( $message,
                 $self->error( $message, qq($cmd_name failed: $error) ) );
         }
@@ -182,7 +182,7 @@ sub call_function {
         );
         return 1;
     };
-    $self->stderr( $@ // 'ERROR: call_function: unknown error' )
+    $self->stderr( $@ || 'ERROR: call_function: unknown error' )
         if ( not $okay );
     return $self->response( $envelope, join q(), @{$rv} );
 }
@@ -1019,7 +1019,7 @@ $C{listen_inet} = sub {
                     if ( $listen->{Scheme} );
                 return 1;
             };
-            $self->stderr( $@ // 'FAILED: Tachikoma::Socket::scheme()' )
+            $self->stderr( $@ || 'FAILED: Tachikoma::Socket::scheme()' )
                 if ( not $okay );
             $server_node->sink($self);
         }
@@ -1419,13 +1419,13 @@ $C{slurp_file} = sub {
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ // 'unknown error';
+        my $error = $@ || 'unknown error';
         $okay = eval {
             $node->remove_node;
             return 1;
         };
         if ( not $okay ) {
-            my $trap = $@ // 'unknown error';
+            my $trap = $@ || 'unknown error';
             $self->stderr("ERROR: remove_node $name failed: $trap");
         }
         die $error;
@@ -2238,7 +2238,7 @@ $C{initialize} = sub {
         return 1;
     };
     if ( not $okay ) {
-        print {*STDERR} $@ // "ERROR: initialize: unknown error\n";
+        print {*STDERR} $@ || "ERROR: initialize: unknown error\n";
         exit 1;
     }
     $router->type('root');

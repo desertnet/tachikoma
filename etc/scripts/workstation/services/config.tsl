@@ -5,11 +5,11 @@ var home     = `echo ~`;
 var topics_dir = /logs/topics;
 var cache_dir  = /logs/cache;
 
-var tachikoma.hunter.port           = 5200;
-var tachikoma.indexers.port         = 5300;
-var tachikoma.engines.port          = 5400;
-var tachikoma.tables.port           = 5400;
 var tachikoma.tables.http.port      = 3124;
+var tachikoma.tables.port           = 5100;
+var tachikoma.engines.port          = 5200;
+var tachikoma.indexers.port         = 5300;
+var tachikoma.hunter.port           = 5400;
 var tachikoma.hubs.port             = 5500;
 var tachikoma.topic_top.hostname    = localhost;
 var tachikoma.topic_top.port        = 4380;

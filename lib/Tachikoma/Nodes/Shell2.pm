@@ -201,7 +201,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         };
 
         if ( not $okay ) {
-            my $error = $@ // 'parse failed: unknown error';
+            my $error = $@ || 'parse failed: unknown error';
             $self->report_error($error);
         }
         elsif ($parse_tree) {
@@ -212,7 +212,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     return 1;
                 };
                 if ( not $okay ) {
-                    my $error = $@ // 'send_command failed: unknown error';
+                    my $error = $@ || 'send_command failed: unknown error';
                     $self->report_error($error);
                 }
             }
@@ -1645,7 +1645,7 @@ sub call_function {
     %Local = %old_local;
 
     if ( not $okay ) {
-        my $trap = $@ // 'call_function: unknown error';
+        my $trap = $@ || 'call_function: unknown error';
         chomp $trap;
         my ( $type, $value ) = split m{:}, $trap, 2;
         if ( $type eq 'RV' ) {
@@ -1708,7 +1708,7 @@ sub callback {
             return 1;
         };
         if ( not $okay ) {
-            my $trap = $@ // 'callback failed: unknown error';
+            my $trap = $@ || 'callback failed: unknown error';
             $self->stderr($trap);
         }
         %Local = %old_local;
