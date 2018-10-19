@@ -306,10 +306,6 @@ sub drain_buffer {
             $message->[ID] = join q(:), $offset, $offset + $size;
             $self->{counter}++;
             if ($edge) {
-                $edge->{cache} = $edge->{caches}->[$i]
-                    if (exists $edge->{caches}
-                    and exists $edge->{cache}
-                    and defined $i );
                 $edge->fill($message);
             }
             else {
@@ -449,8 +445,8 @@ sub load_cache {
         # Make sure $stored->{cache} is defined.  Otherwise
         # our edge might lose data if it expects a reference
         # and does something like this:
-        #     my $cache = $self->{cache};  # not defined
-        #     $cache->{$key} = $value;     # auto hash! :(
+        #     my $cache = $self->{caches}->[$i];  # not defined
+        #     $cache->{$key} = $value;            # auto hash! :(
         if ( $edge and defined $stored->{cache} ) {
             my $i = $self->{partition_id};
             $edge->{caches}->[$i] = $stored->{cache}
