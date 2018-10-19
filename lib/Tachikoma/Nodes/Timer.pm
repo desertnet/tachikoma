@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Timer.pm 35381 2018-10-19 00:42:21Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -17,7 +17,7 @@ use version; our $VERSION = 'v2.0.197';
 
 sub new {
     my $class = shift;
-    my $self  = Tachikoma::Node->new;
+    my $self  = $class->SUPER::new;
     $self->{type}            = 'timer';
     $self->{id}              = undef;
     $self->{stream}          = undef;

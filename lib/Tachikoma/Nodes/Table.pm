@@ -35,6 +35,18 @@ make_node Table <node name> --num_partitions=<int> \
 EOF
 }
 
+sub new {
+    my $class = shift;
+    my $self  = $class->SUPER::new;
+    $self->{caches}         = [];
+    $self->{num_partitions} = $Default_Num_Partitions;
+    $self->{window_size}    = $Default_Window_Size;
+    $self->{num_buckets}    = $Default_Num_Buckets;
+    $self->{next_window}    = undef;
+    bless $self, $class;
+    return $self;
+}
+
 sub arguments {
     my $self = shift;
     if (@_) {

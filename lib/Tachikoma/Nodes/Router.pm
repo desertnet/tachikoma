@@ -24,7 +24,7 @@ my $Heartbeat_Interval = 15;    # seconds
 
 sub new {
     my $class = shift;
-    my $self  = Tachikoma::Node->new;
+    my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
     $self->{handling_error}         = undef;
     $self->{last_fire}              = 0;
