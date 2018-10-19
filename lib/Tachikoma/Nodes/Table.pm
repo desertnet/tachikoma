@@ -152,7 +152,7 @@ sub collect {
     return 1 if ( not length $value );
     my $cache = $self->get_cache($key);
     my $bucket = $self->get_bucket( $cache, $timestamp );
-    $bucket->{$key} = $value;
+    $bucket->{$key} = $value if ($bucket);
     return;
 }
 
