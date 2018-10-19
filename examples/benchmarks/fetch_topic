@@ -21,6 +21,7 @@ $table->host('localhost');
 $table->port(5400);
 $table->topic($topic);
 $table->field($field);
+
 while (1) {
     my $payload = $table->fetch($key) or last;
     my ( $partition, $offset ) = split m{:}, $payload, 2;

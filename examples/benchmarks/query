@@ -31,8 +31,7 @@ usage() if ( $help or not $r or not $topic );
 
 die "ERROR: no topic\n"    if ( not $topic );
 my $engine = Tachikoma::Nodes::QueryEngine->new;
-$engine->hosts([ 'localhost' ]);
-$engine->ports([ 5401, 5402 ]);
+$engine->hosts([ 'localhost:5401', 'localhost:5402' ]);
 $engine->topic($topic);
 my $query = [];
 
