@@ -410,8 +410,9 @@ sub commit_offset_async {
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(
-            {   offset => $self->{lowest_offset},
-                cache  => $cache
+            {   timestamp => $Tachikoma::Now,
+                offset    => $self->{lowest_offset},
+                cache     => $cache
             },
             $tmp
         );
@@ -425,8 +426,9 @@ sub commit_offset_async {
         $message->[FROM]    = $self->{name};
         $message->[TO]      = $self->{offsetlog};
         $message->[PAYLOAD] = {
-            offset => $self->{lowest_offset},
-            cache  => $cache
+            timestamp => $Tachikoma::Now,
+            offset    => $self->{lowest_offset},
+            cache     => $cache
         };
         $self->{sink}->fill($message);
         $self->{cache_size} = $message->size;
@@ -439,19 +441,11 @@ sub load_cache {
     my $self   = shift;
     my $stored = shift;
     if ( ref $stored ) {
-        my $edge = $self->{edge};
         $self->{saved_offset} = $stored->{offset};
-
-        # Make sure $stored->{cache} is defined.  Otherwise
-        # our edge might lose data if it expects a reference
-        # and does something like this:
-        #     my $cache = $self->{caches}->[$i];  # not defined
-        #     $cache->{$key} = $value;            # auto hash! :(
-        if ( $edge and defined $stored->{cache} ) {
-            my $i = $self->{partition_id};
-            $edge->{caches}->[$i] = $stored->{cache}
-                if ( exists $edge->{caches} and defined $i );
-        }
+        $self->{edge}->load_cache( $self->{partition_id}, $stored )
+            if (defined $stored->{cache}
+            and $self->{edge}
+            and $self->{edge}->can('load_cache') );
     }
     else {
         $self->print_less_often('WARNING: bad data in cache');
@@ -486,6 +480,12 @@ sub edge {
 sub remove_node {
     my $self = shift;
     $self->name(q());
+    if ( $self->{edge} ) {
+        my $edge = $self->{edge};
+        my $i    = $self->{partition_id};
+        $edge->{caches}->[$i] = $edge->new_cache
+            if ( $edge and exists $edge->{caches} and defined $i );
+    }
     return $self->SUPER::remove_node(@_);
 }
 
@@ -1000,7 +1000,7 @@ sub target {
         $self->{target}->timeout( $self->{hub_timeout} )
             if ( $self->{target} );
         if ( not $self->{target} ) {
-            $self->{sync_error} = $@ // "ERROR: connect: unknown error\n";
+            $self->{sync_error} = $@ || "ERROR: connect: unknown error\n";
             usleep( $self->{poll_interval} * 1000000 )
                 if ( $self->{poll_interval} );
         }
