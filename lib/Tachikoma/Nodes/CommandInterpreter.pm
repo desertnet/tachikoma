@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35436 2018-10-20 22:15:19Z chris $
+# $Id: CommandInterpreter.pm 35442 2018-10-20 22:20:33Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2326,9 +2326,6 @@ sub verify_command {
             " failed for $id: ",
             'timestamp too far in the future'
         );
-        return;
-    }
-    if ( $Tachikoma::Now - $message->[TIMESTAMP] > 300 ) {
         return;
     }
     return 1;
