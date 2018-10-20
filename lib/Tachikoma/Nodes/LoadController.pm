@@ -180,8 +180,8 @@ sub fire {
         }
         $self->{should_kick} = undef;
     }
-    $self->stop_timer;
-    $self->set_timer if ( keys %{$offline} or $self->{should_kick} );
+    $self->stop_timer
+        if ( not keys %{$offline} and not $self->{should_kick} );
     return;
 }
 
@@ -217,8 +217,7 @@ sub note_reconnect {
         $self->{should_kick} = $Tachikoma::Right_Now + $Kick_Delay
             if ( keys %{$offline} < keys %{$connectors} );
     }
-    $self->stop_timer;
-    $self->set_timer(0);
+    $self->set_timer;
     return;
 }
 
