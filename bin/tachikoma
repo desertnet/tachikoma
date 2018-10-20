@@ -17,10 +17,7 @@ use Tachikoma::Nodes::Responder;
 use Tachikoma::Nodes::Dumper;
 use Tachikoma::Nodes::Timeout;
 use Tachikoma::Nodes::Shutdown;
-use Tachikoma::Message qw(
-    TYPE FROM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_EOF
-);
+use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM TM_EOF );
 use Tachikoma::Config qw( %Tachikoma %Forbidden %Var load_module );
 use Getopt::Long qw( GetOptions );
 use POSIX qw( isatty );
@@ -152,8 +149,7 @@ if ($filename) {
 
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_BYTESTREAM;
-        $message->[TIMESTAMP] += 3600;    # give the server plenty of time
+        $message->[TYPE]    = TM_BYTESTREAM;
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35385 2018-10-19 03:38:23Z chris $
+# $Id: CommandInterpreter.pm 35442 2018-10-20 22:20:33Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2311,8 +2311,21 @@ sub verify_command {
         return if ( not $self->verify_rsa( $signed, $id, $signature ) );
     }
     if ( $Tachikoma::Now - $message->[TIMESTAMP] > 300 ) {
-        $self->stderr( 'ERROR: verification of message from ',
-            $message->[FROM], " failed for $id: message too old" );
+        $self->stderr(
+            'ERROR: verification of message from ',
+            $message->[FROM],
+            " failed for $id: ",
+            'timestamp too far in the past'
+        );
+        return;
+    }
+    elsif ( $message->[TIMESTAMP] - $Tachikoma::Now > 300 ) {
+        $self->stderr(
+            'ERROR: verification of message from ',
+            $message->[FROM],
+            " failed for $id: ",
+            'timestamp too far in the future'
+        );
         return;
     }
     return 1;
@@ -2432,8 +2445,8 @@ sub make_node {
     my $okay = eval {
         $node->name($name);
         $node->arguments( $arguments // q() );
-        $node->owner($owner) if ( length $owner );
         $node->sink($self);
+        $self->connect_node( $name, $owner ) if ( length $owner );
         return 1;
     };
     if ( not $okay ) {

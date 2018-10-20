@@ -3,34 +3,34 @@
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_key 34990 2018-10-01 06:46:57Z chris $
+# $Id: gen_server_key 35434 2018-10-20 21:36:41Z chris $
 #
 use strict;
 use warnings;
 use Crypt::OpenSSL::RSA;
 use Sys::Hostname;
 
-umask(0077);
+umask 0077 or die "couldn't umask: $!";
 
-my $home        = ( getpwuid($<) )[7];
-my $hostname    = hostname();
-my $id          = "tachikoma\@$hostname";
-my $id_file     = $ARGV[0] || "$home/.tachikoma/id";
-my $bits        = $ARGV[1] || 4096;
-my $force       = $ARGV[2];
-my $rsa         = generate_key Crypt::OpenSSL::RSA($bits);
-my $private_key = $rsa->get_private_key_string();
-my $public_key  = $rsa->get_public_key_string();
+my $home     = ( getpwuid $< )[7];
+my $hostname = hostname();
+my $id       = "tachikoma\@$hostname";
+my $id_file  = $ARGV[0] || "$home/.tachikoma/id";
+my $bits     = $ARGV[1] || 4096;
+my $force    = $ARGV[2];
 if ( -e $id_file ) {
     if ( not $force ) {
-        die "$id_file exists!"
+        die "$id_file exists!";
     }
-    elsif ( $force eq "ignore" ) {
+    elsif ( $force eq 'ignore' ) {
         exit 0;
     }
 }
-open( FH, ">$id_file" ) or die "couldn't open $id_file: $!";
-print FH <<EOF;
+my $rsa         = generate_key Crypt::OpenSSL::RSA($bits);
+my $private_key = $rsa->get_private_key_string();
+my $public_key  = $rsa->get_public_key_string();
+open my $fh, '>', $id_file or die "couldn't open $id_file: $!";
+print {$fh} <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
 # \$Id\$
@@ -60,7 +60,6 @@ q($public_key)};
 
 1;
 EOF
+close $fh or die "couldn't close $id_file: $!";
 
 print $public_key;
-
-1;

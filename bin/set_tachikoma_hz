@@ -9,14 +9,15 @@ use strict;
 use warnings;
 use Tachikoma;
 use Tachikoma::Config qw( %Tachikoma );
-require '/usr/local/etc/tachikoma.conf';
+my $config = '/usr/local/etc/tachikoma.conf';
+require $config if ( -f $config );
 
 my $hz      = $ARGV[0];
-my $home    = $Tachikoma{Home} || ( getpwuid($<) )[7];
+my $home    = $Tachikoma{Home} || ( getpwuid $< )[7];
 my $hz_file = "$home/.tachikoma/hz";
-die "invalid hz setting" if ( $hz !~ m(^\d+$) );
-open( FH, ">$hz_file" );
-print FH <<'EOF';
+die 'invalid hz setting' if ( $hz !~ m{^\d+$} );
+open my $fh, '>', $hz_file or die "couldn't open $hz_file: $!";
+print {$fh} <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
 # \$Id\$
@@ -31,8 +32,9 @@ use Tachikoma::Config qw( \%Tachikoma );
 
 1;
 EOF
+close $fh or die "couldn't close $hz_file: $!";
 
 my $pid = Tachikoma->get_pid('tachikoma-server');
-kill( 'HUP', $pid );
+kill 'HUP', $pid or die "couldn't HUP $pid: $!" if ($pid);
 
 1;

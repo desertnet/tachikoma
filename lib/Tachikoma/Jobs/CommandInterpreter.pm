@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: CommandInterpreter.pm 35438 2018-10-20 22:16:18Z chris $
 #
 
 package Tachikoma::Jobs::CommandInterpreter;
@@ -14,7 +14,7 @@ use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Responder;
-use Tachikoma::Message qw( TYPE FROM TIMESTAMP PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -48,8 +48,7 @@ sub initialize_graph {
     $shell->sink($interpreter);
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_BYTESTREAM;
-        $message->[TIMESTAMP] += 3600;  # give the job plenty of time to start
+        $message->[TYPE]    = TM_BYTESTREAM;
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }
