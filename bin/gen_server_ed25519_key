@@ -3,16 +3,16 @@
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_ed25519_key 35052 2018-10-11 00:00:45Z chris $
+# $Id: gen_server_ed25519_key 35434 2018-10-20 21:36:41Z chris $
 #
 use strict;
 use warnings;
 use Crypt::NaCl::Sodium qw( :utils );
 use Sys::Hostname;
 
-umask(0077);
+umask 0077 or die "couldn't umask: $!";
 
-my $home        = ( getpwuid($<) )[7];
+my $home        = ( getpwuid $< )[7];
 my $hostname    = hostname();
 my $id          = "tachikoma\@$hostname";
 my $id_file     = $ARGV[0] || "$home/.tachikoma/ed25519_id";
@@ -22,8 +22,8 @@ my ( $public_key, $private_key ) = $crypto_sign->keypair;
 my $public_hex  = $public_key->to_hex;
 my $private_hex = $private_key->to_hex;
 die "$id_file exists!" if ( -e $id_file and not $force );
-open( FH, ">$id_file" ) or die "couldn't open $id_file: $!";
-print FH <<EOF;
+open my $fh, '>', $id_file or die "couldn't open $id_file: $!";
+print {$fh} <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
 # \$Id\$
@@ -39,5 +39,6 @@ use Tachikoma::Config qw( \$ID \$Private_Ed25519_Key \%Keys );
 
 1;
 EOF
+close $fh or die "couldn't close $id_file: $!";
 
-1;
+print $public_key;
