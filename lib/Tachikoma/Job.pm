@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: Job.pm 35416 2018-10-20 07:15:03Z chris $
 #
 
 package Tachikoma::Job;
@@ -14,8 +14,8 @@ use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_EOF TM_ERROR
 );
-use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::FileHandle qw( TK_R setsockopts );
+use Tachikoma::Nodes::STDIO;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Config qw( %Tachikoma );
 use POSIX qw( F_SETFD dup2 );
