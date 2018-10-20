@@ -27,6 +27,19 @@ make_node QueryEngine <name> <index1> <index2> ...
 EOF
 }
 
+sub new {
+    my $class = shift;
+    my $self  = $class->SUPER::new;
+    $self->{indexes}    = undef;
+    $self->{hosts}      = undef;
+    $self->{host_ports} = undef;
+    $self->{results}    = undef;
+    $self->{offsets}    = undef;
+    $self->{messages}   = undef;
+    bless $self, $class;
+    return $self;
+}
+
 sub arguments {
     my $self = shift;
     if (@_) {
@@ -219,7 +232,7 @@ sub query {
 sub send_request {
     my ( $self, $request, $responses ) = @_;
     $self->{connector} ||= {};
-    for my $host_port ( @{ $self->{hosts} } ) {
+    for my $host_port ( keys %{ $self->host_ports } ) {
         my ( $host, $port ) = split m{:}, $host_port;
         my $tachikoma = $self->{connector}->{$host_port};
         if ( not $tachikoma ) {
@@ -234,8 +247,11 @@ sub send_request {
                 if ( $message->type & TM_STORABLE ) {
                     $responses->{$host_port} = $message->payload;
                 }
+                elsif ( $message->type & TM_ERROR ) {
+                    die 'ERROR: query failed: ' . $message->payload;
+                }
                 else {
-                    die 'ERROR: query failed';
+                    die 'ERROR: query failed: unknown error';
                 }
                 return;
             }
@@ -279,13 +295,22 @@ sub hosts {
     return $self->{hosts};
 }
 
-sub host {
+sub host_ports {
     my $self = shift;
     if (@_) {
-        $self->{host}  = shift;
-        $self->{hosts} = [ $self->{host} ];
+        $self->{host_ports} = shift;
     }
-    return $self->{host};
+    if ( not defined $self->{host_ports} ) {
+        my %host_ports = ();
+        for my $host ( keys %{ $self->hosts } ) {
+            for my $port ( @{ $self->hosts->{$host} } ) {
+                my $host_port = join q(:), $host, $port;
+                $host_ports{$host_port} = undef;
+            }
+        }
+        $self->{host_ports} = \%host_ports;
+    }
+    return $self->{host_ports};
 }
 
 sub results {

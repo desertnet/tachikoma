@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35277 2018-10-16 09:41:42Z chris $
+# $Id: Tachikoma.pm 35418 2018-10-20 08:56:40Z chris $
 #
 
 package Tachikoma;
@@ -273,16 +273,18 @@ sub drain {
     my $got     = length ${$buffer};
     while ($fh) {
         my $read = undef;
-        my $rv   = eval {
+        my $okay = eval {
             local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
             alarm $timeout if ($timeout);
             $read = sysread $fh, ${$buffer}, BUFSIZ, $got;
+            die $!  if ( not defined $read );
             alarm 0 if ($timeout);
             return 1;
         };
-        if ( not $rv ) {
-            die $@ if ( $@ ne "alarm\n" );    # propagate unexpected errors
-            $got = 0;                         # don't try to read messages
+        if ( not $okay ) {
+            my $error = $@ || 'unknown error';
+            die "ERROR: couldn't read: $error\n" if ( $error ne "alarm\n" );
+            $got = 0;
         }
         $got += $read if ( defined $read );
 
@@ -351,16 +353,17 @@ sub read_buffer {
     my $fh     = $self->{fh} or return ( $buffer, 0, undef, 0 );
     my $got    = length ${$buffer};
     my $read   = undef;
-    my $rv     = eval {
+    my $okay   = eval {
         local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
         alarm $self->{timeout} if ( $self->{timeout} );
         $read = sysread $fh, ${$buffer}, BUFSIZ, $got;
         alarm 0 if ( $self->{timeout} );
         return 1;
     };
-    if ( not $rv ) {
-        die $@ if ( $@ ne "alarm\n" );    # propagate unexpected errors
-        $got = 0;                         # don't try to read messages
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        die "ERROR: couldn't read: $error\n" if ( $error ne "alarm\n" );
+        $got = 0;
     }
     $got += $read if ( defined $read );
 
@@ -442,7 +445,7 @@ sub cancel {
 sub close_filehandle {
     my $self = shift;
     if ( $self->{fh} ) {
-        close $self->{fh} or die $!;
+        close $self->{fh} or die "ERROR: couldn't close: $!\n";
     }
     $self->{fh} = undef;
     return;

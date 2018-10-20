@@ -289,7 +289,7 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ || 'lost connection';
+        my $error = $@ || 'unknown error';
         chomp $error;
         $self->sync_error("SEND_MESSAGES: $error\n");
         $expecting = -2;
@@ -358,7 +358,7 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
         return 1;
     };
     if ( not $okay ) {
-        my $error = $@ || 'lost connection';
+        my $error = $@ || 'unknown error';
         chomp $error;
         $self->sync_error("SEND_STREAM: $error\n");
         $expecting = -1;
@@ -441,16 +441,16 @@ sub request_partitions {
         $target->drain;
         return 1;
     };
-    if ( not $okay or not $target->{fh} ) {
-        my $error = $@ || 'lost connection';
-        if ( $error eq "CANT_FIND_TOPIC\n" ) {
-            die "CANT_FIND_TOPIC\n";
-        }
-        else {
-            $self->remove_target($broker_id);
-            chomp $error;
-            $self->sync_error("GET_PARTITIONS: $error\n");
-        }
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        die "CANT_FIND_TOPIC\n" if ( $error eq "CANT_FIND_TOPIC\n" );
+        $self->remove_target($broker_id);
+        chomp $error;
+        $self->sync_error("GET_PARTITIONS: $error\n");
+    }
+    elsif ( not $target->{fh} ) {
+        $self->remove_target($broker_id);
+        $self->sync_error("GET_PARTITIONS: lost connection\n");
     }
     return $partitions;
 }
@@ -489,11 +489,15 @@ sub get_controller {
             $target->drain;
             return 1;
         };
-        if ( not $okay or not $target->{fh} ) {
-            my $error = $@ || 'lost connection';
+        if ( not $okay ) {
+            my $error = $@ || 'unknown error';
             $self->remove_target($broker_id);
             chomp $error;
             $self->sync_error("GET_CONTROLLER: $error\n");
+        }
+        elsif ( not $target->{fh} ) {
+            $self->remove_target($broker_id);
+            $self->sync_error("GET_CONTROLLER: lost connection\n");
         }
         last if ($controller);
     }
