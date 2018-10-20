@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::Shell;
 use Tachikoma::Message qw(
-    TYPE FROM TO TIMESTAMP PAYLOAD
+    TYPE FROM TO PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_PING TM_EOF
     TM_INFO TM_COMPLETION TM_NOREPLY
 );
@@ -1048,8 +1048,7 @@ $Builtins{'include'} = sub {
     my $old_local = $self->set_local( \%new_local );
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_BYTESTREAM;
-        $message->[TIMESTAMP] += 3600;    # give the server plenty of time
+        $message->[TYPE]    = TM_BYTESTREAM;
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }

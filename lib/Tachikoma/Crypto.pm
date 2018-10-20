@@ -65,8 +65,13 @@ sub verify_signature {
     else {
         return if ( not $self->verify_rsa( $signed, $id, $signature ) );
     }
-    if ( ( $Tachikoma::Now // time ) - $message->[TIMESTAMP] > 300 ) {
-        $self->stderr('ERROR: message too old');
+    my $time = $Tachikoma::Now // time;
+    if ( $time - $message->[TIMESTAMP] > 300 ) {
+        $self->stderr('ERROR: message timestamp too far in the past');
+        return;
+    }
+    elsif ( $message->[TIMESTAMP] - $time > 300 ) {
+        $self->stderr('ERROR: message timestamp too far in the future');
         return;
     }
     return 1;
