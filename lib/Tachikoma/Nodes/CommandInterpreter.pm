@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35385 2018-10-19 03:38:23Z chris $
+# $Id: CommandInterpreter.pm 35434 2018-10-20 21:36:41Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2432,8 +2432,8 @@ sub make_node {
     my $okay = eval {
         $node->name($name);
         $node->arguments( $arguments // q() );
-        $node->owner($owner) if ( length $owner );
         $node->sink($self);
+        $self->connect_node( $name, $owner ) if ( length $owner );
         return 1;
     };
     if ( not $okay ) {
