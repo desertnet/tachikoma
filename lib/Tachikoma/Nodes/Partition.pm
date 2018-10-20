@@ -35,9 +35,9 @@ my $Touch_Interval           = 3600;
 my $Num_Offsets              = 10;
 my $Get_Timeout              = 300;
 my $Offset                   = LAST_MSG_FIELD + 1;
-my %Leader_Commands = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK );
+my %Leader_Commands = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK EMPTY );
 my %Follower_Commands =
-    map { $_ => 1 } qw( VALID_OFFSETS UPDATE COMMIT DELETE );
+    map { $_ => 1 } qw( VALID_OFFSETS UPDATE COMMIT DELETE EMPTY );
 
 sub help {
     my $self = shift;
@@ -165,6 +165,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         elsif ( $command eq 'DELETE' ) {
             $self->process_delete( $offset, $args );
+        }
+        elsif ( $command eq 'EMPTY' ) {
+            $self->empty_partition;
         }
         else {
             die;
