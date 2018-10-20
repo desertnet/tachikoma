@@ -65,36 +65,41 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $type    = $message->[TYPE];
-    my $tail    = $self->{tail};
-    return $self->shutdown_all_nodes
-        if ( not $self->{destination}->{fh} or $type & TM_EOF );
-    if ( $message->[FROM] eq 'Tail' ) {
+    if ( not $self->{destination}->{fh} ) {
+        $self->stderr(
+            'WARNING: lost connection to ',
+            $self->{destination}->{hostname},
+            ' with ',
+            $message->type_as_string,
+            ' from ',
+            $message->[FROM]
+        );
+        $self->shutdown_all_nodes;
+    }
+    elsif ( $message->[FROM] eq 'Tail' ) {
         $message->[FROM] = $self->{name};
         $self->{destination}->fill($message);
     }
     elsif ( $message->[TYPE] & TM_RESPONSE ) {
         $self->{offset} = $message->[ID];
-        $tail->fill($message);
+        $self->{tail}->fill($message);
     }
     elsif ( $message->[FROM] eq 'Timer' ) {
         $self->send_offset if ( $self->{offset} != $self->{last_offset} );
     }
-    elsif ( $type & TM_ERROR ) {
+    elsif ( $message->[TYPE] & TM_ERROR ) {
         $self->shutdown_all_nodes;
     }
-    elsif ( $type & TM_EOF ) {
-        $self->stderr( "WARNING: unexpected TM_EOF from ", $message->[FROM] );
+    elsif ( $message->[TYPE] & TM_EOF ) {
+        $self->stderr( 'WARNING: unexpected TM_EOF from ', $message->[FROM] );
         $self->shutdown_all_nodes;
     }
     elsif ( $message->[PAYLOAD] eq "rename\n" ) {
-
-        # $tail->on_EOF('wait_for_delete');
-        $tail->on_EOF('wait_for_a_while');
+        $self->{tail}->on_EOF('wait_for_a_while');
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] eq "delete\n" ) {
-        $tail->on_EOF('close');
+        $self->{tail}->on_EOF('close');
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\n$} ) {
@@ -118,6 +123,10 @@ sub fill {
                 join( "\n", sort keys %Tachikoma::Nodes ) . "\n";
         }
         $self->SUPER::fill($response);
+    }
+    else {
+        $self->stderr( 'WARNING: unexpected message from ',
+            $message->[FROM] );
     }
     return;
 }
