@@ -103,7 +103,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error   = $@ || 'mkstempt failed';
+                my $error = $@ || 'mkstempt failed';
                 my $details = $!;
                 chomp $error;
                 $error =~ s{ at /\S+ line \d+[.]$}{};
