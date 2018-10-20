@@ -58,6 +58,7 @@ sub new {
     $self->{targets}     = {};
     $self->{persist}     = 'cancel';
     $self->{partitions}  = undef;
+    $self->{leader}      = undef;
     $self->{last_check}  = 0;
     $self->{last_expire} = 0;
     $self->{eos}         = undef;
@@ -330,7 +331,7 @@ sub fetch {
         push @{$messages}, @{ $consumer->fetch( $count, $callback ) };
         $eof = undef if ( not $consumer->{eos} );
         if ( $consumer->{sync_error} ) {
-            $self->{sync_error} = $consumer->{sync_error};
+            $self->sync_error( $consumer->sync_error );
             $self->remove_consumers;
             $eof = 1;
             last;
@@ -402,11 +403,16 @@ sub request_partitions {
         $target->drain;
         return 1;
     };
-    if ( not $okay or not $target->{fh} ) {
-        my $error = $@ || 'lost connection';
-        $self->remove_consumers;
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
         chomp $error;
+        $self->remove_consumers;
         $self->sync_error("REQUEST_PARTITIONS: $error\n");
+        $partitions = undef;
+    }
+    elsif ( not $target->{fh} ) {
+        $self->remove_consumers;
+        $self->sync_error("REQUEST_PARTITIONS: lost connection\n");
         $partitions = undef;
     }
     return $partitions;
@@ -415,10 +421,9 @@ sub request_partitions {
 sub get_leader {
     my $self = shift;
     if ( not $self->{leader} ) {
-        my $broker_ids = $self->broker_ids;
-        my $leader     = undef;
         die "ERROR: no group specified\n" if ( not $self->group );
-        for my $name ( keys %{$broker_ids} ) {
+        my $leader = undef;
+        for my $name ( keys %{ $self->broker_ids } ) {
             $leader = $self->request_leader($name);
             last if ($leader);
         }
@@ -459,11 +464,16 @@ sub request_leader {
         $target->drain;
         return 1;
     };
-    if ( not $okay or not $target->{fh} ) {
-        my $error = $@ || 'lost connection';
-        $self->remove_consumers;
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
         chomp $error;
+        $self->remove_consumers;
         $self->sync_error("REQUEST_LEADER: $error\n");
+        $leader = undef;
+    }
+    elsif ( not $target->{fh} ) {
+        $self->remove_consumers;
+        $self->sync_error("REQUEST_LEADER: lost connection\n");
         $leader = undef;
     }
     return $leader;
@@ -812,6 +822,14 @@ sub partitions {
     return $self->{partitions};
 }
 
+sub leader {
+    my $self = shift;
+    if (@_) {
+        $self->{leader} = shift;
+    }
+    return $self->{leader};
+}
+
 sub last_check {
     my $self = shift;
     if (@_) {
@@ -838,7 +856,7 @@ sub eos {
 
 sub sync_error {
     my (@args) = @_;
-    return Tachikoma::Nodes::Topic::sync_error(@args);
+    return Tachikoma::Nodes::Consumer::sync_error(@args);
 }
 
 1;

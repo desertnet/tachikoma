@@ -35,9 +35,9 @@ my $Touch_Interval           = 3600;
 my $Num_Offsets              = 10;
 my $Get_Timeout              = 300;
 my $Offset                   = LAST_MSG_FIELD + 1;
-my %Leader_Commands = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK );
+my %Leader_Commands = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK EMPTY );
 my %Follower_Commands =
-    map { $_ => 1 } qw( VALID_OFFSETS UPDATE COMMIT DELETE );
+    map { $_ => 1 } qw( VALID_OFFSETS UPDATE COMMIT DELETE EMPTY );
 
 sub help {
     my $self = shift;
@@ -165,6 +165,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         elsif ( $command eq 'DELETE' ) {
             $self->process_delete( $offset, $args );
+        }
+        elsif ( $command eq 'EMPTY' ) {
+            $self->empty_partition;
         }
         else {
             die;
@@ -367,7 +370,8 @@ sub write_offset {
 
 sub process_get_valid_offsets {
     my ( $self, $message, $broker_id ) = @_;
-    my $offsets = join q(,), @{ $self->{valid_offsets} };
+    my $offsets = join q(,), @{ $self->{valid_offsets} },
+        $self->{last_commit_offset};
     my $to = $message->[FROM];
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name} or return;
@@ -927,7 +931,7 @@ sub get_valid_offsets {
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
     $message->[PAYLOAD] = join q(), 'GET_VALID_OFFSETS 0 ',
-        $self->{broker_id}, "\n";
+        $self->{broker_id} // $self->{name}, "\n";
     $self->{expecting} = $Tachikoma::Now;
     $self->{sink}->fill($message);
     return;
@@ -940,7 +944,7 @@ sub get_batch {
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
     $message->[PAYLOAD] = join q(), 'GET ', $self->{offset} // 0, q( ),
-        $self->{broker_id},
+        $self->{broker_id} // $self->{name},
         "\n";
     $self->{expecting} = $Tachikoma::Now;
     $self->{sink}->fill($message);
@@ -954,7 +958,8 @@ sub send_ack {
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader_path};
-    $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ), $self->{broker_id},
+    $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ),
+        $self->{broker_id} // $self->{name},
         "\n";
     $self->{sink}->fill($message);
     return;

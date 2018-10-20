@@ -529,10 +529,13 @@ sub fetch {
         $target->drain;
         return 1;
     };
-    if ( not $okay or not $target->{fh} ) {
-        my $error = $@ || 'lost connection';
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
         chomp $error;
-        $self->{sync_error} = "FETCH: $error\n";
+        $self->sync_error("FETCH: $error\n");
+    }
+    elsif ( not $target->{fh} ) {
+        $self->sync_error("FETCH: lost connection\n");
     }
     $self->get_messages($messages);
     if ( @{$messages} ) {
@@ -565,7 +568,7 @@ sub get_offset {
         $consumer->hub_timeout( $self->hub_timeout );
         while (1) {
             my $messages = $consumer->fetch;
-            my $error    = $consumer->{sync_error} // q();
+            my $error    = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
             $stored = $messages->[-1]->payload if ( @{$messages} );
@@ -954,7 +957,7 @@ sub remove_target {
     my $self = shift;
     if ( $self->{target} ) {
         if ( $self->{target}->{fh} ) {
-            close $self->{target}->{fh} or die "couldn't close: $!";
+            close $self->{target}->{fh} or die "ERROR: couldn't close: $!";
             $self->{target}->{fh} = undef;
         }
         $self->{target} = undef;
@@ -1000,7 +1003,7 @@ sub target {
         $self->{target}->timeout( $self->{hub_timeout} )
             if ( $self->{target} );
         if ( not $self->{target} ) {
-            $self->{sync_error} = $@ || "ERROR: connect: unknown error\n";
+            $self->sync_error( $@ || "ERROR: connect: unknown error\n" );
             usleep( $self->{poll_interval} * 1000000 )
                 if ( $self->{poll_interval} );
         }

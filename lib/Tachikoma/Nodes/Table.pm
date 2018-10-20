@@ -38,11 +38,17 @@ EOF
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{caches}         = [];
-    $self->{num_partitions} = $Default_Num_Partitions;
-    $self->{window_size}    = $Default_Window_Size;
-    $self->{num_buckets}    = $Default_Num_Buckets;
-    $self->{next_window}    = undef;
+    $self->{caches}          = [];
+    $self->{num_partitions}  = $Default_Num_Partitions;
+    $self->{window_size}     = $Default_Window_Size;
+    $self->{num_buckets}     = $Default_Num_Buckets;
+    $self->{next_window}     = undef;
+    $self->{host}            = undef;
+    $self->{port}            = undef;
+    $self->{topic}           = undef;
+    $self->{field}           = undef;
+    $self->{connector}       = undef;
+    $self->{consumer_broker} = undef;
     bless $self, $class;
     return $self;
 }

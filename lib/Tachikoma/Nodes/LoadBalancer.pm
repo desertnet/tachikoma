@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 35293 2018-10-16 20:32:45Z chris $
+# $Id: LoadBalancer.pm 35420 2018-10-20 09:48:46Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -66,17 +66,15 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     my $to      = $message->[TO];
-    return if ( $type == TM_ERROR and not $to );
     if ( $type & TM_COMMAND or ( $type & TM_EOF and not $message->[STREAM] ) )
     {
         return $self->interpreter->fill($message);
     }
     elsif ( $to and $to ne '_return_to_sender' ) {
         $self->handle_response($message);
-        $message->[TO] = $to
-            if ( $type & TM_PERSIST and $type & TM_RESPONSE );
+        $self->{sink}->fill($message);
     }
-    else {
+    elsif ( $type != TM_ERROR ) {
         my $owner = $self->get_stream_owner($message)
             or return $self->print_less_often('WARNING: no recipients');
         my $mode = $self->{mode};
@@ -92,8 +90,9 @@ sub fill {
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
+        $self->{sink}->fill($message);
     }
-    return $self->{sink}->fill($message);
+    return;
 }
 
 sub handle_response {

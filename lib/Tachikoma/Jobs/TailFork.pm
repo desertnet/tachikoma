@@ -15,7 +15,7 @@ use Tachikoma::Nodes::Tail;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_EOF
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_EOF TM_ERROR
 );
 use Data::Dumper;
 use parent qw( Tachikoma::Job );
@@ -79,6 +79,13 @@ sub fill {
     }
     elsif ( $message->[FROM] eq 'Timer' ) {
         $self->send_offset if ( $self->{offset} != $self->{last_offset} );
+    }
+    elsif ( $type & TM_ERROR ) {
+        $self->shutdown_all_nodes;
+    }
+    elsif ( $type & TM_EOF ) {
+        $self->stderr( "WARNING: unexpected TM_EOF from ", $message->[FROM] );
+        $self->shutdown_all_nodes;
     }
     elsif ( $message->[PAYLOAD] eq "rename\n" ) {
 

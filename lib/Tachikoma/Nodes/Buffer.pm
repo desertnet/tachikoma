@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35361 2018-10-17 10:32:33Z chris $
+# $Id: Buffer.pm 35420 2018-10-20 09:48:46Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -89,9 +89,8 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
-    return if ( $type == TM_ERROR );
     return $self->handle_response($message)
-        if ( $type == ( TM_PERSIST | TM_RESPONSE ) );
+        if ( $type == ( TM_PERSIST | TM_RESPONSE ) or $type == TM_ERROR );
     return $self->SUPER::fill($message)
         if ( $type & TM_COMMAND or $type & TM_EOF );
     my $tiedhash       = $self->{tiedhash} // $self->tiedhash;
@@ -156,11 +155,7 @@ sub handle_response {
     my $response   = shift;
     my $message_id = $response->[ID];
     my $payload    = $response->[PAYLOAD];
-
-    # $self->stderr("got response for $message_id");
-    return $self->stderr(
-        'ERROR: missing id in persistent response from ' . $response->[FROM] )
-        if ( not $message_id );
+    return if ( not $message_id );
     my $msg_unanswered = $self->{msg_unanswered};
     my $type           = 0;
     if ( $msg_unanswered->{$message_id} ) {
