@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: Tee.pm 35420 2018-10-20 09:48:46Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -48,39 +48,19 @@ sub arguments {
 sub fill {
     my $self       = shift;
     my $message    = shift;
-    my $response   = 0;
     my $owners     = $self->{owner};
     my $messages   = undef;
     my $message_id = undef;
     my $persist    = undef;
     my @keep       = ();
-    return if ( $message->[TYPE] == TM_ERROR );
+    return $self->handle_response( $message, $owners )
+        if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
+        or $message->[TYPE] == TM_ERROR );
 
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $messages = $self->{messages};
-        if ( $message->[TYPE] & TM_RESPONSE ) {
-            $message_id = $message->[ID];
-            my $info     = $messages->{$message_id} or return;
-            my $original = $info->{original};
-            my $type     = $message->[PAYLOAD];
-            my $count    = $info->{count};
-            $count = @{$owners} if ( @{$owners} < $count );
-            if ( $info->{$type}++ >= $count - 1 ) {
-                delete $messages->{$message_id};
-                return (
-                      $type eq 'cancel'
-                    ? $self->cancel($original)
-                    : $self->answer($original)
-                );
-            }
-            elsif ( $info->{answer} + $info->{cancel} >= $count ) {
-                delete $messages->{$message_id};
-                return $self->answer($original);
-            }
-            return;
-        }
-        $message_id = $self->msg_counter;
-        $messages->{$message_id} = {
+        $messages                        = $self->{messages};
+        $message_id                      = $self->msg_counter;
+        $self->{messages}->{$message_id} = {
             original  => $message,
             count     => scalar( @{$owners} ),
             answer    => 0,
@@ -105,18 +85,45 @@ sub fill {
         }
         if ( defined $Tachikoma::Profiles ) {
             my $before = $self->push_profile($name);
-            $response = $node->fill($copy);
+            $node->fill($copy);
             $self->pop_profile($before);
             next;
         }
-        $response = $node->fill($copy);
+        $node->fill($copy);
     }
     if ( @keep < @{$owners} ) {
         @{$owners} = @keep;
         $self->check_messages;
     }
     $self->{counter}++;
-    return $response;
+    return;
+}
+
+sub handle_response {
+    my $self     = shift;
+    my $message  = shift;
+    my $owners   = shift;
+    my $messages = $self->{messages};
+    my $info     = $messages->{ $message->[ID] } or return;
+    my $original = $info->{original};
+    my $type     = $message->[PAYLOAD];
+    my $count    = $info->{count};
+    $count = @{$owners} if ( @{$owners} < $count );
+
+    if ( $info->{$type}++ >= $count - 1 ) {
+        delete $messages->{ $message->[ID] };
+        if ( $type eq 'cancel' ) {
+            $self->cancel($original);
+        }
+        else {
+            $self->answer($original);
+        }
+    }
+    elsif ( $info->{answer} + $info->{cancel} >= $count ) {
+        delete $messages->{ $message->[ID] };
+        $self->answer($original);
+    }
+    return;
 }
 
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
