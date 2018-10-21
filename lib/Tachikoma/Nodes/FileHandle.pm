@@ -324,6 +324,7 @@ sub close_filehandle {
         if ($self->{fh}
         and fileno $self->{fh}
         and not close $self->{fh}
+        and $!
         and $! ne 'Connection reset by peer'
         and $! ne 'Broken pipe' );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );
