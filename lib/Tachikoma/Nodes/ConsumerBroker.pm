@@ -184,7 +184,7 @@ sub fill {
             delete $self->consumers->{$partition_id};
         }
     }
-    else {
+    elsif ( not $message->[TYPE] & TM_EOF ) {
         $self->stderr( 'INFO: ', $message->type_as_string, ' from ',
             $message->from );
     }

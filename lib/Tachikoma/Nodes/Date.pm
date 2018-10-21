@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
-    TM_BYTESTREAM TM_INFO TM_EOF TM_ERROR
+    TM_BYTESTREAM TM_INFO TM_ERROR TM_EOF
 );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Node );
@@ -27,7 +27,7 @@ use version; our $VERSION = 'v2.0.367';
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return if ( $message->[TYPE] == TM_ERROR );
+    return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
     $self->{counter}++;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BYTESTREAM;

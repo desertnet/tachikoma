@@ -513,9 +513,13 @@ sub init_SSL_connection {
         # complaining about missing entries in %Nodes_By_FD
         $self->unregister_reader_node;
         $self->unregister_writer_node;
-        if ( $self->{fh} and fileno $self->{fh} ) {
-            close $self->{fh} or $self->stderr("WARNING: couldn't close: $!");
-        }
+        $self->stderr("WARNING: couldn't close: $!")
+            if ($self->{fh}
+            and fileno $self->{fh}
+            and not close $self->{fh}
+            and $!
+            and $! ne 'Connection reset by peer'
+            and $! ne 'Broken pipe' );
         $self->{fh} = undef;
         $self->handle_EOF;
     }

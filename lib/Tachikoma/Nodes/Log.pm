@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35353 2018-10-17 08:17:26Z chris $
+# $Id: Log.pm 35477 2018-10-21 13:27:41Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_SYNC );
 use Tachikoma::Nodes::STDIO;
-use Tachikoma::Message qw( TYPE FROM STREAM PAYLOAD TM_INFO TM_EOF TM_ERROR );
+use Tachikoma::Message qw( TYPE FROM STREAM PAYLOAD TM_INFO TM_ERROR TM_EOF );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::FileHandle );
 

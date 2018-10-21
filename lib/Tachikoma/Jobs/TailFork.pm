@@ -15,7 +15,7 @@ use Tachikoma::Nodes::Tail;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_EOF TM_ERROR
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Data::Dumper;
 use parent qw( Tachikoma::Job );
@@ -79,6 +79,7 @@ sub fill {
     elsif ( $message->[FROM] eq 'Tail' ) {
         $message->[FROM] = $self->{name};
         $self->{destination}->fill($message);
+        $self->shutdown_all_nodes if ( $message->[TYPE] & TM_EOF );
     }
     elsif ( $message->[TYPE] & TM_RESPONSE ) {
         $self->{offset} = $message->[ID];
@@ -99,7 +100,7 @@ sub fill {
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] eq "delete\n" ) {
-        $self->{tail}->on_EOF('close');
+        $self->{tail}->on_EOF('wait_to_close');
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\n$} ) {

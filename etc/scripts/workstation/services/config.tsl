@@ -9,7 +9,7 @@ var tachikoma.tables.http.port      = 3124;
 var tachikoma.tables.port           = 5100;
 var tachikoma.engines.port          = 5200;
 var tachikoma.indexers.port         = 5300;
-var tachikoma.hunter.port           = 5400;
+var tachikoma.lookup.port           = 5400;
 var tachikoma.hubs.port             = 5500;
 var tachikoma.topic_top.hostname    = localhost;
 var tachikoma.topic_top.port        = 4380;
@@ -20,6 +20,12 @@ var tachikoma.http.port             = 4241;
 var hub       = localhost:5501;
 var broker    = <hub>/broker;
 var topic_top = <tachikoma.topic_top.hostname>:<tachikoma.topic_top.input.port>;
+
+var server_log.fields = (
+    hostname
+    timestamp
+    process
+);
 
 func connect_hub {
     connect_inet <hub> <hub>;

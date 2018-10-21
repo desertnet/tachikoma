@@ -18,9 +18,9 @@ sub test_construction {
     return $node;
 }
 
-my $class = 'Tachikoma';
-test_construction($class);
-$class->event_framework(
+my $tachikoma = 'Tachikoma';
+test_construction($tachikoma);
+$tachikoma->event_framework(
     test_construction('Tachikoma::EventFrameworks::Select') );
 
 my @jobs = qw(

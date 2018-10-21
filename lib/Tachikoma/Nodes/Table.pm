@@ -14,7 +14,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_INFO
+    TM_BYTESTREAM TM_STORABLE TM_INFO TM_ERROR TM_EOF
 );
 use Digest::MD5 qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
@@ -110,7 +110,9 @@ sub fill {
             );
         }
     }
-    else {
+    elsif ( not $message->[TYPE] & TM_ERROR
+        and not $message->[TYPE] & TM_EOF )
+    {
         $self->store( $message->[TIMESTAMP], $message->[STREAM],
             $message->payload );
         $self->cancel($message);

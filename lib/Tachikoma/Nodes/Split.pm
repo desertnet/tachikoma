@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 35293 2018-10-16 20:32:45Z chris $
+# $Id: Split.pm 35477 2018-10-21 13:27:41Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -80,7 +80,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
     my $messages   = undef;
     my $message_id = undef;
     my $persist    = undef;
-    return if ( $message->[TYPE] == TM_ERROR );
+    return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
     if ( $message->[TYPE] & TM_PERSIST ) {
         $messages = $self->{messages};
         if ( $message->[TYPE] & TM_RESPONSE ) {
@@ -100,7 +100,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
                 delete $messages->{$message_id};
                 return $self->answer($original);
             }
-            return 1;
+            return;
         }
         $message_id = $self->msg_counter;
         $messages->{$message_id} = {
@@ -115,7 +115,6 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
     }
     my $delimiter = $self->{delimiter};
     my $count     = 0;
-    my $rv        = 0;
     $self->{counter}++;
     if ( not $delimiter or $delimiter eq 'newline' ) {
         for my $line ( split m{(?<=\n)}, $message->[PAYLOAD] ) {
@@ -131,7 +130,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
             $response->[TIMESTAMP] = $message->[TIMESTAMP];
             $response->[PAYLOAD]   = $self->{line_buffer} . $line;
             $self->{line_buffer}   = q();
-            $rv += $self->{sink}->fill($response) || 0;
+            $self->{sink}->fill($response);
             $count++;
         }
     }
@@ -144,7 +143,7 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
             $response->[ID]        = $message_id;
             $response->[TIMESTAMP] = $message->[TIMESTAMP];
             $response->[PAYLOAD]   = $block . "\n";
-            $rv += $self->{sink}->fill($response) || 0;
+            $self->{sink}->fill($response);
             $count++;
         }
     }
@@ -157,12 +156,12 @@ sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
             $response->[ID]        = $message_id;
             $response->[TIMESTAMP] = $message->[TIMESTAMP];
             $response->[PAYLOAD]   = $block . "\n";
-            $rv += $self->{sink}->fill($response) || 0;
+            $self->{sink}->fill($response);
             $count++;
         }
     }
     $messages->{$message_id}->{count} = $count if ($message_id);
-    return $rv;
+    return;
 }
 
 sub fire {

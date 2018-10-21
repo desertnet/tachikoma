@@ -64,8 +64,8 @@ sub fill {
 sub fire {
     my $self = shift;
 
-    my $last   = $self->{last_out};
-    my $target = $self->{target_out};
+    my $last   = $self->{last_out} // 0;
+    my $target = $self->{target_out} // 0;
 
     my $newmsg = Tachikoma::Message->new;
     $newmsg->type(TM_BYTESTREAM);

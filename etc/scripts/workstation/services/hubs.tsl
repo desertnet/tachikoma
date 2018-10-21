@@ -29,40 +29,28 @@ func add_hub {
             for hub (<all_hubs>) {
                 set_broker <hub>;
             };
+
             set_topic topic1;
-            set_group cache.nyx            --topic=topic1;
-            set_group cache.misa           --topic=topic1;
+            set_group cache                --topic=topic1;
             set_group IDs                  --topic=topic1;
+
             set_topic topic1.ID            --segment_size=(16 * 1024 * 1024);
-            set_group IDs.nyx              --topic=topic1.ID;
-            set_group IDs.misa             --topic=topic1.ID;
+            set_group IDs                  --topic=topic1.ID;
 
             set_topic topic2;
             set_group cache                --topic=topic2;
 
             set_topic server_log           --num_partitions=4
-                                           --segment_size=(64 * 1024 * 1024);
-            set_topic server_log.timestamp --num_partitions=4
-                                           --segment_size=(4 * 1024 * 1024);
-            set_topic server_log.hostname  --num_partitions=4
-                                           --segment_size=(4 * 1024 * 1024);
-            set_topic server_log.process   --num_partitions=4
-                                           --segment_size=(4 * 1024 * 1024);
-            set_group timestamps           --topic=server_log;
-            set_group timestamps.nyx       --topic=server_log.timestamp
-                                           --cache_size=0;
-            set_group timestamps.misa      --topic=server_log.timestamp
-                                           --cache_size=0;
-            set_group hostnames            --topic=server_log;
-            set_group hostnames.nyx        --topic=server_log.hostname
-                                           --cache_size=0;
-            set_group hostnames.misa       --topic=server_log.hostname
-                                           --cache_size=0;
-            set_group processes            --topic=server_log;
-            set_group processes.nyx        --topic=server_log.process
-                                           --cache_size=0;
-            set_group processes.misa       --topic=server_log.process
-                                           --cache_size=0;
+                                           --segment_size=(64 * 1024 * 1024)
+                                           --segment_lifespan=(7 * 86400);
+            for field (<server_log.fields>) {
+                set_topic --topic=server_log.<field> --num_partitions=4
+                                                     --segment_size=(4 * 1024 * 1024)
+                                                     --segment_lifespan=(7 * 86400);
+                set_group --group=server_log.<field> --topic=server_log;
+                set_group --group=engine             --topic=server_log.<field>
+                                                     --cache_size=0;
+            };
 
             set_topic images.ondisk  --num_partitions=8
                                      --segment_size=(128 * 1024 * 1024);

@@ -575,6 +575,7 @@ sub dbh {
         }
         else {
             ## no critic (RequireCheckedSyscalls)
+            local %ENV = ();
             system "/bin/rm -f ${path}*";
         }
         my $dbh = DBI->connect("dbi:SQLite:dbname=$path");

@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35372 2018-10-18 05:15:40Z chris $
+# $Id: FileHandle.pm 35477 2018-10-21 13:27:41Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -15,7 +15,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
-    TM_BYTESTREAM TM_EOF TM_ERROR
+    TM_BYTESTREAM TM_ERROR TM_EOF
     VECTOR_SIZE
 );
 use Tachikoma::Config qw( %Tachikoma );
@@ -324,6 +324,7 @@ sub close_filehandle {
         if ($self->{fh}
         and fileno $self->{fh}
         and not close $self->{fh}
+        and $!
         and $! ne 'Connection reset by peer'
         and $! ne 'Broken pipe' );
     POSIX::close( $self->{fd} ) if ( defined $self->{fd} );

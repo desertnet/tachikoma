@@ -10,7 +10,7 @@ package Tachikoma::Nodes::Substr;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( PAYLOAD );
+use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -44,6 +44,7 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $payload = $message->[PAYLOAD];
     my @matches = $payload =~ m{$self->{pattern}};
     return $self->cancel($message) if ( not @matches );

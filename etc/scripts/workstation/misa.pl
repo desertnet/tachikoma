@@ -20,7 +20,7 @@ fsync_source(
     pedantic   => 1,
     count      => 0,
     broadcasts => [],
-    no_probe   => 1
+    probe      => 0
 );
 fsync_destination(
     path    => '<home>/Documents',
