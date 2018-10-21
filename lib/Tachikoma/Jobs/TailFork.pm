@@ -15,7 +15,7 @@ use Tachikoma::Nodes::Tail;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_EOF TM_ERROR
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Data::Dumper;
 use parent qw( Tachikoma::Job );

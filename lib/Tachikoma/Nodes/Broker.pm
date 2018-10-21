@@ -83,7 +83,7 @@ sub new {
     $self->{last_check}          = undef;
     $self->{last_delete}         = undef;
     $self->{last_save}           = undef;
-    $self->{last_election}       = undef;
+    $self->{last_election}       = $Tachikoma::Now;
     $self->{last_halt}           = 0;
     $self->{last_reset}          = 0;
     $self->{mapping}             = {};

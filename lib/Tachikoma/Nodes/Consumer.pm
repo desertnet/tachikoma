@@ -189,8 +189,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
     }
     else {
-        return $self->stderr('WARNING: unexpected message')
-            if ( not $self->{expecting} );
+        if ( not $self->{expecting} ) {
+            $self->stderr('WARNING: unexpected message')
+                if ( not $message->[TYPE] & TM_EOF );
+            return;
+        }
         $self->{offset} //= $offset;
         if (    $self->{next_offset} > 0
             and $offset != $self->{next_offset} )

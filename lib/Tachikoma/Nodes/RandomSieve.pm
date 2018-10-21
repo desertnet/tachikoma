@@ -10,7 +10,7 @@ package Tachikoma::Nodes::RandomSieve;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Echo;
-use Tachikoma::Message qw( TYPE FROM TO ID STREAM PAYLOAD TM_ERROR );
+use Tachikoma::Message qw( TYPE FROM TO ID STREAM PAYLOAD TM_ERROR TM_EOF );
 use parent qw( Tachikoma::Nodes::Echo );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -42,7 +42,7 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return if ( $message->[TYPE] == TM_ERROR );
+    return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
     if ( rand(100) >= $self->{probability} ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_ERROR;

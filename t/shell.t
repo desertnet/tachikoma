@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 78;
+use Test::More tests => 77;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -23,12 +23,12 @@ $Data::Dumper::Useperl  = 1;
 
 #####################################################################
 my $shell = Tachikoma::Nodes::Shell2->new;
-is( ref $shell, 'Tachikoma::Nodes::Shell2', 'Shell2::new()' );
+is( ref $shell, 'Tachikoma::Nodes::Shell2', 'Shell2->new is ok' );
 
 # callback->new
 my $answer;
 my $destination = Tachikoma::Nodes::Callback->new;
-is( ref $destination, 'Tachikoma::Nodes::Callback', 'Callback::new()' );
+is( ref $destination, 'Tachikoma::Nodes::Callback', 'Callback->new is ok' );
 $shell->sink($destination);
 $destination->callback(
     sub {
@@ -137,14 +137,9 @@ is( $Var{bar}, 13, 'variable iteration sets variables correctly' );
 $parse_tree = $shell->parse('send echo (2 - -1)');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{3}\n", 'math operators 1' );
-
-#####################################################################
-
 $parse_tree = $shell->parse('send echo (-2 + 1)');
-$answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{-1}\n", 'math operators 2' );
+is( $answer, "{3}\n{-1}\n", 'arithmetic operators are evaluated correctly' );
 
 #####################################################################
 

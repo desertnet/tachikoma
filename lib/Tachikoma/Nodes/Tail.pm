@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35424 2018-10-20 10:20:18Z chris $
+# $Id: Tail.pm 35477 2018-10-21 13:27:41Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -18,7 +18,7 @@ use Tachikoma::Nodes::FileHandle;
 use Tachikoma::Nodes::STDIO;
 use Tachikoma::Message qw(
     TYPE FROM ID STREAM PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Tachikoma::Config qw( %Tachikoma %Forbidden );
 use Fcntl qw( SEEK_SET SEEK_CUR SEEK_END );
@@ -207,7 +207,9 @@ sub fill {
     return $self->check_timers($message) if ( not length $message->[FROM] );
     return $self->stderr( 'WARNING: unexpected response from ',
         $message->[FROM] )
-        if ( not $msg_unanswered and not $message->[TYPE] & TM_ERROR );
+        if (not $msg_unanswered
+        and not $message->[TYPE] & TM_ERROR
+        and not $message->[TYPE] & TM_EOF );
     return
         if ( not $max_unanswered
         or $message->[TYPE] != ( TM_PERSIST | TM_RESPONSE ) );

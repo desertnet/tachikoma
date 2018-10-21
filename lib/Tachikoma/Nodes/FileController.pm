@@ -118,7 +118,7 @@ sub fire {
     my $self = shift;
 
     # empty all the pools so the buffer can refill them
-    $self->stderr('WARNING: emptying event pools');
+    $self->stderr('WARNING: emptying event pools') if ( @{ $self->{pools} } );
     $self->{op}    = q();
     $self->{pools} = [];
     $self->stop_timer;

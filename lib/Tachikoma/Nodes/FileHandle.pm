@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35454 2018-10-21 03:23:40Z chris $
+# $Id: FileHandle.pm 35477 2018-10-21 13:27:41Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -15,7 +15,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
-    TM_BYTESTREAM TM_EOF TM_ERROR
+    TM_BYTESTREAM TM_ERROR TM_EOF
     VECTOR_SIZE
 );
 use Tachikoma::Config qw( %Tachikoma );

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 35420 2018-10-20 09:48:46Z chris $
+# $Id: LoadBalancer.pm 35477 2018-10-21 13:27:41Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM
-    TM_COMMAND TM_INFO TM_PERSIST TM_RESPONSE TM_EOF TM_ERROR
+    TM_COMMAND TM_INFO TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Digest::MD5 qw( md5 );
 use parent qw( Tachikoma::Nodes::Timer );

@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR
+    TM_BYTESTREAM TM_PERSIST TM_ERROR TM_EOF
 );
 use parent qw( Tachikoma::Node );
 
@@ -22,9 +22,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     $self->{counter}++;
-    return
-        if ( $message->[TYPE] & TM_RESPONSE
-        or $message->[TYPE] & TM_ERROR );
+    return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
     my $timestamp = $message->[TIMESTAMP] - $message->[TIMESTAMP] % 60;
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;

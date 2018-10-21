@@ -100,7 +100,7 @@ sub fire {
     return if ( ( $now - $last ) < $min );
     return if ( $now < $until );
     $self->{waiting_until} = 0;
-    my $str = shift( @{ $self->{queue} } );
+    my $str = shift( @{ $self->{queue} } ) // q();
 
     if ( $str =~ /^WAIT:(\d+)$/ ) {
         my $s = $1;

@@ -71,6 +71,7 @@ sub arguments {
         my $arguments = shift;
         $self->{arguments} = $arguments;
         my ( $broker, $topic ) = split q( ), $arguments, 2;
+        die "ERROR: bad arguments for Topic\n" if ( not $broker );
         $self->{broker_path}    = $broker;
         $self->{topic}          = $topic // $self->{name};
         $self->{next_partition} = 0;

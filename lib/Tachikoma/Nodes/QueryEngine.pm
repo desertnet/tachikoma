@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Index;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_ERROR
+    TM_BYTESTREAM TM_STORABLE TM_ERROR TM_EOF
 );
 use parent qw( Tachikoma::Nodes::Index );
 
@@ -66,7 +66,9 @@ sub fill {
         $self->{sink}->fill($response);
         $self->{counter}++;
     }
-    elsif ( $message->[TYPE] != TM_ERROR ) {
+    elsif ( not $message->[TYPE] & TM_ERROR
+        and not $message->[TYPE] & TM_EOF )
+    {
         $self->stderr( 'ERROR: bad request from: ', $message->[FROM] );
     }
     return;
