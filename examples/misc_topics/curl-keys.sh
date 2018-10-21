@@ -1,5 +1,5 @@
 #!/bin/sh
-curl --data-binary '{
+curl --netrc --data-binary '{
     "op" : "keys",
     "field" : "server_log.'$1':index"
 }' \
