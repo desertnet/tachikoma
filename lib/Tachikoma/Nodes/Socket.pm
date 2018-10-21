@@ -465,12 +465,12 @@ sub get_ssl_verify_callback {
         my $okay  = $_[0];
         my $error = $_[3];
         return 1 if ($okay);
-        if ( $error eq 'error:0000000A:lib(0):func(0):DSA lib' ) {
-            $self->print_less_often(
-                "WARNING: SSL certificate verification error: $error");
+        $error =~ s{^error:}{};
+        if ( $error eq '0000000A:lib(0):func(0):DSA lib' ) {
+            $self->print_less_often("WARNING: SSL verification: $error");
             return 1;
         }
-        $self->stderr("ERROR: SSL certificate verification failed: $error");
+        $self->stderr("ERROR: SSL verification failed: $error");
         return 0;
     };
 }
