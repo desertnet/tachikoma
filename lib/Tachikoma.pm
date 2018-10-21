@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35418 2018-10-20 08:56:40Z chris $
+# $Id: Tachikoma.pm 35488 2018-10-21 15:03:01Z chris $
 #
 
 package Tachikoma;
@@ -110,13 +110,12 @@ sub inet_client {
                 my $okay  = $_[0];
                 my $error = $_[3];
                 return 1 if ($okay);
-                if ( $error eq 'error:0000000A:lib(0):func(0):DSA lib' ) {
-                    print {*STDERR}
-                        "WARNING: SSL certificate verification error: $error";
+                $error =~ s{^error:}{};
+                if ( $error eq '0000000A:lib(0):func(0):DSA lib' ) {
+                    print {*STDERR} "WARNING: SSL verification: $error\n";
                     return 1;
                 }
-                print {*STDERR}
-                    "ERROR: SSL certificate verification failed: $error";
+                print {*STDERR} "ERROR: SSL verification failed: $error\n";
                 return 0;
             },
             SSL_verify_mode => $use_ssl eq 'noverify'

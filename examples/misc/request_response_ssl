@@ -5,9 +5,16 @@ use Tachikoma;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 require '/usr/local/etc/tachikoma.conf';
 my $tachikoma = Tachikoma->inet_client( 'localhost', 4231, 'use_SSL' );
-my $message = Tachikoma::Message->new;
-$message->type(TM_BYTESTREAM);
-$message->to("echo");
-$message->payload("hello, world\n");
-$tachikoma->fill($message);
-print $_->payload for ( @{ $tachikoma->fetch } );
+my $request = Tachikoma::Message->new;
+$request->type(TM_BYTESTREAM);
+$request->to("echo");
+$request->payload("hello, world\n");
+$tachikoma->callback(
+    sub {
+        my $response = shift;
+        print $response->payload;
+        return;
+    }
+);
+$tachikoma->fill($request);
+$tachikoma->drain;

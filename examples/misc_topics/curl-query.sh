@@ -1,5 +1,5 @@
 #!/bin/sh
-curl --data-binary '[
+curl --netrc --data-binary '[
     {
         "field" : "server_log.timestamp:index",
         "op" : "ge",
