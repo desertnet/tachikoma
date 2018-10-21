@@ -12,15 +12,12 @@ lib/Tachikoma/Job.pm
 lib/Tachikoma/Jobs/BShell.pm
 lib/Tachikoma/Jobs/CGI.pm
 lib/Tachikoma/Jobs/CommandInterpreter.pm
-lib/Tachikoma/Jobs/DNS.pm
-lib/Tachikoma/Jobs/Delay.pm
 lib/Tachikoma/Jobs/DirCheck.pm
 lib/Tachikoma/Jobs/DirStats.pm
 lib/Tachikoma/Jobs/Echo.pm
 lib/Tachikoma/Jobs/FileReceiver.pm
 lib/Tachikoma/Jobs/FileRemover.pm
 lib/Tachikoma/Jobs/FileSender.pm
-lib/Tachikoma/Jobs/Fortune.pm
 lib/Tachikoma/Jobs/Inet_AtoN.pm
 lib/Tachikoma/Jobs/LWP.pm
 lib/Tachikoma/Jobs/Log.pm
@@ -51,7 +48,6 @@ lib/Tachikoma/Nodes/Consumer.pm
 lib/Tachikoma/Nodes/ConsumerBroker.pm
 lib/Tachikoma/Nodes/ConsumerGroup.pm
 lib/Tachikoma/Nodes/Counter.pm
-lib/Tachikoma/Nodes/Date.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
 lib/Tachikoma/Nodes/Edge.pm
@@ -132,3 +128,7 @@ lib/Tachikoma/Nodes/Transform.pm
 lib/Tachikoma/Nodes/Uniq.pm
 lib/Tachikoma/Nodes/Watchdog.pm
 lib/Tachikoma/Nodes/Watcher.pm
+lib/Accessories/Jobs/DNS.pm
+lib/Accessories/Jobs/Delay.pm
+lib/Accessories/Jobs/Fortune.pm
+lib/Accessories/Nodes/Date.pm
