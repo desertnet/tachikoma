@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Jobs::DNS
+# Accessories::Jobs::Fortune
 # ----------------------------------------------------------------------
 #
-# $Id: DNS.pm 415 2008-12-24 21:08:33Z chris $
+# $Id: Fortune.pm 35498 2018-10-21 17:57:02Z chris $
 #
 
-package Tachikoma::Jobs::DNS;
+package Accessories::Jobs::Fortune;
 use strict;
 use warnings;
 use Tachikoma::Job;
@@ -14,6 +14,14 @@ use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = 'v2.0.349';
+
+my $Fortune = undef;
+if ( -f '/opt/local/bin/fortune' ) {
+    $Fortune = '/opt/local/bin/fortune';
+}
+else {
+    $Fortune = '/usr/games/fortune';
+}
 
 sub initialize_graph {
     my $self = shift;
@@ -34,8 +42,17 @@ sub fill {
     my $message = shift;
     return if ( not $message->type & TM_BYTESTREAM );
     my $arguments = $message->payload;
+    my $fortune   = $self->execute( $Fortune, $arguments );
+    my @canned    = ();
+    return if ( not $fortune );
+    $fortune =~ s{^%% [(].*?[)]\s*}{}g;
+
+    for my $cookie ( split m{%%\n}, $fortune ) {
+        $cookie =~ s{\t}{        }g;
+        push @canned, $cookie;
+    }
     $message->to( $message->from );
-    $message->payload( $self->execute( '/usr/bin/host', $arguments ) );
+    $message->payload( $canned[ int rand @canned ] );
     return $self->SUPER::fill($message);
 }
 

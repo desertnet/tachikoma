@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Date
+# Accessories::Nodes::Date
 # ----------------------------------------------------------------------
 #
 # $Id: Date.pm 3511 2009-10-08 00:18:42Z chris $
 #
 
-package Tachikoma::Nodes::Date;
+package Accessories::Nodes::Date;
 use strict;
 use warnings;
 use Tachikoma::Node;

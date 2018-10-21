@@ -28,15 +28,12 @@ my @jobs = qw(
     Tachikoma::Jobs::BShell
     Tachikoma::Jobs::CGI
     Tachikoma::Jobs::CommandInterpreter
-    Tachikoma::Jobs::Delay
     Tachikoma::Jobs::DirCheck
     Tachikoma::Jobs::DirStats
-    Tachikoma::Jobs::DNS
     Tachikoma::Jobs::Echo
     Tachikoma::Jobs::FileReceiver
     Tachikoma::Jobs::FileRemover
     Tachikoma::Jobs::FileSender
-    Tachikoma::Jobs::Fortune
     Tachikoma::Jobs::Inet_AtoN
     Tachikoma::Jobs::Log
     Tachikoma::Jobs::LWP
@@ -48,7 +45,10 @@ my @jobs = qw(
     Tachikoma::Jobs::Transform
     Accessories::Jobs::AfPlay
     Accessories::Jobs::CozmoAlert
+    Accessories::Jobs::Delay
+    Accessories::Jobs::DNS
     Accessories::Jobs::ExecFork
+    Accessories::Jobs::Fortune
     Accessories::Jobs::Lucky
     Accessories::Jobs::Reactor
 );
