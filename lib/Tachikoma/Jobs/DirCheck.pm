@@ -26,10 +26,6 @@ my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
 );
-my %Cache          = ();
-my $Cache_Lifetime = 86400 * 3;
-my $Scrub_Interval = 86400 / 3;
-my $Last_Scrub     = 0;
 
 sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
@@ -104,32 +100,24 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my @entries = readdir $dh;
     closedir $dh or $self->stderr("ERROR: couldn't closedir $my_path: $!");
     my %checked = ();
-    while (@entries) {
-        my $entry = shift @entries;
+    for my $entry (@entries) {
+        my $my_path_entry = join q(/), $my_path, $entry;
+        my @lstat = lstat $my_path_entry;
+        next if ( not @lstat );
+        my $last_modified = $lstat[9];
         if ( $entry =~ m{^[.]} and not $Dot_Include{$entry} ) {
-            if ( $entry =~ m{^[.]temp-\w{16}$} ) {
-                my $my_path_entry = join q(/), $my_path, $entry;
-                my @lstat = lstat $my_path_entry;
-                next if ( not @lstat );
-                my $last_modified = $lstat[9];
-                if (    $mode eq 'update'
-                    and $Tachikoma::Now - $last_modified > 3600 )
-                {
-                    $self->stderr(
-                        "unlinking stale temp file: $my_path_entry");
-                    unlink $my_path_entry
-                        or $self->stderr(
-                        "ERROR: couldn't remove $my_path_entry: $!");
-                }
+            if ( $entry =~ m{^[.]temp-\w{16}$}
+                and $mode eq 'update'
+                and $Tachikoma::Now - $last_modified > 3600 )
+            {
+                $self->stderr("unlinking stale temp file: $my_path_entry");
+                unlink $my_path_entry
+                    or $self->stderr(
+                    "ERROR: couldn't remove $my_path_entry: $!");
             }
             next;
         }
-        my $my_path_entry = join q(/), $my_path, $entry;
-        my @lstat = cached_lstat($my_path_entry);
-        next if ( not @lstat );
-
-        # my $stat          = (-l _) ? 'L' : (-d _) ? 'D' : 'F';
-        my $stat          = $lstat[-1];
+        my $stat          = (-l _) ? 'L' : (-d _) ? 'D' : 'F';
         my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};
@@ -138,12 +126,13 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $their_perms   = $other_entry ? $other_entry->[2] : q();
         my $my_is_dir     = ( $stat eq 'D' ) ? 1 : 0;
         my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1 : 0;
-        my $last_modified = $lstat[9];
         my $digest        = q(-);
         my $theirs_exists = exists $other{$entry};
         if ( not $theirs_exists or $my_is_dir != $theirs_is_dir ) {
-            next if ( validate( $my_path_entry, $entry, \@entries ) );
-            next if ( $last_modified > $recent );
+            if ( $theirs_exists and $last_modified > $recent ) {
+                $checked{$entry} = 1;
+                next;
+            }
             if ( not $should_delete ) {
                 if ( not $theirs_exists ) {
                     $self->print_less_often(
@@ -152,8 +141,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 }
                 else {
                     $self->stderr("WARNING: type mismatch: $my_path_entry");
+                    $checked{$entry} = 1;
                 }
-                $checked{$entry} = 1;
                 next;
             }
             $self->stderr("removing $my_path_entry");
@@ -172,12 +161,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
         }
         elsif ( $last_modified > $other_entry->[3] ) {
-            if ( $mode eq 'update' and $stat ne 'D' ) {
-                validate( $my_path_entry, $entry, \@entries );
-            }
-            else {
-                $checked{$entry} = 1;
-            }
+            $checked{$entry} = 1;
         }
         elsif ( $their_stat eq $stat
             and ( $theirs_is_dir or $their_size eq $size ) )
@@ -185,22 +169,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             if ( $stat eq 'L' ) {
                 my $my_link    = readlink $my_path_entry;
                 my $their_link = $other_entry->[5];
-                if ( $my_link ne $their_link ) {
-                    validate( $my_path_entry, $entry, \@entries );
-                }
-                else {
-                    $checked{$entry} = 1;
-                }
-                next;
+                next if ( $my_link ne $their_link );
             }
-            if ( $their_perms ne $perms ) {
-                validate( $my_path_entry, $entry, \@entries );
-                next;
-            }
-            if ( $mode eq 'update' and $last_modified < $other_entry->[3] ) {
-                validate( $my_path_entry, $entry, \@entries );
-                next;
-            }
+            next if ( $their_perms ne $perms );
+            next if ( $mode eq 'update' and $last_modified < $other_entry->[3] );
             my $their_digest = $other_entry->[4];
             if ( $stat eq 'F' and $their_digest ne q(-) ) {
                 my $md5 = Digest::MD5->new;
@@ -219,9 +191,6 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             next if ( $their_digest ne $digest );
             $checked{$entry} = 1;
         }
-        else {
-            validate( $my_path_entry, $entry, \@entries );
-        }
     }
     for my $entry ( keys %other ) {
         next if ( $checked{$entry} );
@@ -235,49 +204,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $response->[PAYLOAD] = join q(), 'update:', $their_path_entry, "\n";
         $self->SUPER::fill($response);
     }
-    scrub();
     return $self->cancel($message);
-}
-
-sub cached_lstat {
-    my $path  = shift;
-    my $lstat = $Cache{$path};
-    if ( not $lstat or not @{$lstat} ) {
-        $lstat = [ lstat $path ];
-        push @{$lstat},
-            $Tachikoma::Now, ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F'
-            if ( @{$lstat} );
-        $Cache{$path} = $lstat
-            if ( not @{$lstat}
-            or $Tachikoma::Now - $lstat->[9] < $Cache_Lifetime );
-    }
-    return @{$lstat};
-}
-
-sub validate {
-    my $path      = shift;
-    my $entry     = shift;
-    my $entries   = shift;
-    my $timestamp = $Cache{$path} ? $Cache{$path}->[-2] : undef;
-    my $rv        = undef;
-    if ( $timestamp and $timestamp < $Tachikoma::Now ) {
-        delete $Cache{$path};
-        unshift @{$entries}, $entry;
-        $rv = 1;
-    }
-    return $rv;
-}
-
-sub scrub {
-    if ( $Tachikoma::Now - $Last_Scrub > $Scrub_Interval ) {
-        for my $path ( keys %Cache ) {
-            delete $Cache{$path}
-                if (
-                $Tachikoma::Now - $Cache{$path}->[9] >= $Cache_Lifetime );
-        }
-        $Last_Scrub = $Tachikoma::Now;
-    }
-    return;
 }
 
 1;
