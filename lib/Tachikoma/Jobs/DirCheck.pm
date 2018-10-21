@@ -106,7 +106,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         next if ( not @lstat );
         my $last_modified = $lstat[9];
         if ( $entry =~ m{^[.]} and not $Dot_Include{$entry} ) {
-            if ( $entry =~ m{^[.]temp-\w{16}$}
+            if (    $entry =~ m{^[.]temp-\w{16}$}
                 and $mode eq 'update'
                 and $Tachikoma::Now - $last_modified > 3600 )
             {
@@ -117,8 +117,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             next;
         }
-        my $stat          = (-l _) ? 'L' : (-d _) ? 'D' : 'F';
-        my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
+        my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};
         my $their_stat    = $other_entry ? $other_entry->[0] : q();
@@ -128,6 +128,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1 : 0;
         my $digest        = q(-);
         my $theirs_exists = exists $other{$entry};
+
         if ( not $theirs_exists or $my_is_dir != $theirs_is_dir ) {
             if ( $theirs_exists and $last_modified > $recent ) {
                 $checked{$entry} = 1;
@@ -172,7 +173,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 next if ( $my_link ne $their_link );
             }
             next if ( $their_perms ne $perms );
-            next if ( $mode eq 'update' and $last_modified < $other_entry->[3] );
+            next
+                if ($mode eq 'update'
+                and $last_modified < $other_entry->[3] );
             my $their_digest = $other_entry->[4];
             if ( $stat eq 'F' and $their_digest ne q(-) ) {
                 my $md5 = Digest::MD5->new;
