@@ -6,28 +6,28 @@ connect_hub
 
 
 # example of caching values for HTTP_Fetch
-make_node ConsumerBroker topic1:consumer    --broker=<broker>        \
-                                            --topic=topic1           \
-                                            --group=cache.<hostname> \
-                                            --default_offset=start   \
+make_node ConsumerBroker topic1:consumer    --broker=<broker>      \
+                                            --topic=topic1         \
+                                            --group=cache          \
+                                            --default_offset=start \
                                             --auto_commit=60
 
-make_node Table          topic1:table       --num_partitions=1       \
-                                            --window_size=0          \
+make_node Table          topic1:table       --num_partitions=1     \
+                                            --window_size=0        \
                                             --num_buckets=1
 
 connect_edge topic1:consumer topic1:table
 
 
 # example of caching offsets for fetch.cgi
-make_node ConsumerBroker topic1.ID:consumer --broker=<broker>        \
-                                            --topic=topic1.ID        \
-                                            --group=IDs.<hostname>   \
-                                            --default_offset=start   \
+make_node ConsumerBroker topic1.ID:consumer --broker=<broker>      \
+                                            --topic=topic1.ID      \
+                                            --group=IDs            \
+                                            --default_offset=start \
                                             --auto_commit=60
 
-make_node Table          topic1.ID:table    --num_partitions=1       \
-                                            --window_size=0          \
+make_node Table          topic1.ID:table    --num_partitions=1     \
+                                            --window_size=0        \
                                             --num_buckets=1
 
 connect_edge topic1.ID:consumer topic1.ID:table

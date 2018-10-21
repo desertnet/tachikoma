@@ -1,13 +1,10 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
-var name = hunter;
+var name = lookup;
 include services/daemonize.tsl
 
 var start = 0;
 var count = 8;
-if (<hostname> eq "trantor") {
-    start += <count>;
-}
-var end = <start> + <count> - 1;
+var end   = <start> + <count> - 1;
 
 make_node Tee images
 for i (<start> .. <end>) {
