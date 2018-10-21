@@ -305,7 +305,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
     }
     my $total  = keys %{ $self->{brokers} };
     my $online = $self->check_heartbeats;
-    if ( $online < $total / 2 ) {
+    if ( not $total or $online < $total / 2 ) {
         $self->print_less_often('ERROR: not enough servers')
             if ( not $self->{starting_up} );
         $self->rebalance_partitions('inform_brokers');
