@@ -171,6 +171,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     "ERROR: couldn't remove $my_path_entry: $!");
             }
         }
+        elsif ( $last_modified > $other_entry->[3] ) {
+            if ( $mode eq 'update' and $stat ne 'D' ) {
+                validate( $my_path_entry, $entry, \@entries );
+            }
+            else {
+                $checked{$entry} = 1;
+            }
+        }
         elsif ( $their_stat eq $stat
             and ( $theirs_is_dir or $their_size eq $size ) )
         {
@@ -178,15 +186,6 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 my $my_link    = readlink $my_path_entry;
                 my $their_link = $other_entry->[5];
                 if ( $my_link ne $their_link ) {
-                    validate( $my_path_entry, $entry, \@entries );
-                }
-                else {
-                    $checked{$entry} = 1;
-                }
-                next;
-            }
-            if ( $last_modified > $other_entry->[3] ) {
-                if ( $mode eq 'update' and $stat ne 'D' ) {
                     validate( $my_path_entry, $entry, \@entries );
                 }
                 else {
