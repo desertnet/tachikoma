@@ -8,7 +8,6 @@ sub workstation_header {
 v2
 include services/config.tsl
 
-# listen_inet 127.0.0.1:4230
 make_node CommandInterpreter hosts
 make_node JobController      jobs
 command jobs start_job Tail  local_server_log /var/log/tachikoma/tachikoma-server.log
