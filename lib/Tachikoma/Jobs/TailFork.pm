@@ -99,7 +99,7 @@ sub fill {
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] eq "delete\n" ) {
-        $self->{tail}->on_EOF('close');
+        $self->{tail}->on_EOF('wait_to_close');
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\n$} ) {
