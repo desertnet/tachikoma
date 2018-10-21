@@ -79,6 +79,7 @@ sub fill {
     elsif ( $message->[FROM] eq 'Tail' ) {
         $message->[FROM] = $self->{name};
         $self->{destination}->fill($message);
+        $self->shutdown_all_nodes if ( $message->[TYPE] & TM_EOF );
     }
     elsif ( $message->[TYPE] & TM_RESPONSE ) {
         $self->{offset} = $message->[ID];

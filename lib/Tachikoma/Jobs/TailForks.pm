@@ -13,7 +13,7 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::JobController;
 use Tachikoma::Nodes::LoadController;
-use Tachikoma::Nodes::Watcher;
+use Tachikoma::Nodes::FileWatcher;
 use Tachikoma::Nodes::Tee;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
@@ -39,6 +39,7 @@ sub initialize_graph {
     my $interpreter     = Tachikoma::Nodes::CommandInterpreter->new;
     my $job_controller  = Tachikoma::Nodes::JobController->new;
     my $load_controller = Tachikoma::Nodes::LoadController->new;
+    my $file_watcher    = Tachikoma::Nodes::FileWatcher->new;
     my $collector       = Tachikoma::Nodes::Tee->new;
     my $arguments       = $self->arguments;
     my @destinations    = split q( ), $arguments;
@@ -52,6 +53,9 @@ sub initialize_graph {
     $load_controller->name('LoadController');
     $load_controller->sink($self);
     $self->load_controller($load_controller);
+    $file_watcher->name('FileWatcher');
+    $file_watcher->sink($self);
+    $self->file_watcher($file_watcher);
     $collector->name('collector');
     $collector->sink($interpreter);
     $self->collector($collector);
@@ -82,11 +86,11 @@ sub initialize_graph {
         my $files    = $self->files;
         my $found    = undef;
         for my $file ( keys %{$files} ) {
-            next if ( $file !~ m{$regex} );
+            my $path = $files->{$file}->[0];
+            next if ( $path !~ m{$regex} );
             delete $self->files->{$file};
-            $self->finish_file( $file, "delete\n" );
-            my $watcher = $Tachikoma::Nodes{"$file:watcher"};
-            $watcher->remove_node if ($watcher);
+            $self->finish_file( $file, 'delete' );
+            delete $self->file_watcher->files->{$path};
             $found = 1;
         }
         die "no files matching: $regex\n" if ( not $found );
@@ -145,13 +149,20 @@ sub fill {
         $self->rescan_files;
         return;
     }
-    elsif ( $message->[FROM] =~ m{^(.*):watcher$} ) {
-        my $file = $1;
-        if ( $message->[PAYLOAD] =~ m{file .* (delete|rename)} ) {
-            my $event = $1;
-            $self->finish_file( $file, $event );
+    elsif ( $message->from eq 'FileWatcher' ) {
+        my $events = qr{(created|inode changed|missing)};
+        my $event  = undef;
+        if ( $message->[PAYLOAD] =~ m{^FileWatcher: file (.*) $events$} ) {
+            my $file = $1;
+            $event = $2;
+            $file =~ s{/}{:}g;
+            $self->finish_file( $file, 'rename' );
         }
-        $self->rescan_files if ( $message->[PAYLOAD] !~ m{file .* missing} );
+        else {
+            $self->stderr( 'WARNING: unexpected message from ',
+                $message->from, ': ', $message->payload );
+        }
+        $self->rescan_files if ( $event and $event ne 'missing' );
         return $self->{collector}->fill($message);
     }
     elsif ( $message->[FROM] =~ m{^(.*):tail$} ) {
@@ -188,12 +199,6 @@ sub rescan_files {
     for my $file ( keys %{$files} ) {
         my $path = $files->{$file}->[0];
         next if ( not -e $path );
-        if ( not $Tachikoma::Nodes{"$file:watcher"} ) {
-            my $file_watcher = Tachikoma::Nodes::Watcher->new;
-            $file_watcher->name("$file:watcher");
-            $file_watcher->arguments("vnode $path delete rename");
-            $file_watcher->sink($self);
-        }
         if ( not $Tachikoma::Nodes{"$file:tail"} ) {
             next if ( keys( %{$forking} ) >= $Max_Forking );
             my $tiedhash    = $self->tiedhash;
@@ -206,6 +211,10 @@ sub rescan_files {
             $forking->{$file}  = 1;
             $self->{job_controller}->start_job( 'TailFork', "$file:tail",
                 "$destination $node_path $path $filepos" );
+            my $message = Tachikoma::Message->new;
+            $message->type(TM_BYTESTREAM);
+            $message->payload($path);
+            $self->{file_watcher}->fill($message);
         }
     }
     my $tiedhash = $self->tiedhash;
@@ -309,6 +318,14 @@ sub load_controller {
         $self->{load_controller} = shift;
     }
     return $self->{load_controller};
+}
+
+sub file_watcher {
+    my $self = shift;
+    if (@_) {
+        $self->{file_watcher} = shift;
+    }
+    return $self->{file_watcher};
 }
 
 sub tails {

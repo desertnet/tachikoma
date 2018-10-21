@@ -59,6 +59,7 @@ lib/Tachikoma/Nodes/FileController.pm
 lib/Tachikoma/Nodes/FileHandle.pm
 lib/Tachikoma/Nodes/FileReceiver.pm
 lib/Tachikoma/Nodes/FileSender.pm
+lib/Tachikoma/Nodes/FileWatcher.pm
 lib/Tachikoma/Nodes/Function.pm
 lib/Tachikoma/Nodes/Gate.pm
 lib/Tachikoma/Nodes/Grep.pm

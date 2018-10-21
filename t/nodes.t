@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 2420;
+use Test::More tests => 2444;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR );
 
@@ -120,6 +120,7 @@ my %nodes = (
     'Tachikoma::Nodes::FileController'        => q(),
     'Tachikoma::Nodes::FileReceiver'          => q(),
     'Tachikoma::Nodes::FileSender'            => q(),
+    'Tachikoma::Nodes::FileWatcher'           => q(),
     'Tachikoma::Nodes::Function'              => q({ return 1; }),
     'Tachikoma::Nodes::Gate'                  => q(),
     'Tachikoma::Nodes::Grep'                  => q(),
