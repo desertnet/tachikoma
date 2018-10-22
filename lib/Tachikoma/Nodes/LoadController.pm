@@ -627,7 +627,6 @@ sub remove_connector {
             delete $tester->circuits->{$circuit};
             delete $tester->waiting->{$circuit};
             delete $tester->offline->{$circuit};
-            delete $tester->times->{$circuit};
         }
     }
     return;
