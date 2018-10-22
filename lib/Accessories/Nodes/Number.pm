@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Number
+# Accessories::Nodes::Number
 # ----------------------------------------------------------------------
 #
 # $Id: Number.pm 9677 2011-01-08 01:39:41Z chris $
 #
 
-package Tachikoma::Nodes::Number;
+package Accessories::Nodes::Number;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Echo;

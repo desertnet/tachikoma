@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Bucket
+# Accessories::Nodes::Bucket
 # ----------------------------------------------------------------------
 #
 # $Id: Bucket.pm 536 2009-01-04 00:43:07Z chris $
 #
 
-package Tachikoma::Nodes::Bucket;
+package Accessories::Nodes::Bucket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;

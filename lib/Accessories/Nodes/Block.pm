@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Block
+# Accessories::Nodes::Block
 # ----------------------------------------------------------------------
 #
 # $Id: Block.pm 9677 2011-01-08 01:39:41Z chris $
 #
 
-package Tachikoma::Nodes::Block;
+package Accessories::Nodes::Block;
 use strict;
 use warnings;
 use Tachikoma::Node;

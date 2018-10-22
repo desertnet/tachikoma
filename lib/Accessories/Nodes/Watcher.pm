@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Watcher
+# Accessories::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35385 2018-10-19 03:38:23Z chris $
+# $Id: Watcher.pm 35508 2018-10-22 08:06:42Z chris $
 #
 
-package Tachikoma::Nodes::Watcher;
+package Accessories::Nodes::Watcher;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
