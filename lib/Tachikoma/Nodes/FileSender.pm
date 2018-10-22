@@ -193,7 +193,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $node->arguments(
                     {   filename       => $path,
                         offset         => 0,
-                        max_unanswered => 8,
+                        max_unanswered => 32,
                         on_EOF         => 'send',
                         on_ENOENT      => 'die'
                     }

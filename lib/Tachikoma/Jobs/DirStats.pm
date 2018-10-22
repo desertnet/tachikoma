@@ -23,7 +23,7 @@ use parent qw( Exporter Tachikoma::Job );
 use version; our $VERSION = qv('v2.0.368');
 
 my $Router_Timeout    = 900;
-my $Default_Max_Files = 256;
+my $Default_Max_Files = 64;
 my $Default_Port      = 5600;
 
 # my $Separator         = chr 0;
