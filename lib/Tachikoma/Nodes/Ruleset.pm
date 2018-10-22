@@ -71,9 +71,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         elsif ( $type eq 'allow' or $type eq 'redirect' or $type eq 'copy' ) {
             my $destination =
-                (      ( $type eq 'allow' ? $message_to : $to )
-                    || $self->{owner}
-                    || q() );
+                   ( $type eq 'allow' ? $message_to : $to )
+                || $self->{owner}
+                || q();
             my ( $name, $path ) = split m{/}, $destination, 2;
             my $node = $name ? $Tachikoma::Nodes{$name} : $self->{sink};
             if ( not $node ) {
@@ -82,11 +82,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 last if ( $type ne 'copy' );
                 next;
             }
-            $copy->[TO] = (
-                  $node->isa('Tachikoma::Nodes::Router')
-                ? $destination
-                : $path
-            );
+            $copy->[TO] = $path;
             if ( defined $Tachikoma::Profiles ) {
                 my $before = $self->push_profile($name);
                 $response = $node->fill($copy);
