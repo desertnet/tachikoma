@@ -3,14 +3,14 @@
 # Tachikoma::Nodes::Grep
 # ----------------------------------------------------------------------
 #
-# $Id: Grep.pm 35277 2018-10-16 09:41:42Z chris $
+# $Id: Grep.pm 35517 2018-10-22 10:09:56Z chris $
 #
 
 package Tachikoma::Nodes::Grep;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TO PAYLOAD );
+use Tachikoma::Message qw( PAYLOAD );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
