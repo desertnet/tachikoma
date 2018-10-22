@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Grep
 # ----------------------------------------------------------------------
 #
-# $Id: Grep.pm 35517 2018-10-22 10:09:56Z chris $
+# $Id: Grep.pm 35519 2018-10-22 10:28:36Z chris $
 #
 
 package Tachikoma::Nodes::Grep;
@@ -35,7 +35,6 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my $pattern = $self->{arguments} || q(.);
-        $pattern = ( $pattern =~ m{^(.*)$} )[0];
         $self->{pattern} = qr{$pattern};
     }
     return $self->{arguments};

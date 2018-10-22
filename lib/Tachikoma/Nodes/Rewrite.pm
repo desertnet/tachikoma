@@ -38,8 +38,6 @@ sub arguments {
         my ( $pattern, $rewrite ) = split q( ), $self->{arguments}, 2;
         $pattern ||= q();
         $rewrite ||= q();
-        $pattern         = ( $pattern =~ m{^(.*)$} )[0];
-        $rewrite         = ( $rewrite =~ m{^(.*)$} )[0];
         $self->{pattern} = qr{$pattern};
         $self->{rewrite} = $rewrite;
     }
@@ -55,10 +53,11 @@ sub fill {
     my $rewrite = $self->{rewrite};
     my @matches = $payload =~ m{$pattern};
     $rewrite =~ s{\$$_(?!\d)}{$matches[$_ - 1]}g for ( 1 .. @matches );
+    my $newline = substr( $payload, -1, 1 ) eq "\n" ? 1 : undef;
     return $self->cancel($message)
         if ( not $payload =~ s{$pattern}{$rewrite}s );
     my $copy = bless [ @{$message} ], ref $message;
-    $payload .= "\n" if ( substr( $payload, -1, 1 ) ne "\n" );
+    $payload .= "\n" if ( $newline and substr( $payload, -1, 1 ) ne "\n" );
     $copy->[PAYLOAD] = $payload;
     return $self->SUPER::fill($copy);
 }
