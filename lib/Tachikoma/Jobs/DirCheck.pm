@@ -130,7 +130,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $theirs_exists = exists $other{$entry};
 
         if ( not $theirs_exists or $my_is_dir != $theirs_is_dir ) {
-            if ( $theirs_exists and $last_modified > $recent ) {
+            if ( $last_modified > $recent ) {
                 $checked{$entry} = 1;
                 next;
             }
