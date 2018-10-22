@@ -10,6 +10,7 @@ package Accessories::Nodes::Number;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Echo;
+use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use File::MkTemp;
 use parent qw( Tachikoma::Nodes::Echo );
