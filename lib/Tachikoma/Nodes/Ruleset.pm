@@ -70,27 +70,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             last;
         }
         elsif ( $type eq 'allow' or $type eq 'redirect' or $type eq 'copy' ) {
-            my $destination =
+            $copy->[TO] =
                    ( $type eq 'allow' ? $message_to : $to )
                 || $self->{owner}
                 || q();
-            my ( $name, $path ) = split m{/}, $destination, 2;
-            my $node = $name ? $Tachikoma::Nodes{$name} : $self->{sink};
-            if ( not $node ) {
-                Tachikoma::Nodes::Router->drop_message( $message,
-                    'NOT_AVAILABLE' );
-                last if ( $type ne 'copy' );
-                next;
-            }
-            $copy->[TO] = $path;
-            if ( defined $Tachikoma::Profiles ) {
-                my $before = $self->push_profile($name);
-                $response = $node->fill($copy);
-                $self->pop_profile($before);
-                last if ( $type ne 'copy' );
-                next;
-            }
-            $response = $node->fill($copy);
+            $response = $self->{sink}->fill($copy);
             last if ( $type ne 'copy' );
         }
         elsif ( $type eq 'rewrite' ) {

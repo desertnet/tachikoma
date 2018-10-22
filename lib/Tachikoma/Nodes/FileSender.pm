@@ -57,8 +57,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         else {
             return $self->stderr("ERROR: bad path: $tail->{filename}");
         }
-        $message->[STREAM] = join q(:), 'update', $filename;
         $message->[TO] = $self->{receiver};
+        $message->[STREAM] = join q(:), 'update', $filename;
         if ( $type & TM_EOF ) {
             $message->[TYPE] = TM_EOF | TM_PERSIST;
             $message->[PAYLOAD] = join q(:), lstat $tail->{filename};
@@ -98,6 +98,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return $self->{sink}->fill( $request->{message} );
     }
 
+    # service tee
+    return $self->{sink}->fill($message) if ( $message->[TO] );
+
     # make sure it's a bytestream and has what we're looking for
     return if ( not $type & TM_BYTESTREAM );
 
@@ -124,7 +127,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $relative = $1;
         }
         else {
-            $self->stderr( "ERROR: bad path: $path from ", $message->from );
+            $self->stderr("ERROR: bad path: $path from $from");
             return $self->cancel($message);
         }
     }
@@ -140,16 +143,14 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $from_relative = $1;
         }
         else {
-            $self->stderr( qq(ERROR: bad "from" path: $from_path from ),
-                $message->from );
+            $self->stderr(qq(ERROR: bad "from" path: $from_path from $from));
             return $self->cancel($message);
         }
         if ( $to_path =~ m{^$prefix/(.*)$} ) {
             $to_relative = $1;
         }
         else {
-            $self->stderr( qq(ERROR: bad "to" path: $to_path from ),
-                $message->from );
+            $self->stderr(qq(ERROR: bad "to" path: $to_path from $from));
             return $self->cancel($message);
         }
         $relative = join $Separator, $from_relative, $to_relative;
