@@ -15,7 +15,7 @@ use POSIX qw( strftime );
 use vars qw( @ISA );
 use parent qw( Tachikoma::Nodes::TopicTop );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Buffer_Timeout          = 10;
 my $Default_Output_Interval = 4.0;                                 # seconds

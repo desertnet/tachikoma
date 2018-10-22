@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Epoll
 # ----------------------------------------------------------------------
 #
-# $Id: Epoll.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: Epoll.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::EventFrameworks::Epoll;
@@ -17,7 +17,7 @@ use IO::Select;
 use POSIX qw( :sys_wait_h SIGUSR1 );
 use Time::HiRes;
 
-use version; our $VERSION = 'v2.0.227';
+use version; our $VERSION = qv('v2.0.227');
 
 use constant {
     INTERVAL  => 0,

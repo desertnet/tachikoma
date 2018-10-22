@@ -16,7 +16,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Index );
 
-use version; our $VERSION = 'v2.0.197';
+use version; our $VERSION = qv('v2.0.197');
 
 my %Operators = ();
 

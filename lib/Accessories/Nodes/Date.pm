@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 # e.g.:
 # make_node Date

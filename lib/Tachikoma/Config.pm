@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Config.pm 35512 2018-10-22 08:27:21Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -15,7 +15,7 @@ use parent qw( Exporter );
     load_module include_conf new_func
 );
 
-use version; our $VERSION = 'v2.0.165';
+use version; our $VERSION = qv('v2.0.165');
 
 my $username = ( getpwuid $< )[0];
 

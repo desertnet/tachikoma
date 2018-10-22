@@ -15,7 +15,7 @@ use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use File::MkTemp;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my %C = ();
 

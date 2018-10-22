@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35372 2018-10-18 05:15:40Z chris $
+# $Id: STDIO.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -28,7 +28,7 @@ use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
-use version; our $VERSION = 'v2.0.195';
+use version; our $VERSION = qv('v2.0.195');
 
 my $Default_Timeout = 900;
 

@@ -20,7 +20,7 @@ use POSIX qw( strftime );
 use URI::Escape;
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 sub new {
     my $class = shift;

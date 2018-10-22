@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 use Tachikoma::Config qw( $Secure_Level %Var $Wire_Version );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.195';
+use version; our $VERSION = qv('v2.0.195');
 
 my $Last_UTime         = 0;
 my $Heartbeat_Interval = 15;    # seconds

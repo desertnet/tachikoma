@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35361 2018-10-17 10:32:33Z chris $
+# $Id: Scheduler.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -23,7 +23,7 @@ use BerkeleyDB;
 use Data::Dumper;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/schedules";

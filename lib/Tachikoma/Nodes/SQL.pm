@@ -18,7 +18,7 @@ use Time::HiRes;
 use DBI;
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 sub arguments {
     my $self = shift;

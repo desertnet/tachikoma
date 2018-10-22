@@ -22,7 +22,7 @@ use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.165';
+use version; our $VERSION = qv('v2.0.165');
 
 my $Path                = '/tmp/topics';
 my $Rebalance_Interval  = 0.2;           # timer during rebalance

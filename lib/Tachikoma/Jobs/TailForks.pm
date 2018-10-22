@@ -25,7 +25,7 @@ use BerkeleyDB;
 use Digest::MD5 qw( md5 );
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/Tails";

@@ -18,7 +18,7 @@ use Digest::MD5;
 use File::Path qw( remove_tree );
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 # my $Separator   = chr 0;
 my $Separator = join q(), chr 30, q( -> ), chr 30;

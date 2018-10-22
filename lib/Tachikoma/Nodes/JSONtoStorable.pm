@@ -14,7 +14,7 @@ use Tachikoma::Message qw( TYPE TM_STORABLE TM_BYTESTREAM );
 use JSON -support_by_pp;
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 sub fill {
     my $self    = shift;

@@ -19,7 +19,7 @@ use Getopt::Long qw( GetOptionsFromString );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.165';
+use version; our $VERSION = qv('v2.0.165');
 
 use constant {
     LOG_OFFSET => 0,

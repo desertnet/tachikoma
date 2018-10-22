@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: HTTP_Responder.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -21,7 +21,7 @@ use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Nodes::Timer );
 @EXPORT_OK = qw( get_time log_entry cached_strftime );
 
-use version; our $VERSION = 'v2.0.314';
+use version; our $VERSION = qv('v2.0.314');
 
 my $Time_String     = undef;
 my $Last_Time       = 0;

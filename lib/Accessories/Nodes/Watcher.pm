@@ -3,7 +3,7 @@
 # Accessories::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35508 2018-10-22 08:06:42Z chris $
+# $Id: Watcher.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Accessories::Nodes::Watcher;
@@ -15,7 +15,7 @@ use IO::KQueue;
 use Config;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Check_Proc_Interval = 10;
 my $Can_KQueue          = 1;

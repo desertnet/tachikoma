@@ -13,7 +13,7 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::Transform;
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 sub initialize_graph {
     my $self      = shift;

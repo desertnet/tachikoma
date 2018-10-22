@@ -20,7 +20,7 @@ use Digest::MD5 qw( md5 );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.256';
+use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval    = 1;        # delay between synchronous retries
 my $Init_Interval    = 0.25;     # asynchronous partition map check

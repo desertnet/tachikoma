@@ -16,7 +16,7 @@ use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Nodes::Timer );
 @EXPORT_OK = qw( smart_sort );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Topic_Timeout           = 10;
 my $Default_Output_Interval = 4.0;                                 # seconds

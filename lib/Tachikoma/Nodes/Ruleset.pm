@@ -18,7 +18,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my %C = ();
 my %Exclude_To = map { $_ => 1 } qw( copy redirect rewrite );

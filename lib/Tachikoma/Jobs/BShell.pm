@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Jobs::Shell;
 use parent qw( Tachikoma::Jobs::Shell );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 sub initialize_shell_graph {
     my $self = shift;

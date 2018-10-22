@@ -20,7 +20,7 @@ use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Job );
 @EXPORT_OK = qw( stat_directory );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Router_Timeout    = 900;
 my $Default_Max_Files = 256;

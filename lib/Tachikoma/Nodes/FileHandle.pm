@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35477 2018-10-21 13:27:41Z chris $
+# $Id: FileHandle.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -25,7 +25,7 @@ use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Node );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC TK_EPOLLED setsockopts );
 
-use version; our $VERSION = 'v2.0.195';
+use version; our $VERSION = qv('v2.0.195');
 
 # flags for new()
 use constant TK_R       => 000001;    #    1

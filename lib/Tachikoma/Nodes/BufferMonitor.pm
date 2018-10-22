@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Timer_Interval = 60;
 my $Alert_Delay    = 600;

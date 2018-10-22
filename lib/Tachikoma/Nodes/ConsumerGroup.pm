@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 use Tachikoma;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.256';
+use version; our $VERSION = qv('v2.0.256');
 
 my $Timer_Interval    = 5;
 my $Rebalance_Timeout = 900;

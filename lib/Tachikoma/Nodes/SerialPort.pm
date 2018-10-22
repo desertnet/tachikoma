@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::SerialPort
 # ----------------------------------------------------------------------
 #
-# $Id: SerialPort.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: SerialPort.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::SerialPort;
@@ -20,7 +20,7 @@ use Device::SerialPort;
 use POSIX qw( F_SETFL O_NONBLOCK );
 use parent qw( Tachikoma::Nodes::STDIO );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my %C = ();
 

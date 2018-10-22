@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 35279 2018-10-16 10:39:46Z chris $
+# $Id: HTTP_Auth.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -18,7 +18,7 @@ use Tachikoma::Message qw(
 use MIME::Base64;
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 sub new {
     my $class = shift;

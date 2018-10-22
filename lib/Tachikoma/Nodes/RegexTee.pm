@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: RegexTee.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::RegexTee;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw( TYPE TO PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::CommandInterpreter );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my %C = ();
 

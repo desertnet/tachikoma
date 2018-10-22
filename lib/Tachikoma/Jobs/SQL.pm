@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::SQL
 # ----------------------------------------------------------------------
 #
-# $Id: SQL.pm 35026 2018-10-07 21:39:47Z chris $
+# $Id: SQL.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Jobs::SQL;
@@ -13,7 +13,7 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::SQL;
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 sub initialize_graph {
     my $self = shift;
