@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: RegexTee.pm 35525 2018-10-22 11:59:58Z chris $
 #
 
 package Tachikoma::Nodes::RegexTee;
@@ -32,30 +32,17 @@ sub fill {
     if ( not $message->[TYPE] & TM_BYTESTREAM ) {
         return $self->SUPER::fill($message);
     }
-    my $response = 0;
     my $branches = $self->{branches};
     for my $name ( keys %{$branches} ) {
         my ( $destination, $regex ) = @{ $branches->{$name} };
-        my ( $name, $path ) = split m{/}, $destination, 2;
-        my $node = $Tachikoma::Nodes{$name} or next;
         if ( not defined $regex or $message->[PAYLOAD] =~ m{$regex} ) {
             my $copy = bless [ @{$message} ], ref $message;
-            $copy->[TO] = (
-                  $node->isa('Tachikoma::Nodes::Router')
-                ? $destination
-                : $path
-            );
-            if ( defined $Tachikoma::Profiles ) {
-                my $before = $self->push_profile($name);
-                $response += $node->fill($copy) || 0;
-                $self->pop_profile($before);
-                next;
-            }
-            $response += $node->fill($copy) || 0;
+            $copy->[TO] = $destination;
+            $self->{sink}->fill($copy);
         }
     }
     $self->{counter}++;
-    return $response;
+    return;
 }
 
 $C{help} = sub {
