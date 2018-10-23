@@ -55,7 +55,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         next
             if (
             (       $field
-                and $field eq 'payload'
+                and $field == PAYLOAD
                 and $message_type & TM_STORABLE
             )
             or ( defined $from and $message_from !~ m{$from} )
