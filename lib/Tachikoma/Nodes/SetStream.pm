@@ -10,7 +10,7 @@ package Tachikoma::Nodes::SetStream;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( STREAM PAYLOAD );
+use Tachikoma::Message qw( TYPE STREAM PAYLOAD TM_BYTESTREAM );
 use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
 
@@ -46,11 +46,13 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $regex   = $self->{regex};
-    if ( $self->{force} ) {
-        $message->[STREAM] = $self->{force};
-    }
-    elsif ( $message->[PAYLOAD] =~ m{$regex} ) {
-        $message->[STREAM] = md5_hex($1);
+    if ( $message->[TYPE] & TM_BYTESTREAM ) {
+        if ( $self->{force} ) {
+            $message->[STREAM] = $self->{force};
+        }
+        elsif ( $message->[PAYLOAD] =~ m{$regex} ) {
+            $message->[STREAM] = md5_hex($1);
+        }
     }
     return $self->SUPER::fill($message);
 }
