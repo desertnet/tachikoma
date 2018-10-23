@@ -392,7 +392,7 @@ sub dequote {
         ${$value} =~ s{\\([^<\w>])}{$1}g;
     }
     elsif ( $type eq 'string2' ) {
-        ${$value} =~ s{\\(')}{$1}g;
+        ${$value} =~ s{\\([\\'])}{$1}g;
     }
     elsif ( $type eq 'string4' ) {
         ${$value} =~ s{^\\}{};
