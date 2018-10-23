@@ -10,7 +10,9 @@ package Tachikoma::Nodes::JSONtoStorable;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE PAYLOAD TM_STORABLE TM_BYTESTREAM );
+use Tachikoma::Message qw(
+    TYPE PAYLOAD TM_BYTESTREAM TM_STORABLE TM_PERSIST
+);
 use JSON;    # -support_by_pp;
 use parent qw( Tachikoma::Node );
 
