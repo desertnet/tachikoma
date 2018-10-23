@@ -54,10 +54,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $type, $from, $to, $field, $re ) = @{ $rules->{$id} };
         next
             if (
-            (       $field
-                and $field == PAYLOAD
-                and $message_type & TM_STORABLE
-            )
+            ( $field and $field == PAYLOAD and $message_type & TM_STORABLE )
             or ( defined $from and $message_from !~ m{$from} )
             or (    not $Exclude_To{$type}
                 and defined $to

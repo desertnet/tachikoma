@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Scheduler.pm 35568 2018-10-23 08:56:20Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -16,7 +16,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_EOF TM_NOREPLY
 );
 use Tachikoma::Command;
-use Tachikoma::Config qw( %Tachikoma $ID %Keys );
+use Tachikoma::Config qw( %Tachikoma );
 use Time::Local;
 use POSIX qw( strftime );
 use BerkeleyDB;
@@ -27,7 +27,7 @@ use version; our $VERSION = qv('v2.0.368');
 
 my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/schedules";
-my %Safe_Commands = map { $_ => 1 } qw( list_events events ls );
+my %Safe_Commands = map { $_ => 1 } qw( prompt help list_events events ls );
 my %C             = ();
 
 sub new {
@@ -66,11 +66,11 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     if ( $type & TM_COMMAND or $type & TM_EOF ) {
-        if ( ref($self) eq 'Tachikoma::Nodes::Scheduler' ) {
+        if ( ref $self eq 'Tachikoma::Nodes::Scheduler' ) {
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             return $self->stderr($@) if ($@);
             my $cmd_name = $command->{name};
-            if ( $Safe_Commands{$cmd_name} ) {
+            if ( not $Safe_Commands{$cmd_name} ) {
                 my $interpreter = $self->interpreter;
                 $interpreter->verify_key( $message, ['meta'], 'schedule' )
                     or return $interpreter->send_response( $message,
@@ -114,15 +114,12 @@ sub fire {
             }
         }
         if ( $message and $repeat ) {
-
-            # $self->stderr("repeating $message_id in $repeat seconds");
             do { $time += $repeat } while ( $time < $Tachikoma::Now );
             $self->tiedhash->{$message_id} = pack 'N N N Z* a*',
                 $time, $repeat, $enabled, $text, $packed;
             $next_when = 0;
         }
         else {
-            # $self->stderr("deleting $message_id");
             delete $self->tiedhash->{$message_id};
         }
     }
