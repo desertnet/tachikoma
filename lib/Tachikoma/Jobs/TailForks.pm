@@ -31,6 +31,7 @@ my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/Tails";
 my $Max_Forking   = 8;
 my $Scan_Interval = 30;
+my $Delay         = 60;
 my $Last_Cache    = 0;
 
 sub initialize_graph {
@@ -246,8 +247,17 @@ sub get_destination {
     my $self         = shift;
     my $file         = shift;
     my $connect_list = $self->{connect_list};
+    my $online       = $self->{load_controller}->{connectors};
     my $offline      = $self->{load_controller}->{offline};
-    my @destinations = grep not( $offline->{$_} ), @{$connect_list};
+    my @destinations = ();
+    for my $destination ( @{ $self->{connect_list} } ) {
+        my $host = $destination;
+        $host =~ s(:ssl$)();
+        next
+            if ( $offline->{$host}
+            or $Tachikoma::Now - $online->{$host} < $Delay );
+        push( @destinations, $destination );
+    }
     return if ( not @destinations );
     my $i = 0;
     $i += $_ for ( unpack 'C*', md5($file) );
