@@ -67,7 +67,7 @@ sub fill {
     syswrite $fh, $payload or die "ERROR: couldn't write $path: $!";
     close $fh or die "ERROR: couldn't close $path: $!";
     $self->cancel($message);
-    return 1;
+    return;
 }
 
 sub fire {

@@ -131,4 +131,5 @@ lib/Accessories/Nodes/Block.pm
 lib/Accessories/Nodes/Bucket.pm
 lib/Accessories/Nodes/Date.pm
 lib/Accessories/Nodes/Number.pm
+lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/Watcher.pm

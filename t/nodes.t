@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3162;
+use Test::More tests => 3194;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -127,6 +127,7 @@ my %nodes = (
     'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::SilentDeFlapper' => q(),
     'Accessories::Nodes::Smooth'          => q(),
+    'Accessories::Nodes::Spool'           => qq($t/spool),
 );
 
 my %skip_owner_test = (
