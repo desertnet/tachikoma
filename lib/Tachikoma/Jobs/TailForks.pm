@@ -252,11 +252,11 @@ sub get_destination {
     my @destinations = ();
     for my $destination ( @{ $self->{connect_list} } ) {
         my $host = $destination;
-        $host =~ s(:ssl$)();
+        $host =~ s{:ssl$}{};
         next
             if ( $offline->{$host}
             or $Tachikoma::Now - $online->{$host} < $Delay );
-        push( @destinations, $destination );
+        push @destinations, $destination;
     }
     return if ( not @destinations );
     my $i = 0;
