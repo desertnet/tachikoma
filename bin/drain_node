@@ -34,7 +34,7 @@ $tachikoma->callback(
     }
 );
 if ($node_name) {
-    my $command = $tachikoma->command( 'connect', $node_name );
+    my $command = $tachikoma->command( 'connect_node', $node_name );
     $tachikoma->fill($command);
 }
 $tachikoma->drain;

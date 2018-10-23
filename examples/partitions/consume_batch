@@ -11,8 +11,7 @@ die "usage: consume_batch <partition>\n" if ( not $partition );
 my $consumer = Tachikoma::Nodes::Consumer->new( $partition, $offsetlog );
 $consumer->default_offset('start');
 while (1) {
-    my $messages = $consumer->fetch;
-    print $_->[PAYLOAD] for (@$messages);
+    syswrite STDOUT, $_->[PAYLOAD] for ( @{ $consumer->fetch } );
     die $consumer->sync_error if ( $consumer->sync_error );
     last if ( $consumer->eos );
 }
