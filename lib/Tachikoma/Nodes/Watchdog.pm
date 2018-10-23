@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TM_ERROR TM_EOF );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Default_Timeout = 30;
 

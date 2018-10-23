@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 35477 2018-10-21 13:27:41Z chris $
+# $Id: Split.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -16,7 +16,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Default_Timeout = 840;
 my $Counter         = 0;

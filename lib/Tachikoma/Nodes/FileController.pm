@@ -16,7 +16,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 my $Default_Timeout = 840;
 my %Exclusive = map { $_ => 1 } qw(

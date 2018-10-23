@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35381 2018-10-19 00:42:21Z chris $
+# $Id: Timer.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -13,7 +13,7 @@ use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.197';
+use version; our $VERSION = qv('v2.0.197');
 
 sub new {
     my $class = shift;

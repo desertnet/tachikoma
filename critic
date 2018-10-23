@@ -31,9 +31,7 @@ lib/Tachikoma/Message.pm
 lib/Tachikoma/Node.pm
 lib/Tachikoma/Nodes/AgeSieve.pm
 lib/Tachikoma/Nodes/Atom.pm
-lib/Tachikoma/Nodes/Block.pm
 lib/Tachikoma/Nodes/Broker.pm
-lib/Tachikoma/Nodes/Bucket.pm
 lib/Tachikoma/Nodes/Buffer.pm
 lib/Tachikoma/Nodes/BufferMonitor.pm
 lib/Tachikoma/Nodes/BufferProbe.pm
@@ -84,7 +82,6 @@ lib/Tachikoma/Nodes/LogPrefix.pm
 lib/Tachikoma/Nodes/Lookup.pm
 lib/Tachikoma/Nodes/MemorySieve.pm
 lib/Tachikoma/Nodes/Null.pm
-lib/Tachikoma/Nodes/Number.pm
 lib/Tachikoma/Nodes/Partition.pm
 lib/Tachikoma/Nodes/PidWatcher.pm
 lib/Tachikoma/Nodes/QueryEngine.pm
@@ -127,8 +124,12 @@ lib/Tachikoma/Nodes/TopicTop.pm
 lib/Tachikoma/Nodes/Transform.pm
 lib/Tachikoma/Nodes/Uniq.pm
 lib/Tachikoma/Nodes/Watchdog.pm
-lib/Tachikoma/Nodes/Watcher.pm
 lib/Accessories/Jobs/DNS.pm
 lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/Fortune.pm
+lib/Accessories/Nodes/Block.pm
+lib/Accessories/Nodes/Bucket.pm
 lib/Accessories/Nodes/Date.pm
+lib/Accessories/Nodes/Number.pm
+lib/Accessories/Nodes/Spool.pm
+lib/Accessories/Nodes/Watcher.pm

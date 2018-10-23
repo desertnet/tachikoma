@@ -20,7 +20,7 @@ use Tachikoma::Message qw(
 use Data::Dumper;
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;

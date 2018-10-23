@@ -21,7 +21,7 @@ use Getopt::Long qw( GetOptionsFromString );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.256';
+use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval       = 1;      # synchronous poll for messages
 my $Check_Interval      = 5;      # partition map check

@@ -18,7 +18,7 @@ use Tachikoma::Message qw(
 use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Max_Requests = 500;
 

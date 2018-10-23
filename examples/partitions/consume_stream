@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::Consumer;
+use Tachikoma::Message qw( PAYLOAD );
 require '/usr/local/etc/tachikoma.conf';
 
 my $partition = $ARGV[0];
@@ -10,11 +11,7 @@ die "usage: consume_stream <partition> [ <offsetlog> ]\n"
     if ( not $partition );
 my $consumer = Tachikoma::Nodes::Consumer->new( $partition, $offsetlog );
 while (1) {
-    my $messages = $consumer->fetch;
-    for my $message (@$messages) {
-        print $message->payload;
-    }
-    STDOUT->flush();
+    syswrite STDOUT, $_->[PAYLOAD] for ( @{ $consumer->fetch } );
     if ( $consumer->sync_error ) {
         print STDERR $consumer->sync_error;
     }

@@ -19,7 +19,7 @@ use Digest::MD5 qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
 use parent qw( Tachikoma::Nodes::Table );
 
-use version; our $VERSION = 'v2.0.197';
+use version; our $VERSION = qv('v2.0.197');
 
 my $Default_Num_Partitions = 1;
 my $Default_Window_Size    = 900;

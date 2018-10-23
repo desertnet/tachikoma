@@ -9,9 +9,9 @@
 package Tachikoma::Nodes::AgeSieve;
 use strict;
 use warnings;
-use Tachikoma::Nodes::Echo;
+use Tachikoma::Node;
 use Tachikoma::Message qw( TIMESTAMP );
-use parent qw( Tachikoma::Nodes::Echo );
+use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
 

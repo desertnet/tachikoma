@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Default_Interval = 60;
 my @Fields           = qw(

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Join
 # ----------------------------------------------------------------------
 #
-# $Id: Join.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Join.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::Join;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TO ID PAYLOAD TM_BYTESTREAM TM_EOF );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Default_Interval = 1000;
 my $Default_Size     = 65536;

@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::CommandInterpreter );
 
-use version; our $VERSION = 'v2.0.314';
+use version; our $VERSION = qv('v2.0.314');
 
 my %C = ();
 

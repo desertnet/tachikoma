@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Bucket
+# Accessories::Nodes::Bucket
 # ----------------------------------------------------------------------
 #
 # $Id: Bucket.pm 536 2009-01-04 00:43:07Z chris $
 #
 
-package Tachikoma::Nodes::Bucket;
+package Accessories::Nodes::Bucket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
@@ -14,7 +14,7 @@ use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR TM_EOF );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Counter          = 0;
 my $Default_Interval = 900;
@@ -67,7 +67,7 @@ sub fill {
     syswrite $fh, $payload or die "ERROR: couldn't write $path: $!";
     close $fh or die "ERROR: couldn't close $path: $!";
     $self->cancel($message);
-    return 1;
+    return;
 }
 
 sub fire {

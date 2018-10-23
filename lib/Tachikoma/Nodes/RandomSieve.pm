@@ -9,9 +9,9 @@
 package Tachikoma::Nodes::RandomSieve;
 use strict;
 use warnings;
-use Tachikoma::Nodes::Echo;
+use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE FROM TO ID STREAM PAYLOAD TM_ERROR TM_EOF );
-use parent qw( Tachikoma::Nodes::Echo );
+use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
 

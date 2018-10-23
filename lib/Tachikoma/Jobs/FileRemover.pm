@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::FileRemover
 # ----------------------------------------------------------------------
 #
-# $Id: FileRemover.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: FileRemover.pm 35512 2018-10-22 08:27:21Z chris $
 #
 # FileRemover simply accepts the path to a file, and after thoroughly
 # validating that path, moves it to a new location.
@@ -16,7 +16,7 @@ use Tachikoma::Job;
 use Tachikoma::Message qw( TYPE TO PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 sub initialize_graph {
     my $self = shift;

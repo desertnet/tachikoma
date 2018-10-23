@@ -18,7 +18,7 @@ use Digest::MD5;
 use File::Path qw( remove_tree );
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 # my $Separator   = chr 0;
 my $Separator = join q(), chr 30, q( -> ), chr 30;
@@ -130,7 +130,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $theirs_exists = exists $other{$entry};
 
         if ( not $theirs_exists or $my_is_dir != $theirs_is_dir ) {
-            if ( $theirs_exists and $last_modified > $recent ) {
+            if ( $last_modified > $recent ) {
                 $checked{$entry} = 1;
                 next;
             }

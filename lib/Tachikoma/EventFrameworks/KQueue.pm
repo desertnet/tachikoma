@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35385 2018-10-19 03:38:23Z chris $
+# $Id: KQueue.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -14,7 +14,7 @@ use IO::KQueue;
 use POSIX qw( :sys_wait_h SIGCHLD SIGHUP SIGUSR1 SIGINT SIGTERM );
 use Time::HiRes;
 
-use version; our $VERSION = 'v2.0.227';
+use version; our $VERSION = qv('v2.0.227');
 
 use constant {
     INTERVAL  => 0,

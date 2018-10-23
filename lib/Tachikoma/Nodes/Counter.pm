@@ -14,7 +14,7 @@ use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw( TYPE TO PAYLOAD TM_BYTESTREAM TM_COMMAND );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Default_Interval = 60;
 my @Windows          = qw( one_minute five_minute fifteen_minute hour day );

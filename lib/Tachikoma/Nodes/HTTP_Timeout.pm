@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Timeout
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Timeout.pm 35142 2018-10-13 12:13:24Z chris $
+# $Id: HTTP_Timeout.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Timeout;
@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Default_Request_Timeout = 300;
 

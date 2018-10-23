@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 use File::MkTemp;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 my $Filehandle_Timeout = 300;
 my $Expire_Interval    = 60;

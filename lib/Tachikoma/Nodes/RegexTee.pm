@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 35263 2018-10-16 06:32:59Z chris $
+# $Id: RegexTee.pm 35525 2018-10-22 11:59:58Z chris $
 #
 
 package Tachikoma::Nodes::RegexTee;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw( TYPE TO PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::CommandInterpreter );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my %C = ();
 
@@ -32,30 +32,17 @@ sub fill {
     if ( not $message->[TYPE] & TM_BYTESTREAM ) {
         return $self->SUPER::fill($message);
     }
-    my $response = 0;
     my $branches = $self->{branches};
     for my $name ( keys %{$branches} ) {
         my ( $destination, $regex ) = @{ $branches->{$name} };
-        my ( $name, $path ) = split m{/}, $destination, 2;
-        my $node = $Tachikoma::Nodes{$name} or next;
         if ( not defined $regex or $message->[PAYLOAD] =~ m{$regex} ) {
             my $copy = bless [ @{$message} ], ref $message;
-            $copy->[TO] = (
-                  $node->isa('Tachikoma::Nodes::Router')
-                ? $destination
-                : $path
-            );
-            if ( defined $Tachikoma::Profiles ) {
-                my $before = $self->push_profile($name);
-                $response += $node->fill($copy) || 0;
-                $self->pop_profile($before);
-                next;
-            }
-            $response += $node->fill($copy) || 0;
+            $copy->[TO] = $destination;
+            $self->{sink}->fill($copy);
         }
     }
     $self->{counter}++;
-    return $response;
+    return;
 }
 
 $C{help} = sub {

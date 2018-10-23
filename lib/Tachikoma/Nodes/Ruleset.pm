@@ -18,7 +18,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my %C = ();
 my %Exclude_To = map { $_ => 1 } qw( copy redirect rewrite );
@@ -55,7 +55,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         next
             if (
             (       $field
-                and $field eq 'payload'
+                and $field == PAYLOAD
                 and $message_type & TM_STORABLE
             )
             or ( defined $from and $message_from !~ m{$from} )
@@ -70,31 +70,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             last;
         }
         elsif ( $type eq 'allow' or $type eq 'redirect' or $type eq 'copy' ) {
-            my $destination =
-                (      ( $type eq 'allow' ? $message_to : $to )
-                    || $self->{owner}
-                    || q() );
-            my ( $name, $path ) = split m{/}, $destination, 2;
-            my $node = $name ? $Tachikoma::Nodes{$name} : $self->{sink};
-            if ( not $node ) {
-                Tachikoma::Nodes::Router->drop_message( $message,
-                    'NOT_AVAILABLE' );
-                last if ( $type ne 'copy' );
-                next;
-            }
-            $copy->[TO] = (
-                  $node->isa('Tachikoma::Nodes::Router')
-                ? $destination
-                : $path
-            );
-            if ( defined $Tachikoma::Profiles ) {
-                my $before = $self->push_profile($name);
-                $response = $node->fill($copy);
-                $self->pop_profile($before);
-                last if ( $type ne 'copy' );
-                next;
-            }
-            $response = $node->fill($copy);
+            $copy->[TO] =
+                   ( $type eq 'allow' ? $message_to : $to )
+                || $self->{owner}
+                || q();
+            $response = $self->{sink}->fill($copy);
             last if ( $type ne 'copy' );
         }
         elsif ( $type eq 'rewrite' ) {

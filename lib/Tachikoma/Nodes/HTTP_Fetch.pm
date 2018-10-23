@@ -19,7 +19,7 @@ use JSON;    # -support_by_pp;
 use URI::Escape;
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.314';
+use version; our $VERSION = qv('v2.0.314');
 
 # TODO: configurate mime types
 my %Types = (

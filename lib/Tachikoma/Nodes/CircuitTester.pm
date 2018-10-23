@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 35293 2018-10-16 20:32:45Z chris $
+# $Id: CircuitTester.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Tachikoma::Nodes::CircuitTester;
@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Default_Interval = 0.1;
 my $Default_Timeout  = 900;

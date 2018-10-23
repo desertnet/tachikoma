@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Watcher
+# Accessories::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 35385 2018-10-19 03:38:23Z chris $
+# $Id: Watcher.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
-package Tachikoma::Nodes::Watcher;
+package Accessories::Nodes::Watcher;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
@@ -15,7 +15,7 @@ use IO::KQueue;
 use Config;
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Check_Proc_Interval = 10;
 my $Can_KQueue          = 1;

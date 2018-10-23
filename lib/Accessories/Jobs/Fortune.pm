@@ -3,7 +3,7 @@
 # Accessories::Jobs::Fortune
 # ----------------------------------------------------------------------
 #
-# $Id: Fortune.pm 35498 2018-10-21 17:57:02Z chris $
+# $Id: Fortune.pm 35512 2018-10-22 08:27:21Z chris $
 #
 
 package Accessories::Jobs::Fortune;
@@ -13,7 +13,7 @@ use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
-use version; our $VERSION = 'v2.0.349';
+use version; our $VERSION = qv('v2.0.349');
 
 my $Fortune = undef;
 if ( -f '/opt/local/bin/fortune' ) {

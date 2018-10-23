@@ -19,7 +19,7 @@ use HTTP::Request::Common qw( GET POST );
 use LWP::UserAgent;
 use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 my $Default_Timeout = 900;
 my %Exclude_Headers = map { $_ => 1 } qw(

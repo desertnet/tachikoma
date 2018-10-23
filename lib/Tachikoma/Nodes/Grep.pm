@@ -3,14 +3,14 @@
 # Tachikoma::Nodes::Grep
 # ----------------------------------------------------------------------
 #
-# $Id: Grep.pm 35277 2018-10-16 09:41:42Z chris $
+# $Id: Grep.pm 35519 2018-10-22 10:28:36Z chris $
 #
 
 package Tachikoma::Nodes::Grep;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TO PAYLOAD );
+use Tachikoma::Message qw( PAYLOAD );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -35,7 +35,6 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my $pattern = $self->{arguments} || q(.);
-        $pattern = ( $pattern =~ m{^(.*)$} )[0];
         $self->{pattern} = qr{$pattern};
     }
     return $self->{arguments};

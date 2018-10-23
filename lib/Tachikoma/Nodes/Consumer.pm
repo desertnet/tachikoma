@@ -22,7 +22,7 @@ use Storable qw( nstore retrieve );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.256';
+use version; our $VERSION = qv('v2.0.256');
 
 my $Async_Poll_Interval = 1;
 my $Sync_Poll_Interval  = 1;
@@ -156,7 +156,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
     my ( $offset, $next_offset ) = split m{:}, $message->[ID], 2;
-    if ( $message->[TYPE] & TM_RESPONSE ) {
+    if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         if ( $message->[PAYLOAD] eq 'answer' ) {
             $self->stderr( 'WARNING: unexpected answer from ',
                 $message->[FROM] );

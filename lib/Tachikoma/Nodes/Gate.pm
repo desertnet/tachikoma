@@ -9,10 +9,10 @@
 package Tachikoma::Nodes::Gate;
 use strict;
 use warnings;
-use Tachikoma::Nodes::Echo;
-use parent qw( Tachikoma::Nodes::Echo );
+use Tachikoma::Node;
+use parent qw( Tachikoma::Node );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 sub help {
     my $self = shift;

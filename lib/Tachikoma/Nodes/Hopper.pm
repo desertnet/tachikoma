@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_PERSIST TM_RESPONSE );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 sub new {
     my $class = shift;

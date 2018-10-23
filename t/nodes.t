@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3144;
+use Test::More tests => 3194;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -35,8 +35,6 @@ my %nodes = (
     'Tachikoma::Nodes::TTY'                   => undef,
     'Tachikoma::Nodes::AgeSieve'              => q(),
     'Tachikoma::Nodes::Atom'                  => q(/tmp /tmp),
-    'Tachikoma::Nodes::Block'                 => q(),
-    'Tachikoma::Nodes::Bucket'                => qq($t/bucket),
     'Tachikoma::Nodes::Buffer'                => qq($t/buffer.db),
     'Tachikoma::Nodes::Broker'                => q(localhost:5501),
     'Tachikoma::Nodes::BufferMonitor'         => q(),
@@ -60,7 +58,7 @@ my %nodes = (
     'Tachikoma::Nodes::FileWatcher'           => q(),
     'Tachikoma::Nodes::Function'          => q({ return <message.payload>; }),
     'Tachikoma::Nodes::Gate'              => q(),
-    'Tachikoma::Nodes::Grep'              => q(),
+    'Tachikoma::Nodes::Grep'              => q(.),
     'Tachikoma::Nodes::Hopper'            => q(),
     'Tachikoma::Nodes::HTTP_Auth'         => undef,
     'Tachikoma::Nodes::HTTP_File'         => q(),
@@ -85,7 +83,6 @@ my %nodes = (
     'Tachikoma::Nodes::LWP'               => q(),
     'Tachikoma::Nodes::MemorySieve'       => q(),
     'Tachikoma::Nodes::Null'              => q(),
-    'Tachikoma::Nodes::Number'            => q(),
     'Tachikoma::Nodes::Partition'         => qq(--filename=$t/partition),
     'Tachikoma::Nodes::PidWatcher'        => q(),
     'Tachikoma::Nodes::QueryEngine'       => q(),
@@ -95,7 +92,7 @@ my %nodes = (
     'Tachikoma::Nodes::Reducer'           => q(),
     'Tachikoma::Nodes::RegexTee'          => q(),
     'Tachikoma::Nodes::Responder'         => q(),
-    'Tachikoma::Nodes::Rewrite'           => q(),
+    'Tachikoma::Nodes::Rewrite'           => q((.*) $1),
     'Tachikoma::Nodes::Ruleset'           => q(),
     'Tachikoma::Nodes::Scheduler'         => qq($t/scheduler.db),
     'Tachikoma::Nodes::SetStream'         => q(),
@@ -104,7 +101,7 @@ my %nodes = (
     'Tachikoma::Nodes::Sieve'             => q(),
     'Tachikoma::Nodes::Split'             => q(),
     'Tachikoma::Nodes::StdErr'            => q(),
-    'Tachikoma::Nodes::Substr'            => q(),
+    'Tachikoma::Nodes::Substr'            => q((.*)),
     'Tachikoma::Nodes::SudoFarmer'        => undef,
     'Tachikoma::Nodes::Table'             => q(),
     'Tachikoma::Nodes::Tail'              => q(/etc/hosts),
@@ -118,15 +115,19 @@ my %nodes = (
     'Tachikoma::Nodes::Transform'         => q(- return 1;),
     'Tachikoma::Nodes::Uniq'              => q(),
     'Tachikoma::Nodes::Watchdog'          => q(),
+    'Accessories::Nodes::Block'           => q(),
+    'Accessories::Nodes::Bucket'          => qq($t/bucket),
     'Accessories::Nodes::ByteSplit'       => q(),
     'Accessories::Nodes::Date'            => q(),
     'Accessories::Nodes::HexDump'         => q(),
     'Accessories::Nodes::IndexByHostname' => q(),
     'Accessories::Nodes::IndexByProcess'  => q(),
+    'Accessories::Nodes::Number'          => q(),
     'Accessories::Nodes::Panel'           => undef,
     'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::SilentDeFlapper' => q(),
     'Accessories::Nodes::Smooth'          => q(),
+    'Accessories::Nodes::Spool'           => qq($t/spool),
 );
 
 my %skip_owner_test = (
@@ -155,6 +156,7 @@ my %skip_all_tests = (
     'Tachikoma::Nodes::StorableToJSON' => 1,
     'Tachikoma::Nodes::TopicTop'       => 1,
     'Accessories::Nodes::SFE4DigitLED' => 1,
+    'Accessories::Nodes::Watcher'      => 1,
 );
 
 my $router    = test_construction('Tachikoma::Nodes::Router');

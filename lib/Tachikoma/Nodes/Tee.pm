@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 35420 2018-10-20 09:48:46Z chris $
+# $Id: Tee.pm 35523 2018-10-22 11:51:51Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -11,8 +11,8 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
-    TYPE FROM TO ID PAYLOAD
-    TM_INFO TM_PERSIST TM_RESPONSE TM_ERROR
+    TYPE TO ID PAYLOAD
+    TM_PERSIST TM_RESPONSE TM_ERROR
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -74,22 +74,16 @@ sub fill {
     }
     my $packed = $message->packed;
     for my $owner ( @{$owners} ) {
-        my ( $name, $path ) = split m{/}, $owner, 2;
-        my $node = $Tachikoma::Nodes{$name} or next;
+        my $name = ( split m{/}, $owner, 2 )[0];
+        next if ( not $Tachikoma::Nodes{$name} );
         my $copy = Tachikoma::Message->new($packed);
-        $copy->[TO] = join q(/), grep length, $path, $copy->[TO];
-        push @keep, $owner;
+        $copy->[TO] = join q(/), grep length, $owner, $copy->[TO];
         if ($persist) {
             $self->stamp_message( $copy, $self->{name} ) or return;
             $copy->[ID] = $message_id;
         }
-        if ( defined $Tachikoma::Profiles ) {
-            my $before = $self->push_profile($name);
-            $node->fill($copy);
-            $self->pop_profile($before);
-            next;
-        }
-        $node->fill($copy);
+        $self->{sink}->fill($copy);
+        push @keep, $owner;
     }
     if ( @keep < @{$owners} ) {
         @{$owners} = @keep;

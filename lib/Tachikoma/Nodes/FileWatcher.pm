@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = 'v2.0.367';
+use version; our $VERSION = qv('v2.0.367');
 
 my $Check_Interval_Min = 0.02;
 my $Check_Interval_Max = 10;

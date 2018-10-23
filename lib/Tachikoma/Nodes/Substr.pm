@@ -35,7 +35,6 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my $pattern = $self->{arguments} || q((.*));
-        $pattern = ( $pattern =~ m{^(.*)$} )[0];
         $self->{pattern} = qr{$pattern};
     }
     return $self->{arguments};
@@ -48,9 +47,10 @@ sub fill {
     my $payload = $message->[PAYLOAD];
     my @matches = $payload =~ m{$self->{pattern}};
     return $self->cancel($message) if ( not @matches );
+    my $newline = substr( $payload, -1, 1 ) eq "\n" ? 1 : undef;
     my $copy = bless [ @{$message} ], ref $message;
     $payload = join q(), @matches;
-    $payload .= "\n" if ( substr( $payload, -1, 1 ) ne "\n" );
+    $payload .= "\n" if ( $newline and substr( $payload, -1, 1 ) ne "\n" );
     $copy->[PAYLOAD] = $payload;
     return $self->SUPER::fill($copy);
 }

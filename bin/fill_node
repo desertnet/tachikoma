@@ -30,7 +30,7 @@ my $to = $ARGV[0];
 usage() if ( $help or not $r or not $to );
 require $config;
 
-my $tachikoma = reconnect Tachikoma( $host, $port, $use_SSL );
+my $tachikoma = Tachikoma->reconnect( $host, $port, $use_SSL );
 my @lines     = ();
 my $last      = time;
 $tachikoma->timeout(60);

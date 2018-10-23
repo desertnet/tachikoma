@@ -13,7 +13,7 @@ use Tachikoma::Nodes::List;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Nodes::List );
 
-use version; our $VERSION = 'v2.0.368';
+use version; our $VERSION = qv('v2.0.368');
 
 sub arguments {
     my $self = shift;
