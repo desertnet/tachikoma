@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_STORABLE TM_BYTESTREAM );
 use Encode qw( encode );
-use JSON -support_by_pp;
+use JSON;    # -support_by_pp;
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -23,14 +23,13 @@ sub fill {
     return $self->SUPER::fill($message)
         if ( not $message->[TYPE] & TM_STORABLE );
     my $json = JSON->new;
-    $json->escape_slash(1);
-
-    # $json->canonical(1);
+    $json->canonical(1);
     $json->pretty(1);
     $json->allow_blessed(1);
     $json->convert_blessed(0);
     my $response = bless [ @{$message} ], ref $message;
     $response->[TYPE] = TM_BYTESTREAM;
+    $response->[TYPE] |= $persist if ($persist);
     $response->[PAYLOAD] =
         encode( 'utf8', $json->encode( $message->payload ) );
     return $self->SUPER::fill($response);
