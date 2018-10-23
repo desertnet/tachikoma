@@ -67,7 +67,7 @@ sub fill {
         if ( $message->[PAYLOAD] eq 'cancel' ) {
             my $path = join q(/), $self->{spool_dir}, $message->[STREAM];
             unlink $path
-                or $self->stderr("ERROR: couldn't unlink $path: $!");
+                or return $self->stderr("ERROR: couldn't unlink $path: $!");
             $self->stop_timer;
             $self->set_timer(0);
         }
