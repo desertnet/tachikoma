@@ -3,10 +3,11 @@ use strict;
 use warnings;
 use Accessories::Forks;
 
+my $count = shift @ARGV // 8;
 my $forks = Accessories::Forks->new;
 my @commands = <>;
 $forks->spawn(
-    8,
+    $count,
     \@commands,
     sub {
         my ( $cmd, $out ) = @_;
