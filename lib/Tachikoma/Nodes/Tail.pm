@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35592 2018-10-24 03:55:04Z chris $
+# $Id: Tail.pm 35604 2018-10-24 16:33:02Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -205,15 +205,17 @@ sub fill {
     my $msg_unanswered = $self->{msg_unanswered};
     my $max_unanswered = $self->{max_unanswered};
     return $self->check_timers($message) if ( not length $message->[FROM] );
-    return $self->stderr( 'WARNING: unexpected response from ',
+    return $self->stderr( 'WARNING: unexpected message from ',
         $message->[FROM] )
         if (not $msg_unanswered
         and not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF );
     return
         if ( not $max_unanswered
-        or $message->[TYPE] != ( TM_PERSIST | TM_RESPONSE )
-        or $message->[PAYLOAD] ne 'cancel' );
+        or $message->[TYPE] != ( TM_PERSIST | TM_RESPONSE ) );
+    return $self->stderr( 'WARNING: unexpected response from ',
+        $message->[FROM] )
+        if ( $message->[PAYLOAD] ne 'cancel' );
     $self->{bytes_answered} = $message->[ID]
         if ($message->[ID] =~ m{^\d}
         and $message->[ID] > $self->{bytes_answered} );
