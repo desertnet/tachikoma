@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35595 2018-10-24 05:06:45Z chris $
+# $Id: STDIO.pm 35610 2018-10-24 17:15:29Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -477,6 +477,7 @@ sub buffer_mode {
     my $self = shift;
     if (@_) {
         $self->{buffer_mode} = shift;
+        $self->set_drain_buffer;
     }
     return $self->{buffer_mode};
 }
