@@ -121,7 +121,7 @@ sub fill {
                 $self->{batch_size} > $Batch_Threshold
                     || $Tachikoma::Now - $message->[TIMESTAMP] > 1
                 ? 0
-                : undef
+                : $Online_Interval * 1000
             ) if ( $self->{timer_interval} );
         }
         elsif ( $message->[TYPE] & TM_PERSIST ) {
