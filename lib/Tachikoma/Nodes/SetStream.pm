@@ -46,13 +46,13 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $regex   = $self->{regex};
-    if ( $message->[TYPE] & TM_BYTESTREAM ) {
-        if ( $self->{force} ) {
-            $message->[STREAM] = $self->{force};
-        }
-        elsif ( $message->[PAYLOAD] =~ m{$regex} ) {
-            $message->[STREAM] = md5_hex($1);
-        }
+    if ( $self->{force} ) {
+        $message->[STREAM] = $self->{force};
+    }
+    elsif ( $message->[TYPE] & TM_BYTESTREAM
+        and $message->[PAYLOAD] =~ m{$regex} )
+    {
+        $message->[STREAM] = md5_hex($1);
     }
     return $self->SUPER::fill($message);
 }
