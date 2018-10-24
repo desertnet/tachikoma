@@ -79,7 +79,6 @@ sub fill {
     my $unanswered     = keys %{ $self->{msg_unanswered} };
     my $max_unanswered = $self->{max_unanswered};
     my $buffer_size    = $self->{buffer_size} // $self->get_buffer_size;
-    my $buffer_mode    = $self->{buffer_mode};
     my $copy           = bless [ @{$message} ], ref $message;
     $self->set_timer(0)
         if ( $self->{owner} and $unanswered < $max_unanswered );
@@ -89,7 +88,7 @@ sub fill {
         and not $type & TM_STORABLE
         and not $type & TM_INFO );
     $self->{counter}++;
-    return if ( $buffer_mode eq 'null' );
+    return if ( $self->{buffer_mode} eq 'null' );
     my $sth = $dbh->prepare('SELECT count(1) FROM queue WHERE message_id=?');
     do {
         $message_id = $self->msg_counter;

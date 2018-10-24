@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35420 2018-10-20 09:48:46Z chris $
+# $Id: Buffer.pm 35592 2018-10-24 03:55:04Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -98,7 +98,6 @@ sub fill {
     my $unanswered     = keys %{ $self->{msg_unanswered} };
     my $max_unanswered = $self->{max_unanswered};
     my $buffer_size    = $self->{buffer_size} // $self->get_buffer_size;
-    my $buffer_mode    = $self->{buffer_mode};
     my $copy           = bless [ @{$message} ], ref $message;
     $self->set_timer(0)
         if ( $self->{owner} and $unanswered < $max_unanswered );
@@ -108,7 +107,7 @@ sub fill {
         and not $type & TM_STORABLE
         and not $type & TM_INFO );
     $self->{counter}++;
-    return if ( $buffer_mode eq 'null' );
+    return if ( $self->{buffer_mode} eq 'null' );
     do {
         $message_id = $self->msg_counter;
     } while ( exists $tiedhash->{$message_id} );
