@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: CommandInterpreter.pm 35587 2018-10-24 02:49:28Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1307,7 +1307,7 @@ $C{connect_node} = sub {
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     my ( $name, $owner ) = split q( ), $command->arguments, 2;
-    $owner = $envelope->from if ( not length $envelope->from );
+    $owner = $envelope->from if ( not length $owner );
     $self->connect_node( $name, $owner );
     return $self->okay($envelope);
 };
