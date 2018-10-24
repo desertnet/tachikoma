@@ -195,7 +195,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         return;
     }
-    elsif ( $message->[TO] ) {
+    elsif ( length $message->[TO] ) {
         $self->stderr( 'ERROR: message addressed to ', $message->[TO] );
         return;
     }

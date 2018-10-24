@@ -62,7 +62,7 @@ sub fill {
                 $dbh->errstr, "\n" );
             return;
         }
-        if ( $message->[TO] ) {
+        if ( length $message->[TO] ) {
             $self->respond(
                 $message,
                 TM_INFO,

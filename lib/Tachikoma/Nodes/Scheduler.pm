@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35568 2018-10-23 08:56:20Z chris $
+# $Id: Scheduler.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -102,7 +102,7 @@ sub fire {
             }
             $message->[FROM] = $self->{owner}
                 if ( not $Tachikoma::Nodes{$name} );
-            $message->[TYPE] |= TM_NOREPLY if ( not $message->[FROM] );
+            $message->[TYPE] |= TM_NOREPLY if ( not length $message->[FROM] );
             $message->[TIMESTAMP] = $Tachikoma::Now;
             $command->sign( $self->scheme, $Tachikoma::Now );
             $message->payload( $command->packed );

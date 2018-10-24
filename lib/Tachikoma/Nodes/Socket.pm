@@ -830,15 +830,11 @@ sub drain_buffer {
             $self->reply_to_heartbeat($message);
             next;
         }
-        elsif ($edge) {
-            $edge->activate( $message->[PAYLOAD] );
-            next;
-        }
         $message->[FROM] =
             length $message->[FROM]
             ? join q(/), $name, $message->[FROM]
             : $name;
-        if ( $message->[TO] and $owner ) {
+        if ( length $message->[TO] and length $owner ) {
             $self->print_less_often(
                       "ERROR: message addressed to $message->[TO]"
                     . " while owner is set to $owner"
@@ -846,7 +842,7 @@ sub drain_buffer {
                 if ( $message->[TYPE] != TM_ERROR );
             next;
         }
-        $message->[TO] = $owner if ($owner);
+        $message->[TO] = $owner if ( length $owner );
         $sink->fill($message);
     }
     return $got;

@@ -162,7 +162,7 @@ sub fire {
         my %batch = ();
         for my $message ( @{ $self->{batch} } ) {
             my $i = 0;
-            if ( $message->[TO] ) {
+            if ( length $message->[TO] ) {
                 $i = $message->[TO];
             }
             elsif ( $message->[STREAM] ) {

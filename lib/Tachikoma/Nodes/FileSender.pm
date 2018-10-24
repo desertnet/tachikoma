@@ -99,7 +99,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
 
     # service tee
-    return $self->{sink}->fill($message) if ( $message->[TO] );
+    return $self->{sink}->fill($message) if ( length $message->[TO] );
 
     # make sure it's a bytestream and has what we're looking for
     return if ( not $type & TM_BYTESTREAM );

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35442 2018-10-20 22:20:33Z chris $
+# $Id: CommandInterpreter.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_EOF
+    TM_BYTESTREAM TM_EOF TM_PING
     TM_COMMAND TM_RESPONSE TM_ERROR
     TM_INFO TM_STORABLE
     TM_COMPLETION TM_NOREPLY
@@ -61,17 +61,22 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     $self->{counter}++;
-    if (    $message->[TYPE] & TM_COMMAND
-        and not $message->[TYPE] & TM_RESPONSE
-        and not $message->[TYPE] & TM_ERROR )
-    {
-        return $self->interpret($message);
-    }
-    elsif ( $message->[TYPE] & TM_EOF and not $message->[TO] ) {
-        return
-            if ($message->[FROM] !~ m{/}
-            and $message->[FROM] ne '_responder' );
-        $message->[TO] = $message->[FROM];
+    if ( not length $message->[TO] ) {
+        if (    $message->[TYPE] & TM_COMMAND
+            and not $message->[TYPE] & TM_RESPONSE
+            and not $message->[TYPE] & TM_ERROR )
+        {
+            return $self->interpret($message);
+        }
+        elsif ( $message->[TYPE] & TM_PING ) {
+            $message->[TO] = $message->[FROM];
+        }
+        elsif ( $message->[TYPE] & TM_EOF ) {
+            return
+                if ($message->[FROM] !~ m{/}
+                and $message->[FROM] ne '_responder' );
+            $message->[TO] = $message->[FROM];
+        }
     }
     return $self->{sink}->fill($message);
 }
@@ -87,7 +92,7 @@ sub interpret {
             $self->error("verification failed\n") );
         return;
     }
-    if ( $message->[TO] ) {
+    if ( length $message->[TO] ) {
         my $name = ( split m{/}, $message->[TO], 2 )[0];
         if ( $Tachikoma::Nodes{$name} ) {
             return $self->{sink}->fill($message);
@@ -356,7 +361,7 @@ $C{list_nodes} = sub {
         push @{$response}, $header;
     }
     for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $list_matches and $glob ne q() and $name !~ m{$glob} );
+        next if ( $list_matches and length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
         my $sink = (
               $node->{sink}
@@ -393,11 +398,11 @@ $C{list_nodes} = sub {
             if ( ref $rv eq 'ARRAY' ) {
                 $owner = join q(, ), @{$rv};
             }
-            elsif ($rv) {
+            elsif ( length $rv ) {
                 $owner = $rv;
             }
         }
-        push @row, $owner ? "-> $owner" : q(- ) if ($show_owner);
+        push @row, length $owner ? "-> $owner" : q(- ) if ($show_owner);
         push @{$response}, \@row;
     }
     if ( $list_matches and $glob and $response eq q() ) {
@@ -450,7 +455,7 @@ $C{list_ids} = sub {
     for my $id ( sort { $a <=> $b } keys %{$nodes} ) {
         my $node = $nodes->{$id};
         my $name = $node->{name} || 'unknown';
-        next if ( $glob ne q() and $name !~ m{$glob} );
+        next if ( length $glob and $name !~ m{$glob} );
         my $is_active = $node->timer_is_active;
         my $interval  = $node->timer_interval;
         if ( defined $interval ) {
@@ -491,7 +496,7 @@ $C{list_reconnecting} = sub {
     my $envelope = shift;
     my $response = q();
     for my $node ( @{ Tachikoma->nodes_to_reconnect } ) {
-        $response .= $node->{name} . "\n" if ( $node->{name} );
+        $response .= $node->{name} . "\n" if ( length $node->{name} );
     }
     return $self->response( $envelope, $response );
 };
@@ -560,7 +565,7 @@ $C{set_arguments} = sub {
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $name, $arguments ) = split q( ), $command->arguments, 2;
-    die qq(no node specified\n) if ( not $name );
+    die qq(no node specified\n) if ( not length $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
     $node->arguments($arguments);
@@ -578,7 +583,7 @@ $C{reinitialize} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $name     = $command->arguments;
-    die qq(no node specified\n) if ( not $name );
+    die qq(no node specified\n) if ( not length $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
     $node->arguments( $node->arguments );
@@ -598,7 +603,7 @@ $C{register} = sub {
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     my ( $name, $path, $event ) = split q( ), $command->arguments, 3;
-    die qq(no node specified\n) if ( not $name );
+    die qq(no node specified\n) if ( not length $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
     die qq(no path specified\n)       if ( not $path );
@@ -615,7 +620,7 @@ $C{unregister} = sub {
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     my ( $name, $path, $event ) = split q( ), $command->arguments, 3;
-    die qq(no node specified\n) if ( not $name );
+    die qq(no node specified\n) if ( not length $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
     die qq(no path specified\n)       if ( not $path );
@@ -633,7 +638,8 @@ $C{move_node} = sub {
         or return $self->error("verification failed\n");
     my ( $name, $new_name ) = split q( ), $command->arguments, 2;
     my ( $old_name, $path ) = split m{/}, $envelope->[FROM], 2;
-    die qq(no name specified\n) if ( not $name or not $new_name );
+    die qq(no name specified\n)
+        if ( not length $name or not length $new_name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
     $node->name($new_name);
@@ -787,7 +793,7 @@ $C{dump_node} = sub {
     my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $response = q();
-    if ( not $name ) {
+    if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
     my $node = $Tachikoma::Nodes{$name};
@@ -845,7 +851,7 @@ $C{dump_hex} = sub {
     my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $response = q();
-    if ( not $name ) {
+    if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
     if ( not @keys ) {
@@ -888,7 +894,7 @@ $C{dump_dec} = sub {
     my ( $name, @keys ) = split q( ), $command->arguments;
     my %want = map { $_ => 1 } @keys;
     my $response = q();
-    if ( not $name ) {
+    if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
     if ( not @keys ) {
@@ -937,7 +943,7 @@ $C{list_connections} = sub {
         ]
     ];
     for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $glob ne q() and $name !~ m{$glob} );
+        next if ( length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
         next
             if ( not $node->isa('Tachikoma::Nodes::Socket')
@@ -1136,7 +1142,7 @@ $C{listen_unix} = sub {
     $name     ||= $argv->[1];
     $perms    ||= $argv->[2];
     $gid      ||= $argv->[3];
-    die qq(no node name specified\n) if ( not $name );
+    die qq(no node name specified\n) if ( not length $name );
     if ($io_mode) {
         $node =
             unix_server Tachikoma::Nodes::STDIO( $filename, $name, $perms,
@@ -1275,7 +1281,7 @@ $C{connect_unix} = sub {
         $filename = shift @{$argv};
     }
     $name ||= shift @{$argv};
-    die qq(no node name specified\n) if ( not $name );
+    die qq(no node name specified\n) if ( not length $name );
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $self->connect_unix(
@@ -1301,7 +1307,8 @@ $C{connect_node} = sub {
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     my ( $name, $owner ) = split q( ), $command->arguments, 2;
-    $self->connect_node( $name, $owner || $envelope->from );
+    $owner = $envelope->from if ( not length $envelope->from );
+    $self->connect_node( $name, $owner );
     return $self->okay($envelope);
 };
 
@@ -1318,7 +1325,7 @@ $C{connect_sink} = sub {
     $self->verify_key( $envelope, ['meta'], 'connect_sink' )
         or return $self->error("verification failed\n");
     my ( $first_name, $second_name ) = split q( ), $command->arguments, 2;
-    die qq(no node specified\n) if ( not $second_name );
+    die qq(no node specified\n) if ( not length $second_name );
     $self->connect_sink( $first_name, $second_name );
     return $self->okay($envelope);
 };
@@ -1332,7 +1339,7 @@ $C{connect_edge} = sub {
     $self->verify_key( $envelope, ['meta'], 'connect_edge' )
         or return $self->error("verification failed\n");
     my ( $first_name, $second_name ) = split q( ), $command->arguments, 2;
-    die qq(no node specified\n) if ( not $second_name );
+    die qq(no node specified\n) if ( not length $second_name );
     $self->connect_edge( $first_name, $second_name );
     return $self->okay($envelope);
 };
@@ -1394,7 +1401,7 @@ $C{slurp_file} = sub {
     die qq(no such file: "$path"\n)   if ( not -f $path );
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
 
-    if ($edge_name) {
+    if ( length $edge_name ) {
         $edge = $Tachikoma::Nodes{$edge_name};
         die qq(can't find node "$edge_name"\n) if ( not $edge );
     }
@@ -1590,7 +1597,7 @@ $C{on} = sub {
         or return $self->error("verification failed\n");
     my ( $name, $event ) = split q( ), $command->arguments, 2;
     my $func_tree = thaw( $command->payload );
-    die qq(no name specified\n)     if ( not $name );
+    die qq(no name specified\n)     if ( not length $name );
     die qq(no event specified\n)    if ( not $event );
     die qq(no function specified\n) if ( not $func_tree );
     my $responder = $Tachikoma::Nodes{_responder};
@@ -1642,7 +1649,7 @@ $C{reset} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $name     = $command->arguments;
-    die qq(no node specified\n) if ( not $name );
+    die qq(no node specified\n) if ( not length $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
     $node->counter(0);
@@ -1668,7 +1675,7 @@ $C{stats} = sub {
         ]
     ];
     for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $list_matches and $glob ne q() and $name !~ m{$glob} );
+        next if ( $list_matches and length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
         my $sink = $node->{sink} ? $node->{sink}->name : q();
         if ( not $list_matches ) {
@@ -1711,7 +1718,7 @@ $C{dump_config} = sub {
     my %skip     = ();
     for my $name ( sort keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
-        if ( $glob and $name !~ m{$glob} ) {
+        if ( length $glob and $name !~ m{$glob} ) {
             $skip{$name} = 1;
             next;
         }
@@ -2419,7 +2426,7 @@ sub make_node {
     die qq(no type specified\n) if ( not $type );
     $type = ( $type =~ m{^([\w:]+)$} )[0];
     die qq(invalid type specified\n) if ( not $type );
-    $name ||= $type;
+    $name = $type if ( not length $name );
     my $path = $type;
     $path =~ s{::}{/}g;
     die qq(can't create node: "$name" exists\n)
@@ -2504,7 +2511,7 @@ sub connect_unix {
     my $reconnect = $options{reconnect};
     my $owner     = $options{owner};
     $filename = ( $filename =~ m{^(\S+)$} )[0];
-    die qq(no node name specified\n) if ( not $name );
+    die qq(no node name specified\n) if ( not length $name );
     die qq(can't create node: "$name" exists\n)
         if ( exists $Tachikoma::Nodes{$name} );
     my $connection = undef;

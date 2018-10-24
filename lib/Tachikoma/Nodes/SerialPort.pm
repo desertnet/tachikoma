@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::SerialPort
 # ----------------------------------------------------------------------
 #
-# $Id: SerialPort.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: SerialPort.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Nodes::SerialPort;
@@ -108,7 +108,9 @@ sub fill {
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
         return $self->interpreter->fill($message);
     }
-    elsif ( not $message->[FROM] and $message->[STREAM] eq 'wait_timer' ) {
+    elsif ( not length $message->[FROM]
+        and $message->[STREAM] eq 'wait_timer' )
+    {
         $self->register_reader_node;
         $self->{waiting} = undef;
         return;

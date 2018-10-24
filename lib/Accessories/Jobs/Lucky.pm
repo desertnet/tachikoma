@@ -39,7 +39,7 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    if ( $message->to ) {
+    if ( length $message->to ) {
         if ( $message->type & TM_EOF ) {
             my $html = $self->collector;
             my $out  = '';

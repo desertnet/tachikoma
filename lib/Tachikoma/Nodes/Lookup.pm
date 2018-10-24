@@ -32,7 +32,7 @@ sub fill {
         defined $self->{edge}->lookup( $message->[STREAM] )
         ? $self->{owner}
         : $self->{arguments};
-    if ( $message->[TO] ) {
+    if ( length $message->[TO] ) {
         $self->{sink}->fill($message);
     }
     else {

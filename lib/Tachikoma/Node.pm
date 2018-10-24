@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35327 2018-10-17 04:54:45Z chris $
+# $Id: Node.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Node;
@@ -48,7 +48,7 @@ sub name {
             if ( exists $nodes->{$name} );
 
         # support renaming
-        delete $nodes->{ $self->{name} } if ( $self->{name} );
+        delete $nodes->{ $self->{name} } if ( length $self->{name} );
         $self->{name} = $name;
         $nodes->{$name} = $self if ( length $name );
     }
@@ -65,7 +65,7 @@ sub arguments {
 
 sub fill {
     my ( $self, $message ) = @_;
-    $message->[TO] ||= $self->{owner};
+    $message->[TO] = $self->{owner} if ( not length $message->[TO] );
     $self->{counter}++;
     return $self->{sink}->fill($message);
 }
@@ -135,7 +135,7 @@ sub unregister {
 
 sub connect_node {
     my ( $self, $name, $owner ) = @_;
-    die "no node specified\n" if ( not $name );
+    die "no node specified\n" if ( not length $name );
     my $node = Tachikoma->nodes->{$name};
     die qq(no such node: "$name"\n) if ( not $node );
     if ( ref( $node->owner ) eq 'ARRAY' ) {

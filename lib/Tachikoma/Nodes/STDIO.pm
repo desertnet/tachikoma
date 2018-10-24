@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: STDIO.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -271,7 +271,9 @@ sub fill {
         $self->{got_EOF} = 'true';
         $self->handle_EOF if ( not @{ $self->{output_buffer} } );
     }
-    elsif ( not $message->[FROM] and $message->[STREAM] eq 'msg_timer' ) {
+    elsif ( not length $message->[FROM]
+        and $message->[STREAM] eq 'msg_timer' )
+    {
         if ( $self->{on_timeout} eq 'close' ) {
             $self->stderr('WARNING: timeout waiting for response');
             $self->remove_node;
