@@ -84,17 +84,16 @@ sub fill {
     return $self->drop_message( $message, 'path exceeded 1024 bytes' )
         if ( ( length $message->[FROM] // 0 ) > 1024 );
     my ( $name, $path ) = split m{/}, $message->[TO], 2;
-    my $node = $Tachikoma::Nodes{$name};
-    return $self->send_error( $message, "NOT_AVAILABLE\n" ) if ( not $node );
+    return $self->send_error( $message, "NOT_AVAILABLE\n" )
+        if ( not $Tachikoma::Nodes{$name} );
     $message->[TO] = $path;
-
     if ($Tachikoma::Profiles) {
         my $before = $self->push_profile($name);
-        my $rv     = $node->fill($message);
+        my $rv     = $Tachikoma::Nodes{$name}->fill($message);
         $self->pop_profile($before);
         return $rv;
     }
-    return $node->fill($message);
+    return $Tachikoma::Nodes{$name}->fill($message);
 }
 
 sub send_error {
