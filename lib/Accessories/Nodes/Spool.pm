@@ -70,8 +70,12 @@ sub fill {
                 or return $self->stderr("ERROR: couldn't unlink $path: $!");
             $self->stop_timer;
             $self->set_timer(0);
+            delete $self->{spool}->{ $message->[STREAM] };
         }
-        delete $self->{spool}->{ $message->[STREAM] };
+        else {
+            $self->stderr( 'WARNING: unexpected answer from ',
+                $message->[FROM] );
+        }
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
         delete $self->{spool}->{ $message->[STREAM] };

@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35488 2018-10-21 15:03:01Z chris $
+# $Id: Tachikoma.pm 35592 2018-10-24 03:55:04Z chris $
 #
 
 package Tachikoma;
@@ -152,7 +152,6 @@ sub new {
     $self->{auth_challenge} = undef;
     $self->{auth_timestamp} = undef;
     $self->{input_buffer}   = \$input_buffer;
-    $self->{persist}        = 'cancel';
     $self->{timeout}        = DEFAULT_TIMEOUT;
     bless $self, $class;
     return $self;
@@ -411,7 +410,6 @@ sub reconnect {
         }
     } while ( not $tachikoma );
     if ( ref $self ) {
-        $tachikoma->persist( $self->{persist} );
         $tachikoma->timeout( $self->{timeout} );
     }
     return $tachikoma;
@@ -712,14 +710,6 @@ sub input_buffer {
         $self->{input_buffer} = shift;
     }
     return $self->{input_buffer};
-}
-
-sub persist {
-    my $self = shift;
-    if (@_) {
-        $self->{persist} = shift;
-    }
-    return $self->{persist};
 }
 
 sub timeout {

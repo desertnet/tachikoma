@@ -56,7 +56,6 @@ sub new {
     $self->{broker_ids}  = undef;
     $self->{hub_timeout} = $Default_Hub_Timeout;
     $self->{targets}     = {};
-    $self->{persist}     = 'cancel';
     $self->{partitions}  = undef;
     $self->{leader}      = undef;
     $self->{last_check}  = 0;
@@ -797,11 +796,6 @@ sub hosts {
 sub broker_ids {
     my (@args) = @_;
     return Tachikoma::Nodes::Topic::broker_ids(@args);
-}
-
-sub persist {
-    my (@args) = @_;
-    return Tachikoma::Nodes::Topic::persist(@args);
 }
 
 sub hub_timeout {

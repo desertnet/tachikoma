@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35477 2018-10-21 13:27:41Z chris $
+# $Id: Tail.pm 35592 2018-10-24 03:55:04Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -212,7 +212,8 @@ sub fill {
         and not $message->[TYPE] & TM_EOF );
     return
         if ( not $max_unanswered
-        or $message->[TYPE] != ( TM_PERSIST | TM_RESPONSE ) );
+        or $message->[TYPE] != ( TM_PERSIST | TM_RESPONSE )
+        or $message->[PAYLOAD] ne 'cancel' );
     $self->{bytes_answered} = $message->[ID]
         if ($message->[ID] =~ m{^\d}
         and $message->[ID] > $self->{bytes_answered} );
