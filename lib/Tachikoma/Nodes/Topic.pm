@@ -117,12 +117,13 @@ sub fill {
         if ( $self->{partitions} ) {
             push @{ $self->{batch} }, $message;
             $self->{batch_size} += length $message->[PAYLOAD];
-            $self->set_timer(
-                $self->{batch_size} > $Batch_Threshold
-                    || $Tachikoma::Now - $message->[TIMESTAMP] > 1
+            my $interval =
+                   $self->{batch_size} > $Batch_Threshold
+                || $Tachikoma::Now - $message->[TIMESTAMP] > 1
                 ? 0
-                : $Online_Interval * 1000
-            ) if ( $self->{timer_interval} );
+                : $Online_Interval * 1000;
+            $self->set_timer($interval)
+                if ( $self->{timer_interval} != $interval );
         }
         elsif ( $message->[TYPE] & TM_PERSIST ) {
             my $response = Tachikoma::Message->new;
@@ -196,15 +197,18 @@ sub fire {
         $self->{batch}      = [];
         $self->{batch_size} = 0;
     }
-    if ( $Tachikoma::Now - $self->{last_check} > $self->{poll_interval} ) {
+    if ($Tachikoma::Right_Now - $self->{last_check} > $self->{poll_interval} )
+    {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_INFO;
         $message->[FROM]    = $self->{name};
         $message->[TO]      = $self->{broker_path};
         $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
         $self->{sink}->fill($message);
+        $self->{last_check} = $Tachikoma::Right_Now;
     }
-    $self->set_timer( $Online_Interval * 1000 );
+    $self->set_timer( $Online_Interval * 1000 )
+        if ( $self->{timer_interval} != $Online_Interval * 1000 );
     return;
 }
 
@@ -515,7 +519,6 @@ sub get_target {
         my $okay = eval {
             $target = Tachikoma->inet_client( $host, $port );
             $target->timeout( $self->hub_timeout );
-            $target->persist( $self->persist );
             return 1;
         };
         if ( not $okay ) {
