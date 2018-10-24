@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35587 2018-10-24 02:49:28Z chris $
+# $Id: CommandInterpreter.pm 35607 2018-10-24 17:12:33Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1390,7 +1390,7 @@ $C{slurp_file} = sub {
     my $self        = shift;
     my $command     = shift;
     my $envelope    = shift;
-    my $buffer_mode = shift;
+    my $buffer_mode = shift // 'binary';
     $self->verify_key( $envelope, ['meta'], 'slurp' )
         or return $self->error("verification failed\n");
     my ( $path, $edge_name ) = split q( ), $command->arguments, 2;
