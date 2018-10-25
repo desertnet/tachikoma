@@ -28,9 +28,9 @@ for i (<start> .. <end>) {
                                                       --partition_id=<i>
                                                       --default_offset=start
                                                       --max_unanswered=1024;
-      make_node Lookup         images:lookup        images.orphans;
-      make_node Topic          images.orphans       <broker>;
-      connect_edge images:lookup          images.indb:table;
+      make_node Lookup         images:lookup          images.indb:table;
+      make_node Topic          images.orphans         <broker>;
+      connect_edge images:lookup          images.orphans;
       connect_node images.ondisk:consumer images:lookup;
 
       topic_probe;

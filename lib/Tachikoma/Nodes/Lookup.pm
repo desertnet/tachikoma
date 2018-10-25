@@ -18,25 +18,38 @@ use version; our $VERSION = qv('v2.0.367');
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Lookup <node name> <on-miss path>
+make_node Lookup <node name> <Table name>
 connect_node     <node name> <on-hit path>
-connect_edge     <node name> <Table name>
+connect_edge     <node name> <on-miss path>
 EOF
+}
+
+sub arguments {
+    my $self = shift;
+    if (@_) {
+        $self->{arguments} = shift;
+        die "ERROR: bad arguments for Lookup\n"
+            if ( not $self->{arguments} );
+    }
+    return $self->{arguments};
 }
 
 sub fill {
     my $self    = shift;
     my $message = shift;
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    $message->[TO] =
-        defined $self->{edge}->lookup( $message->[STREAM] )
-        ? $self->{owner}
-        : $self->{arguments};
-    if ( length $message->[TO] ) {
+    my $table = $Tachikoma::Nodes{ $self->{arguments} };
+    return $self->stderr( q(ERROR: couldn't find node ), $self->{arguments} )
+        if ( not $table );
+    $self->{counter}++;
+    if ( defined $table->lookup( $message->[STREAM] ) ) {
+        return $self->cancel($message) if ( not length $self->{owner} );
+        $message->[TO] = $self->{owner};
         $self->{sink}->fill($message);
     }
     else {
-        $self->cancel($message);
+        return $self->cancel($message) if ( not $self->{edge} );
+        $self->{edge}->fill($message);
     }
     return;
 }
