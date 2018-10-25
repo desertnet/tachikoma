@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35477 2018-10-21 13:27:41Z chris $
+# $Id: Job.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Job;
@@ -292,7 +292,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $rv      = undef;
-    $message->[TO] = '_parent' if ( not $message->[TO] );
+    $message->[TO] = '_parent' if ( not length $message->[TO] );
     $self->{counter}++;
     $rv = $self->{router}->fill($message)
         if ( not $message->[TYPE] & TM_EOF

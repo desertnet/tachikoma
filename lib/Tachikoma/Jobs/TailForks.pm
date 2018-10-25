@@ -168,7 +168,7 @@ sub fill {
     }
     elsif ( $message->[FROM] =~ m{^(.*):tail$} ) {
         my $file = $1;
-        return $self->{sink}->fill($message) if ( $message->[TO] );
+        return $self->{sink}->fill($message) if ( length $message->[TO] );
         my $forking = $self->{forking};
         $self->position( $file, $message->[ID] ) if ( $message->[ID] );
         $message->[STREAM] = $file;

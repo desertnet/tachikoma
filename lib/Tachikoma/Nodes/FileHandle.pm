@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: FileHandle.pm 35595 2018-10-24 05:06:45Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -58,6 +58,7 @@ sub new {
     $self->{flags}            = $flags;
     $self->{on_EOF}           = 'close';
     $self->{drain_fh}         = \&drain_fh;
+    $self->{drain_buffer}     = \&drain_buffer_normal;
     $self->{fill_fh}          = \&fill_fh;
     $self->{input_buffer}     = \$input_buffer;
     $self->{output_buffer}    = [];
@@ -71,9 +72,7 @@ sub new {
     $self->{largest_msg_sent} = 0;
     $self->{fill_modes}       = {
         null => \&null_cb,
-        fill => $flags & TK_SYNC
-        ? \&fill_fh_sync
-        : \&fill_buffer
+        fill => $flags & TK_SYNC ? \&fill_fh_sync : \&fill_buffer
     };
     $self->{fill} = $self->{fill_modes}->{fill};
     bless $self, $class;
@@ -137,7 +136,7 @@ sub drain_fh {
         return $self->handle_EOF;
     }
     $got += $read;
-    $got = $self->drain_buffer($buffer) if ( $got > 0 );
+    $got = &{ $self->{drain_buffer} }( $self, $buffer ) if ( $got > 0 );
     if ( not defined $got or $got < 1 ) {
         my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
@@ -145,7 +144,7 @@ sub drain_fh {
     return $read;
 }
 
-sub drain_buffer {
+sub drain_buffer_normal {
     my $self   = shift;
     my $buffer = shift;
     my $name   = $self->{name};
@@ -176,7 +175,7 @@ sub drain_buffer {
             length $message->[FROM]
             ? join q(/), $name, $message->[FROM]
             : $name;
-        if ( $message->[TO] and $owner ) {
+        if ( length $message->[TO] and length $owner ) {
             $self->print_less_often(
                       "ERROR: message addressed to $message->[TO]"
                     . " while owner is set to $owner"
@@ -184,7 +183,7 @@ sub drain_buffer {
                 if ( $message->[TYPE] != TM_ERROR );
             next;
         }
-        $message->[TO] = $owner if ($owner);
+        $message->[TO] = $owner if ( length $owner );
         $sink->fill($message);
     }
     return $got;

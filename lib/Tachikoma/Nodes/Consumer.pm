@@ -158,8 +158,6 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my ( $offset, $next_offset ) = split m{:}, $message->[ID], 2;
     if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         if ( $message->[PAYLOAD] eq 'answer' ) {
-            $self->stderr( 'WARNING: unexpected answer from ',
-                $message->[FROM] );
             $self->remove_node if ( defined $self->partition_id );
         }
         elsif ( $self->{timestamps}->{$offset} ) {

@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: STDIO.pm 35610 2018-10-24 17:15:29Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -51,9 +51,7 @@ sub new {
     $self->{drain_buffer}   = \&drain_buffer_normal;
     $self->{fill_fh}        = \&fill_fh;
     $self->{fill_modes}->{fill} =
-        $flags & TK_SYNC
-        ? \&fill_fh_sync
-        : \&fill_buffer;
+        $flags & TK_SYNC ? \&fill_fh_sync : \&fill_buffer;
     $self->{fill_modes}->{unauthenticated} = $self->{fill_modes}->{fill};
     $self->{fill} = $self->{fill_modes}->{fill};
     bless $self, $class;
@@ -95,15 +93,6 @@ sub drain_fh {
     my $new_buffer = q();
     $self->{input_buffer} = \$new_buffer;
     return $read;
-}
-
-sub drain_buffer {    ## no critic (RequireArgUnpacking)
-    my $self = shift;
-    return (
-        $self->{sink}
-        ? &{ $self->{drain_buffer} }( $self, @_ )
-        : undef
-    );
 }
 
 sub drain_buffer_normal {
@@ -271,7 +260,9 @@ sub fill {
         $self->{got_EOF} = 'true';
         $self->handle_EOF if ( not @{ $self->{output_buffer} } );
     }
-    elsif ( not $message->[FROM] and $message->[STREAM] eq 'msg_timer' ) {
+    elsif ( not length $message->[FROM]
+        and $message->[STREAM] eq 'msg_timer' )
+    {
         if ( $self->{on_timeout} eq 'close' ) {
             $self->stderr('WARNING: timeout waiting for response');
             $self->remove_node;
@@ -451,9 +442,11 @@ sub owner {
 
 sub edge {
     my $self = shift;
-    my $rv   = $self->SUPER::edge(@_);
-    $self->set_drain_buffer if (@_);
-    return $rv;
+    if (@_) {
+        $self->{edge} = shift;
+        $self->set_drain_buffer;
+    }
+    return $self->{edge};
 }
 
 sub set_drain_buffer {
@@ -483,7 +476,7 @@ sub line_buffer {
 sub buffer_mode {
     my $self = shift;
     if (@_) {
-        $self->{buffer_mode} = shift // 'binary';
+        $self->{buffer_mode} = shift;
         $self->set_drain_buffer;
     }
     return $self->{buffer_mode};

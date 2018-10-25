@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35293 2018-10-16 20:32:45Z chris $
+# $Id: JobFarmer.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -118,7 +118,7 @@ sub fill {
         else {
             $message->[FROM] = $from if ( $next and $next eq '_parent' );
         }
-        $message->[TO] ||= $self->{owner};
+        $message->[TO] = $self->{owner} if ( not length $message->[TO] );
         $self->{sink}->fill($message);
     }
     else {

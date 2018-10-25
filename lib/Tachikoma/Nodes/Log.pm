@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35477 2018-10-21 13:27:41Z chris $
+# $Id: Log.pm 35585 2018-10-24 02:44:55Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -80,7 +80,7 @@ sub fill {
         }
         return;
     }
-    elsif ( not $message->[FROM] and $message->[STREAM] eq 'utimer' ) {
+    elsif ( not length $message->[FROM] and $message->[STREAM] eq 'utimer' ) {
         utime $Tachikoma::Now, $Tachikoma::Now, $self->{filename}
             or $self->stderr("ERROR: couldn't utime $self->{filename}: $!");
         return;

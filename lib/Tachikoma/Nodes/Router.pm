@@ -79,25 +79,21 @@ sub drain {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $to      = $message->[TO];
-    $to = $message->[FROM]
-        if ( $message->[TYPE] & TM_PING and not length $to );
     return $self->drop_message( $message, 'message not addressed' )
-        if ( not $to );
+        if ( not length $message->[TO] );
     return $self->drop_message( $message, 'path exceeded 1024 bytes' )
-        if ( length( $message->[FROM] // q() ) > 1024 );
-    my ( $name, $path ) = split m{/}, $to, 2;
-    my $node = $Tachikoma::Nodes{$name};
-    return $self->send_error( $message, "NOT_AVAILABLE\n" ) if ( not $node );
+        if ( ( length $message->[FROM] // 0 ) > 1024 );
+    my ( $name, $path ) = split m{/}, $message->[TO], 2;
+    return $self->send_error( $message, "NOT_AVAILABLE\n" )
+        if ( not $Tachikoma::Nodes{$name} );
     $message->[TO] = $path;
-
     if ($Tachikoma::Profiles) {
         my $before = $self->push_profile($name);
-        my $rv     = $node->fill($message);
+        my $rv     = $Tachikoma::Nodes{$name}->fill($message);
         $self->pop_profile($before);
         return $rv;
     }
-    return $node->fill($message);
+    return $Tachikoma::Nodes{$name}->fill($message);
 }
 
 sub send_error {
@@ -106,7 +102,7 @@ sub send_error {
     my $error   = shift;
     if ( not $message->[TYPE] & TM_ERROR ) {
         chomp $error;
-        if ( $message->[FROM] ) {
+        if ( length $message->[FROM] ) {
             return $self->drop_message( $message, 'breaking recursion' )
                 if ( $self->handling_error );
             my $response = Tachikoma::Message->new;

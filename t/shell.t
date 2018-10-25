@@ -188,10 +188,10 @@ is( $answer, "{foo'bar}\n", 'backslash escapes quotes' );
 
 #####################################################################
 
-$parse_tree = $shell->parse("send echo '\\\\'");
+$parse_tree = $shell->parse("send echo '\\t\\n'");
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{\\\\}\n", 'single quotes escape backslash' );
+is( $answer, "{\\t\\n}\n", 'single quotes escape backslash' );
 
 #####################################################################
 

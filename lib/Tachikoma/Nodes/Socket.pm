@@ -238,6 +238,7 @@ sub new {
     $self->{scheme}           = Tachikoma->scheme;
     $self->{delegates}        = {};
     $self->{drain_fh}         = \&Tachikoma::Nodes::FileHandle::drain_fh;
+    $self->{drain_buffer}     = \&drain_buffer_normal;
     $self->{fill_fh}          = \&Tachikoma::Nodes::FileHandle::fill_fh;
     $self->{last_upbeat}      = undef;
     $self->{last_downbeat}    = undef;
@@ -347,8 +348,9 @@ sub accept_connection {
     $node->{fill}           = $node->{fill_modes}->{unauthenticated};
     $node->{max_unanswered} = $self->{max_unanswered}
         if ( exists $self->{max_unanswered} );
-    $node->buffer_mode( $self->{buffer_mode} )
+    $node->{buffer_mode} = $self->{buffer_mode}
         if ( exists $self->{buffer_mode} );
+    $node->set_drain_buffer;
 
     for my $event ( keys %{ $self->{registrations} } ) {
         my $r = $self->{registrations}->{$event};
@@ -611,7 +613,7 @@ sub reply_to_client_challenge {
     $self->notify( 'authenticated' => $self->{name} );
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
-    $self->drain_buffer( $self->{input_buffer} ) if ( $got > 0 );
+    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
 
@@ -622,7 +624,7 @@ sub auth_server_response {
         \&Tachikoma::Nodes::FileHandle::drain_fh,
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
-    $self->drain_buffer( $self->{input_buffer} ) if ($got);
+    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
 
@@ -793,17 +795,11 @@ sub delegate_authorization {
     return $allowed;
 }
 
-sub do_not_enter {
-    my $self = shift;
-    return $self->stderr('ERROR: not yet authenticated - message discarded');
-}
-
-sub drain_buffer {
+sub drain_buffer_normal {
     my $self   = shift;
     my $buffer = shift;
     my $name   = $self->{name};
     my $sink   = $self->{sink};
-    my $edge   = $self->{edge};
     my $owner  = $self->{owner};
     my $got    = length ${$buffer};
 
@@ -830,15 +826,11 @@ sub drain_buffer {
             $self->reply_to_heartbeat($message);
             next;
         }
-        elsif ($edge) {
-            $edge->activate( $message->[PAYLOAD] );
-            next;
-        }
         $message->[FROM] =
             length $message->[FROM]
             ? join q(/), $name, $message->[FROM]
             : $name;
-        if ( $message->[TO] and $owner ) {
+        if ( length $message->[TO] and length $owner ) {
             $self->print_less_often(
                       "ERROR: message addressed to $message->[TO]"
                     . " while owner is set to $owner"
@@ -846,8 +838,30 @@ sub drain_buffer {
                 if ( $message->[TYPE] != TM_ERROR );
             next;
         }
-        $message->[TO] = $owner if ($owner);
+        $message->[TO] = $owner if ( length $owner );
         $sink->fill($message);
+    }
+    return $got;
+}
+
+sub drain_buffer_edge {
+    my $self   = shift;
+    my $buffer = shift;
+    my $name   = $self->{name};
+    my $edge   = $self->{edge};
+    my $got    = length ${$buffer};
+    my $size   = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
+    while ( $got >= $size and $size > 0 ) {
+        my $message =
+            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+        $got -= $size;
+        $self->{bytes_read} += $size;
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
+        if ( $message->[TYPE] & TM_HEARTBEAT ) {
+            $self->reply_to_heartbeat($message);
+            next;
+        }
+        $edge->activate( \$message->[PAYLOAD] );
     }
     return $got;
 }
@@ -881,6 +895,11 @@ sub reply_to_heartbeat {
         }
     }
     return;
+}
+
+sub do_not_enter {
+    my $self = shift;
+    return $self->stderr('ERROR: not yet authenticated - message discarded');
 }
 
 sub fill_buffer_init {
@@ -1134,6 +1153,22 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         $response = $self->SUPER::dump_config;
     }
     return $response;
+}
+
+sub edge {
+    my $self = shift;
+    if (@_) {
+        $self->{edge} = shift;
+        $self->set_drain_buffer;
+    }
+    return $self->{edge};
+}
+
+sub set_drain_buffer {
+    my $self = shift;
+    $self->{drain_buffer} =
+        $self->{edge} ? \&drain_buffer_edge : \&drain_buffer_normal;
+    return;
 }
 
 sub hostname {
