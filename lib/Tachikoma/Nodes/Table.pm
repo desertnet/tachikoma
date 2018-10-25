@@ -264,7 +264,6 @@ sub fetch {
     my ( $self, $key ) = @_;
     die 'ERROR: no key' if ( not defined $key );
     my $field     = $self->{field} or die 'ERROR: no field';
-    my $payload   = undef;
     my $rv        = undef;
     my $tachikoma = $self->{connector};
     my $request   = Tachikoma::Message->new;
@@ -295,7 +294,6 @@ sub mget {
     my ( $self, $keys ) = @_;
     die 'ERROR: no key' if ( not defined $keys->[0] );
     my $field     = $self->{field} or die 'ERROR: no field';
-    my $payload   = undef;
     my @rv        = ();
     my $tachikoma = $self->{connector};
     my $request   = Tachikoma::Message->new;
