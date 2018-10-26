@@ -13,7 +13,6 @@ use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE PAYLOAD TM_BYTESTREAM TM_STORABLE TM_PERSIST
 );
-use Encode qw( encode );
 use JSON;    # -support_by_pp;
 use parent qw( Tachikoma::Node );
 
@@ -29,11 +28,12 @@ sub fill {
     $json->pretty(1);
     $json->allow_blessed(1);
     $json->convert_blessed(0);
+    my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
     my $response = bless [ @{$message} ], ref $message;
     $response->[TYPE] = TM_BYTESTREAM;
     $response->[TYPE] |= $persist if ($persist);
     $response->[PAYLOAD] =
-        encode( 'utf8', $json->encode( $message->payload ) );
+        $json->encode( $message->payload );
     return $self->SUPER::fill($response);
 }
 
