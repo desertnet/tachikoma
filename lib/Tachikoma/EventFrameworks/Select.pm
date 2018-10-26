@@ -3,14 +3,13 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Select.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma::EventFrameworks::Select;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_W );
-use Tachikoma::Config qw( %Tachikoma );
 use IO::Select;
 use POSIX qw( :sys_wait_h SIGUSR1 );
 use Time::HiRes;
@@ -82,10 +81,11 @@ sub register_watcher_node {
 
 sub drain {
     my ( $self, $this, $connector ) = @_;
+    my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my ( $reads, $writes, $errors ) =
             IO::Select->select( $Reads, $Writes, $Reads,
-            1 / ( $Tachikoma{Hz} || 10 ) );
+            1 / ( $configuration->{hz} || 10 ) );
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for my $fh ( @{$reads}, @{$errors} ) {

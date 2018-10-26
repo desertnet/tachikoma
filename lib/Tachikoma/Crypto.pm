@@ -26,6 +26,8 @@ use Crypt::OpenSSL::RSA qw();
 
 use version; our $VERSION = qv('v2.0.349');
 
+my $Scheme = 'rsa';
+
 sub verify_signature {
     my $self      = shift;
     my $type      = shift;
@@ -179,9 +181,9 @@ sub scheme {
             die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
             die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
         }
-        $Tachikoma::Scheme = $scheme;
+        $Scheme = $scheme;
     }
-    return $Tachikoma::Scheme;
+    return $Scheme;
 }
 
 1;

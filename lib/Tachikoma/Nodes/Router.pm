@@ -140,9 +140,10 @@ sub drop_message {
 }
 
 sub fire {
-    my $self  = shift;
-    my @again = ();
-    while ( my $node = shift @Tachikoma::Reconnect ) {
+    my $self         = shift;
+    my @again        = ();
+    my $reconnecting = Tachikoma->nodes_to_reconnect;
+    while ( my $node = shift @{$reconnecting} ) {
         my $okay = eval {
             push @again, $node if ( $node->reconnect );
             return 1;
@@ -153,7 +154,7 @@ sub fire {
             $node->remove_node;
         }
     }
-    @Tachikoma::Reconnect = @again;
+    @{$reconnecting} = @again;
     if ( $Tachikoma::Now - $self->{last_fire} >= $Heartbeat_Interval ) {
         $self->heartbeat;
         $self->update_logs;
@@ -221,11 +222,11 @@ sub heartbeat {
 }
 
 sub update_logs {
-    my $self = shift;
-    for my $text ( keys %Tachikoma::Recent_Log_Timers ) {
-        delete $Tachikoma::Recent_Log_Timers{$text}
-            if (
-            $Tachikoma::Now - $Tachikoma::Recent_Log_Timers{$text} > 300 );
+    my $self              = shift;
+    my $recent_log_timers = Tachikoma->recent_log_timers;
+    for my $text ( keys %{$recent_log_timers} ) {
+        delete $recent_log_timers->{$text}
+            if ( $Tachikoma::Now - $recent_log_timers->{$text} > 300 );
     }
     if ( $self->{type} eq 'root' and $Tachikoma::Now - $Last_UTime > 300 ) {
         Tachikoma->touch_log_file;

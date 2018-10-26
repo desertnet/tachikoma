@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35592 2018-10-24 03:55:04Z chris $
+# $Id: Tachikoma.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma;
@@ -39,30 +39,30 @@ use constant {
     BUFSIZ          => 262144,
 };
 
-my $COUNTER          = 0;
-my $MY_PID           = 0;
-my $LOG_FILE_HANDLE  = undef;
-my $INIT_TIME        = time;
-my @CONFIG_VARIABLES = qw( Log_File Log_Dir Pid_File Pid_Dir );
+$Tachikoma::Max_Int         = MAX_INT;
+$Tachikoma::Now             = undef;
+$Tachikoma::Right_Now       = undef;
+$Tachikoma::Event_Framework = undef;
+%Tachikoma::Nodes           = ();
+$Tachikoma::Nodes_By_ID     = {};
+$Tachikoma::Nodes_By_FD     = {};
+$Tachikoma::Nodes_By_PID    = {};
+@Tachikoma::Closing         = ();
+$Tachikoma::Profiles        = undef;
+@Tachikoma::Stack           = ();
+$Tachikoma::SSL_Ciphers     = q();
+$Tachikoma::SSL_Version     = 'TLSv1';
 
-$Tachikoma::Max_Int           = MAX_INT;
-$Tachikoma::Now               = undef;
-$Tachikoma::Right_Now         = undef;
-$Tachikoma::Event_Framework   = undef;
-%Tachikoma::Nodes             = ();
-$Tachikoma::Nodes_By_ID       = {};
-$Tachikoma::Nodes_By_FD       = {};
-$Tachikoma::Nodes_By_PID      = {};
-@Tachikoma::Closing           = ();
-@Tachikoma::Reconnect         = ();
-$Tachikoma::Profiles          = undef;
-@Tachikoma::Stack             = ();
-@Tachikoma::Recent_Log        = ();
-%Tachikoma::Recent_Log_Timers = ();
-$Tachikoma::Shutting_Down     = undef;
-$Tachikoma::Scheme            = 'rsa';
-$Tachikoma::SSL_Ciphers       = q();
-$Tachikoma::SSL_Version       = 'TLSv1';
+my $CONFIGURATION      = {};
+my $COUNTER            = 0;
+my $MY_PID             = 0;
+my $LOG_FILE_HANDLE    = undef;
+my $INIT_TIME          = time;
+my @CONFIG_VARIABLES   = qw( Log_File Log_Dir Pid_File Pid_Dir );
+my @NODES_TO_RECONNECT = ();
+my @RECENT_LOG         = ();
+my %RECENT_LOG_TIMERS  = ();
+my $SHUTTING_DOWN      = undef;
 
 sub unix_client {
     my $class    = shift;
@@ -581,10 +581,11 @@ sub close_log_file {
 }
 
 sub reload_config {
-    my $self   = shift;
-    my $config = $Tachikoma{Config};
-    include_conf($config);
-    $Tachikoma{Config} = $config;
+    my $self        = shift;
+    my $config_file = $Tachikoma{Config};
+    my $config      = Tachikoma::Config->new;
+    $config->load_legacy($config_file);
+    %{ Tachikoma->configuration } = %{$config};
     return;
 }
 
@@ -720,23 +721,6 @@ sub timeout {
     return $self->{timeout};
 }
 
-sub counter {
-    my $self = shift;
-    if (@_) {
-        $COUNTER = shift;
-    }
-    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
-    return $COUNTER;
-}
-
-sub my_pid {
-    return $MY_PID;
-}
-
-sub init_time {
-    return $INIT_TIME;
-}
-
 sub now {
     return $Tachikoma::Now;
 }
@@ -778,10 +762,6 @@ sub closing {
     return \@Tachikoma::Closing;
 }
 
-sub nodes_to_reconnect {
-    return \@Tachikoma::Reconnect;
-}
-
 sub profiles {
     my $self = shift;
     if (@_) {
@@ -799,20 +779,49 @@ sub stack {
     return \@Tachikoma::Stack;
 }
 
+sub configuration {
+    my $self = shift;
+    if (@_) {
+        $CONFIGURATION = shift;
+    }
+    return $CONFIGURATION;
+}
+
+sub counter {
+    my $self = shift;
+    if (@_) {
+        $COUNTER = shift;
+    }
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return $COUNTER;
+}
+
+sub my_pid {
+    return $MY_PID;
+}
+
+sub init_time {
+    return $INIT_TIME;
+}
+
+sub nodes_to_reconnect {
+    return \@NODES_TO_RECONNECT;
+}
+
 sub recent_log {
-    return \@Tachikoma::Recent_Log;
+    return \@RECENT_LOG;
 }
 
 sub recent_log_timers {
-    return \%Tachikoma::Recent_Log_Timers;
+    return \%RECENT_LOG_TIMERS;
 }
 
 sub shutting_down {
     my $self = shift;
     if (@_) {
-        $Tachikoma::Shutting_Down = shift;
+        $SHUTTING_DOWN = shift;
     }
-    return $Tachikoma::Shutting_Down;
+    return $SHUTTING_DOWN;
 }
 
 sub TIEHANDLE {
@@ -844,8 +853,8 @@ sub PRINT {
     my ( $self, @args ) = @_;
     my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
-    push @Tachikoma::Recent_Log, @msg;
-    shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );
+    push @RECENT_LOG, @msg;
+    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
     return print {$LOG_FILE_HANDLE} @msg;
 }
 
@@ -853,8 +862,8 @@ sub PRINTF {
     my ( $self, $fmt, @args ) = @_;
     my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
-    push @Tachikoma::Recent_Log, sprintf $fmt, @msg;
-    shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );
+    push @RECENT_LOG, sprintf $fmt, @msg;
+    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
     return print {$LOG_FILE_HANDLE} sprintf $fmt, @msg;
 }
 

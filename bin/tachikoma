@@ -18,13 +18,13 @@ use Tachikoma::Nodes::Dumper;
 use Tachikoma::Nodes::Timeout;
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM TM_EOF );
-use Tachikoma::Config qw( %Tachikoma %Forbidden %Var load_module );
+use Tachikoma::Config qw( load_module );
 use Getopt::Long qw( GetOptions );
 use POSIX qw( isatty );
 
 use version; our $VERSION = qv('v2.0.192');
 
-my $config        = '/usr/local/etc/tachikoma.conf';
+my $config_file   = '/usr/local/etc/tachikoma.conf';
 my $host          = undef;
 my $port          = undef;
 my $socket        = undef;
@@ -41,7 +41,7 @@ my $help          = undef;
 splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 
 my $r = GetOptions(
-    'config=s'      => \$config,
+    'config=s'      => \$config_file,
     'host=s'        => \$host,
     'port=i'        => \$port,
     'socket=s'      => \$socket,
@@ -58,22 +58,22 @@ my $r = GetOptions(
 my $filename = $ARGV[0];
 
 usage() if ( $help or not $r );
-require $config if ( -f $config );
-$Tachikoma{Config} = $config;
-$Forbidden{$config} = 1;
-my $new_server = undef;
-$new_server = 'true' if ( not $host and not $socket );
-$port    //= $Tachikoma{Listen}->[0]->{Port};
-$use_SSL //= $Tachikoma{Listen}->[0]->{use_SSL};
-my $isa_tty = $filename ? undef : isatty(*STDIN);
-$verbose = 'true' if ( $isa_tty or $debug );
-
+my $config = Tachikoma::Config->new;
+$config->load_legacy($config_file);
+Tachikoma->configuration($config);
 Tachikoma->scheme($scheme) if ($scheme);
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
+my $new_server = undef;
+$new_server = 'true' if ( not $host and not $socket );
+$port    //= $config->{listen}->[0]->{Port};
+$use_SSL //= $config->{listen}->[0]->{use_SSL};
+my $isa_tty = $filename ? undef : isatty(*STDIN);
+$verbose = 'true' if ( $isa_tty or $debug );
 my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
     $timeout, $shutdown, $stdout,    $router,    $node
 );
+
 $stdin = Tachikoma::Nodes::TTY->filehandle( *STDIN, TK_R )
     if ( not $filename );
 $shell = Tachikoma::Nodes::Shell2->new;
@@ -137,10 +137,10 @@ $Tachikoma::Right_Now = $Tachikoma::Now;
 
 if ($filename) {
     my @values = @ARGV;
-    $Var{$_} = $values[$_] for ( 1 .. $#values );
-    $Var{q(0)}  = shift @values;
-    $Var{q(@)}  = join q( ), @values;
-    $Var{q(_C)} = scalar @values;
+    $config->{var}->{$_} = $values[$_] for ( 1 .. $#values );
+    $config->{var}->{q(0)}  = shift @values;
+    $config->{var}->{q(@)}  = join q( ), @values;
+    $config->{var}->{q(_C)} = scalar @values;
     my @lines = ();
     my $fh;
     open $fh, '<', $filename or die "ERROR: can't open $filename: $!\n";

@@ -3,13 +3,12 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: KQueue.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
 use strict;
 use warnings;
-use Tachikoma::Config qw( %Tachikoma );
 use IO::KQueue;
 use POSIX qw( :sys_wait_h SIGCHLD SIGHUP SIGUSR1 SIGINT SIGTERM );
 use Time::HiRes;
@@ -114,11 +113,13 @@ sub drain {
         $EvFilt_Vnode => 'note_fh',
         $EvFilt_Proc  => 'note_fh',
     );
-    my $timeout = undef;
-    my @events  = ();
+    my $timeout       = undef;
+    my @events        = ();
+    my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
-        $timeout = keys %Timers ? 1000 / ( $Tachikoma{Hz} || 10 ) : 60000;
-        @events = $KQueue->kevent($timeout);
+        $timeout =
+            keys %Timers ? 1000 / ( $configuration->{hz} || 10 ) : 60000;
+        @events               = $KQueue->kevent($timeout);
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for my $kev (@events) {

@@ -9,9 +9,6 @@ use strict;
 use warnings;
 use Test::More tests => 28;
 
-use Tachikoma::Config;
-use Tachikoma::Crypto;
-
 sub test_construction {
     my $class = shift;
     eval "use $class; return 1;" or die $@;

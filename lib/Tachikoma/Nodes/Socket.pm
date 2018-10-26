@@ -23,8 +23,7 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Tachikoma::Config qw(
-    %Tachikoma $ID $Private_Ed25519_Key %SSL_Config $Secure_Level %Var
-    $Wire_Version
+    $ID $Private_Ed25519_Key %SSL_Config $Secure_Level %Var $Wire_Version
 );
 use Tachikoma::Crypto;
 use Digest::MD5 qw( md5 );
@@ -127,7 +126,7 @@ sub unix_client_async {
     $client->{filename}      = $filename;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
-    push @Tachikoma::Reconnect, $client;
+    push @{ Tachikoma->nodes_to_reconnect }, $client;
     return $client;
 }
 
@@ -212,7 +211,7 @@ sub inet_client_async {
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
     $client->dns_lookup;
-    push @Tachikoma::Reconnect, $client;
+    push @{ Tachikoma->nodes_to_reconnect }, $client;
     return $client;
 }
 
@@ -981,8 +980,9 @@ sub close_filehandle {
         $self->{last_downbeat} = $Tachikoma::Now;
     }
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
-        my $reconnecting = ( grep $_ eq $self, @Tachikoma::Reconnect )[0];
-        push @Tachikoma::Reconnect, $self if ( not $reconnecting );
+        my $reconnecting = Tachikoma->nodes_to_reconnect;
+        my $exists = ( grep $_ eq $self, @{$reconnecting} )[0];
+        push @{$reconnecting}, $self if ( not $exists );
     }
     return;
 }

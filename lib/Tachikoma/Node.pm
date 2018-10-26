@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: Node.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma::Node;
@@ -33,7 +33,8 @@ sub new {
         sink          => undef,
         edge          => undef,
         counter       => 0,
-        registrations => {}
+        registrations => {},
+        configuration => Tachikoma->configuration,
     };
     bless $self, $class;
     return $self;
@@ -428,20 +429,28 @@ sub edge {
     return $self->{edge};
 }
 
-sub interpreter {
-    my $self = shift;
-    if (@_) {
-        $self->{interpreter} = shift;
-    }
-    return $self->{interpreter};
-}
-
 sub counter {
     my $self = shift;
     if (@_) {
         $self->{counter} = shift;
     }
     return $self->{counter};
+}
+
+sub configuration {
+    my $self = shift;
+    if (@_) {
+        $self->{configuration} = shift;
+    }
+    return $self->{configuration};
+}
+
+sub interpreter {
+    my $self = shift;
+    if (@_) {
+        $self->{interpreter} = shift;
+    }
+    return $self->{interpreter};
 }
 
 sub registrations {

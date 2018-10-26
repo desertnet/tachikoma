@@ -15,7 +15,6 @@ use Tachikoma::Message qw(
     TM_INFO TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
     VECTOR_SIZE
 );
-use Tachikoma::Config qw( %Tachikoma );
 use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
 use Storable qw( nstore retrieve );
@@ -31,7 +30,6 @@ my $Expire_Interval     = 15;
 my $Commit_Interval     = 15;
 my $Default_Hub_Timeout = 60;
 my %Targets             = ();
-my $Home                = $Tachikoma{Home} || ( getpwuid $< )[7];
 
 sub new {
     my $class = shift;

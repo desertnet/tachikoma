@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Config.pm 35625 2018-10-26 09:02:39Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -12,7 +12,7 @@ use parent qw( Exporter );
 @EXPORT_OK = qw(
     %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config
     %Forbidden $Secure_Level %Help %Functions %Var $Wire_Version %Aliases
-    load_module include_conf new_func
+    load_module include_conf
 );
 
 use version; our $VERSION = qv('v2.0.165');
@@ -30,7 +30,7 @@ our %Tachikoma    = (
     Buffer_Size   => 1048576,
 );
 our $ID                  = q();
-our $Private_key         = q();
+our $Private_Key         = q();
 our $Private_Ed25519_Key = q();
 our %Keys                = ();
 our %SSL_Config          = ();
@@ -40,6 +40,63 @@ our %Help                = ();
 our %Functions           = ();
 our %Var                 = ();
 our %Aliases             = ();
+
+sub new {
+    my $class = shift;
+    my $self  = {
+        wire_version        => $Wire_Version,
+        listen              => $Tachikoma{Listen},
+        prefix              => $Tachikoma{Prefix},
+        log_dir             => $Tachikoma{Log_Dir},
+        pid_dir             => $Tachikoma{Pid_Dir},
+        include_nodes       => $Tachikoma{Include_Nodes},
+        include_jobs        => $Tachikoma{Include_Jobs},
+        buffer_size         => $Tachikoma{Buffer_Size},
+        low_water_mark      => $Tachikoma{Low_Water_Mark},
+        id                  => q(),
+        private_key         => q(),
+        private_ed25519_key => q(),
+        public_keys         => {},
+        ssl_config          => {},
+        forbidden           => {},
+        secure_level        => undef,
+        help                => {},
+        functions           => {},
+        var                 => {},
+        hz                  => undef,
+    };
+    bless $self, $class;
+    return $self;
+}
+
+sub load_legacy {
+    my $self        = shift;
+    my $config_file = shift;
+    include_conf($config_file) if ( $config_file and -f $config_file );
+    $Tachikoma{Config}           = $config_file;
+    $self->{wire_version}        = $Wire_Version;
+    $self->{config}              = $Tachikoma{Config};
+    $self->{listen}              = $Tachikoma{Listen};
+    $self->{prefix}              = $Tachikoma{Prefix};
+    $self->{log_dir}             = $Tachikoma{Log_Dir};
+    $self->{pid_dir}             = $Tachikoma{Pid_Dir};
+    $self->{include_nodes}       = $Tachikoma{Include_Nodes};
+    $self->{include_jobs}        = $Tachikoma{Include_Jobs};
+    $self->{buffer_size}         = $Tachikoma{Buffer_Size};
+    $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
+    $self->{id}                  = $ID;
+    $self->{private_key}         = $Private_Key;
+    $self->{private_ed25519_key} = $Private_Ed25519_Key;
+    $self->{public_keys}         = \%Keys;
+    $self->{ssl_config}          = \%SSL_Config;
+    $self->{forbidden}           = \%Forbidden;
+    $self->{secure_level}        = $Secure_Level;
+    $self->{help}                = \%Help;
+    $self->{functions}           = \%Functions;
+    $self->{var}                 = \%Var;
+    $self->{hz}                  = $Tachikoma{Hz};
+    return;
+}
 
 sub load_module {
     my $module_name = shift;

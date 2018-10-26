@@ -12,19 +12,17 @@ use Tachikoma;
 use Tachikoma::Job;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_SYNC );
-use Tachikoma::Config qw( %Tachikoma %Forbidden load_module );
+use Tachikoma::Config qw( load_module );
 
 use version; our $VERSION = qv('v2.0.192');
 
-my ( $config, $class, $name, $arguments, $owner, $should_restart ) = @ARGV;
-
+my ( $config_file, $class, $name, $arguments, $owner, $should_restart ) =
+    @ARGV;
 usage() if ( not $class );
-require $config if ( -f $config );
-$Tachikoma{Config} = $config;
-$Forbidden{$config} = 1;
-
 srand;
-
+my $config = Tachikoma::Config->new;
+$config->load_legacy($config_file);
+Tachikoma->configuration($config);
 Tachikoma->load_event_framework;
 
 $Tachikoma::Now       = time;
