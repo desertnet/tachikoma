@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: CommandInterpreter.pm 35629 2018-10-26 12:29:10Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -510,8 +510,16 @@ $C{scheme} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    Tachikoma::Crypto->scheme( $command->arguments );
-    return $self->okay($envelope);
+    my $response = undef;
+    if ( $command->arguments ) {
+        Tachikoma::Crypto->scheme( $command->arguments );
+        $response = $self->okay($envelope);
+    }
+    else {
+        my $scheme = Tachikoma::Crypto->scheme;
+        $response = $self->response( $envelope, "$scheme\n" );
+    }
+    return $response;
 };
 
 $H{make_node} = [

@@ -25,8 +25,6 @@ use Crypt::OpenSSL::RSA qw();
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $Scheme = 'rsa';
-
 sub verify_signature {
     my $self      = shift;
     my $type      = shift;
@@ -185,9 +183,9 @@ sub scheme {
             die "Ed25519 not configured\n"
                 if ( not Tachikoma->configuration->{private_ed25519_key} );
         }
-        $Scheme = $scheme;
+        Tachikoma->configuration->{scheme} = $scheme;
     }
-    return $Scheme;
+    return Tachikoma->configuration->{scheme};
 }
 
 1;

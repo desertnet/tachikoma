@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: Config.pm 35629 2018-10-26 12:29:10Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -10,9 +10,9 @@ use Exporter;
 use vars qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
-    %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config
-    %Forbidden $Secure_Level %Help %Functions %Var $Wire_Version %Aliases
-    load_module include_conf
+    %Tachikoma $Scheme $ID $Private_Key $Private_Ed25519_Key %Keys
+    %SSL_Config %Forbidden $Secure_Level %Help %Functions %Var
+    $Wire_Version %Aliases load_module include_conf
 );
 
 use version; our $VERSION = qv('v2.0.165');
@@ -29,6 +29,7 @@ our %Tachikoma    = (
     Include_Jobs  => ['Accessories::Jobs'],
     Buffer_Size   => 1048576,
 );
+our $Scheme              = 'rsa';
 our $ID                  = q();
 our $Private_Key         = q();
 our $Private_Ed25519_Key = q();
@@ -54,6 +55,7 @@ sub new {
         buffer_size         => $Tachikoma{Buffer_Size},
         low_water_mark      => $Tachikoma{Low_Water_Mark},
         keep_alive          => $Tachikoma{Keep_Alive},
+        scheme              => $Scheme,
         id                  => q(),
         private_key         => q(),
         private_ed25519_key => q(),
@@ -86,6 +88,7 @@ sub load_legacy {
     $self->{buffer_size}         = $Tachikoma{Buffer_Size};
     $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
     $self->{keep_alive}          = $Tachikoma{Keep_Alive};
+    $self->{scheme}              = $Scheme;
     $self->{id}                  = $ID;
     $self->{private_key}         = $Private_Key;
     $self->{private_ed25519_key} = $Private_Ed25519_Key;
