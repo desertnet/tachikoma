@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35277 2018-10-16 09:41:42Z chris $
+# $Id: JobController.pm 35627 2018-10-26 11:47:09Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -16,7 +16,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
-use Tachikoma::Config qw( %Tachikoma );
 use Data::Dumper;
 use POSIX qw( SIGCHLD SIGINT );
 use parent qw( Tachikoma::Nodes::Timer );
@@ -652,7 +651,7 @@ sub config {
                 '/usr/local/etc/tachikoma-', $self->{username}, '.conf';
         }
         else {
-            $config = $Tachikoma{Config};
+            $config = $self->configuration->{config};
         }
     }
     return $config;

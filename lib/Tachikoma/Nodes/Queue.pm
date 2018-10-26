@@ -15,7 +15,6 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_STORABLE TM_INFO TM_PERSIST
     TM_COMMAND TM_RESPONSE TM_ERROR TM_EOF
 );
-use Tachikoma::Config qw( %Tachikoma );
 use DBI;
 use Data::Dumper;
 use POSIX qw( strftime );
@@ -28,9 +27,9 @@ my $Clear_Interval       = 900;
 my $Default_Timeout      = 900;
 my $Default_Times_Expire = 300;
 my $Timer_Interval       = 15;
-my $Home                 = $Tachikoma{Home} || ( getpwuid $< )[7];
-my $DB_Dir               = "$Home/.tachikoma/queues";
-my %C                    = ();
+my $Home   = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
+my $DB_Dir = "$Home/.tachikoma/queues";
+my %C      = ();
 
 sub new {
     my $class = shift;

@@ -20,14 +20,13 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF
 );
-use Tachikoma::Config qw( %Tachikoma );
 use BerkeleyDB;
 use Digest::MD5 qw( md5 );
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
+my $Home          = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/Tails";
 my $Max_Forking   = 8;
 my $Scan_Interval = 30;

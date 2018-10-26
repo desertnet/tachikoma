@@ -14,7 +14,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_HEARTBEAT TM_PING TM_INFO TM_ERROR TM_EOF
 );
-use Tachikoma::Config qw( $Secure_Level %Var $Wire_Version );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.195');
@@ -43,8 +42,9 @@ sub drain {
     my $self      = shift;
     my $connector = shift;
     if ( $self->type eq 'root' ) {
-        my $class = ref $Tachikoma::Event_Framework;
-        $self->stderr("starting up - $class - wire format $Wire_Version");
+        my $class   = ref $Tachikoma::Event_Framework;
+        my $version = $self->configuration->{wire_version};
+        $self->stderr("starting up - $class - wire format $version");
     }
     $Tachikoma::Event_Framework->drain( $self, $connector );
     $self->shutdown_all_nodes;
@@ -140,9 +140,10 @@ sub drop_message {
 }
 
 sub fire {
-    my $self  = shift;
-    my @again = ();
-    while ( my $node = shift @Tachikoma::Reconnect ) {
+    my $self         = shift;
+    my @again        = ();
+    my $reconnecting = Tachikoma->nodes_to_reconnect;
+    while ( my $node = shift @{$reconnecting} ) {
         my $okay = eval {
             push @again, $node if ( $node->reconnect );
             return 1;
@@ -153,14 +154,15 @@ sub fire {
             $node->remove_node;
         }
     }
-    @Tachikoma::Reconnect = @again;
+    @{$reconnecting} = @again;
     if ( $Tachikoma::Now - $self->{last_fire} >= $Heartbeat_Interval ) {
-        $self->heartbeat;
+        my $config = $self->configuration;
+        $self->heartbeat($config);
         $self->update_logs;
         $self->expire_callbacks;
         $self->notify_timer;
-        if (    defined $Secure_Level
-            and $Secure_Level == 0
+        if (    defined $config->{secure_level}
+            and $config->{secure_level} == 0
             and $self->type ne 'router' )
         {
             $self->print_less_often('WARNING: process is insecure');
@@ -174,9 +176,10 @@ sub fire {
 }
 
 sub heartbeat {
-    my $self  = shift;
-    my $stale = $Var{'Stale_Connector_Threshold'} || 900;
-    my $slow  = $Var{'Slow_Connector_Threshold'} || 900;
+    my $self   = shift;
+    my $config = shift;
+    my $stale  = $config->{var}->{stale_connector_threshold} || 900;
+    my $slow   = $config->{var}->{slow_connector_threshold} || 900;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {
@@ -221,11 +224,11 @@ sub heartbeat {
 }
 
 sub update_logs {
-    my $self = shift;
-    for my $text ( keys %Tachikoma::Recent_Log_Timers ) {
-        delete $Tachikoma::Recent_Log_Timers{$text}
-            if (
-            $Tachikoma::Now - $Tachikoma::Recent_Log_Timers{$text} > 300 );
+    my $self              = shift;
+    my $recent_log_timers = Tachikoma->recent_log_timers;
+    for my $text ( keys %{$recent_log_timers} ) {
+        delete $recent_log_timers->{$text}
+            if ( $Tachikoma::Now - $recent_log_timers->{$text} > 300 );
     }
     if ( $self->{type} eq 'root' and $Tachikoma::Now - $Last_UTime > 300 ) {
         Tachikoma->touch_log_file;

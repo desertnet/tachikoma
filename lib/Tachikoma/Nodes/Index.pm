@@ -168,7 +168,7 @@ sub fetch {
     my ( $self, $key ) = @_;
     die 'ERROR: no key' if ( not defined $key );
     my $field     = $self->{field} or die 'ERROR: no field';
-    my $payload   = undef;
+    my $payload   = {};
     my $rv        = undef;
     my $tachikoma = $self->{connector};
     my $request   = Tachikoma::Message->new;
@@ -185,9 +185,6 @@ sub fetch {
             my $response = shift;
             if ( $response->type & TM_STORABLE ) {
                 $payload = $response->payload;
-            }
-            else {
-                die 'ERROR: fetch failed';
             }
             return;
         }

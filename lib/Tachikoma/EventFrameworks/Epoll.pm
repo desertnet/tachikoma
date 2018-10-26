@@ -3,14 +3,13 @@
 # Tachikoma::EventFrameworks::Epoll
 # ----------------------------------------------------------------------
 #
-# $Id: Epoll.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Epoll.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma::EventFrameworks::Epoll;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_EPOLLED );
-use Tachikoma::Config qw( %Tachikoma );
 use IO::Epoll;
 use Errno;
 use IO::Select;
@@ -102,11 +101,12 @@ sub register_watcher_node {
 
 sub drain {    ## no critic (ProhibitExcessComplexity)
     my ( $self, $this, $connector ) = @_;
+    my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my $check_select = $Reads->count or $Writes->count;
         my $events = epoll_wait( $Epoll, 256, $check_select
             ? 0
-            : 1000 / ( $Tachikoma{Hz} || 10 ) );
+            : 1000 / ( $configuration->{hz} || 10 ) );
         if ( not $events ) {
             die "ERROR: epoll_wait: $!"
                 if ( $! and $! != Errno::EINTR and $! != Errno::EINVAL );

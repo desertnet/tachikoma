@@ -1,8 +1,8 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 include services/config.tsl
 
-var Log_File  = /var/log/tachikoma/<name>.log
-var Pid_File  = /var/run/tachikoma/<name>.pid
+var log_file  = /var/log/tachikoma/<name>.log
+var pid_file  = /var/run/tachikoma/<name>.pid
 var root_port = [var "tachikoma.<name>.port"]
 
 daemonize [var name]
@@ -10,5 +10,5 @@ daemonize [var name]
 make_node CommandInterpreter hosts
 make_node JobController      jobs
 command hosts connect_inet localhost
-command jobs  start_job Tail local_server_log <Log_File>
+command jobs  start_job Tail local_server_log <log_file>
 connect_node local_server_log localhost/server_log:ruleset

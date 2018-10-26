@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35610 2018-10-24 17:15:29Z chris $
+# $Id: STDIO.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -22,7 +22,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
-use Tachikoma::Config qw( %Tachikoma );
 use POSIX qw( EAGAIN );
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );

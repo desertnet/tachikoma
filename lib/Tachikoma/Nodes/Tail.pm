@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35604 2018-10-24 16:33:02Z chris $
+# $Id: Tail.pm 35625 2018-10-26 09:02:39Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -20,7 +20,6 @@ use Tachikoma::Message qw(
     TYPE FROM ID STREAM PAYLOAD
     TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Tachikoma::Config qw( %Tachikoma %Forbidden );
 use Fcntl qw( SEEK_SET SEEK_CUR SEEK_END );
 use Getopt::Long qw( GetOptionsFromString );
 use Sys::Hostname qw( hostname );
@@ -160,14 +159,15 @@ sub check_path {
     die "ERROR: bad arguments for Tail\n" if ( not $filename );
     my $path = ( $filename =~ m{^(/.*)$} )[0];
     die "ERROR: invalid path: $filename\n" if ( not defined $path );
+    my $forbidden = $self->configuration->{forbidden};
     $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
     $path =~ s{(?:^|/)[.][.](?=/)}{}g;
     $path =~ s{/+}{/}g;
     my $link_path = undef;
     $link_path = readlink $path if ( -l $path );
     die "ERROR: forbidden file: $path\n"
-        if ( $Forbidden{$path}
-        or ( $link_path and $Forbidden{$link_path} ) );
+        if ( $forbidden->{$path}
+        or ( $link_path and $forbidden->{$link_path} ) );
     return $path;
 }
 
@@ -377,9 +377,9 @@ sub handle_soft_EOF {
 
     # only poll the file every so often
     # also throttles overzealous fifos in kqueue
+    my $hz = $self->{configuration}->{hz} || 10;
     $self->unregister_reader_node;
-    $self->poll_timer->set_timer( 1000 / ( $Tachikoma{Hz} || 10 ),
-        'oneshot' );
+    $self->poll_timer->set_timer( 1000 / $hz, 'oneshot' );
     return;
 }
 

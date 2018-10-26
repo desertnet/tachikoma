@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: Job.pm 35627 2018-10-26 11:47:09Z chris $
 #
 
 package Tachikoma::Job;
@@ -17,7 +17,6 @@ use Tachikoma::Message qw(
 use Tachikoma::Nodes::FileHandle qw( TK_R setsockopts );
 use Tachikoma::Nodes::STDIO;
 use Tachikoma::Nodes::Callback;
-use Tachikoma::Config qw( %Tachikoma );
 use POSIX qw( F_SETFD dup2 );
 use Socket;
 use Scalar::Util qw( blessed );
@@ -130,7 +129,7 @@ sub spawn {
         return;
     }
     else {
-        my $location = $Tachikoma{Prefix} || '/usr/local/bin';
+        my $location = $self->{configuration}->{prefix} || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         $type           = ( $type =~ m{^([\w:]+)$} )[0];
         $username       = ( $username =~ m{^(\S*)$} )[0];
@@ -260,7 +259,9 @@ sub determine_class {
     my $class = undef;
     my $rv    = undef;
     my $error = undef;
-    for my $prefix ( @{ $Tachikoma{Include_Jobs} }, 'Tachikoma::Jobs' ) {
+    for my $prefix ( @{ $self->{configuration}->{include_jobs} },
+        'Tachikoma::Jobs' )
+    {
         next if ( not $prefix );
         $class = join q(::), $prefix, $type;
         my $class_path = $class;

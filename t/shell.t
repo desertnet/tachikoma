@@ -14,7 +14,10 @@ use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Message qw( TM_COMMAND );
 use Tachikoma::Command;
-use Tachikoma::Config qw( %Var );
+use Tachikoma::Config;
+
+Tachikoma->configuration( Tachikoma::Config->new->load_legacy );
+my $var = Tachikoma->configuration->{var};
 
 use Data::Dumper;
 $Data::Dumper::Indent   = 1;
@@ -83,32 +86,32 @@ is_deeply(
 );
 $answer = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'var builtin sends nothing' );
-is( $Var{foo}, 5,  'var builtin sets variables correctly' );
+is( $answer,     "", 'var builtin sends nothing' );
+is( $var->{foo}, 5,  'var builtin sets variables correctly' );
 
 #####################################################################
 
 $parse_tree = $shell->parse('var bar=(<foo> + 5)');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'nothing is sent by var builtin' );
-is( $Var{bar}, 10, 'arithmetic in parenthesis is evaluated' );
+is( $answer,     "", 'nothing is sent by var builtin' );
+is( $var->{bar}, 10, 'arithmetic in parenthesis is evaluated' );
 
 #####################################################################
 
 $parse_tree = $shell->parse('bar=<foo> + 3');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'nothing is sent by assignment operator' );
-is( $Var{bar}, 8,  'arithmetic in assignment is evaluated' );
+is( $answer,     "", 'nothing is sent by assignment operator' );
+is( $var->{bar}, 8,  'arithmetic in assignment is evaluated' );
 
 #####################################################################
 
 $parse_tree = $shell->parse('date; bar = <foo> + 7');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "[date][]\n", 'semicolon terminates commands' );
-is( $Var{bar}, 12,           'expressions after semicolon are evaluted' );
+is( $answer,     "[date][]\n", 'semicolon terminates commands' );
+is( $var->{bar}, 12,           'expressions after semicolon are evaluted' );
 
 #####################################################################
 
@@ -120,17 +123,17 @@ $parse_tree = $shell->parse(<<'EOF');
 EOF
 $answer = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'nothing is sent by func builtin' );
-is( $Var{baz}, 0,  'expressions inside braces are evaluated' );
-is( $Var{zab}, 1,  'functions return correct values' );
+is( $answer,     "", 'nothing is sent by func builtin' );
+is( $var->{baz}, 0,  'expressions inside braces are evaluated' );
+is( $var->{zab}, 1,  'functions return correct values' );
 
 #####################################################################
 
 $parse_tree = $shell->parse('var bar++');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer,   "", 'variable iteration sends nothing' );
-is( $Var{bar}, 13, 'variable iteration sets variables correctly' );
+is( $answer,     "", 'variable iteration sends nothing' );
+is( $var->{bar}, 13, 'variable iteration sets variables correctly' );
 
 #####################################################################
 
@@ -455,7 +458,7 @@ $parse_tree = $shell->parse( '
     var empty = "";
     if ("" ne <empty>) { version; }
 ' );
-$answer     = q();
+$answer = q();
 $shell->send_command($parse_tree);
 is( $answer, q(), 'empty variables evaluate as values' );
 

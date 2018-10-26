@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 35595 2018-10-24 05:06:45Z chris $
+# $Id: FileHandle.pm 35627 2018-10-26 11:47:09Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -18,7 +18,6 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_ERROR TM_EOF
     VECTOR_SIZE
 );
-use Tachikoma::Config qw( %Tachikoma );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
 use POSIX qw( F_SETFL O_NONBLOCK EAGAIN );
 use vars qw( @EXPORT_OK );
@@ -89,18 +88,21 @@ sub arguments {
 
 sub setsockopts {
     my $socket = shift;
-    setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $Tachikoma{Buffer_Size}
-        or die "FAILED: setsockopt: $!"
-        if ( $Tachikoma{Buffer_Size} );
-    setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $Tachikoma{Buffer_Size}
-        or die "FAILED: setsockopt: $!"
-        if ( $Tachikoma{Buffer_Size} );
-    setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT, $Tachikoma{Low_Water_Mark}
-        or die "FAILED: setsockopt: $!"
-        if ( $Tachikoma{Low_Water_Mark} );
-    setsockopt $socket, SOL_SOCKET, SO_KEEPALIVE, 1
-        or die "FAILED: setsockopt: $!"
-        if ( $Tachikoma{Keep_Alive} );
+    my $config = Tachikoma->configuration;
+    if ( $config->{buffer_size} ) {
+        setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $config->{buffer_size}
+            or die "FAILED: setsockopt: $!";
+        setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $config->{buffer_size}
+            or die "FAILED: setsockopt: $!";
+    }
+    if ( $config->{low_water_mark} ) {
+        setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT, $config->{low_water_mark}
+            or die "FAILED: setsockopt: $!";
+    }
+    if ( $config->{keep_alive} ) {
+        setsockopt $socket, SOL_SOCKET, SO_KEEPALIVE, 1
+            or die "FAILED: setsockopt: $!";
+    }
     return;
 }
 

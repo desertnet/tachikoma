@@ -15,7 +15,6 @@ use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::STDIO qw( TK_SYNC );
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_ERROR TM_EOF );
-use Tachikoma::Config qw( %Tachikoma );
 use Data::Dumper;
 
 sub new {

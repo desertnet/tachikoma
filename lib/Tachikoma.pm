@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35592 2018-10-24 03:55:04Z chris $
+# $Id: Tachikoma.pm 35633 2018-10-26 12:45:27Z chris $
 #
 
 package Tachikoma;
@@ -15,9 +15,7 @@ use Tachikoma::Message qw(
     TM_PERSIST TM_RESPONSE TM_EOF
     VECTOR_SIZE
 );
-use Tachikoma::Config qw(
-    %Tachikoma $ID %SSL_Config %Var $Wire_Version load_module include_conf
-);
+use Tachikoma::Config qw( load_module include_conf );
 use Tachikoma::Crypto;
 use Tachikoma::Nodes::Callback;
 use Digest::MD5 qw( md5 );
@@ -39,30 +37,30 @@ use constant {
     BUFSIZ          => 262144,
 };
 
-my $COUNTER          = 0;
-my $MY_PID           = 0;
-my $LOG_FILE_HANDLE  = undef;
-my $INIT_TIME        = time;
-my @CONFIG_VARIABLES = qw( Log_File Log_Dir Pid_File Pid_Dir );
+$Tachikoma::Max_Int         = MAX_INT;
+$Tachikoma::Now             = undef;
+$Tachikoma::Right_Now       = undef;
+$Tachikoma::Event_Framework = undef;
+%Tachikoma::Nodes           = ();
+$Tachikoma::Nodes_By_ID     = {};
+$Tachikoma::Nodes_By_FD     = {};
+$Tachikoma::Nodes_By_PID    = {};
+@Tachikoma::Closing         = ();
+$Tachikoma::Profiles        = undef;
+@Tachikoma::Stack           = ();
+$Tachikoma::SSL_Ciphers     = q();
+$Tachikoma::SSL_Version     = 'TLSv1';
 
-$Tachikoma::Max_Int           = MAX_INT;
-$Tachikoma::Now               = undef;
-$Tachikoma::Right_Now         = undef;
-$Tachikoma::Event_Framework   = undef;
-%Tachikoma::Nodes             = ();
-$Tachikoma::Nodes_By_ID       = {};
-$Tachikoma::Nodes_By_FD       = {};
-$Tachikoma::Nodes_By_PID      = {};
-@Tachikoma::Closing           = ();
-@Tachikoma::Reconnect         = ();
-$Tachikoma::Profiles          = undef;
-@Tachikoma::Stack             = ();
-@Tachikoma::Recent_Log        = ();
-%Tachikoma::Recent_Log_Timers = ();
-$Tachikoma::Shutting_Down     = undef;
-$Tachikoma::Scheme            = 'rsa';
-$Tachikoma::SSL_Ciphers       = q();
-$Tachikoma::SSL_Version       = 'TLSv1';
+my $CONFIGURATION      = undef;
+my $COUNTER            = 0;
+my $MY_PID             = 0;
+my $LOG_FILE_HANDLE    = undef;
+my $INIT_TIME          = time;
+my @CONFIG_VARIABLES   = qw( log_file log_dir pid_file pid_dir );
+my @NODES_TO_RECONNECT = ();
+my @RECENT_LOG         = ();
+my %RECENT_LOG_TIMERS  = ();
+my $SHUTTING_DOWN      = undef;
 
 sub unix_client {
     my $class    = shift;
@@ -93,7 +91,7 @@ sub inet_client {
         or die "connect: $!\n";
 
     if ($use_ssl) {
-        my $ssl_config = \%SSL_Config;
+        my $ssl_config = Tachikoma->configuration->{ssl_config};
         die "ERROR: SSL not configured\n"
             if ( not $ssl_config->{SSL_client_ca_file} );
         my $ssl_socket = IO::Socket::SSL->start_SSL(
@@ -159,20 +157,18 @@ sub new {
 
 sub setsockopts {
     my $socket = shift;
-    if ( $Tachikoma{Buffer_Size} ) {
-        setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $Tachikoma{Buffer_Size}
+    my $config = Tachikoma->configuration;
+    if ( $config->{buffer_size} ) {
+        setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $config->{buffer_size}
+            or die "FAILED: setsockopt: $!";
+        setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $config->{buffer_size}
             or die "FAILED: setsockopt: $!";
     }
-    if ( $Tachikoma{Buffer_Size} ) {
-        setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $Tachikoma{Buffer_Size}
+    if ( $config->{low_water_mark} ) {
+        setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT, $config->{low_water_mark}
             or die "FAILED: setsockopt: $!";
     }
-    if ( $Tachikoma{Low_Water_Mark} ) {
-        setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT,
-            $Tachikoma{Low_Water_Mark}
-            or die "FAILED: setsockopt: $!";
-    }
-    if ( $Tachikoma{Keep_Alive} ) {
+    if ( $config->{keep_alive} ) {
         setsockopt $socket, SOL_SOCKET, SO_KEEPALIVE, 1
             or die "FAILED: setsockopt: $!";
     }
@@ -184,14 +180,15 @@ sub reply_to_server_challenge {
     my ( $got, $message ) = $self->read_block;
     return if ( not $message );
     my $version = $message->[ID];
-    if ( not $version or $version ne $Wire_Version ) {
+    my $config  = Tachikoma->configuration;
+    if ( not $version or $version ne $config->{wire_version} ) {
         die "ERROR: reply_to_server_challenge failed: version mismatch\n";
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
         die "ERROR: reply_to_server_challenge failed: wrong challenge type\n";
     }
-    elsif ( length $ID ) {
+    elsif ( length $config->{id} ) {
         exit 1
             if (
             not $self->verify_signature( 'server', $message, $command ) );
@@ -203,7 +200,7 @@ sub reply_to_server_challenge {
     my $response =
         $self->command( 'challenge', 'server',
         md5( $self->{auth_challenge} ) );
-    $response->[ID] = $Wire_Version;
+    $response->[ID] = $config->{wire_version};
     $self->{auth_timestamp} = $response->[TIMESTAMP];
     my $wrote = syswrite $self->{fh},
         ${ $message->packed } . ${ $response->packed };
@@ -222,12 +219,13 @@ sub reply_to_server_challenge {
 sub auth_server_response {
     my $self = shift;
     my ( $got, $message ) = $self->read_block;
-    return if ( not $message or not $ID );
+    my $config = Tachikoma->configuration;
+    return if ( not $message or not $config->{id} );
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'server' ) {
         die "ERROR: auth_server_response failed: wrong challenge type\n";
     }
-    elsif ( length $ID ) {
+    elsif ( length $config->{id} ) {
         exit 1
             if (
             not $self->verify_signature( 'server', $message, $command ) );
@@ -448,6 +446,88 @@ sub close_filehandle {
     return;
 }
 
+sub callback {
+    my $self = shift;
+    if (@_) {
+        my $node = $self->{callback};
+        if ( not $node ) {
+            $node             = Tachikoma::Nodes::Callback->new;
+            $self->{callback} = $node;
+            $self->{sink}     = $node;
+        }
+        $node->{callback} = shift;
+    }
+    return $self->{callback};
+}
+
+sub fh {
+    my $self = shift;
+    if (@_) {
+        $self->{fh} = shift;
+    }
+    return $self->{fh};
+}
+
+sub hostname {
+    my $self = shift;
+    if (@_) {
+        $self->{hostname} = shift;
+    }
+    return $self->{hostname};
+}
+
+sub port {
+    my $self = shift;
+    if (@_) {
+        $self->{port} = shift;
+    }
+    return $self->{port};
+}
+
+sub use_SSL {
+    my $self = shift;
+    if (@_) {
+        $self->{use_SSL} = shift;
+    }
+    return $self->{use_SSL};
+}
+
+sub auth_challenge {
+    my $self = shift;
+    if (@_) {
+        $self->{auth_challenge} = shift;
+    }
+    return $self->{auth_challenge};
+}
+
+sub auth_timestamp {
+    my $self = shift;
+    if (@_) {
+        $self->{auth_timestamp} = shift;
+    }
+    return $self->{auth_timestamp};
+}
+
+sub input_buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{input_buffer} = shift;
+    }
+    return $self->{input_buffer};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
+}
+
+################
+# class methods
+################
+
 sub initialize {
     my $self      = shift;
     my $name      = shift;
@@ -465,16 +545,17 @@ sub initialize {
 }
 
 sub copy_variables {
-    my $self = shift;
+    my $self   = shift;
+    my $config = $self->configuration;
     for my $name (@CONFIG_VARIABLES) {
         my $value = undef;
-        if ( ref $Var{$name} ) {
-            $value = join q(), @{ $Var{$name} };
+        if ( ref $config->{var}->{$name} ) {
+            $value = join q(), @{ $config->{var}->{$name} };
         }
         else {
-            $value = $Var{$name};
+            $value = $config->{var}->{$name};
         }
-        $Tachikoma{$name} = $value if ( length $value );
+        $config->{$name} = $value if ( length $value );
     }
     return;
 }
@@ -581,10 +662,11 @@ sub close_log_file {
 }
 
 sub reload_config {
-    my $self   = shift;
-    my $config = $Tachikoma{Config};
-    include_conf($config);
-    $Tachikoma{Config} = $config;
+    my $self        = shift;
+    my $config_file = $self->configuration->{config};
+    my $config      = Tachikoma::Config->new;
+    $config->load_legacy($config_file);
+    %{ $self->configuration } = %{$config};
     return;
 }
 
@@ -614,11 +696,12 @@ sub pid_file {
     my $self     = shift;
     my $name     = shift // $0;
     my $pid_file = undef;
-    if ( $Tachikoma{Pid_File} ) {
-        $pid_file = $Tachikoma{Pid_File};
+    my $config   = $self->configuration;
+    if ( $config->{pid_file} ) {
+        $pid_file = $config->{pid_file};
     }
-    elsif ( $Tachikoma{Pid_Dir} ) {
-        $pid_file = join q(), $Tachikoma{Pid_Dir}, q(/), $name, '.pid';
+    elsif ( $config->{pid_dir} ) {
+        $pid_file = join q(), $config->{pid_dir}, q(/), $name, '.pid';
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -630,111 +713,17 @@ sub log_file {
     my $self     = shift;
     my $name     = $0;
     my $log_file = undef;
-    if ( $Tachikoma{Log_File} ) {
-        $log_file = $Tachikoma{Log_File};
+    my $config   = $self->configuration;
+    if ( $config->{log_file} ) {
+        $log_file = $config->{log_file};
     }
-    elsif ( $Tachikoma{Log_Dir} ) {
-        $log_file = join q(), $Tachikoma{Log_Dir}, q(/), $name, '.log';
+    elsif ( $config->{log_dir} ) {
+        $log_file = join q(), $config->{log_dir}, q(/), $name, '.log';
     }
     else {
         die "ERROR: couldn't determine log_file\n";
     }
     return $log_file;
-}
-
-sub callback {
-    my $self = shift;
-    if (@_) {
-        my $node = $self->{callback};
-        if ( not $node ) {
-            $node             = Tachikoma::Nodes::Callback->new;
-            $self->{callback} = $node;
-            $self->{sink}     = $node;
-        }
-        $node->{callback} = shift;
-    }
-    return $self->{callback};
-}
-
-sub fh {
-    my $self = shift;
-    if (@_) {
-        $self->{fh} = shift;
-    }
-    return $self->{fh};
-}
-
-sub hostname {
-    my $self = shift;
-    if (@_) {
-        $self->{hostname} = shift;
-    }
-    return $self->{hostname};
-}
-
-sub port {
-    my $self = shift;
-    if (@_) {
-        $self->{port} = shift;
-    }
-    return $self->{port};
-}
-
-sub use_SSL {
-    my $self = shift;
-    if (@_) {
-        $self->{use_SSL} = shift;
-    }
-    return $self->{use_SSL};
-}
-
-sub auth_challenge {
-    my $self = shift;
-    if (@_) {
-        $self->{auth_challenge} = shift;
-    }
-    return $self->{auth_challenge};
-}
-
-sub auth_timestamp {
-    my $self = shift;
-    if (@_) {
-        $self->{auth_timestamp} = shift;
-    }
-    return $self->{auth_timestamp};
-}
-
-sub input_buffer {
-    my $self = shift;
-    if (@_) {
-        $self->{input_buffer} = shift;
-    }
-    return $self->{input_buffer};
-}
-
-sub timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{timeout} = shift;
-    }
-    return $self->{timeout};
-}
-
-sub counter {
-    my $self = shift;
-    if (@_) {
-        $COUNTER = shift;
-    }
-    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
-    return $COUNTER;
-}
-
-sub my_pid {
-    return $MY_PID;
-}
-
-sub init_time {
-    return $INIT_TIME;
 }
 
 sub now {
@@ -778,10 +767,6 @@ sub closing {
     return \@Tachikoma::Closing;
 }
 
-sub nodes_to_reconnect {
-    return \@Tachikoma::Reconnect;
-}
-
 sub profiles {
     my $self = shift;
     if (@_) {
@@ -799,20 +784,52 @@ sub stack {
     return \@Tachikoma::Stack;
 }
 
+sub configuration {
+    my $self = shift;
+    if (@_) {
+        $CONFIGURATION = shift;
+    }
+    if ( not defined $CONFIGURATION ) {
+        $CONFIGURATION = Tachikoma::Config->new->load_legacy;
+    }
+    return $CONFIGURATION;
+}
+
+sub counter {
+    my $self = shift;
+    if (@_) {
+        $COUNTER = shift;
+    }
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return $COUNTER;
+}
+
+sub my_pid {
+    return $MY_PID;
+}
+
+sub init_time {
+    return $INIT_TIME;
+}
+
+sub nodes_to_reconnect {
+    return \@NODES_TO_RECONNECT;
+}
+
 sub recent_log {
-    return \@Tachikoma::Recent_Log;
+    return \@RECENT_LOG;
 }
 
 sub recent_log_timers {
-    return \%Tachikoma::Recent_Log_Timers;
+    return \%RECENT_LOG_TIMERS;
 }
 
 sub shutting_down {
     my $self = shift;
     if (@_) {
-        $Tachikoma::Shutting_Down = shift;
+        $SHUTTING_DOWN = shift;
     }
-    return $Tachikoma::Shutting_Down;
+    return $SHUTTING_DOWN;
 }
 
 sub TIEHANDLE {
@@ -844,8 +861,8 @@ sub PRINT {
     my ( $self, @args ) = @_;
     my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
-    push @Tachikoma::Recent_Log, @msg;
-    shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );
+    push @RECENT_LOG, @msg;
+    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
     return print {$LOG_FILE_HANDLE} @msg;
 }
 
@@ -853,8 +870,8 @@ sub PRINTF {
     my ( $self, $fmt, @args ) = @_;
     my @msg = grep { defined and $_ ne q() } @args;
     return if ( not @msg );
-    push @Tachikoma::Recent_Log, sprintf $fmt, @msg;
-    shift @Tachikoma::Recent_Log while ( @Tachikoma::Recent_Log > 100 );
+    push @RECENT_LOG, sprintf $fmt, @msg;
+    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
     return print {$LOG_FILE_HANDLE} sprintf $fmt, @msg;
 }
 
@@ -931,33 +948,19 @@ Unfortunately, other nodes may simply return undef regardless of the situation, 
 
 =head1 CLASS CONVENIENCE METHODS
 
+event_framework()
+
+nodes()
+
+configuration()
+
 counter()
-
-closing()
-
-profiles()
-
-stack()
 
 my_pid()
 
 init_time()
 
-event_framework()
-
-nodes()
-
-nodes_by_id()
-
-nodes_by_fd()
-
-nodes_by_pid()
-
-nodes_to_reconnect()
-
 shutting_down()
-
-scheme()
 
 =head1 DEPENDENCIES
 
