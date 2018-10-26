@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: JobController.pm 35643 2018-10-26 22:55:54Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -173,12 +173,13 @@ $C{list_jobs} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $response = q();
+    my $response = undef;
     my $jobs     = $self->patron->jobs;
     if ( $command->arguments eq '-a' ) {
         $response = join( "\n", sort keys %{$jobs} ) . "\n";
     }
     else {
+        $response = sprintf "%-5s  %s\n", 'PID', 'NAME';
         for my $name ( sort keys %{$jobs} ) {
             $response .= sprintf "%-5s  %s\n", $jobs->{$name}->pid, $name;
         }
