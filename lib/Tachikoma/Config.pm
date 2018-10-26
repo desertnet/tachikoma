@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35629 2018-10-26 12:29:10Z chris $
+# $Id: Config.pm 35635 2018-10-26 12:47:04Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -49,7 +49,9 @@ sub new {
         listen              => $Tachikoma{Listen},
         prefix              => $Tachikoma{Prefix},
         log_dir             => $Tachikoma{Log_Dir},
+        log_file            => $Tachikoma{Log_File},
         pid_dir             => $Tachikoma{Pid_Dir},
+        pid_file            => $Tachikoma{Pid_File},
         include_nodes       => $Tachikoma{Include_Nodes},
         include_jobs        => $Tachikoma{Include_Jobs},
         buffer_size         => $Tachikoma{Buffer_Size},
@@ -82,7 +84,9 @@ sub load_legacy {
     $self->{listen}              = $Tachikoma{Listen};
     $self->{prefix}              = $Tachikoma{Prefix};
     $self->{log_dir}             = $Tachikoma{Log_Dir};
+    $self->{log_file}            = $Tachikoma{Log_File};
     $self->{pid_dir}             = $Tachikoma{Pid_Dir};
+    $self->{pid_file}            = $Tachikoma{Pid_File};
     $self->{include_nodes}       = $Tachikoma{Include_Nodes};
     $self->{include_jobs}        = $Tachikoma{Include_Jobs};
     $self->{buffer_size}         = $Tachikoma{Buffer_Size};

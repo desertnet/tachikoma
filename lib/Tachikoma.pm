@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: Tachikoma.pm 35633 2018-10-26 12:45:27Z chris $
 #
 
 package Tachikoma;
@@ -56,7 +56,7 @@ my $COUNTER            = 0;
 my $MY_PID             = 0;
 my $LOG_FILE_HANDLE    = undef;
 my $INIT_TIME          = time;
-my @CONFIG_VARIABLES   = qw( Log_File Log_Dir Pid_File Pid_Dir );
+my @CONFIG_VARIABLES   = qw( log_file log_dir pid_file pid_dir );
 my @NODES_TO_RECONNECT = ();
 my @RECENT_LOG         = ();
 my %RECENT_LOG_TIMERS  = ();
