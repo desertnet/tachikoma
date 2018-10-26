@@ -14,7 +14,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_HEARTBEAT TM_PING TM_INFO TM_ERROR TM_EOF
 );
-use Tachikoma::Config qw( $Secure_Level %Var $Wire_Version );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.195');
@@ -43,8 +42,9 @@ sub drain {
     my $self      = shift;
     my $connector = shift;
     if ( $self->type eq 'root' ) {
-        my $class = ref $Tachikoma::Event_Framework;
-        $self->stderr("starting up - $class - wire format $Wire_Version");
+        my $class   = ref $Tachikoma::Event_Framework;
+        my $version = $self->configuration->{wire_version};
+        $self->stderr("starting up - $class - wire format $version");
     }
     $Tachikoma::Event_Framework->drain( $self, $connector );
     $self->shutdown_all_nodes;
@@ -156,12 +156,13 @@ sub fire {
     }
     @{$reconnecting} = @again;
     if ( $Tachikoma::Now - $self->{last_fire} >= $Heartbeat_Interval ) {
-        $self->heartbeat;
+        my $config = $self->configuration;
+        $self->heartbeat($config);
         $self->update_logs;
         $self->expire_callbacks;
         $self->notify_timer;
-        if (    defined $Secure_Level
-            and $Secure_Level == 0
+        if (    defined $config->{secure_level}
+            and $config->{secure_level} == 0
             and $self->type ne 'router' )
         {
             $self->print_less_often('WARNING: process is insecure');
@@ -175,9 +176,10 @@ sub fire {
 }
 
 sub heartbeat {
-    my $self  = shift;
-    my $stale = $Var{'Stale_Connector_Threshold'} || 900;
-    my $slow  = $Var{'Slow_Connector_Threshold'} || 900;
+    my $self   = shift;
+    my $config = shift;
+    my $stale  = $config->{var}->{stale_connector_threshold} || 900;
+    my $slow   = $config->{var}->{slow_connector_threshold} || 900;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35625 2018-10-26 09:02:39Z chris $
+# $Id: Config.pm 35627 2018-10-26 11:47:09Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -53,6 +53,7 @@ sub new {
         include_jobs        => $Tachikoma{Include_Jobs},
         buffer_size         => $Tachikoma{Buffer_Size},
         low_water_mark      => $Tachikoma{Low_Water_Mark},
+        keep_alive          => $Tachikoma{Keep_Alive},
         id                  => q(),
         private_key         => q(),
         private_ed25519_key => q(),
@@ -84,6 +85,7 @@ sub load_legacy {
     $self->{include_jobs}        = $Tachikoma{Include_Jobs};
     $self->{buffer_size}         = $Tachikoma{Buffer_Size};
     $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
+    $self->{keep_alive}          = $Tachikoma{Keep_Alive};
     $self->{id}                  = $ID;
     $self->{private_key}         = $Private_Key;
     $self->{private_ed25519_key} = $Private_Ed25519_Key;
@@ -95,7 +97,7 @@ sub load_legacy {
     $self->{functions}           = \%Functions;
     $self->{var}                 = \%Var;
     $self->{hz}                  = $Tachikoma{Hz};
-    return;
+    return $self;
 }
 
 sub load_module {

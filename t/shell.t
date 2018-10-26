@@ -16,7 +16,7 @@ use Tachikoma::Message qw( TM_COMMAND );
 use Tachikoma::Command;
 use Tachikoma::Config;
 
-Tachikoma->configuration( Tachikoma::Config->new )->load_legacy;
+Tachikoma->configuration( Tachikoma::Config->new->load_legacy );
 my $var = Tachikoma->configuration->{var};
 
 use Data::Dumper;

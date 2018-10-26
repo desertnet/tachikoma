@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: Scheduler.pm 35627 2018-10-26 11:47:09Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -16,7 +16,6 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_EOF TM_NOREPLY
 );
 use Tachikoma::Command;
-use Tachikoma::Config qw( %Tachikoma );
 use Time::Local;
 use POSIX qw( strftime );
 use BerkeleyDB;
@@ -25,7 +24,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home          = $Tachikoma{Home} || ( getpwuid $< )[7];
+my $Home          = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/schedules";
 my %Safe_Commands = map { $_ => 1 } qw( prompt help list_events events ls );
 my %C             = ();

@@ -22,9 +22,6 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_HEARTBEAT TM_ERROR
     VECTOR_SIZE
 );
-use Tachikoma::Config qw(
-    $ID $Private_Ed25519_Key %SSL_Config $Secure_Level %Var $Wire_Version
-);
 use Tachikoma::Crypto;
 use Digest::MD5 qw( md5 );
 use IO::Socket::SSL qw(
@@ -274,7 +271,8 @@ sub accept_connections {
 sub accept_connection {
     my $self   = shift;
     my $server = $self->{fh};
-    return if ( defined $Secure_Level and $Secure_Level == 0 );
+    my $secure = $self->{configuration}->{secure_level};
+    return if ( defined $secure and $secure == 0 );
     my $client;
     my $paddr = accept $client, $server;
     if ( not $paddr ) {
@@ -554,7 +552,7 @@ sub init_accept {
     my $message =
         $self->command( 'challenge', 'client',
         md5( $self->{auth_challenge} ) );
-    $message->[ID] = $Wire_Version;
+    $message->[ID] = $self->{configuration}->{wire_version};
     $self->{auth_timestamp} = $message->[TIMESTAMP];
     push @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
@@ -570,7 +568,7 @@ sub reply_to_server_challenge {
     my $response =
         $self->command( 'challenge', 'server',
         md5( $self->{auth_challenge} ) );
-    $response->[ID] = $Wire_Version;
+    $response->[ID] = $self->{configuration}->{wire_version};
     $self->{auth_timestamp} = $response->[TIMESTAMP];
     if ( $self->{flags} & TK_SYNC ) {
         my $rv = syswrite $self->{fh},
@@ -636,8 +634,9 @@ sub reply_to_challenge {
     my ( $got, $message ) = $self->read_block(65536);
     return if ( not $message );
     my $version = $message->[ID];
+    my $config  = $self->{configuration};
 
-    if ( not $version or $version ne $Wire_Version ) {
+    if ( not $version or $version ne $config->{wire_version} ) {
         my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
         $self->stderr("ERROR: $caller failed: version mismatch");
         return $self->handle_EOF;
@@ -653,7 +652,7 @@ sub reply_to_challenge {
             'ERROR: reply_to_challenge failed: wrong challenge type');
         return $self->handle_EOF;
     }
-    elsif ( length $ID
+    elsif ( length $config->{id}
         and not $self->verify_signature( $other, $message, $command ) )
     {
         return $self->handle_EOF;
@@ -675,13 +674,14 @@ sub auth_response {
     return if ( not $message );
     my $caller  = ( split m{::}, ( caller 1 )[3] )[-1];
     my $version = $message->[ID];
+    my $config  = $self->{configuration};
     my $command = eval { Tachikoma::Command->new( $message->[PAYLOAD] ) };
     if ( not $command ) {
         my $error = $@ || 'unknown error';
         $self->stderr("ERROR: $caller failed: $error");
         return $self->handle_EOF;
     }
-    elsif ( not $version or $version ne $Wire_Version ) {
+    elsif ( not $version or $version ne $config->{wire_version} ) {
         $self->stderr("ERROR: $caller failed: version mismatch");
         return $self->handle_EOF;
     }
@@ -689,7 +689,7 @@ sub auth_response {
         $self->stderr("ERROR: $caller failed: wrong challenge type");
         return $self->handle_EOF;
     }
-    elsif ( length $ID
+    elsif ( length $config->{id}
         and not $self->verify_signature( $type, $message, $command ) )
     {
         return $self->handle_EOF;
@@ -878,7 +878,7 @@ sub reply_to_heartbeat {
     }
     else {
         my $latency = $Tachikoma::Right_Now - $message->[PAYLOAD];
-        my $threshold = $Var{'Bad_Ping_Threshold'} || 1;
+        my $threshold = $self->{configuration}->{bad_ping_threshold} || 1;
         if ( $latency > $threshold ) {
             my $score = $self->{latency_score} || 0;
             if ( $score < $threshold ) {
@@ -910,8 +910,9 @@ sub fill_buffer_init {
         # sending us the results of the DNS lookup.
         # see also inet_client_async(), dns_lookup(), and init_socket()
         #
+        my $secure = $self->{configuration}->{secure_level};
         return $self->close_filehandle('reconnect')
-            if ( defined $Secure_Level and $Secure_Level == 0 );
+            if ( defined $secure and $secure == 0 );
         my $okay = eval {
             $self->init_socket( $message->[PAYLOAD] );
             return 1;
@@ -1240,7 +1241,7 @@ sub SSL_config {
         $self->{SSL_config} = $ssl_config;
     }
     if ( not defined $self->{SSL_config} ) {
-        $self->{SSL_config} = \%SSL_Config;
+        $self->{SSL_config} = $self->{configuration}->{ssl_config};
     }
     return $self->{SSL_config};
 }
@@ -1270,8 +1271,9 @@ sub scheme {
             and $scheme ne 'rsa-sha256'
             and $scheme ne 'ed25519' );
         if ( $scheme eq 'ed25519' ) {
-            die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
-            die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
+            die "Ed25519 not supported\n" if ( not $USE_SODIUM );
+            die "Ed25519 not configured\n"
+                if ( not $self->{configuration}->{private_ed25519_key} );
         }
         $self->{scheme} = $scheme;
     }

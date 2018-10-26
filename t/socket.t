@@ -14,8 +14,10 @@ use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::Callback;
+use Tachikoma::Config;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 
+Tachikoma->configuration( Tachikoma::Config->new->load_legacy );
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
 my $address = '127.0.0.1';

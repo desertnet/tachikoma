@@ -10,7 +10,6 @@ package Tachikoma::Crypto;
 use strict;
 use warnings;
 use Tachikoma::Message qw( TIMESTAMP );
-use Tachikoma::Config qw( $Private_Ed25519_Key %Keys );
 my $USE_SODIUM;
 
 BEGIN {
@@ -47,11 +46,12 @@ sub verify_signature {
         if ($scheme ne 'rsa'
         and $scheme ne 'rsa-sha256'
         and $scheme ne 'ed25519' );
-    if ( not $Keys{$id} ) {
+    my $public_keys = Tachikoma->configuration->{public_keys};
+    if ( not $public_keys->{$id} ) {
         $self->stderr("ERROR: $id not in authorized_keys");
         return;
     }
-    elsif ( not $Keys{$id}->{allow}->{$type} ) {
+    elsif ( not $public_keys->{$id}->{allow}->{$type} ) {
         $self->stderr("ERROR: $id not allowed to connect");
         return;
     }
@@ -109,7 +109,8 @@ sub verify_ed25519 {
         $self->stderr('ERROR: Ed25519 signatures not supported');
         return;
     }
-    my $key_text = $Keys{$id}->{ed25519};
+    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $key_text    = $public_keys->{$id}->{ed25519};
     if ( not $key_text ) {
         $self->stderr("ERROR: $id missing Ed25519 key");
         return;
@@ -124,11 +125,12 @@ sub verify_ed25519 {
 }
 
 sub verify_sha256 {
-    my $self      = shift;
-    my $signed    = shift;
-    my $id        = shift;
-    my $signature = shift;
-    my $key_text  = $Keys{$id}->{public_key};
+    my $self        = shift;
+    my $signed      = shift;
+    my $id          = shift;
+    my $signature   = shift;
+    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $key_text    = $public_keys->{$id}->{public_key};
     if ( not $key_text ) {
         $self->stderr("ERROR: $id missing RSA key");
         return;
@@ -147,11 +149,12 @@ sub verify_sha256 {
 }
 
 sub verify_rsa {
-    my $self      = shift;
-    my $signed    = shift;
-    my $id        = shift;
-    my $signature = shift;
-    my $key_text  = $Keys{$id}->{public_key};
+    my $self        = shift;
+    my $signed      = shift;
+    my $id          = shift;
+    my $signature   = shift;
+    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $key_text    = $public_keys->{$id}->{public_key};
     if ( not $key_text ) {
         $self->stderr("ERROR: $id missing RSA key");
         return;
@@ -178,8 +181,9 @@ sub scheme {
             and $scheme ne 'rsa-sha256'
             and $scheme ne 'ed25519' );
         if ( $scheme eq 'ed25519' ) {
-            die "Ed25519 not supported\n"  if ( not $USE_SODIUM );
-            die "Ed25519 not configured\n" if ( not $Private_Ed25519_Key );
+            die "Ed25519 not supported\n" if ( not $USE_SODIUM );
+            die "Ed25519 not configured\n"
+                if ( not Tachikoma->configuration->{private_ed25519_key} );
         }
         $Scheme = $scheme;
     }

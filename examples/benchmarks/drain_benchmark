@@ -3,7 +3,6 @@ use strict;
 use warnings;
 use Tachikoma;
 use Tachikoma::Message qw( TM_BYTESTREAM );
-use Tachikoma::Config qw( %Tachikoma );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
 use Time::HiRes qw( time );
 require '/usr/local/etc/tachikoma.conf';

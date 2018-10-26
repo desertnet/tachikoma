@@ -14,7 +14,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_INFO TM_STORABLE TM_PERSIST
 );
-use Tachikoma::Config qw( %Functions );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.349');
