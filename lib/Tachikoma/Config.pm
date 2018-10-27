@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35691 2018-10-27 20:50:33Z chris $
+# $Id: Config.pm 35693 2018-10-27 21:12:05Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -88,32 +88,59 @@ sub load_config_file {
 
 sub load_legacy {
     my $self = shift;
-    if ( not $self->config_file ) {
-        $self->{wire_version}        = $Wire_Version;
-        $self->{config_file}         = $Tachikoma{Config};
-        $self->{listen_sockets}      = $Tachikoma{Listen};
-        $self->{prefix}              = $Tachikoma{Prefix};
-        $self->{log_dir}             = $Tachikoma{Log_Dir};
-        $self->{log_file}            = $Tachikoma{Log_File};
-        $self->{pid_dir}             = $Tachikoma{Pid_Dir};
-        $self->{pid_file}            = $Tachikoma{Pid_File};
-        $self->{home}                = $Tachikoma{Home};
-        $self->{include_nodes}       = $Tachikoma{Include_Nodes};
-        $self->{include_jobs}        = $Tachikoma{Include_Jobs};
-        $self->{buffer_size}         = $Tachikoma{Buffer_Size};
-        $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
-        $self->{keep_alive}          = $Tachikoma{Keep_Alive};
-        $self->{scheme}              = $Scheme;
-        $self->{id}                  = $ID;
-        $self->{private_key}         = $Private_Key;
-        $self->{private_ed25519_key} = $Private_Ed25519_Key;
-        $self->{public_keys}         = \%Keys;
-        $self->{ssl_config}          = \%SSL_Config;
-        $self->{forbidden}           = \%Forbidden;
-        $self->{secure_level}        = $Secure_Level;
-        $self->{help}                = \%Help;
-        $self->{hz}                  = $Tachikoma{Hz};
-    }
+    $self->{wire_version}        = $Wire_Version;
+    $self->{config_file}         = $Tachikoma{Config};
+    $self->{listen_sockets}      = $Tachikoma{Listen};
+    $self->{prefix}              = $Tachikoma{Prefix};
+    $self->{log_dir}             = $Tachikoma{Log_Dir};
+    $self->{log_file}            = $Tachikoma{Log_File};
+    $self->{pid_dir}             = $Tachikoma{Pid_Dir};
+    $self->{pid_file}            = $Tachikoma{Pid_File};
+    $self->{home}                = $Tachikoma{Home};
+    $self->{include_nodes}       = $Tachikoma{Include_Nodes};
+    $self->{include_jobs}        = $Tachikoma{Include_Jobs};
+    $self->{buffer_size}         = $Tachikoma{Buffer_Size};
+    $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
+    $self->{keep_alive}          = $Tachikoma{Keep_Alive};
+    $self->{scheme}              = $Scheme;
+    $self->{id}                  = $ID;
+    $self->{private_key}         = $Private_Key;
+    $self->{private_ed25519_key} = $Private_Ed25519_Key;
+    $self->{public_keys}         = \%Keys;
+    $self->{ssl_config}          = \%SSL_Config;
+    $self->{forbidden}           = \%Forbidden;
+    $self->{secure_level}        = $Secure_Level;
+    $self->{help}                = \%Help;
+    $self->{hz}                  = $Tachikoma{Hz};
+    return $self;
+}
+
+sub set_legacy {
+    my $self = shift;
+    $Wire_Version              = $self->{wire_version};
+    $Tachikoma{Config}         = $self->{config_file};
+    $Tachikoma{Listen}         = $self->{listen_sockets};
+    $Tachikoma{Prefix}         = $self->{prefix};
+    $Tachikoma{Log_Dir}        = $self->{log_dir};
+    $Tachikoma{Log_File}       = $self->{log_file};
+    $Tachikoma{Pid_Dir}        = $self->{pid_dir};
+    $Tachikoma{Pid_File}       = $self->{pid_file};
+    $Tachikoma{Home}           = $self->{home};
+    $Tachikoma{Include_Nodes}  = $self->{include_nodes};
+    $Tachikoma{Include_Jobs}   = $self->{include_jobs};
+    $Tachikoma{Buffer_Size}    = $self->{buffer_size};
+    $Tachikoma{Low_Water_Mark} = $self->{low_water_mark};
+    $Tachikoma{Keep_Alive}     = $self->{keep_alive};
+    $Scheme                    = $self->{scheme};
+    $ID                        = $self->{id};
+    $Private_Key               = $self->{private_key};
+    $Private_Ed25519_Key       = $self->{private_ed25519_key};
+    %Keys                      = %{ $self->{public_keys} };
+    %SSL_Config                = %{ $self->{ssl_config} };
+    %Forbidden                 = %{ $self->{forbidden} };
+    $Secure_Level              = $self->{secure_level};
+    %Help                      = %{ $self->{help} };
+    $Tachikoma{Hz}             = $self->{hz};
     return $self;
 }
 
