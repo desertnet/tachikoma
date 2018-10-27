@@ -18,8 +18,10 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.195');
 
-my $Last_UTime         = 0;
-my $Heartbeat_Interval = 15;    # seconds
+my $PROFILES           = undef;
+my @STACK              = ();
+my $LAST_UTIME         = 0;
+my $HEARTBEAT_INTERVAL = 15;      # seconds
 
 sub new {
     my $class = shift;
@@ -87,7 +89,7 @@ sub fill {
     return $self->send_error( $message, "NOT_AVAILABLE\n" )
         if ( not $Tachikoma::Nodes{$name} );
     $message->[TO] = $path;
-    if ($Tachikoma::Profiles) {
+    if ($PROFILES) {
         my $before = $self->push_profile($name);
         my $rv     = $Tachikoma::Nodes{$name}->fill($message);
         $self->pop_profile($before);
@@ -155,7 +157,7 @@ sub fire {
         }
     }
     @{$reconnecting} = @again;
-    if ( $Tachikoma::Now - $self->{last_fire} >= $Heartbeat_Interval ) {
+    if ( $Tachikoma::Now - $self->{last_fire} >= $HEARTBEAT_INTERVAL ) {
         my $config = $self->configuration;
         $self->heartbeat( $config->var );
         $self->update_logs;
@@ -167,7 +169,7 @@ sub fire {
         {
             $self->print_less_often('WARNING: process is insecure');
         }
-        if ( defined $Tachikoma::Profiles ) {
+        if ( defined $PROFILES ) {
             $self->trim_profiles;
         }
         $self->{last_fire} = $Tachikoma::Now;
@@ -230,9 +232,9 @@ sub update_logs {
         delete $recent_log_timers->{$text}
             if ( $Tachikoma::Now - $recent_log_timers->{$text} > 300 );
     }
-    if ( $self->{type} eq 'root' and $Tachikoma::Now - $Last_UTime > 300 ) {
+    if ( $self->{type} eq 'root' and $Tachikoma::Now - $LAST_UTIME > 300 ) {
         Tachikoma->touch_log_file;
-        $Last_UTime = $Tachikoma::Now;
+        $LAST_UTIME = $Tachikoma::Now;
     }
     return;
 }
@@ -266,13 +268,36 @@ sub notify_timer {
     return;
 }
 
+sub push_profile {
+    my ( $self, $name ) = @_;
+    push @STACK, $name;
+    return Time::HiRes::time;
+}
+
+sub pop_profile {
+    my ( $self, $before ) = @_;
+    return if ( not $PROFILES );
+    my $after = Time::HiRes::time;
+    my $name  = pop @STACK;
+    my $info  = $PROFILES->{$name} ||= {};
+    $info->{time} += $after - $before;
+    $info->{count}++;
+    $info->{avg} = $info->{time} / $info->{count};
+    $info->{oldest} ||= $before;
+    $info->{timestamp} = $after;
+
+    if (@STACK) {
+        $info = $PROFILES->{ $STACK[-1] };
+        $info->{time} -= $after - $before;
+    }
+    return;
+}
+
 sub trim_profiles {
     my $self = shift;
-    for my $key ( keys %{$Tachikoma::Profiles} ) {
-        delete $Tachikoma::Profiles->{$key}
-            if (
-            $Tachikoma::Now - $Tachikoma::Profiles->{$key}->{timestamp}
-            > 900 );
+    for my $key ( keys %{$PROFILES} ) {
+        delete $PROFILES->{$key}
+            if ( $Tachikoma::Now - $PROFILES->{$key}->{timestamp} > 900 );
     }
     return;
 }
@@ -299,6 +324,15 @@ sub last_fire {
         $self->{last_fire} = shift;
     }
     return $self->{last_fire};
+}
+
+sub profiles {
+    my $self = shift;
+    if (@_) {
+        $PROFILES = shift;
+        @STACK    = ();
+    }
+    return $PROFILES;
 }
 
 1;

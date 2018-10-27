@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: Tachikoma.pm 35687 2018-10-27 19:48:15Z chris $
 #
 
 package Tachikoma;
@@ -46,8 +46,6 @@ $Tachikoma::Nodes_By_ID     = {};
 $Tachikoma::Nodes_By_FD     = {};
 $Tachikoma::Nodes_By_PID    = {};
 @Tachikoma::Closing         = ();
-$Tachikoma::Profiles        = undef;
-@Tachikoma::Stack           = ();
 $Tachikoma::SSL_Ciphers     = q();
 $Tachikoma::SSL_Version     = 'TLSv1';
 
@@ -766,23 +764,6 @@ sub closing {
         @Tachikoma::Closing = @{$closing};
     }
     return \@Tachikoma::Closing;
-}
-
-sub profiles {
-    my $self = shift;
-    if (@_) {
-        $Tachikoma::Profiles = shift;
-    }
-    return $Tachikoma::Profiles;
-}
-
-sub stack {
-    my $self = shift;
-    if (@_) {
-        my $stack = shift;
-        @Tachikoma::Stack = @{$stack};
-    }
-    return \@Tachikoma::Stack;
 }
 
 sub configuration {

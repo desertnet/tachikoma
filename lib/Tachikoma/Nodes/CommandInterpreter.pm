@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: CommandInterpreter.pm 35687 2018-10-27 19:48:15Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2118,11 +2118,12 @@ $C{enable_profiling} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    if ( defined $Tachikoma::Profiles ) {
+    my $router   = $Tachikoma::Nodes{_router};
+    die "ERROR: can't find _router\n" if ( not $router );
+    if ( defined $router->profiles ) {
         return $self->response( $envelope, "profiling already enabled\n" );
     }
-    $Tachikoma::Profiles = {};
-    @Tachikoma::Stack    = ();
+    $router->profiles( {} );
     return $self->response( $envelope, "profiling enabled\n" );
 };
 
@@ -2133,7 +2134,7 @@ $C{list_profiles} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $glob     = $command->arguments;
-    my $p        = $Tachikoma::Profiles;
+    my $router   = $Tachikoma::Nodes{_router};
     my $count    = 0;
     my $total    = {
         time      => 0,
@@ -2142,6 +2143,8 @@ $C{list_profiles} = sub {
         oldest    => 0
     };
     my @responses = ();
+    die "ERROR: can't find _router\n" if ( not $router );
+    my $p = $router->profiles;
     push @responses,
         sprintf "%12s %8s %8s %6s %8s %6s %s\n",
         'AVERAGE', 'TIME', 'COUNT', 'WINDOW', 'RATE', 'AGE', 'WHAT';
@@ -2191,11 +2194,12 @@ $C{disable_profiling} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    if ( not $Tachikoma::Profiles ) {
+    my $router   = $Tachikoma::Nodes{_router};
+    die "ERROR: can't find _router\n"    if ( not $router );
+    if ( not $router->profiles ) {
         return $self->response( $envelope, "profiling already disabled\n" );
     }
-    $Tachikoma::Profiles = undef;
-    @Tachikoma::Stack    = ();
+    $router->profiles(undef);
     return $self->response( $envelope, "profiling disabled\n" );
 };
 

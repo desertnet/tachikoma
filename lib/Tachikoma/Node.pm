@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35625 2018-10-26 09:02:39Z chris $
+# $Id: Node.pm 35687 2018-10-27 19:48:15Z chris $
 #
 
 package Tachikoma::Node;
@@ -296,31 +296,6 @@ sub make_dirs {
         }
     }
     return 1;
-}
-
-sub push_profile {
-    my ( $self, $name ) = @_;
-    push @Tachikoma::Stack, $name;
-    return Time::HiRes::time;
-}
-
-sub pop_profile {
-    my ( $self, $before ) = @_;
-    return if ( not $Tachikoma::Profiles );
-    my $after = Time::HiRes::time;
-    my $name  = pop @Tachikoma::Stack;
-    my $info  = $Tachikoma::Profiles->{$name} ||= {};
-    $info->{time} += $after - $before;
-    $info->{count}++;
-    $info->{avg} = $info->{time} / $info->{count};
-    $info->{oldest} ||= $before;
-    $info->{timestamp} = $after;
-
-    if (@Tachikoma::Stack) {
-        $info = $Tachikoma::Profiles->{ $Tachikoma::Stack[-1] };
-        $info->{time} -= $after - $before;
-    }
-    return;
 }
 
 sub shutdown_all_nodes {
