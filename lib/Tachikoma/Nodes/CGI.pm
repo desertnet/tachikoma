@@ -272,7 +272,7 @@ FIND_SCRIPT: while ($test_path) {
         $self->{sink}->fill($shutdown);
     }
 
-    return 1;
+    return;
 }
 
 sub include_path {
