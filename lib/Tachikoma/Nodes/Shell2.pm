@@ -2027,8 +2027,8 @@ sub FETCH {
     if ( defined $LOCAL{$key} ) {
         $rv = $LOCAL{$key};
     }
-    elsif ( defined Tachikoma->configuration->{var}->{$key} ) {
-        $rv = Tachikoma->configuration->{var}->{$key};
+    elsif ( defined Tachikoma->configuration->var->{$key} ) {
+        $rv = Tachikoma->configuration->var->{$key};
     }
     else {
         print {*STDERR} "WARNING: use of uninitialized value <$key>\n";

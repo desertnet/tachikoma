@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: Scheduler.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -24,7 +24,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home          = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
+my $Home          = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/schedules";
 my %Safe_Commands = map { $_ => 1 } qw( prompt help list_events events ls );
 my %C             = ();

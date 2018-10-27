@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: Buffer.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -25,7 +25,7 @@ my $Clear_Interval       = 900;
 my $Default_Timeout      = 900;
 my $Default_Times_Expire = 300;
 my $Timer_Interval       = 15;
-my $Home    = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
+my $Home    = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_Dir  = "$Home/.tachikoma/buffers";
 my $Counter = 0;
 my $Default_Max_Attempts = 10;

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35643 2018-10-26 22:55:54Z chris $
+# $Id: JobController.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -384,15 +384,15 @@ $C{config} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    my $config = $command->arguments;
-    if ($config) {
+    my $config_file = $command->arguments;
+    if ($config_file) {
         die "ERROR: no such config file\n"
-            if ( not -f $config );
-        $self->patron->config($config);
+            if ( not -f $config_file );
+        $self->patron->config_file($config_file);
         return $self->okay($envelope);
     }
-    $config = $self->patron->config;
-    return $self->response( $envelope, "$config\n" );
+    $config_file = $self->patron->config_file;
+    return $self->response( $envelope, "$config_file\n" );
 };
 
 $C{shutdown_mode} = sub {
@@ -421,7 +421,7 @@ sub start_job {
     my $should_restart = shift;
     my $lazy           = shift;
     my $username       = $self->username;
-    my $config         = $self->config;
+    my $config_file    = $self->config_file;
     $type =~ s{[^\w\d:]}{}g;
     $name ||= $type;
 
@@ -434,11 +434,11 @@ sub start_job {
     my $job = Tachikoma::Job->new;
     if ($lazy) {
         $job->prepare( $type, $name, $arguments, $owner, $should_restart,
-            $username, $config );
+            $username, $config_file );
     }
     else {
         $job->spawn( $type, $name, $arguments, $owner, $should_restart,
-            $username, $config );
+            $username, $config_file );
     }
     $job->{connector}->sink($self);
     $self->{jobs}->{ $job->{connector}->name } = $job;
@@ -446,14 +446,14 @@ sub start_job {
 }
 
 sub restart_job {
-    my $self      = shift;
-    my $old_job   = shift or die qq(no job specified\n);
-    my $type      = $old_job->{type};
-    my $name      = $old_job->{original_name};
-    my $tmp_name  = $old_job->{name};
-    my $arguments = $old_job->{arguments};
-    my $username  = $old_job->{username};
-    my $config    = $old_job->{config};
+    my $self        = shift;
+    my $old_job     = shift or die qq(no job specified\n);
+    my $type        = $old_job->{type};
+    my $name        = $old_job->{original_name};
+    my $tmp_name    = $old_job->{name};
+    my $arguments   = $old_job->{arguments};
+    my $username    = $old_job->{username};
+    my $config_file = $old_job->{config_file};
     die qq(node "$name" exists\n) if ( $Tachikoma::Nodes{$name} );
     my $owner   = $old_job->{connector}->owner;
     my $new_job = Tachikoma::Job->new;
@@ -462,11 +462,11 @@ sub restart_job {
 
     if ( $old_job->{lazy} ) {
         $new_job->prepare( $type, $name, $arguments, $owner, $Tachikoma::Now,
-            $username, $config );
+            $username, $config_file );
     }
     else {
         $new_job->spawn( $type, $name, $arguments, $owner, $Tachikoma::Now,
-            $username, $config );
+            $username, $config_file );
     }
     $new_job->{connector}->sink($self);
     $self->{jobs}->{$name} = $new_job;
@@ -639,23 +639,23 @@ sub username {
     return $username;
 }
 
-sub config {
-    my $self   = shift;
-    my $config = $self->{config};
+sub config_file {
+    my $self        = shift;
+    my $config_file = $self->{config_file};
     if (@_) {
-        $config = shift;
-        $self->{config} = $config;
+        $config_file = shift;
+        $self->{config_file} = $config_file;
     }
-    if ( not $config ) {
+    if ( not $config_file ) {
         if ( $self->{username} ) {
-            $config = join q(),
+            $config_file = join q(),
                 '/usr/local/etc/tachikoma-', $self->{username}, '.conf';
         }
         else {
-            $config = $self->configuration->{config};
+            $config_file = $self->configuration->config_file;
         }
     }
-    return $config;
+    return $config_file;
 }
 
 sub shutdown_mode {

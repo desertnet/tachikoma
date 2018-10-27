@@ -43,7 +43,7 @@ sub drain {
     my $connector = shift;
     if ( $self->type eq 'root' ) {
         my $class   = ref $Tachikoma::Event_Framework;
-        my $version = $self->configuration->{wire_version};
+        my $version = $self->configuration->wire_version;
         $self->stderr("starting up - $class - wire format $version");
     }
     $Tachikoma::Event_Framework->drain( $self, $connector );
@@ -157,12 +157,12 @@ sub fire {
     @{$reconnecting} = @again;
     if ( $Tachikoma::Now - $self->{last_fire} >= $Heartbeat_Interval ) {
         my $config = $self->configuration;
-        $self->heartbeat($config);
+        $self->heartbeat( $config->var );
         $self->update_logs;
         $self->expire_callbacks;
         $self->notify_timer;
-        if (    defined $config->{secure_level}
-            and $config->{secure_level} == 0
+        if (    defined $config->secure_level
+            and $config->secure_level == 0
             and $self->type ne 'router' )
         {
             $self->print_less_often('WARNING: process is insecure');
@@ -176,10 +176,10 @@ sub fire {
 }
 
 sub heartbeat {
-    my $self   = shift;
-    my $config = shift;
-    my $stale  = $config->{var}->{stale_connector_threshold} || 900;
-    my $slow   = $config->{var}->{slow_connector_threshold} || 900;
+    my $self  = shift;
+    my $var   = shift;
+    my $stale = $var->{stale_connector_threshold} || 900;
+    my $slow  = $var->{slow_connector_threshold} || 900;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {

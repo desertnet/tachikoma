@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35625 2018-10-26 09:02:39Z chris $
+# $Id: Tail.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -159,7 +159,7 @@ sub check_path {
     die "ERROR: bad arguments for Tail\n" if ( not $filename );
     my $path = ( $filename =~ m{^(/.*)$} )[0];
     die "ERROR: invalid path: $filename\n" if ( not defined $path );
-    my $forbidden = $self->configuration->{forbidden};
+    my $forbidden = $self->configuration->forbidden;
     $path =~ s{/[.]/}{/}g while ( $path =~ m{/[.]/} );
     $path =~ s{(?:^|/)[.][.](?=/)}{}g;
     $path =~ s{/+}{/}g;

@@ -26,7 +26,7 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home          = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
+my $Home          = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_Dir        = "$Home/.tachikoma/Tails";
 my $Max_Forking   = 8;
 my $Scan_Interval = 30;

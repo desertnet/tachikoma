@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35633 2018-10-26 12:45:27Z chris $
+# $Id: Tachikoma.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma;
@@ -91,7 +91,7 @@ sub inet_client {
         or die "connect: $!\n";
 
     if ($use_ssl) {
-        my $ssl_config = Tachikoma->configuration->{ssl_config};
+        my $ssl_config = Tachikoma->configuration->ssl_config;
         die "ERROR: SSL not configured\n"
             if ( not $ssl_config->{SSL_client_ca_file} );
         my $ssl_socket = IO::Socket::SSL->start_SSL(
@@ -158,17 +158,17 @@ sub new {
 sub setsockopts {
     my $socket = shift;
     my $config = Tachikoma->configuration;
-    if ( $config->{buffer_size} ) {
-        setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $config->{buffer_size}
+    if ( $config->buffer_size ) {
+        setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $config->buffer_size
             or die "FAILED: setsockopt: $!";
-        setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $config->{buffer_size}
-            or die "FAILED: setsockopt: $!";
-    }
-    if ( $config->{low_water_mark} ) {
-        setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT, $config->{low_water_mark}
+        setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $config->buffer_size
             or die "FAILED: setsockopt: $!";
     }
-    if ( $config->{keep_alive} ) {
+    if ( $config->low_water_mark ) {
+        setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT, $config->low_water_mark
+            or die "FAILED: setsockopt: $!";
+    }
+    if ( $config->keep_alive ) {
         setsockopt $socket, SOL_SOCKET, SO_KEEPALIVE, 1
             or die "FAILED: setsockopt: $!";
     }
@@ -181,14 +181,14 @@ sub reply_to_server_challenge {
     return if ( not $message );
     my $version = $message->[ID];
     my $config  = Tachikoma->configuration;
-    if ( not $version or $version ne $config->{wire_version} ) {
+    if ( not $version or $version ne $config->wire_version ) {
         die "ERROR: reply_to_server_challenge failed: version mismatch\n";
     }
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'client' ) {
         die "ERROR: reply_to_server_challenge failed: wrong challenge type\n";
     }
-    elsif ( length $config->{id} ) {
+    elsif ( length $config->id ) {
         exit 1
             if (
             not $self->verify_signature( 'server', $message, $command ) );
@@ -200,7 +200,7 @@ sub reply_to_server_challenge {
     my $response =
         $self->command( 'challenge', 'server',
         md5( $self->{auth_challenge} ) );
-    $response->[ID] = $config->{wire_version};
+    $response->[ID] = $config->wire_version;
     $self->{auth_timestamp} = $response->[TIMESTAMP];
     my $wrote = syswrite $self->{fh},
         ${ $message->packed } . ${ $response->packed };
@@ -220,12 +220,12 @@ sub auth_server_response {
     my $self = shift;
     my ( $got, $message ) = $self->read_block;
     my $config = Tachikoma->configuration;
-    return if ( not $message or not $config->{id} );
+    return if ( not $message or not $config->id );
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     if ( $command->{arguments} ne 'server' ) {
         die "ERROR: auth_server_response failed: wrong challenge type\n";
     }
-    elsif ( length $config->{id} ) {
+    elsif ( length $config->id ) {
         exit 1
             if (
             not $self->verify_signature( 'server', $message, $command ) );
@@ -547,15 +547,16 @@ sub initialize {
 sub copy_variables {
     my $self   = shift;
     my $config = $self->configuration;
+    my $var    = $config->var;
     for my $name (@CONFIG_VARIABLES) {
         my $value = undef;
-        if ( ref $config->{var}->{$name} ) {
-            $value = join q(), @{ $config->{var}->{$name} };
+        if ( ref $var->{$name} ) {
+            $value = join q(), @{ $var->{$name} };
         }
         else {
-            $value = $config->{var}->{$name};
+            $value = $var->{$name};
         }
-        $config->{$name} = $value if ( length $value );
+        $config->$name($value) if ( length $value );
     }
     return;
 }
@@ -663,7 +664,7 @@ sub close_log_file {
 
 sub reload_config {
     my $self        = shift;
-    my $config_file = $self->configuration->{config};
+    my $config_file = $self->configuration->config_file;
     my $config      = Tachikoma::Config->new;
     $config->load_legacy($config_file);
     %{ $self->configuration } = %{$config};
@@ -697,11 +698,11 @@ sub pid_file {
     my $name     = shift // $0;
     my $pid_file = undef;
     my $config   = $self->configuration;
-    if ( $config->{pid_file} ) {
-        $pid_file = $config->{pid_file};
+    if ( $config->pid_file ) {
+        $pid_file = $config->pid_file;
     }
-    elsif ( $config->{pid_dir} ) {
-        $pid_file = join q(), $config->{pid_dir}, q(/), $name, '.pid';
+    elsif ( $config->pid_dir ) {
+        $pid_file = join q(), $config->pid_dir, q(/), $name, '.pid';
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -714,11 +715,11 @@ sub log_file {
     my $name     = $0;
     my $log_file = undef;
     my $config   = $self->configuration;
-    if ( $config->{log_file} ) {
-        $log_file = $config->{log_file};
+    if ( $config->log_file ) {
+        $log_file = $config->log_file;
     }
-    elsif ( $config->{log_dir} ) {
-        $log_file = join q(), $config->{log_dir}, q(/), $name, '.log';
+    elsif ( $config->log_dir ) {
+        $log_file = join q(), $config->log_dir, q(/), $name, '.log';
     }
     else {
         die "ERROR: couldn't determine log_file\n";
