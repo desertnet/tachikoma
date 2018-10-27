@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35687 2018-10-27 19:48:15Z chris $
+# $Id: Node.pm 35691 2018-10-27 20:50:33Z chris $
 #
 
 package Tachikoma::Node;
@@ -527,10 +527,6 @@ make_parent_dirs( $path )
 
 make_dirs( $path )
 
-push_profile( $name )
-
-pop_profile( $before )
-
 shutdown_all_nodes()
 
 print_less_often( $text )
@@ -541,11 +537,15 @@ log_prefix()
 
 log_midfix()
 
-interpreter()
-
 counter()
 
+configuration()
+
+interpreter()
+
 registrations()
+
+scheme()
 
 =head1 DEPENDENCIES
 
@@ -564,6 +564,10 @@ L<Time::HiRes>
 =head1 SEE ALSO
 
 L<Tachikoma>
+
+L<Tachikoma::Config>
+
+L<Tachikoma::Nodes::Router>
 
 L<Tachikoma::Nodes::Timer>
 

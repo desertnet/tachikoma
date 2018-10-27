@@ -21,7 +21,8 @@ my ( $config_file, $class, $name, $arguments, $owner, $should_restart ) =
 usage() if ( not $class );
 srand;
 my $config = Tachikoma::Config->new;
-$config->load_legacy($config_file);
+$config->load_config_file($config_file);
+$config->load_legacy;
 Tachikoma->configuration($config);
 Tachikoma->load_event_framework;
 

@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35687 2018-10-27 19:48:15Z chris $
+# $Id: Tachikoma.pm 35691 2018-10-27 20:50:33Z chris $
 #
 
 package Tachikoma;
@@ -664,7 +664,8 @@ sub reload_config {
     my $self        = shift;
     my $config_file = $self->configuration->config_file;
     my $config      = Tachikoma::Config->new;
-    $config->load_legacy($config_file);
+    $config->load_config_file($config_file);
+    $config->load_legacy;
     %{ $self->configuration } = %{$config};
     return;
 }

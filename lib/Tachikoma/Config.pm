@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: Config.pm 35691 2018-10-27 20:50:33Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -48,6 +48,7 @@ sub new {
     my $class = shift;
     my $self  = {
         wire_version        => $Wire_Version,
+        config_file         => undef,
         listen_sockets      => $Tachikoma{Listen},
         prefix              => $Tachikoma{Prefix},
         log_dir             => $Tachikoma{Log_Dir},
@@ -77,12 +78,17 @@ sub new {
     return $self;
 }
 
-sub load_legacy {
+sub load_config_file {
     my $self        = shift;
     my $config_file = shift;
     include_conf($config_file) if ( $config_file and -f $config_file );
-    if ( $config_file or not $self->config_file ) {
-        $Tachikoma{Config}           = $config_file;
+    $Tachikoma{Config} = $config_file;
+    return $self;
+}
+
+sub load_legacy {
+    my $self = shift;
+    if ( not $self->config_file ) {
         $self->{wire_version}        = $Wire_Version;
         $self->{config_file}         = $Tachikoma{Config};
         $self->{listen_sockets}      = $Tachikoma{Listen};
