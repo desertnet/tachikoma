@@ -27,7 +27,7 @@ my $Clear_Interval       = 900;
 my $Default_Timeout      = 900;
 my $Default_Times_Expire = 300;
 my $Timer_Interval       = 15;
-my $Home   = Tachikoma->configuration->{home} || ( getpwuid $< )[7];
+my $Home   = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_Dir = "$Home/.tachikoma/queues";
 my %C      = ();
 

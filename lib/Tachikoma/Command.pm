@@ -3,7 +3,7 @@
 # Tachikoma::Command
 # ----------------------------------------------------------------------
 #
-# $Id: Command.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: Command.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma::Command;
@@ -82,35 +82,35 @@ sub sign {
     my $timestamp = shift or die 'no timestamp';
     my $config    = Tachikoma->configuration;
     my $plaintext = join q(:),
-        $config->{id}, $timestamp,
+        $config->id, $timestamp,
         ( $self->{name} // q() ),
         ( $self->{arguments} // q() ),
         ( $self->{payload} // q() );
     return
-        if ( defined $config->{secure_level}
-        and $config->{secure_level} == 0 );
+        if ( defined $config->secure_level
+        and $config->secure_level == 0 );
     if ( $scheme eq 'ed25519' ) {
         die "ERROR: Ed25519 signatures not supported\n"
             if ( not $USE_SODIUM );
         die "ERROR: Ed25519 signatures not configured\n"
-            if ( not $config->{private_ed25519_key} );
+            if ( not $config->private_ed25519_key );
         my $crypto_sign = Crypt::NaCl::Sodium->sign;
-        $self->{signature} = join q(), $config->{id}, "\n", "ed25519\n",
-            $crypto_sign->mac( $plaintext, $config->{private_ed25519_key} );
+        $self->{signature} = join q(), $config->id, "\n", "ed25519\n",
+            $crypto_sign->mac( $plaintext, $config->private_ed25519_key );
     }
     else {
-        return if ( not $config->{private_key} );
+        return if ( not $config->private_key );
         my $rsa =
-            Crypt::OpenSSL::RSA->new_private_key( $config->{private_key} );
+            Crypt::OpenSSL::RSA->new_private_key( $config->private_key );
         if ( $scheme eq 'rsa-sha256' ) {
             $rsa->use_sha256_hash;
-            $self->{signature} = join q(), $config->{id}, "\n",
+            $self->{signature} = join q(), $config->id, "\n",
                 "rsa-sha256\n",
                 $rsa->sign($plaintext);
         }
         else {
             $rsa->use_sha1_hash;
-            $self->{signature} = join q(), $config->{id}, "\n",
+            $self->{signature} = join q(), $config->id, "\n",
                 $rsa->sign($plaintext);
         }
     }

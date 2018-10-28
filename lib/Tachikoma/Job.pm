@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35627 2018-10-26 11:47:09Z chris $
+# $Id: Job.pm 35685 2018-10-27 19:14:03Z chris $
 #
 
 package Tachikoma::Job;
@@ -45,7 +45,7 @@ sub new {
     $self->{should_restart} = undef;
     $self->{lazy}           = undef;
     $self->{username}       = undef;
-    $self->{config}         = undef;
+    $self->{config_file}    = undef;
     $self->{original_name}  = undef;
     $self->{router}         = undef;
     $self->{connector}      = undef;
@@ -61,14 +61,14 @@ sub prepare {
     my $owner          = shift // q();
     my $should_restart = shift // q();
     my $username       = shift || q();
-    my $config         = shift || q();
+    my $config_file    = shift || q();
     $self->{arguments}      = $arguments;
     $self->{type}           = $type;
     $self->{pid}            = q(-);
     $self->{should_restart} = $should_restart;
     $self->{lazy}           = 1;
     $self->{username}       = $username;
-    $self->{config}         = $config;
+    $self->{config_file}    = $config_file;
     $self->{original_name}  = $name;
     $self->{connector}      = Tachikoma::Nodes::Callback->new;
     $self->{connector}->name($name);
@@ -79,7 +79,7 @@ sub prepare {
             my $sink    = $self->{connector}->{sink};
             $owner = $self->{connector}->{owner};
             $self->spawn( $type, $name, $arguments, $owner, $should_restart,
-                $username, $config );
+                $username, $config_file );
             if ( $self->{connector}->{type} ) {
                 $self->{connector}->sink($sink);
                 $self->{connector}->fill($message);
@@ -98,7 +98,7 @@ sub spawn {
     my $owner          = shift // q();
     my $should_restart = shift // q();
     my $username       = shift || q();
-    my $config         = shift || q();
+    my $config_file    = shift || q();
     my $filehandles    = {
         parent => {
             stdout => undef,
@@ -124,7 +124,7 @@ sub spawn {
         $self->{pid}            = $pid;
         $self->{should_restart} = $should_restart;
         $self->{username}       = $username;
-        $self->{config}         = $config;
+        $self->{config_file}    = $config_file;
         $self->{original_name}  = $name;
         return;
     }
@@ -133,7 +133,7 @@ sub spawn {
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         $type           = ( $type =~ m{^([\w:]+)$} )[0];
         $username       = ( $username =~ m{^(\S*)$} )[0];
-        $config         = ( $config =~ m{^(\S*)$} )[0];
+        $config_file    = ( $config_file =~ m{^(\S*)$} )[0];
         $name           = ( $name =~ m{^(\S*)$} )[0];
         $arguments      = ( $arguments =~ m{^(.*)$}s )[0];
         $owner          = ( $owner =~ m{^(\S*)$} )[0];
@@ -151,7 +151,7 @@ sub spawn {
             push @command, $SUDO, '-u', $username, '-C', FD_5 + 1;
         }
         push @command,
-            $tachikoma_job, $config, $class,
+            $tachikoma_job, $config_file, $class,
             $name // q(),
             $arguments // q(),
             $owner // q(),

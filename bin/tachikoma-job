@@ -20,9 +20,8 @@ my ( $config_file, $class, $name, $arguments, $owner, $should_restart ) =
     @ARGV;
 usage() if ( not $class );
 srand;
-my $config = Tachikoma::Config->new;
-$config->load_legacy($config_file);
-Tachikoma->configuration($config);
+my $config = Tachikoma->configuration;
+$config->load_config_file($config_file);
 Tachikoma->load_event_framework;
 
 $Tachikoma::Now       = time;

@@ -8,14 +8,16 @@
 use strict;
 use warnings;
 use Tachikoma;
-use Tachikoma::Config qw( %Tachikoma );
-my $config = '/usr/local/etc/tachikoma.conf';
-require $config if ( -f $config );
+
+my $config_file = '/usr/local/etc/tachikoma.conf';
+my $config = Tachikoma->configuration;
+$config->load_config_file($config_file);
 
 my $hz      = $ARGV[0];
-my $home    = $Tachikoma{Home} || ( getpwuid $< )[7];
+my $home    = $config->home || ( getpwuid $< )[7];
 my $hz_file = "$home/.tachikoma/hz";
-die 'invalid hz setting' if ( $hz !~ m{^\d+$} );
+die 'invalid hz setting' if ( length $hz and $hz !~ m{^\d+$} );
+$hz //= 'undef';
 open my $fh, '>', $hz_file or die "couldn't open $hz_file: $!";
 print {$fh} <<"EOF";
 #!/usr/bin/perl
@@ -25,10 +27,15 @@ print {$fh} <<"EOF";
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( \%Tachikoma );
+use Tachikoma;
 
 # Set our Hz
-\$Tachikoma{Hz} = $hz;
+Tachikoma->configuration->hz($hz);
+
+eval q(
+    use Tachikoma::Config qw( \%Tachikoma );
+    \$Tachikoma{Hz} = $hz;
+);
 
 1;
 EOF

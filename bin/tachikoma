@@ -58,16 +58,15 @@ my $r = GetOptions(
 my $filename = $ARGV[0];
 
 usage() if ( $help or not $r );
-my $config = Tachikoma::Config->new;
-$config->load_legacy($config_file);
-Tachikoma->configuration($config);
+my $config = Tachikoma->configuration;
+$config->load_config_file($config_file);
 Tachikoma->scheme($scheme) if ($scheme);
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
 my $new_server = undef;
 $new_server = 'true' if ( not $host and not $socket );
-$port    //= $config->{listen}->[0]->{Port};
-$use_SSL //= $config->{listen}->[0]->{use_SSL};
+$port    //= $config->listen_sockets->[0]->{Port};
+$use_SSL //= $config->listen_sockets->[0]->{use_SSL};
 my $isa_tty = $filename ? undef : isatty(*STDIN);
 $verbose = 'true' if ( $isa_tty or $debug );
 my ($stdin,   $shell,    $tachikoma, $responder, $dumper,

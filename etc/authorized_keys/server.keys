@@ -5,11 +5,11 @@
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( %Keys );
+use Tachikoma;
 
 # Set our authorized keys
 
-%Keys = (
+Tachikoma->configuration->public_keys( {
     'tachikoma@nyx' => {
         allow => {map {$_=>1} qw(
             client
@@ -24,6 +24,6 @@ Qs+3gn+llLLhyOuCKPAUwMZagjbAa/aocufOeMJ770J+YZPdimrlAgMBAAE=
 -----END RSA PUBLIC KEY-----
 ),
     },
-);
+} );
 
 1;

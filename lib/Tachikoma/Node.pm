@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35625 2018-10-26 09:02:39Z chris $
+# $Id: Node.pm 35691 2018-10-27 20:50:33Z chris $
 #
 
 package Tachikoma::Node;
@@ -298,31 +298,6 @@ sub make_dirs {
     return 1;
 }
 
-sub push_profile {
-    my ( $self, $name ) = @_;
-    push @Tachikoma::Stack, $name;
-    return Time::HiRes::time;
-}
-
-sub pop_profile {
-    my ( $self, $before ) = @_;
-    return if ( not $Tachikoma::Profiles );
-    my $after = Time::HiRes::time;
-    my $name  = pop @Tachikoma::Stack;
-    my $info  = $Tachikoma::Profiles->{$name} ||= {};
-    $info->{time} += $after - $before;
-    $info->{count}++;
-    $info->{avg} = $info->{time} / $info->{count};
-    $info->{oldest} ||= $before;
-    $info->{timestamp} = $after;
-
-    if (@Tachikoma::Stack) {
-        $info = $Tachikoma::Profiles->{ $Tachikoma::Stack[-1] };
-        $info->{time} -= $after - $before;
-    }
-    return;
-}
-
 sub shutdown_all_nodes {
     my ($self) = @_;
     my $nodes = Tachikoma->nodes;
@@ -552,10 +527,6 @@ make_parent_dirs( $path )
 
 make_dirs( $path )
 
-push_profile( $name )
-
-pop_profile( $before )
-
 shutdown_all_nodes()
 
 print_less_often( $text )
@@ -566,11 +537,15 @@ log_prefix()
 
 log_midfix()
 
-interpreter()
-
 counter()
 
+configuration()
+
+interpreter()
+
 registrations()
+
+scheme()
 
 =head1 DEPENDENCIES
 
@@ -589,6 +564,10 @@ L<Time::HiRes>
 =head1 SEE ALSO
 
 L<Tachikoma>
+
+L<Tachikoma::Config>
+
+L<Tachikoma::Nodes::Router>
 
 L<Tachikoma::Nodes::Timer>
 
