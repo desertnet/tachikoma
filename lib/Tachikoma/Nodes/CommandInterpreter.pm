@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35730 2018-10-28 13:10:24Z chris $
+# $Id: CommandInterpreter.pm 35732 2018-10-28 14:15:11Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -105,7 +105,6 @@ sub interpret {
     my $cmd_name  = $command->{name};
     my $functions = $self->configuration->functions;
     if ( not $self->verify_command( $message, $command ) ) {
-        my $router = $Tachikoma::Nodes{_router};
         $self->send_response( $message,
             $self->error("verification failed\n") );
         return;
@@ -2374,10 +2373,13 @@ $C{prompt} = sub {
 };
 
 sub verify_command {
-    my $self    = shift;
-    my $message = shift;
-    my $command = shift;
-    return 1 if ( $self->verify_startup($message) );
+    my $self         = shift;
+    my $message      = shift;
+    my $command      = shift;
+    my $config       = $self->configuration;
+    my $my_id        = $config->id;
+    my $secure_level = $config->secure_level;
+    return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
     my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
     if ( not $id ) {
         $self->stderr( 'ERROR: verification of message from ',
@@ -2389,14 +2391,12 @@ sub verify_command {
         if ($scheme ne 'rsa'
         and $scheme ne 'rsa-sha256'
         and $scheme ne 'ed25519' );
-    my $config = $self->configuration;
     if ( not $config->public_keys->{$id} ) {
         $self->stderr( 'ERROR: verification of message from ',
             $message->[FROM], ' failed: ', $id, ' not in authorized_keys' );
         return;
     }
-    $self->verify_key( $message, [ 'command', 'meta' ],
-        $command->{name}, $config )
+    $self->verify_key( $message, [ 'command', 'meta' ], $command->{name} )
         or return;
     my $response = undef;
     my $signed   = join q(:),
@@ -2437,7 +2437,7 @@ sub verify_key {
     my $message      = shift;
     my $tags         = shift;
     my $cmd_name     = shift;
-    my $config       = shift // $self->configuration;
+    my $config       = $self->configuration;
     my $my_id        = $config->id;
     my $secure_level = $config->secure_level;
     return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
@@ -2484,7 +2484,7 @@ sub verify_startup {
     my $secure_level = shift;
     return 1
         if (
-        not length $id
+        ( not length $id and not $secure_level )
         or (    defined $secure_level
             and $secure_level == 0
             and $message->[FROM] =~ m{^(_parent/)*_responder$} )
