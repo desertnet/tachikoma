@@ -1,9 +1,10 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 include services/config.tsl
 
-var log_file  = /var/log/tachikoma/<name>.log
-var pid_file  = /var/run/tachikoma/<name>.pid
-var root_port = [var "tachikoma.<name>.port"]
+var root_port   = [var "tachikoma.<name>.port"]
+var log_file    = /var/log/tachikoma/<name>.log
+config log_file = <log_file>
+config pid_file = /var/run/tachikoma/<name>.pid
 
 daemonize [var name]
 

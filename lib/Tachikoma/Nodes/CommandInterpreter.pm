@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35710 2018-10-28 05:39:01Z chris $
+# $Id: CommandInterpreter.pm 35722 2018-10-28 11:59:48Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -39,10 +39,29 @@ $Data::Dumper::Useperl  = 1;
 
 Getopt::Long::Configure('bundling');
 
-my $HELP = Tachikoma->configuration->help;
-my %C    = ();
-my %H    = ();
-my %L    = ();
+my $HELP             = Tachikoma->configuration->help;
+my %C                = ();
+my %H                = ();
+my %L                = ();
+my @CONFIG_VARIABLES = qw(
+    prefix
+    log_dir
+    log_file
+    pid_dir
+    pid_file
+    home
+    buffer_size
+    low_water_mark
+    keep_alive
+    hz
+    ssl_client_ca_file
+    ssl_client_cert_file
+    ssl_client_key_file
+    ssl_server_ca_file
+    ssl_server_cert_file
+    ssl_server_key_file
+    ssl_version
+);
 
 sub new {
     my $class = shift;
@@ -1812,52 +1831,99 @@ $L{reload} = $H{reload_config};
 
 $C{reload} = $C{reload_config};
 
-$H{list_env} = [ "list_env [ <name> ]\n", "    alias: env\n" ];
+$H{env} = ["env [ <name> [ = <value> ] ]\n"];
 
-$C{list_env} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $response = q();
-    if ( $command->arguments ) {
-        my $key = $command->arguments;
-        if ( $ENV{$key} ) {
-            $response = join q(), $key, q(=), $ENV{$key}, "\n";
-        }
-        else {
-            return $self->error( $envelope,
-                qq(no such environment variable: "$key"\n) );
-        }
-    }
-    else {
-        for my $key ( sort keys %ENV ) {
-            $response .= join q(), $key, q(=), $ENV{$key}, "\n";
-        }
-    }
-    return $self->response( $envelope, $response );
-};
-
-$L{env} = $H{list_env};
-
-$C{env} = $C{list_env};
-
-$H{set_env} = ["set_env <name> [ <value> ]\n"];
-
-$C{set_env} = sub {
+$C{env} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'env' )
         or return $self->error("verification failed\n");
-    my ( $key, $value ) = split q( ), $command->arguments, 2;
-    return $self->error( $envelope, qq(usage: set_env <name> [ <value> ]\n) )
-        if ( not $key );
-    ## no critic (RequireLocalizedPunctuationVars)
+    my ( $key, $op, $value ) =
+        split m{\s*(=)\s*}, $command->arguments, 2;
+    return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
     if ( length $value ) {
         $ENV{$key} = $value;
     }
-    else {
+    elsif ( defined $op ) {
         delete $ENV{$key};
+    }
+    elsif ( defined $key ) {
+        if ( defined $ENV{$key} ) {
+            my $line = $ENV{$key};
+            chomp $line;
+            return $self->response( $envelope, "$line\n" );
+        }
+        else {
+            return $self->response( $envelope, qq(undef\n) );
+        }
+    }
+    else {
+        my @response = ();
+        for my $key ( sort keys %ENV ) {
+            next if ( ref $ENV{$key} );
+            my $line = "$key=";
+            if ( defined $ENV{$key} ) {
+                $line .= $ENV{$key};
+            }
+            else {
+                $line .= q(undef);
+            }
+            chomp $line;
+            push @response, $line, "\n";
+        }
+        return $self->response( $envelope, join q(), @response );
+    }
+    return $self->okay($envelope);
+};
+
+$H{config} = ["config [ <name> [ = <value> ] ]\n"];
+
+$C{config} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->verify_key( $envelope, ['meta'], 'config' )
+        or return $self->error("verification failed\n");
+    my ( $key, $op, $value ) =
+        split m{\s*(=)\s*}, $command->arguments, 2;
+    my $var = {};
+    $var->{$_} = $self->configuration->{$_} for ( @CONFIG_VARIABLES );
+    return $self->error("invalid key: $key\n")
+        if ( $key and not exists $var->{$key} );
+    return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
+
+    if ( length $value ) {
+        $self->configuration->{$key} = $value;
+    }
+    elsif ( defined $op ) {
+        $self->configuration->{$key} = undef;
+    }
+    elsif ( defined $key ) {
+        if ( defined $var->{$key} ) {
+            my $line = $var->{$key};
+            chomp $line;
+            return $self->response( $envelope, "$line\n" );
+        }
+        else {
+            return $self->response( $envelope, qq(undef\n) );
+        }
+    }
+    else {
+        my @response = ();
+        for my $key ( sort keys %{$var} ) {
+            next if ( ref $var->{$key} );
+            my $line = "$key=";
+            if ( defined $var->{$key} ) {
+                $line .= $var->{$key};
+            }
+            else {
+                $line .= q(undef);
+            }
+            chomp $line;
+            push @response, $line, "\n";
+        }
+        return $self->response( $envelope, join q(), @response );
     }
     return $self->okay($envelope);
 };
@@ -1874,8 +1940,6 @@ $C{remote_var} = sub {
         split m{\s*([.]=|[|][|]=|=)\s*}, $command->arguments, 2;
     my $var = $self->configuration->var;
     if ( length $value ) {
-        $value =~ s{^['"]|["']$}{}g;
-        $value =~ s{\\(.)}{$1}g;
         my $v = $var->{$key};
         $v = [] if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
@@ -1898,7 +1962,7 @@ $C{remote_var} = sub {
         }
     }
     elsif ( defined $op ) {
-        return $self->error("invalid operator: $op") if ( $op ne q(=) );
+        return $self->error("invalid operator: $op\n") if ( $op ne q(=) );
         delete $var->{$key};
     }
     elsif ( defined $key ) {
@@ -2530,7 +2594,7 @@ sub connect_inet {
             inet_client_async Tachikoma::Nodes::STDIO( $host, $port, $name );
     }
     $connection->on_EOF('reconnect') if ($reconnect);
-    $connection->SSL_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
+    $connection->ssl_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
         if ( $options{SSL_ca_file} );
     $connection->use_SSL( $options{use_SSL} );
     $connection->scheme( $options{scheme} ) if ( $options{scheme} );
@@ -2562,7 +2626,7 @@ sub connect_unix {
             unix_client_async Tachikoma::Nodes::STDIO( $filename, $name );
     }
     $connection->on_EOF('reconnect') if ($reconnect);
-    $connection->SSL_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
+    $connection->ssl_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
         if ( $options{SSL_ca_file} );
     $connection->use_SSL('noverify')        if ( $options{use_SSL} );
     $connection->scheme( $options{scheme} ) if ( $options{scheme} );

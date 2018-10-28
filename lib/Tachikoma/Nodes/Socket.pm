@@ -84,7 +84,6 @@ sub unix_client {    ## no critic (ProhibitManyArgs)
     my $name       = shift;
     my $flags      = shift;
     my $use_SSL    = shift;
-    my $SSL_config = shift;
     my $socket;
     socket $socket, PF_UNIX, SOCK_STREAM, 0 or die "FAILED: socket: $!";
     setsockopts($socket);
@@ -102,7 +101,6 @@ sub unix_client {    ## no critic (ProhibitManyArgs)
         die "ERROR: connect: $!\n";
     }
     if ($use_SSL) {
-        $client->SSL_config($SSL_config) if ($SSL_config);
         $client->use_SSL($use_SSL);
         $client->start_SSL_connection;
     }
@@ -158,7 +156,6 @@ sub inet_client {
     my $port       = shift or die "FAILED: no port specified for $hostname";
     my $flags      = shift;
     my $use_SSL    = shift;
-    my $SSL_config = shift;
     my $iaddr = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $proto = getprotobyname 'tcp';
     my $socket;
@@ -184,7 +181,6 @@ sub inet_client {
         die "ERROR: connect: $!\n";
     }
     if ($use_SSL) {
-        $client->SSL_config($SSL_config) if ($SSL_config);
         $client->use_SSL($use_SSL);
         $client->start_SSL_connection;
     }
@@ -228,7 +224,6 @@ sub new {
     $self->{fileperms}        = undef;
     $self->{filegid}          = undef;
     $self->{use_SSL}          = undef;
-    $self->{SSL_config}       = undef;
     $self->{auth_challenge}   = undef;
     $self->{auth_timestamp}   = undef;
     $self->{scheme}           = Tachikoma->scheme;
@@ -285,19 +280,19 @@ sub accept_connection {
     ( $port, $address ) = unpack_sockaddr_in($paddr) if ( not $unix );
 
     if ( $self->{use_SSL} ) {
-        my $ssl_config = $self->SSL_config;
+        my $config = $self->{configuration};
         die "ERROR: SSL not configured\n"
-            if ( not $ssl_config->{SSL_server_ca_file} );
+            if ( not $config->{ssl_server_ca_file} );
         my $ssl_client = IO::Socket::SSL->start_SSL(
             $client,
             SSL_server         => 1,
-            SSL_key_file       => $ssl_config->{SSL_server_key_file},
-            SSL_cert_file      => $ssl_config->{SSL_server_cert_file},
-            SSL_ca_file        => $ssl_config->{SSL_server_ca_file},
+            SSL_key_file       => $config->{ssl_server_key_file},
+            SSL_cert_file      => $config->{ssl_server_cert_file},
+            SSL_ca_file        => $config->{ssl_server_ca_file},
             SSL_startHandshake => 0,
 
-            # SSL_cipher_list     => $Tachikoma::SSL_Ciphers,
-            SSL_version         => $Tachikoma::SSL_Version,
+            # SSL_cipher_list     => $config->{ssl_ciphers},
+            SSL_version         => $config->{ssl_version},
             SSL_verify_callback => $self->get_ssl_verify_callback,
             SSL_verify_mode     => $self->{use_SSL} eq 'noverify'
             ? 0
@@ -399,21 +394,20 @@ sub init_socket {
 }
 
 sub start_SSL_connection {
-    my $self       = shift;
-    my $socket     = $self->{fh};
-    my $ssl_config = $self->SSL_config;
+    my $self   = shift;
+    my $socket = $self->{fh};
+    my $config = $self->{configuration};
     die "ERROR: SSL not configured\n"
-        if ( not $ssl_config->{SSL_client_ca_file} );
+        if ( not $config->{ssl_client_ca_file} );
     my $ssl_socket = IO::Socket::SSL->start_SSL(
         $socket,
-        SSL_key_file       => $ssl_config->{SSL_client_key_file},
-        SSL_cert_file      => $ssl_config->{SSL_client_cert_file},
-        SSL_ca_file        => $ssl_config->{SSL_client_ca_file},
+        SSL_key_file       => $config->{ssl_client_key_file},
+        SSL_cert_file      => $config->{ssl_client_cert_file},
+        SSL_ca_file        => $config->{ssl_client_ca_file},
         SSL_startHandshake => $self->{flags} & TK_SYNC,
         SSL_use_cert       => 1,
-
-        # SSL_cipher_list     => $Tachikoma::SSL_Ciphers,
-        SSL_version         => $Tachikoma::SSL_Version,
+        # SSL_cipher_list     => $config->ssl_ciphers,
+        SSL_version         => $config->ssl_version,
         SSL_verify_callback => $self->get_ssl_verify_callback,
         SSL_verify_mode     => $self->{use_SSL} eq 'noverify'
         ? 0
@@ -1226,25 +1220,13 @@ sub use_SSL {
     if (@_) {
         $self->{use_SSL} = shift;
         if ( $self->{use_SSL}
-            and not $self->SSL_config->{SSL_server_ca_file} )
+            and not $self->configuration->ssl_server_ca_file )
         {
             $self->stderr("ERROR: SSL not configured\n");
             $self->remove_node;
         }
     }
     return $self->{use_SSL};
-}
-
-sub SSL_config {
-    my $self = shift;
-    if (@_) {
-        my $ssl_config = shift;
-        $self->{SSL_config} = $ssl_config;
-    }
-    if ( not defined $self->{SSL_config} ) {
-        $self->{SSL_config} = $self->{configuration}->{ssl_config};
-    }
-    return $self->{SSL_config};
 }
 
 sub auth_challenge {
