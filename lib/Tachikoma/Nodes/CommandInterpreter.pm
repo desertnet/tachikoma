@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35687 2018-10-27 19:48:15Z chris $
+# $Id: CommandInterpreter.pm 35708 2018-10-28 05:00:02Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1788,28 +1788,11 @@ $C{dump_tachikoma_conf} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $copy     = { %{ $self->configuration } };
-    for my $key (
-        qw(
-        private_key
-        private_ed25519_key
-        public_keys
-        )
-        )
-    {
-        $copy->{$key} = q(...);
+    for my $key ( qw( private_key private_ed25519_key ) ) {
+        $copy->{$key} = $copy->{$key} ? q(...) : undef;
     }
-    for my $group_key (
-        qw(
-        functions
-        help
-        )
-        )
-    {
-        my @new_group = ();
-        for my $key ( sort keys %{ $copy->{$group_key} } ) {
-            push @new_group, $key;
-        }
-        $copy->{$group_key} = join q(, ), @new_group;
+    for my $key ( qw( public_keys help functions var ) ) {
+        $copy->{$key} = keys %{ $copy->{$key} } ? q({...}) : undef;
     }
     my $response = Dumper $copy;
     return $self->response( $envelope, $response );
