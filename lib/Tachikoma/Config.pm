@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35716 2018-10-28 08:26:49Z chris $
+# $Id: Config.pm 35719 2018-10-28 10:15:54Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -287,7 +287,7 @@ sub home {
     if (@_) {
         $self->{home} = shift;
     }
-    elsif ( not  defined$self->{home} ) {
+    elsif ( not defined $self->{home} ) {
         $self->{home} = ( getpwuid $< )[7];
     }
     return $self->{home};

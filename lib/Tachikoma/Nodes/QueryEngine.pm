@@ -57,7 +57,7 @@ sub fill {
         my $value = eval { $self->execute($query) };
         $value //= { error => $@ };
         my $response = Tachikoma::Message->new;
-        $response->[TYPE]    = ref($value) ? TM_STORABLE : TM_BYTESTREAM;
+        $response->[TYPE]    = ref $value ? TM_STORABLE : TM_BYTESTREAM;
         $response->[FROM]    = $self->{name};
         $response->[TO]      = $message->[FROM];
         $response->[ID]      = $message->[ID];

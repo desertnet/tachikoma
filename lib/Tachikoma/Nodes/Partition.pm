@@ -378,6 +378,7 @@ sub process_get_valid_offsets {
     return if ( not $node or not $broker_id );
     $self->{followers}->{$broker_id}        = $to;
     $self->{in_sync_replicas}->{$broker_id} = -1;
+    $self->{replica_offsets}->{$broker_id}  = -1;
     $self->{last_commit_offset}             = -1;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_INFO;
@@ -491,9 +492,8 @@ sub process_ack {
     $isr->{$broker_id} = $offset;
 
     # cancel messages up to the LCO
-    for my $broker_id ( keys %{$isr} ) {
-        $lco = $isr->{$broker_id}
-            if ( not defined $lco or $lco > $isr->{$broker_id} );
+    for my $id ( keys %{$isr} ) {
+        $lco = $isr->{$id} if ( $lco > $isr->{$id} );
     }
     my $responses = $self->{responses};
     while ( defined $offset and @{$responses} ) {

@@ -72,7 +72,7 @@ sub fill {
     my @rv = &{ $self->{function} }( $self, $message, $message->payload );
     for my $transformed (@rv) {
         my $response = Tachikoma::Message->new;
-        $response->[TYPE] = ref($transformed) ? TM_STORABLE : TM_BYTESTREAM;
+        $response->[TYPE] = ref $transformed ? TM_STORABLE : TM_BYTESTREAM;
         $response->[TYPE] |= $persist if ($persist);
         $response->[FROM]    = $message->[FROM];
         $response->[ID]      = $message->[ID];
