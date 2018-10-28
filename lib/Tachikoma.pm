@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35691 2018-10-27 20:50:33Z chris $
+# $Id: Tachikoma.pm 35696 2018-10-28 01:41:09Z chris $
 #
 
 package Tachikoma;
@@ -770,7 +770,7 @@ sub closing {
 sub configuration {
     my $self = shift;
     if (@_) {
-        $CONFIGURATION = shift;
+        die "ERROR: bad arguments for configuration\n";
     }
     if ( not defined $CONFIGURATION ) {
         $CONFIGURATION = Tachikoma::Config->new->load_legacy;

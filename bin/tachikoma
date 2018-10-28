@@ -58,10 +58,9 @@ my $r = GetOptions(
 my $filename = $ARGV[0];
 
 usage() if ( $help or not $r );
-my $config = Tachikoma::Config->new;
+my $config = Tachikoma->configuration;
 $config->load_config_file($config_file);
 $config->load_legacy;
-Tachikoma->configuration($config);
 Tachikoma->scheme($scheme) if ($scheme);
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
