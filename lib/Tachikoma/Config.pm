@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35698 2018-10-28 02:54:48Z chris $
+# $Id: Config.pm 35708 2018-10-28 05:00:02Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -10,15 +10,11 @@ use Exporter;
 use vars qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
-    %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config
-    %Forbidden $Secure_Level %Help %Functions %Var $Wire_Version %Aliases
-    load_module include_conf
+    %Tachikoma $ID $Private_Key %Keys %SSL_Config %Help %Var %Aliases
+    include_conf load_module
 );
 
 use version; our $VERSION = qv('v2.0.165');
-
-my $username = ( getpwuid $< )[0];
-my $home     = ( getpwuid $< )[7];
 
 our $Wire_Version = undef;
 our %Tachikoma    = (
@@ -28,24 +24,22 @@ our %Tachikoma    = (
     Log_File      => undef,
     Pid_Dir       => '/tmp',
     Pid_File      => undef,
-    Home          => $home,
+    Home          => ( getpwuid $< )[7],
     Include_Nodes => ['Accessories::Nodes'],
     Include_Jobs  => ['Accessories::Jobs'],
     Buffer_Size   => 1048576,
     Keep_Alive    => undef,
     Hz            => undef,
 );
-our $ID                  = q();
-our $Private_Key         = q();
-our $Private_Ed25519_Key = q();
-our %Keys                = ();
-our %SSL_Config          = ();
-our %Forbidden           = ();
-our $Secure_Level        = undef;
-our %Help                = ();
-our %Functions           = ();
-our %Var                 = ();
-our %Aliases             = ();
+our $ID          = q();
+our $Private_Key = q();
+our %Keys        = ();
+our %SSL_Config  = ();
+our %Help        = ();
+our %Var         = ();
+our %Aliases     = ();
+
+my %FORBIDDEN = ();
 
 sub new {
     my $class = shift;
@@ -106,53 +100,43 @@ sub set_legacy {
     $Tachikoma{Hz}             = $self->{hz};
     $ID                        = $self->{id};
     $Private_Key               = $self->{private_key};
-    $Private_Ed25519_Key       = $self->{private_ed25519_key};
     %Keys                      = %{ $self->{public_keys} };
     %SSL_Config                = %{ $self->{ssl_config} };
-    %Forbidden                 = %{ $self->{forbidden} };
+    $FORBIDDEN{$_}             = $self->{forbidden}->{$_}
+        for ( keys %{ $self->{forbidden} } );
     return $self;
 }
 
 sub load_legacy {
     my $self = shift;
-    $self->{listen_sockets}      = $Tachikoma{Listen};
-    $self->{prefix}              = $Tachikoma{Prefix};
-    $self->{log_dir}             = $Tachikoma{Log_Dir};
-    $self->{log_file}            = $Tachikoma{Log_File};
-    $self->{pid_dir}             = $Tachikoma{Pid_Dir};
-    $self->{pid_file}            = $Tachikoma{Pid_File};
-    $self->{home}                = $Tachikoma{Home};
-    $self->{include_nodes}       = $Tachikoma{Include_Nodes};
-    $self->{include_jobs}        = $Tachikoma{Include_Jobs};
-    $self->{buffer_size}         = $Tachikoma{Buffer_Size};
-    $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
-    $self->{keep_alive}          = $Tachikoma{Keep_Alive};
-    $self->{hz}                  = $Tachikoma{Hz};
-    $self->{id}                  = $ID if ($ID);
-    $self->{private_key}         = $Private_Key if ($Private_Key);
-    $self->{private_ed25519_key} = $Private_Ed25519_Key
-        if ($Private_Ed25519_Key);
+    $self->{listen_sockets} = $Tachikoma{Listen};
+    $self->{prefix}         = $Tachikoma{Prefix};
+    $self->{log_dir}        = $Tachikoma{Log_Dir};
+    $self->{log_file}       = $Tachikoma{Log_File};
+    $self->{pid_dir}        = $Tachikoma{Pid_Dir};
+    $self->{pid_file}       = $Tachikoma{Pid_File};
+    $self->{home}           = $Tachikoma{Home};
+    $self->{include_nodes}  = $Tachikoma{Include_Nodes};
+    $self->{include_jobs}   = $Tachikoma{Include_Jobs};
+    $self->{buffer_size}    = $Tachikoma{Buffer_Size};
+    $self->{low_water_mark} = $Tachikoma{Low_Water_Mark};
+    $self->{keep_alive}     = $Tachikoma{Keep_Alive};
+    $self->{hz}             = $Tachikoma{Hz};
+    $self->{id}             = $ID if ($ID);
+    $self->{private_key}    = $Private_Key if ($Private_Key);
     $self->{public_keys}->{$_} = $Keys{$_}       for ( keys %Keys );
     $self->{ssl_config}->{$_}  = $SSL_Config{$_} for ( keys %SSL_Config );
-    $self->{forbidden}->{$_}   = $Forbidden{$_}  for ( keys %Forbidden );
+    $self->{forbidden}->{$_}   = $FORBIDDEN{$_}  for ( keys %FORBIDDEN );
     return $self;
-}
-
-sub load_module {
-    my $module_name = shift;
-    my $module_path = $module_name;
-    $module_path =~ s{::}{/}g;
-    $module_path .= '.pm';
-    require $module_path;
-    return;
 }
 
 sub include_conf {
     my $script_path = shift;
     my $package     = $script_path;
+    return if ( not -f $script_path );
     $package =~ s{[^\w\d]+}{_}g;
     $package =~ s{^(\d)}{_$1};
-    $Forbidden{$script_path} = 1;
+    $FORBIDDEN{$script_path} = 1;
     my $fh;
     local $/ = undef;
     open $fh, '<', $script_path or die "couldn't open $script_path: $!";
@@ -164,6 +148,37 @@ sub include_conf {
         ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
     ## use critic
     die $@ if ( not $rv );
+    return;
+}
+
+sub include_config {
+    my $self        = shift;
+    my $script_path = shift;
+    my $package     = $script_path;
+    return if ( not -f $script_path );
+    $package =~ s{[^\w\d]+}{_}g;
+    $package =~ s{^(\d)}{_$1};
+    $self->forbidden->{$script_path} = 1;
+    my $fh;
+    local $/ = undef;
+    open $fh, '<', $script_path or die "couldn't open $script_path: $!";
+    my $script = <$fh>;
+    close $fh or die $!;
+    ## no critic (ProhibitStringyEval)
+    my $rv = eval join q(),
+        'package ', $package, ";\n",
+        ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
+    ## use critic
+    die $@ if ( not $rv );
+    return;
+}
+
+sub load_module {
+    my $module_name = shift;
+    my $module_path = $module_name;
+    $module_path =~ s{::}{/}g;
+    $module_path .= '.pm';
+    require $module_path;
     return;
 }
 
