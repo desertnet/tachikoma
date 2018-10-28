@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35726 2018-10-28 12:49:23Z chris $
+# $Id: CommandInterpreter.pm 35730 2018-10-28 13:10:24Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2595,8 +2595,8 @@ sub connect_inet {
     }
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
-        $connection->configuration(
-            bless { %{ $self->configuration } }, 'Tachikoma::Config' );
+        $connection->configuration( bless { %{ $self->configuration } },
+            'Tachikoma::Config' );
         $connection->configuration->ssl_client_ca_file(
             $options{SSL_ca_file} );
     }
@@ -2631,8 +2631,8 @@ sub connect_unix {
     }
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
-        $connection->configuration(
-            bless { %{ $self->configuration } }, 'Tachikoma::Config' );
+        $connection->configuration( bless { %{ $self->configuration } },
+            'Tachikoma::Config' );
         $connection->configuration->ssl_client_ca_file(
             $options{SSL_ca_file} );
     }
