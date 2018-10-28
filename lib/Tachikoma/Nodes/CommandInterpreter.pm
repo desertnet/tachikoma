@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35708 2018-10-28 05:00:02Z chris $
+# $Id: CommandInterpreter.pm 35710 2018-10-28 05:39:01Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1788,10 +1788,10 @@ $C{dump_tachikoma_conf} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $copy     = { %{ $self->configuration } };
-    for my $key ( qw( private_key private_ed25519_key ) ) {
+    for my $key (qw( private_key private_ed25519_key )) {
         $copy->{$key} = $copy->{$key} ? q(...) : undef;
     }
-    for my $key ( qw( public_keys help functions var ) ) {
+    for my $key (qw( public_keys help functions var )) {
         $copy->{$key} = keys %{ $copy->{$key} } ? q({...}) : undef;
     }
     my $response = Dumper $copy;
@@ -2178,7 +2178,7 @@ $C{disable_profiling} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $router   = $Tachikoma::Nodes{_router};
-    die "ERROR: can't find _router\n"    if ( not $router );
+    die "ERROR: can't find _router\n" if ( not $router );
     if ( not $router->profiles ) {
         return $self->response( $envelope, "profiling already disabled\n" );
     }
