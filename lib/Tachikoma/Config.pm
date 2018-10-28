@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35708 2018-10-28 05:00:02Z chris $
+# $Id: Config.pm 35710 2018-10-28 05:39:01Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -10,7 +10,8 @@ use Exporter;
 use vars qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
-    %Tachikoma $ID $Private_Key %Keys %SSL_Config %Help %Var %Aliases
+    %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config
+    %Help %Var %Aliases
     include_conf load_module
 );
 
@@ -31,13 +32,14 @@ our %Tachikoma    = (
     Keep_Alive    => undef,
     Hz            => undef,
 );
-our $ID          = q();
-our $Private_Key = q();
-our %Keys        = ();
-our %SSL_Config  = ();
-our %Help        = ();
-our %Var         = ();
-our %Aliases     = ();
+our $ID                  = q();
+our $Private_Key         = q();
+our $Private_Ed25519_Key = q();
+our %Keys                = ();
+our %SSL_Config          = ();
+our %Help                = ();
+our %Var                 = ();
+our %Aliases             = ();
 
 my %FORBIDDEN = ();
 
@@ -100,6 +102,7 @@ sub set_legacy {
     $Tachikoma{Hz}             = $self->{hz};
     $ID                        = $self->{id};
     $Private_Key               = $self->{private_key};
+    $Private_Ed25519_Key       = $self->{private_ed25519_key};
     %Keys                      = %{ $self->{public_keys} };
     %SSL_Config                = %{ $self->{ssl_config} };
     $FORBIDDEN{$_}             = $self->{forbidden}->{$_}
@@ -109,21 +112,23 @@ sub set_legacy {
 
 sub load_legacy {
     my $self = shift;
-    $self->{listen_sockets} = $Tachikoma{Listen};
-    $self->{prefix}         = $Tachikoma{Prefix};
-    $self->{log_dir}        = $Tachikoma{Log_Dir};
-    $self->{log_file}       = $Tachikoma{Log_File};
-    $self->{pid_dir}        = $Tachikoma{Pid_Dir};
-    $self->{pid_file}       = $Tachikoma{Pid_File};
-    $self->{home}           = $Tachikoma{Home};
-    $self->{include_nodes}  = $Tachikoma{Include_Nodes};
-    $self->{include_jobs}   = $Tachikoma{Include_Jobs};
-    $self->{buffer_size}    = $Tachikoma{Buffer_Size};
-    $self->{low_water_mark} = $Tachikoma{Low_Water_Mark};
-    $self->{keep_alive}     = $Tachikoma{Keep_Alive};
-    $self->{hz}             = $Tachikoma{Hz};
-    $self->{id}             = $ID if ($ID);
-    $self->{private_key}    = $Private_Key if ($Private_Key);
+    $self->{listen_sockets}      = $Tachikoma{Listen};
+    $self->{prefix}              = $Tachikoma{Prefix};
+    $self->{log_dir}             = $Tachikoma{Log_Dir};
+    $self->{log_file}            = $Tachikoma{Log_File};
+    $self->{pid_dir}             = $Tachikoma{Pid_Dir};
+    $self->{pid_file}            = $Tachikoma{Pid_File};
+    $self->{home}                = $Tachikoma{Home};
+    $self->{include_nodes}       = $Tachikoma{Include_Nodes};
+    $self->{include_jobs}        = $Tachikoma{Include_Jobs};
+    $self->{buffer_size}         = $Tachikoma{Buffer_Size};
+    $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
+    $self->{keep_alive}          = $Tachikoma{Keep_Alive};
+    $self->{hz}                  = $Tachikoma{Hz};
+    $self->{id}                  = $ID if ($ID);
+    $self->{private_key}         = $Private_Key if ($Private_Key);
+    $self->{private_ed25519_key} = $Private_Ed25519_Key
+        if ($Private_Ed25519_Key);
     $self->{public_keys}->{$_} = $Keys{$_}       for ( keys %Keys );
     $self->{ssl_config}->{$_}  = $SSL_Config{$_} for ( keys %SSL_Config );
     $self->{forbidden}->{$_}   = $FORBIDDEN{$_}  for ( keys %FORBIDDEN );
