@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35719 2018-10-28 10:15:54Z chris $
+# $Id: Config.pm 35726 2018-10-28 12:49:23Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -46,35 +46,50 @@ my %LEGACY_MAP    = (
     Hz             => 'hz',
 );
 
+my %LEGACY_SSL_MAP = (
+    'SSL_client_ca_file'   => 'ssl_client_ca_file',
+    'SSL_client_cert_file' => 'ssl_client_cert_file',
+    'SSL_client_key_file'  => 'ssl_client_key_file',
+    'SSL_server_ca_file'   => 'ssl_server_ca_file',
+    'SSL_server_cert_file' => 'ssl_server_cert_file',
+    'SSL_server_key_file'  => 'ssl_server_key_file',
+);
+
 sub new {
     my $class = shift;
     my $self  = {
-        wire_version        => '2.0.27',
-        config_file         => undef,
-        help                => {},
-        functions           => {},
-        var                 => {},
-        secure_level        => undef,
-        scheme              => 'rsa',
-        listen_sockets      => undef,
-        prefix              => undef,
-        log_dir             => undef,
-        log_file            => undef,
-        pid_dir             => undef,
-        pid_file            => undef,
-        home                => undef,
-        include_nodes       => undef,
-        include_jobs        => undef,
-        buffer_size         => undef,
-        low_water_mark      => undef,
-        keep_alive          => undef,
-        hz                  => undef,
-        id                  => q(),
-        private_key         => q(),
-        private_ed25519_key => q(),
-        public_keys         => {},
-        ssl_config          => {},
-        forbidden           => \%FORBIDDEN,
+        wire_version         => '2.0.27',
+        config_file          => undef,
+        help                 => {},
+        functions            => {},
+        var                  => {},
+        secure_level         => undef,
+        scheme               => 'rsa',
+        listen_sockets       => undef,
+        prefix               => undef,
+        log_dir              => undef,
+        log_file             => undef,
+        pid_dir              => undef,
+        pid_file             => undef,
+        home                 => undef,
+        include_nodes        => undef,
+        include_jobs         => undef,
+        buffer_size          => undef,
+        low_water_mark       => undef,
+        keep_alive           => undef,
+        hz                   => undef,
+        id                   => q(),
+        private_key          => q(),
+        private_ed25519_key  => q(),
+        public_keys          => {},
+        ssl_client_ca_file   => undef,
+        ssl_client_cert_file => undef,
+        ssl_client_key_file  => undef,
+        ssl_server_ca_file   => undef,
+        ssl_server_cert_file => undef,
+        ssl_server_key_file  => undef,
+        ssl_version          => 'TLSv1',
+        forbidden            => \%FORBIDDEN,
     };
     bless $self, $class;
     return $self;
@@ -129,14 +144,18 @@ sub set_legacy {
             $Tachikoma{$legacy_key} = $self->{$modern_key};
         }
     }
+    for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
+        my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
+        if ( $self->{$modern_key} ) {
+            $SSL_Config{$legacy_key} = $self->{$modern_key};
+        }
+    }
     $ID          = $self->{id}          if ( $self->{id} );
     $Private_Key = $self->{private_key} if ( $self->{private_key} );
     $Private_Ed25519_Key = $self->{private_ed25519_key}
         if ( $self->{private_ed25519_key} );
     $Keys{$_} = $self->{public_keys}->{$_}
         for ( keys %{ $self->{public_keys} } );
-    $SSL_Config{$_} = $self->{ssl_config}->{$_}
-        for ( keys %{ $self->{ssl_config} } );
     return;
 }
 
@@ -148,12 +167,17 @@ sub load_legacy {
             $self->{$modern_key} = $Tachikoma{$legacy_key};
         }
     }
+    for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
+        my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
+        if ( $SSL_Config{$legacy_key} ) {
+            $self->{$modern_key} = $SSL_Config{$legacy_key};
+        }
+    }
     $self->{id}          = $ID          if ($ID);
     $self->{private_key} = $Private_Key if ($Private_Key);
     $self->{private_ed25519_key} = $Private_Ed25519_Key
         if ($Private_Ed25519_Key);
-    $self->{public_keys}->{$_} = $Keys{$_}       for ( keys %Keys );
-    $self->{ssl_config}->{$_}  = $SSL_Config{$_} for ( keys %SSL_Config );
+    $self->{public_keys}->{$_} = $Keys{$_} for ( keys %Keys );
     return $self;
 }
 
@@ -217,7 +241,12 @@ sub secure_level {
 sub scheme {
     my $self = shift;
     if (@_) {
-        $self->{scheme} = shift;
+        my $scheme = shift;
+        die "invalid scheme: $scheme\n"
+            if ($scheme ne 'rsa'
+            and $scheme ne 'rsa-sha256'
+            and $scheme ne 'ed25519' );
+        $self->{scheme} = $scheme;
     }
     return $self->{scheme};
 }
@@ -374,12 +403,60 @@ sub public_keys {
     return $self->{public_keys};
 }
 
-sub ssl_config {
+sub ssl_client_ca_file {
     my $self = shift;
     if (@_) {
-        $self->{ssl_config} = shift;
+        $self->{ssl_client_ca_file} = shift;
     }
-    return $self->{ssl_config};
+    return $self->{ssl_client_ca_file};
+}
+
+sub ssl_client_cert_file {
+    my $self = shift;
+    if (@_) {
+        $self->{ssl_client_cert_file} = shift;
+    }
+    return $self->{ssl_client_cert_file};
+}
+
+sub ssl_client_key_file {
+    my $self = shift;
+    if (@_) {
+        $self->{ssl_client_key_file} = shift;
+    }
+    return $self->{ssl_client_key_file};
+}
+
+sub ssl_server_ca_file {
+    my $self = shift;
+    if (@_) {
+        $self->{ssl_server_ca_file} = shift;
+    }
+    return $self->{ssl_server_ca_file};
+}
+
+sub ssl_server_cert_file {
+    my $self = shift;
+    if (@_) {
+        $self->{ssl_server_cert_file} = shift;
+    }
+    return $self->{ssl_server_cert_file};
+}
+
+sub ssl_server_key_file {
+    my $self = shift;
+    if (@_) {
+        $self->{ssl_server_key_file} = shift;
+    }
+    return $self->{ssl_server_key_file};
+}
+
+sub ssl_version {
+    my $self = shift;
+    if (@_) {
+        $self->{ssl_version} = shift;
+    }
+    return $self->{ssl_version};
 }
 
 sub forbidden {

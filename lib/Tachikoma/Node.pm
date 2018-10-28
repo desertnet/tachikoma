@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35691 2018-10-27 20:50:33Z chris $
+# $Id: Node.pm 35726 2018-10-28 12:49:23Z chris $
 #
 
 package Tachikoma::Node;
@@ -438,7 +438,7 @@ sub registrations {
 
 sub scheme {
     my ( $self, @args ) = @_;
-    return Tachikoma::Crypto->scheme(@args);
+    return $self->configuration->scheme(@args);
 }
 
 1;

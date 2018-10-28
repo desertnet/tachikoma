@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35716 2018-10-28 08:26:49Z chris $
+# $Id: Tachikoma.pm 35722 2018-10-28 11:59:48Z chris $
 #
 
 package Tachikoma;
@@ -46,15 +46,11 @@ $Tachikoma::Nodes_By_ID     = {};
 $Tachikoma::Nodes_By_FD     = {};
 $Tachikoma::Nodes_By_PID    = {};
 @Tachikoma::Closing         = ();
-$Tachikoma::SSL_Ciphers     = q();
-$Tachikoma::SSL_Version     = 'TLSv1';
 
-my $CONFIGURATION      = undef;
 my $COUNTER            = 0;
 my $MY_PID             = 0;
 my $LOG_FILE_HANDLE    = undef;
 my $INIT_TIME          = time;
-my @CONFIG_VARIABLES   = qw( log_file log_dir pid_file pid_dir );
 my @NODES_TO_RECONNECT = ();
 my @RECENT_LOG         = ();
 my %RECENT_LOG_TIMERS  = ();
@@ -89,19 +85,19 @@ sub inet_client {
         or die "connect: $!\n";
 
     if ($use_ssl) {
-        my $ssl_config = Tachikoma->configuration->ssl_config;
+        my $config = Tachikoma->configuration;
         die "ERROR: SSL not configured\n"
-            if ( not $ssl_config->{SSL_client_ca_file} );
+            if ( not $config->ssl_client_ca_file );
         my $ssl_socket = IO::Socket::SSL->start_SSL(
             $socket,
-            SSL_key_file       => $ssl_config->{SSL_client_key_file},
-            SSL_cert_file      => $ssl_config->{SSL_client_cert_file},
-            SSL_ca_file        => $ssl_config->{SSL_client_ca_file},
+            SSL_key_file       => $config->ssl_client_key_file,
+            SSL_cert_file      => $config->ssl_client_cert_file,
+            SSL_ca_file        => $config->ssl_client_ca_file,
             SSL_startHandshake => 1,
             SSL_use_cert       => 1,
 
-            # SSL_cipher_list     => $SSL_Ciphers,
-            SSL_version         => $Tachikoma::SSL_Version,
+            # SSL_cipher_list     => $config->ssl_ciphers,
+            SSL_version         => $config->ssl_version,
             SSL_verify_callback => sub {
                 my $okay  = $_[0];
                 my $error = $_[3];
@@ -532,30 +528,12 @@ sub initialize {
     my $daemonize = shift;
     $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
     srand;
-    $self->copy_variables;
     $self->check_pid;
     $self->daemonize if ($daemonize);
     $self->reset_signal_handlers;
     $self->open_log_file;
     $self->write_pid;
     $self->load_event_framework;
-    return;
-}
-
-sub copy_variables {
-    my $self   = shift;
-    my $config = Tachikoma->configuration;
-    my $var    = $config->var;
-    for my $name (@CONFIG_VARIABLES) {
-        my $value = undef;
-        if ( ref $var->{$name} ) {
-            $value = join q(), @{ $var->{$name} };
-        }
-        else {
-            $value = $var->{$name};
-        }
-        $config->$name($value) if ( length $value );
-    }
     return;
 }
 
