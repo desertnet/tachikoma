@@ -22,7 +22,6 @@ usage() if ( not $class );
 srand;
 my $config = Tachikoma->configuration;
 $config->load_config_file($config_file);
-$config->load_legacy;
 Tachikoma->load_event_framework;
 
 $Tachikoma::Now       = time;

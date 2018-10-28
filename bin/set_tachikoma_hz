@@ -12,7 +12,6 @@ use Tachikoma;
 my $config_file = '/usr/local/etc/tachikoma.conf';
 my $config = Tachikoma->configuration;
 $config->load_config_file($config_file);
-$config->load_legacy;
 
 my $hz      = $ARGV[0];
 my $home    = $config->home || ( getpwuid $< )[7];

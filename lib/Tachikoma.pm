@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35704 2018-10-28 03:28:59Z chris $
+# $Id: Tachikoma.pm 35716 2018-10-28 08:26:49Z chris $
 #
 
 package Tachikoma;
@@ -544,7 +544,7 @@ sub initialize {
 
 sub copy_variables {
     my $self   = shift;
-    my $config = $self->configuration;
+    my $config = Tachikoma->configuration;
     my $var    = $config->var;
     for my $name (@CONFIG_VARIABLES) {
         my $value = undef;
@@ -662,9 +662,8 @@ sub close_log_file {
 
 sub reload_config {
     my $self   = shift;
-    my $config = $self->configuration;
+    my $config = Tachikoma->configuration;
     $config->load_config_file( $config->config_file );
-    $config->load_legacy;
     return;
 }
 
@@ -694,7 +693,7 @@ sub pid_file {
     my $self     = shift;
     my $name     = shift // $0;
     my $pid_file = undef;
-    my $config   = $self->configuration;
+    my $config   = Tachikoma->configuration;
     if ( $config->pid_file ) {
         $pid_file = $config->pid_file;
     }
@@ -711,7 +710,7 @@ sub log_file {
     my $self     = shift;
     my $name     = $0;
     my $log_file = undef;
-    my $config   = $self->configuration;
+    my $config   = Tachikoma->configuration;
     if ( $config->log_file ) {
         $log_file = $config->log_file;
     }
@@ -767,13 +766,7 @@ sub closing {
 
 sub configuration {
     my $self = shift;
-    if (@_) {
-        die "ERROR: bad arguments for configuration\n";
-    }
-    if ( not defined $CONFIGURATION ) {
-        $CONFIGURATION = Tachikoma::Config->new->load_legacy;
-    }
-    return $CONFIGURATION;
+    return Tachikoma::Config->global;
 }
 
 sub counter {

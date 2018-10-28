@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35710 2018-10-28 05:39:01Z chris $
+# $Id: Config.pm 35716 2018-10-28 08:26:49Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -17,21 +17,8 @@ use parent qw( Exporter );
 
 use version; our $VERSION = qv('v2.0.165');
 
-our $Wire_Version = undef;
-our %Tachikoma    = (
-    Listen        => [ { Socket => '/tmp/tachikoma.socket' } ],
-    Prefix        => '/usr/local/bin',
-    Log_Dir       => '/tmp',
-    Log_File      => undef,
-    Pid_Dir       => '/tmp',
-    Pid_File      => undef,
-    Home          => ( getpwuid $< )[7],
-    Include_Nodes => ['Accessories::Nodes'],
-    Include_Jobs  => ['Accessories::Jobs'],
-    Buffer_Size   => 1048576,
-    Keep_Alive    => undef,
-    Hz            => undef,
-);
+our $Wire_Version        = undef;
+our %Tachikoma           = ();
 our $ID                  = q();
 our $Private_Key         = q();
 our $Private_Ed25519_Key = q();
@@ -41,7 +28,23 @@ our %Help                = ();
 our %Var                 = ();
 our %Aliases             = ();
 
-my %FORBIDDEN = ();
+my $CONFIGURATION = undef;
+my %FORBIDDEN     = ();
+my %LEGACY_MAP    = (
+    Listen         => 'listen_sockets',
+    Prefix         => 'prefix',
+    Log_Dir        => 'log_dir',
+    Log_File       => 'log_file',
+    Pid_Dir        => 'pid_dir',
+    Pid_File       => 'pid_file',
+    Home           => 'home',
+    Include_Nodes  => 'include_nodes',
+    Include_Jobs   => 'include_jobs',
+    Buffer_Size    => 'buffer_size',
+    Low_Water_Mark => 'low_water_mark',
+    Keep_Alive     => 'keep_alive',
+    Hz             => 'hz',
+);
 
 sub new {
     my $class = shift;
@@ -53,25 +56,25 @@ sub new {
         var                 => {},
         secure_level        => undef,
         scheme              => 'rsa',
-        listen_sockets      => $Tachikoma{Listen},
-        prefix              => $Tachikoma{Prefix},
-        log_dir             => $Tachikoma{Log_Dir},
-        log_file            => $Tachikoma{Log_File},
-        pid_dir             => $Tachikoma{Pid_Dir},
-        pid_file            => $Tachikoma{Pid_File},
-        home                => $Tachikoma{Home},
-        include_nodes       => $Tachikoma{Include_Nodes},
-        include_jobs        => $Tachikoma{Include_Jobs},
-        buffer_size         => $Tachikoma{Buffer_Size},
-        low_water_mark      => $Tachikoma{Low_Water_Mark},
-        keep_alive          => $Tachikoma{Keep_Alive},
-        hz                  => $Tachikoma{Hz},
+        listen_sockets      => undef,
+        prefix              => undef,
+        log_dir             => undef,
+        log_file            => undef,
+        pid_dir             => undef,
+        pid_file            => undef,
+        home                => undef,
+        include_nodes       => undef,
+        include_jobs        => undef,
+        buffer_size         => undef,
+        low_water_mark      => undef,
+        keep_alive          => undef,
+        hz                  => undef,
         id                  => q(),
         private_key         => q(),
         private_ed25519_key => q(),
         public_keys         => {},
         ssl_config          => {},
-        forbidden           => {},
+        forbidden           => \%FORBIDDEN,
     };
     bless $self, $class;
     return $self;
@@ -80,59 +83,17 @@ sub new {
 sub load_config_file {
     my $self        = shift;
     my $config_file = shift;
-    include_conf($config_file) if ( $config_file and -f $config_file );
+    $self->include_config($config_file)
+        if ( $config_file and -f $config_file );
     $self->{config_file} = $config_file;
     return $self;
 }
 
-sub set_legacy {
-    my $self = shift;
-    $Tachikoma{Listen}         = $self->{listen_sockets};
-    $Tachikoma{Prefix}         = $self->{prefix};
-    $Tachikoma{Log_Dir}        = $self->{log_dir};
-    $Tachikoma{Log_File}       = $self->{log_file};
-    $Tachikoma{Pid_Dir}        = $self->{pid_dir};
-    $Tachikoma{Pid_File}       = $self->{pid_file};
-    $Tachikoma{Home}           = $self->{home};
-    $Tachikoma{Include_Nodes}  = $self->{include_nodes};
-    $Tachikoma{Include_Jobs}   = $self->{include_jobs};
-    $Tachikoma{Buffer_Size}    = $self->{buffer_size};
-    $Tachikoma{Low_Water_Mark} = $self->{low_water_mark};
-    $Tachikoma{Keep_Alive}     = $self->{keep_alive};
-    $Tachikoma{Hz}             = $self->{hz};
-    $ID                        = $self->{id};
-    $Private_Key               = $self->{private_key};
-    $Private_Ed25519_Key       = $self->{private_ed25519_key};
-    %Keys                      = %{ $self->{public_keys} };
-    %SSL_Config                = %{ $self->{ssl_config} };
-    $FORBIDDEN{$_}             = $self->{forbidden}->{$_}
-        for ( keys %{ $self->{forbidden} } );
-    return $self;
-}
-
-sub load_legacy {
-    my $self = shift;
-    $self->{listen_sockets}      = $Tachikoma{Listen};
-    $self->{prefix}              = $Tachikoma{Prefix};
-    $self->{log_dir}             = $Tachikoma{Log_Dir};
-    $self->{log_file}            = $Tachikoma{Log_File};
-    $self->{pid_dir}             = $Tachikoma{Pid_Dir};
-    $self->{pid_file}            = $Tachikoma{Pid_File};
-    $self->{home}                = $Tachikoma{Home};
-    $self->{include_nodes}       = $Tachikoma{Include_Nodes};
-    $self->{include_jobs}        = $Tachikoma{Include_Jobs};
-    $self->{buffer_size}         = $Tachikoma{Buffer_Size};
-    $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
-    $self->{keep_alive}          = $Tachikoma{Keep_Alive};
-    $self->{hz}                  = $Tachikoma{Hz};
-    $self->{id}                  = $ID if ($ID);
-    $self->{private_key}         = $Private_Key if ($Private_Key);
-    $self->{private_ed25519_key} = $Private_Ed25519_Key
-        if ($Private_Ed25519_Key);
-    $self->{public_keys}->{$_} = $Keys{$_}       for ( keys %Keys );
-    $self->{ssl_config}->{$_}  = $SSL_Config{$_} for ( keys %SSL_Config );
-    $self->{forbidden}->{$_}   = $FORBIDDEN{$_}  for ( keys %FORBIDDEN );
-    return $self;
+sub include_config {
+    my $self        = shift;
+    my $script_path = shift;
+    include_conf($script_path);
+    return;
 }
 
 sub include_conf {
@@ -147,35 +108,53 @@ sub include_conf {
     open $fh, '<', $script_path or die "couldn't open $script_path: $!";
     my $script = <$fh>;
     close $fh or die $!;
+    my $config = global();
+    $config->load_legacy;
+    $config->set_legacy;
     ## no critic (ProhibitStringyEval)
-    my $rv = eval join q(),
+    my $okay = eval join q(),
         'package ', $package, ";\n",
         ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
     ## use critic
-    die $@ if ( not $rv );
+    die $@ if ( not $okay );
+    $config->load_legacy;
     return;
 }
 
-sub include_config {
-    my $self        = shift;
-    my $script_path = shift;
-    my $package     = $script_path;
-    return if ( not -f $script_path );
-    $package =~ s{[^\w\d]+}{_}g;
-    $package =~ s{^(\d)}{_$1};
-    $self->forbidden->{$script_path} = 1;
-    my $fh;
-    local $/ = undef;
-    open $fh, '<', $script_path or die "couldn't open $script_path: $!";
-    my $script = <$fh>;
-    close $fh or die $!;
-    ## no critic (ProhibitStringyEval)
-    my $rv = eval join q(),
-        'package ', $package, ";\n",
-        ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
-    ## use critic
-    die $@ if ( not $rv );
+sub set_legacy {
+    my $self = shift;
+    for my $legacy_key ( keys %LEGACY_MAP ) {
+        my $modern_key = $LEGACY_MAP{$legacy_key};
+        if ( $self->{$modern_key} ) {
+            $Tachikoma{$legacy_key} = $self->{$modern_key};
+        }
+    }
+    $ID          = $self->{id}          if ( $self->{id} );
+    $Private_Key = $self->{private_key} if ( $self->{private_key} );
+    $Private_Ed25519_Key = $self->{private_ed25519_key}
+        if ( $self->{private_ed25519_key} );
+    $Keys{$_} = $self->{public_keys}->{$_}
+        for ( keys %{ $self->{public_keys} } );
+    $SSL_Config{$_} = $self->{ssl_config}->{$_}
+        for ( keys %{ $self->{ssl_config} } );
     return;
+}
+
+sub load_legacy {
+    my $self = shift;
+    for my $legacy_key ( keys %LEGACY_MAP ) {
+        my $modern_key = $LEGACY_MAP{$legacy_key};
+        if ( $Tachikoma{$legacy_key} ) {
+            $self->{$modern_key} = $Tachikoma{$legacy_key};
+        }
+    }
+    $self->{id}          = $ID          if ($ID);
+    $self->{private_key} = $Private_Key if ($Private_Key);
+    $self->{private_ed25519_key} = $Private_Ed25519_Key
+        if ($Private_Ed25519_Key);
+    $self->{public_keys}->{$_} = $Keys{$_}       for ( keys %Keys );
+    $self->{ssl_config}->{$_}  = $SSL_Config{$_} for ( keys %SSL_Config );
+    return $self;
 }
 
 sub load_module {
@@ -248,6 +227,9 @@ sub listen_sockets {
     if (@_) {
         $self->{listen_sockets} = shift;
     }
+    elsif ( not defined $self->{listen_sockets} ) {
+        $self->{listen_sockets} = [ { Socket => '/tmp/tachikoma.socket' } ];
+    }
     return $self->{listen_sockets};
 }
 
@@ -256,6 +238,9 @@ sub prefix {
     if (@_) {
         $self->{prefix} = shift;
     }
+    elsif ( not defined $self->{prefix} ) {
+        $self->{prefix} = '/usr/local/bin';
+    }
     return $self->{prefix};
 }
 
@@ -263,6 +248,9 @@ sub log_dir {
     my $self = shift;
     if (@_) {
         $self->{log_dir} = shift;
+    }
+    elsif ( not defined $self->{log_dir} ) {
+        $self->{log_dir} = '/tmp';
     }
     return $self->{log_dir};
 }
@@ -280,6 +268,9 @@ sub pid_dir {
     if (@_) {
         $self->{pid_dir} = shift;
     }
+    elsif ( not defined $self->{pid_dir} ) {
+        $self->{pid_dir} = '/tmp';
+    }
     return $self->{pid_dir};
 }
 
@@ -296,6 +287,9 @@ sub home {
     if (@_) {
         $self->{home} = shift;
     }
+    elsif ( not  defined$self->{home} ) {
+        $self->{home} = ( getpwuid $< )[7];
+    }
     return $self->{home};
 }
 
@@ -303,6 +297,9 @@ sub include_nodes {
     my $self = shift;
     if (@_) {
         $self->{include_nodes} = shift;
+    }
+    elsif ( not defined $self->{include_nodes} ) {
+        $self->{include_nodes} = ['Accessories::Nodes'];
     }
     return $self->{include_nodes};
 }
@@ -312,6 +309,9 @@ sub include_jobs {
     if (@_) {
         $self->{include_jobs} = shift;
     }
+    elsif ( not defined $self->{include_jobs} ) {
+        $self->{include_jobs} = ['Accessories::Jobs'];
+    }
     return $self->{include_jobs};
 }
 
@@ -319,6 +319,9 @@ sub buffer_size {
     my $self = shift;
     if (@_) {
         $self->{buffer_size} = shift;
+    }
+    elsif ( not defined $self->{buffer_size} ) {
+        $self->{buffer_size} = 1048576;
     }
     return $self->{buffer_size};
 }
@@ -393,6 +396,14 @@ sub hz {
         $self->{hz} = shift;
     }
     return $self->{hz};
+}
+
+sub global {
+    my $self = shift;
+    if ( not defined $CONFIGURATION ) {
+        $CONFIGURATION = Tachikoma::Config->new;
+    }
+    return $CONFIGURATION;
 }
 
 1;
