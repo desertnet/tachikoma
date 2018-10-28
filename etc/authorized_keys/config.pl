@@ -62,11 +62,11 @@ print <<EOF;
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( %Keys );
+use Tachikoma;
 
 # Set our authorized keys
 
-\%Keys = (
+Tachikoma->configuration->public_keys( {
 EOF
 for my $id (sort keys %authorized) {
     die "no such key: $id" if (not $Keys{$id});
@@ -102,7 +102,7 @@ EOF
 }
 
 print <<EOF;
-);
+} );
 
 1;
 EOF

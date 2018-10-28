@@ -3,7 +3,7 @@
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_key 35434 2018-10-20 21:36:41Z chris $
+# $Id: gen_server_key 35698 2018-10-28 02:54:48Z chris $
 #
 use strict;
 use warnings;
@@ -38,15 +38,17 @@ print {$fh} <<"EOF";
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( \$ID \$Private_Key \%Keys );
+use Tachikoma;
+
+my \$config = Tachikoma->configuration;
 
 # Set our ID
-\$ID = '$id';
+\$config->id('$id');
 
 # Set your unencrypted private key here
-\$Private_Key = q($private_key);
+\$config->private_key( q($private_key) );
 
-\$Keys{\$ID} = {
+\$config->public_keys->{ \$config->id } = {
     allow => {map {\$_=>1} qw(
         command
         client

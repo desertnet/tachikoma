@@ -3,7 +3,7 @@
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_ed25519_key 35434 2018-10-20 21:36:41Z chris $
+# $Id: gen_server_ed25519_key 35698 2018-10-28 02:54:48Z chris $
 #
 use strict;
 use warnings;
@@ -31,11 +31,13 @@ print {$fh} <<"EOF";
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( \$ID \$Private_Ed25519_Key \%Keys );
+use Tachikoma;
 
-\$Private_Ed25519_Key = pack('H*', q($private_hex));
+my \$config = Tachikoma->configuration;
 
-\$Keys{\$ID}->{ed25519} = pack('H*', q($public_hex));
+\$config->private_ed25519_key( pack('H*', q($private_hex)) );
+
+\$config->public_keys->{ \$config->id }->{ed25519} = pack('H*', q($public_hex));
 
 1;
 EOF

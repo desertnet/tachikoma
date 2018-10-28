@@ -5,11 +5,11 @@
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( %Keys );
+use Tachikoma;
 
 # Set our authorized keys
 
-%Keys = (
-);
+Tachikoma->configuration->public_keys( {
+} );
 
 1;

@@ -5,19 +5,21 @@
 
 use strict;
 use warnings;
-use Tachikoma::Config qw( $ID $Private_Key %Keys );
+use Tachikoma;
+
+my $config = Tachikoma->configuration;
 
 # Set our ID
-$ID = 'tachikoma@tachikoma';
+$config->id('tachikoma@tachikoma');
 
 # Set your *unencrypted* private key here if desired.
 # Otherwise, remove this and put the *encrypted* key in ~/.tachikoma/rsa
-$Private_Key = q(-----BEGIN RSA PRIVATE KEY-----
+$config->private_key( q(-----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----
-);
+) );
 
-$Keys{$ID} = {
+$config->public_keys->{ $config->id } = {
     allow => {map {$_=>1} qw(
         command
         client

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35696 2018-10-28 01:41:09Z chris $
+# $Id: Config.pm 35698 2018-10-28 02:54:48Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -128,12 +128,13 @@ sub load_legacy {
     $self->{low_water_mark}      = $Tachikoma{Low_Water_Mark};
     $self->{keep_alive}          = $Tachikoma{Keep_Alive};
     $self->{hz}                  = $Tachikoma{Hz};
-    $self->{id}                  = $ID;
-    $self->{private_key}         = $Private_Key;
-    $self->{private_ed25519_key} = $Private_Ed25519_Key;
-    $self->{public_keys}         = \%Keys;
-    $self->{ssl_config}          = \%SSL_Config;
-    $self->{forbidden}           = \%Forbidden;
+    $self->{id}                  = $ID if ($ID);
+    $self->{private_key}         = $Private_Key if ($Private_Key);
+    $self->{private_ed25519_key} = $Private_Ed25519_Key
+        if ($Private_Ed25519_Key);
+    $self->{public_keys}->{$_} = $Keys{$_}       for ( keys %Keys );
+    $self->{ssl_config}->{$_}  = $SSL_Config{$_} for ( keys %SSL_Config );
+    $self->{forbidden}->{$_}   = $Forbidden{$_}  for ( keys %Forbidden );
     return $self;
 }
 

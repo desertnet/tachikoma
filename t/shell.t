@@ -14,7 +14,6 @@ use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Message qw( TM_COMMAND );
 use Tachikoma::Command;
-use Tachikoma::Config;
 
 my $var = Tachikoma->configuration->{var};
 
