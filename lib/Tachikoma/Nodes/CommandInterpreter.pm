@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35722 2018-10-28 11:59:48Z chris $
+# $Id: CommandInterpreter.pm 35724 2018-10-28 12:07:15Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1843,7 +1843,7 @@ $C{env} = sub {
         split m{\s*(=)\s*}, $command->arguments, 2;
     return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
     if ( length $value ) {
-        $ENV{$key} = $value;
+        $ENV{$key} = $value;    ## no critic (RequireLocalizedPunctuationVars)
     }
     elsif ( defined $op ) {
         delete $ENV{$key};
@@ -1888,7 +1888,7 @@ $C{config} = sub {
     my ( $key, $op, $value ) =
         split m{\s*(=)\s*}, $command->arguments, 2;
     my $var = {};
-    $var->{$_} = $self->configuration->{$_} for ( @CONFIG_VARIABLES );
+    $var->{$_} = $self->configuration->{$_} for (@CONFIG_VARIABLES);
     return $self->error("invalid key: $key\n")
         if ( $key and not exists $var->{$key} );
     return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );

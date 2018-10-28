@@ -78,12 +78,12 @@ sub unix_server {
     return $server->register_server_node;
 }
 
-sub unix_client {    ## no critic (ProhibitManyArgs)
-    my $class      = shift;
-    my $filename   = shift;
-    my $name       = shift;
-    my $flags      = shift;
-    my $use_SSL    = shift;
+sub unix_client {
+    my $class    = shift;
+    my $filename = shift;
+    my $name     = shift;
+    my $flags    = shift;
+    my $use_SSL  = shift;
     my $socket;
     socket $socket, PF_UNIX, SOCK_STREAM, 0 or die "FAILED: socket: $!";
     setsockopts($socket);
@@ -151,13 +151,13 @@ sub inet_server {
 }
 
 sub inet_client {
-    my $class      = shift;
-    my $hostname   = shift;
-    my $port       = shift or die "FAILED: no port specified for $hostname";
-    my $flags      = shift;
-    my $use_SSL    = shift;
-    my $iaddr = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
-    my $proto = getprotobyname 'tcp';
+    my $class    = shift;
+    my $hostname = shift;
+    my $port     = shift or die "FAILED: no port specified for $hostname";
+    my $flags    = shift;
+    my $use_SSL  = shift;
+    my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
+    my $proto    = getprotobyname 'tcp';
     my $socket;
     socket $socket, PF_INET, SOCK_STREAM, $proto
         or die "FAILED: socket: $!";
@@ -406,6 +406,7 @@ sub start_SSL_connection {
         SSL_ca_file        => $config->{ssl_client_ca_file},
         SSL_startHandshake => $self->{flags} & TK_SYNC,
         SSL_use_cert       => 1,
+
         # SSL_cipher_list     => $config->ssl_ciphers,
         SSL_version         => $config->ssl_version,
         SSL_verify_callback => $self->get_ssl_verify_callback,
