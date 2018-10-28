@@ -44,7 +44,7 @@ sub verify_signature {
         if ($scheme ne 'rsa'
         and $scheme ne 'rsa-sha256'
         and $scheme ne 'ed25519' );
-    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $public_keys = $self->configuration->{public_keys};
     if ( not $public_keys->{$id} ) {
         $self->stderr("ERROR: $id not in authorized_keys");
         return;
@@ -107,7 +107,7 @@ sub verify_ed25519 {
         $self->stderr('ERROR: Ed25519 signatures not supported');
         return;
     }
-    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $public_keys = $self->configuration->{public_keys};
     my $key_text    = $public_keys->{$id}->{ed25519};
     if ( not $key_text ) {
         $self->stderr("ERROR: $id missing Ed25519 key");
@@ -127,7 +127,7 @@ sub verify_sha256 {
     my $signed      = shift;
     my $id          = shift;
     my $signature   = shift;
-    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $public_keys = $self->configuration->{public_keys};
     my $key_text    = $public_keys->{$id}->{public_key};
     if ( not $key_text ) {
         $self->stderr("ERROR: $id missing RSA key");
@@ -151,7 +151,7 @@ sub verify_rsa {
     my $signed      = shift;
     my $id          = shift;
     my $signature   = shift;
-    my $public_keys = Tachikoma->configuration->{public_keys};
+    my $public_keys = $self->configuration->{public_keys};
     my $key_text    = $public_keys->{$id}->{public_key};
     if ( not $key_text ) {
         $self->stderr("ERROR: $id missing RSA key");
@@ -168,24 +168,6 @@ sub verify_rsa {
         return;
     }
     return 1;
-}
-
-sub scheme {
-    my $self = shift;
-    if (@_) {
-        my $scheme = shift;
-        die "invalid scheme: $scheme\n"
-            if ($scheme ne 'rsa'
-            and $scheme ne 'rsa-sha256'
-            and $scheme ne 'ed25519' );
-        if ( $scheme eq 'ed25519' ) {
-            die "Ed25519 not supported\n" if ( not $USE_SODIUM );
-            die "Ed25519 not configured\n"
-                if ( not Tachikoma->configuration->{private_ed25519_key} );
-        }
-        Tachikoma->configuration->{scheme} = $scheme;
-    }
-    return Tachikoma->configuration->{scheme};
 }
 
 1;

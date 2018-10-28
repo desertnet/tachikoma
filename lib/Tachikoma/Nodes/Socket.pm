@@ -266,7 +266,7 @@ sub accept_connections {
 sub accept_connection {
     my $self   = shift;
     my $server = $self->{fh};
-    my $secure = $self->{configuration}->{secure_level};
+    my $secure = Tachikoma->configuration->{secure_level};
     return if ( defined $secure and $secure == 0 );
     my $client;
     my $paddr = accept $client, $server;
@@ -906,7 +906,7 @@ sub fill_buffer_init {
         # sending us the results of the DNS lookup.
         # see also inet_client_async(), dns_lookup(), and init_socket()
         #
-        my $secure = $self->{configuration}->{secure_level};
+        my $secure = Tachikoma->configuration->{secure_level};
         return $self->close_filehandle('reconnect')
             if ( defined $secure and $secure == 0 );
         my $okay = eval {

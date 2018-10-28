@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35722 2018-10-28 11:59:48Z chris $
+# $Id: Config.pm 35726 2018-10-28 12:49:23Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -241,7 +241,12 @@ sub secure_level {
 sub scheme {
     my $self = shift;
     if (@_) {
-        $self->{scheme} = shift;
+        my $scheme = shift;
+        die "invalid scheme: $scheme\n"
+            if ($scheme ne 'rsa'
+            and $scheme ne 'rsa-sha256'
+            and $scheme ne 'ed25519' );
+        $self->{scheme} = $scheme;
     }
     return $self->{scheme};
 }

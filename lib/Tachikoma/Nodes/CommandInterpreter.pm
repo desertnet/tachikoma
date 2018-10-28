@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35724 2018-10-28 12:07:15Z chris $
+# $Id: CommandInterpreter.pm 35726 2018-10-28 12:49:23Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -531,11 +531,11 @@ $C{scheme} = sub {
         or return $self->error("verification failed\n");
     my $response = undef;
     if ( $command->arguments ) {
-        Tachikoma::Crypto->scheme( $command->arguments );
+        $self->configuration->scheme( $command->arguments );
         $response = $self->okay($envelope);
     }
     else {
-        my $scheme = Tachikoma::Crypto->scheme;
+        my $scheme = $self->configuration->scheme;
         $response = $self->response( $envelope, "$scheme\n" );
     }
     return $response;
@@ -2594,8 +2594,12 @@ sub connect_inet {
             inet_client_async Tachikoma::Nodes::STDIO( $host, $port, $name );
     }
     $connection->on_EOF('reconnect') if ($reconnect);
-    $connection->ssl_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
-        if ( $options{SSL_ca_file} );
+    if ( $options{SSL_ca_file} ) {
+        $connection->configuration(
+            bless { %{ $self->configuration } }, 'Tachikoma::Config' );
+        $connection->configuration->ssl_client_ca_file(
+            $options{SSL_ca_file} );
+    }
     $connection->use_SSL( $options{use_SSL} );
     $connection->scheme( $options{scheme} ) if ( $options{scheme} );
     $connection->owner($owner) if ( length $owner );
@@ -2626,8 +2630,12 @@ sub connect_unix {
             unix_client_async Tachikoma::Nodes::STDIO( $filename, $name );
     }
     $connection->on_EOF('reconnect') if ($reconnect);
-    $connection->ssl_config( { SSL_client_ca_file => $options{SSL_ca_file} } )
-        if ( $options{SSL_ca_file} );
+    if ( $options{SSL_ca_file} ) {
+        $connection->configuration(
+            bless { %{ $self->configuration } }, 'Tachikoma::Config' );
+        $connection->configuration->ssl_client_ca_file(
+            $options{SSL_ca_file} );
+    }
     $connection->use_SSL('noverify')        if ( $options{use_SSL} );
     $connection->scheme( $options{scheme} ) if ( $options{scheme} );
     $connection->owner($owner)              if ( length $owner );
