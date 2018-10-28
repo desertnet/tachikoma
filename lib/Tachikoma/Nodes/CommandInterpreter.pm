@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35732 2018-10-28 14:15:11Z chris $
+# $Id: CommandInterpreter.pm 35735 2018-10-28 14:31:39Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2381,6 +2381,7 @@ sub verify_command {
     my $secure_level = $config->secure_level;
     return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
     my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
+
     if ( not $id ) {
         $self->stderr( 'ERROR: verification of message from ',
             $message->[FROM], q( failed: couldn't find ID) );
