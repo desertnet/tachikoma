@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: Job.pm 35719 2018-10-28 10:15:54Z chris $
 #
 
 package Tachikoma::Job;
@@ -129,7 +129,7 @@ sub spawn {
         return;
     }
     else {
-        my $location = $self->{configuration}->{prefix} || '/usr/local/bin';
+        my $location = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         $type           = ( $type =~ m{^([\w:]+)$} )[0];
         $username       = ( $username =~ m{^(\S*)$} )[0];
@@ -259,7 +259,7 @@ sub determine_class {
     my $class = undef;
     my $rv    = undef;
     my $error = undef;
-    for my $prefix ( @{ $self->{configuration}->{include_jobs} },
+    for my $prefix ( @{ $self->configuration->include_jobs },
         'Tachikoma::Jobs' )
     {
         next if ( not $prefix );

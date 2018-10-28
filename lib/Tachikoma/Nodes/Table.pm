@@ -205,7 +205,7 @@ sub get_bucket {
 sub send_entry {
     my ( $self, $to, $key, $value ) = @_;
     my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = ref($value) ? TM_STORABLE : TM_BYTESTREAM;
+    $response->[TYPE]    = ref $value ? TM_STORABLE : TM_BYTESTREAM;
     $response->[FROM]    = $self->{name};
     $response->[TO]      = $to;
     $response->[STREAM]  = $key;
