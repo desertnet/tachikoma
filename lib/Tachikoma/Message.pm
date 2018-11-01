@@ -68,7 +68,7 @@ sub new {                       ## no critic (RequireArgUnpacking)
 
 sub size {
     my $self = shift;
-    return length( ${ $self->packed } );
+    return length ${ $self->packed };
 }
 
 sub type {
