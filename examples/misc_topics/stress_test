@@ -16,8 +16,8 @@ my $total                = 0;
 my $message_payload_size = 0;
 my $count                = 0;
 my $batch_size           = 65400;
-my $message_size         = 1048000; # 99;
-my $num_messages         = 1024; # 50000000;
+my $message_size         = 99; # 1048000;
+my $num_messages         = 50000000; # 1024;
 
 # serialization is expensive, do this part once
 my $targets = $broker->targets;
