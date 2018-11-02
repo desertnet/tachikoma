@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35752 2018-11-01 09:37:37Z chris $
+# $Id: Timer.pm 35769 2018-11-02 08:37:19Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -23,12 +23,7 @@ sub new {
     $self->{stream}          = undef;
     $self->{timer_interval}  = undef;
     $self->{timer_is_active} = undef;
-    $self->{fire}            = sub {
-        $self->{timer_is_active} = undef
-            if ( ( $self->{timer_is_active} // q() ) ne 'forever' );
-        $self->fire;
-        return;
-    };
+    $self->{fire_cb}         = \&fire_cb;
     bless $self, $class;
     return $self;
 }
@@ -45,6 +40,14 @@ sub arguments {
         $self->set_timer( $time, $oneshot );
     }
     return $self->{arguments};
+}
+
+sub fire_cb {
+    my $self = shift;
+    $self->{timer_is_active} = undef
+        if ( ( $self->{timer_is_active} // q() ) ne 'forever' );
+    $self->fire;
+    return;
 }
 
 sub fire {

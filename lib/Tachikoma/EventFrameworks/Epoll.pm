@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Epoll
 # ----------------------------------------------------------------------
 #
-# $Id: Epoll.pm 35752 2018-11-01 09:37:37Z chris $
+# $Id: Epoll.pm 35769 2018-11-02 08:37:19Z chris $
 #
 
 package Tachikoma::EventFrameworks::Epoll;
@@ -141,13 +141,12 @@ sub drain {    ## no critic (ProhibitExcessComplexity)
                 next;
             }
             elsif ( $timer->[ONESHOT] ) {
-                $node->{timer_is_active} = undef;
                 delete $TIMERS{$_};
             }
             else {
                 $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
             }
-            $node->fire;
+            &{ $node->{fire_cb} }($node);
         }
         if ( $Tachikoma::Right_Now - $LAST_WAIT > 5 ) {
             $LAST_WAIT = $Tachikoma::Right_Now;

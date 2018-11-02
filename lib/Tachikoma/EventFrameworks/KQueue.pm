@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35752 2018-11-01 09:37:37Z chris $
+# $Id: KQueue.pm 35769 2018-11-02 08:37:19Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -110,7 +110,7 @@ sub drain {
     my %methods = (
         $EVFILT_READ   => 'drain_fh',
         $EVFILT_WRITE  => 'fill_fh',
-        $EVFILT_TIMER  => 'fire',
+        $EVFILT_TIMER  => 'fire_cb',
         $EVFILT_VNODE  => 'note_fh',
         $EVFILT_PROC   => 'note_fh',
         $EVFILT_SIGNAL => 'handle_signal',
@@ -136,13 +136,12 @@ sub drain {
                 next;
             }
             elsif ( $timer->[ONESHOT] ) {
-                $node->{timer_is_active} = undef;
                 delete $TIMERS{$_};
             }
             else {
                 $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
             }
-            $node->fire;
+            &{ $node->{fire_cb} }($node);
         }
     }
     return;
