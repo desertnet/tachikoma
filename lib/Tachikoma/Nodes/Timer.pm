@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Timer.pm 35769 2018-11-02 08:37:19Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -23,6 +23,7 @@ sub new {
     $self->{stream}          = undef;
     $self->{timer_interval}  = undef;
     $self->{timer_is_active} = undef;
+    $self->{fire_cb}         = \&fire_cb;
     bless $self, $class;
     return $self;
 }
@@ -39,6 +40,14 @@ sub arguments {
         $self->set_timer( $time, $oneshot );
     }
     return $self->{arguments};
+}
+
+sub fire_cb {
+    my $self = shift;
+    $self->{timer_is_active} = undef
+        if ( ( $self->{timer_is_active} // q() ) ne 'forever' );
+    $self->fire;
+    return;
 }
 
 sub fire {
@@ -69,8 +78,11 @@ sub set_timer {
     if ( defined $time ) {
         $Tachikoma::Event_Framework->set_timer( $self, $time, $oneshot );
     }
-    else {
+    elsif ( not defined $oneshot ) {
         $Tachikoma::Nodes{_router}->register( 'timer' => $self->{name} );
+    }
+    else {
+        die "ERROR: can't oneshot without a time\n";
     }
     $self->{timer_interval} = $time;
     $self->{timer_is_active} = $oneshot ? 'once' : 'forever';

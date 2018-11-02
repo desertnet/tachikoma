@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 35625 2018-10-26 09:02:39Z chris $
+# $Id: Select.pm 35769 2018-11-02 08:37:19Z chris $
 #
 
 package Tachikoma::EventFrameworks::Select;
@@ -22,20 +22,20 @@ use constant {
     LAST_FIRE => 2,
 };
 
-my $Reads         = undef;
-my $Writes        = undef;
-my %Timers        = ();
-my $Last_Wait     = 0;
-my $Got_Signal    = undef;
-my $Shutdown      = undef;
-my $Got_HUP       = undef;
-my $Reload_Config = undef;
+my $READS         = undef;
+my $WRITES        = undef;
+my %TIMERS        = ();
+my $LAST_WAIT     = 0;
+my $GOT_SIGNAL    = undef;
+my $SHUTDOWN      = undef;
+my $GOT_HUP       = undef;
+my $RELOAD_CONFIG = undef;
 
 sub new {
     my $class = shift;
     my $self  = {};
-    $Reads  = IO::Select->new;
-    $Writes = IO::Select->new;
+    $READS  = IO::Select->new;
+    $WRITES = IO::Select->new;
     bless $self, $class;
     return $self;
 }
@@ -43,16 +43,16 @@ sub new {
 sub register_router_node {
     my ( $self, $this ) = @_;
     ## no critic (RequireLocalizedPunctuationVars)
-    $SIG{INT}  = sub { $Got_Signal = $Shutdown      = 1 };
-    $SIG{TERM} = sub { $Got_Signal = $Shutdown      = 1 };
-    $SIG{HUP}  = sub { $Got_Signal = $Got_HUP       = 1 };
-    $SIG{USR1} = sub { $Got_Signal = $Reload_Config = 1 };
+    $SIG{INT}  = sub { $GOT_SIGNAL = $SHUTDOWN      = 1 };
+    $SIG{TERM} = sub { $GOT_SIGNAL = $SHUTDOWN      = 1 };
+    $SIG{HUP}  = sub { $GOT_SIGNAL = $GOT_HUP       = 1 };
+    $SIG{USR1} = sub { $GOT_SIGNAL = $RELOAD_CONFIG = 1 };
     return $this;
 }
 
 sub register_server_node {
     my ( $self, $this ) = @_;
-    $Reads->add( $this->{fh} );
+    $READS->add( $this->{fh} );
     return $this;
 }
 
@@ -64,13 +64,13 @@ sub accept_connections {
 
 sub register_reader_node {
     my ( $self, $this ) = @_;
-    $Reads->add( $this->{fh} ) if ( $this->{fh} );
+    $READS->add( $this->{fh} ) if ( $this->{fh} );
     return $this;
 }
 
 sub register_writer_node {
     my ( $self, $this ) = @_;
-    $Writes->add( $this->{fh} ) if ( $this->{fh} );
+    $WRITES->add( $this->{fh} ) if ( $this->{fh} );
     return $this;
 }
 
@@ -84,57 +84,44 @@ sub drain {
     my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my ( $reads, $writes, $errors ) =
-            IO::Select->select( $Reads, $Writes, $Reads,
+            IO::Select->select( $READS, $WRITES, $READS,
             1 / ( $configuration->{hz} || 10 ) );
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
-        for my $fh ( @{$reads}, @{$errors} ) {
-            my $fd = fileno $fh;
+        for ( @{$reads}, @{$errors} ) {
+            my $fd = fileno $_;
             next if ( not defined $fd );
             my $node = $Tachikoma::Nodes_By_FD->{$fd};
-            if ( not $node ) {
-                POSIX::close($fd);
-                next;
-            }
-            $node->{last_drain} = $Tachikoma::Right_Now;
             &{ $node->{drain_fh} }($node);
         }
-        for my $fh ( @{$writes} ) {
-            my $fd = fileno $fh;
+        for ( @{$writes} ) {
+            my $fd = fileno $_;
             next if ( not defined $fd );
             my $node = $Tachikoma::Nodes_By_FD->{$fd};
-            if ( not $node ) {
-                POSIX::close($fd);
-                next;
-            }
             &{ $node->{fill_fh} }($node);
         }
-        $self->handle_signal($this) if ($Got_Signal);
-        while ( my $close_cb = shift @Tachikoma::Closing ) {
-            &{$close_cb}();
-        }
-        for my $id ( keys %Timers ) {
-            my $timer = $Timers{$id} or next;
-            if ( $Tachikoma::Right_Now - $timer->[LAST_FIRE]
-                >= $timer->[INTERVAL] / 1000 )
-            {
-                my $node = $Tachikoma::Nodes_By_ID->{$id};
-                if ( not $node ) {
-                    delete $Timers{$id};
-                    next;
-                }
-                if ( $timer->[ONESHOT] ) {
-                    $node->{timer_is_active} = undef;
-                    delete $Timers{$id};
-                }
-                else {
-                    $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
-                }
-                $node->fire;
+        $self->handle_signal($this) if ($GOT_SIGNAL);
+        &{$_}() while ( $_ = shift @Tachikoma::Closing );
+        for ( keys %TIMERS ) {
+            my $timer = $TIMERS{$_} or next;
+            next
+                if ( $Tachikoma::Right_Now - $timer->[LAST_FIRE]
+                < $timer->[INTERVAL] / 1000 );
+            my $node = $Tachikoma::Nodes_By_ID->{$_};
+            if ( not $node ) {
+                delete $TIMERS{$_};
+                next;
             }
+            elsif ( $timer->[ONESHOT] ) {
+                delete $TIMERS{$_};
+            }
+            else {
+                $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
+            }
+            &{ $node->{fire_cb} }($node);
         }
-        if ( $Tachikoma::Right_Now - $Last_Wait > 5 ) {
-            $Last_Wait = $Tachikoma::Right_Now;
+        if ( $Tachikoma::Right_Now - $LAST_WAIT > 5 ) {
+            $LAST_WAIT = $Tachikoma::Right_Now;
             undef $!;
             do { } while ( waitpid( -1, WNOHANG ) > 0 );
         }
@@ -144,43 +131,43 @@ sub drain {
 
 sub handle_signal {
     my ( $self, $this ) = @_;
-    if ($Shutdown) {
+    if ($SHUTDOWN) {
         $this->stderr('shutting down - received signal');
         $this->shutdown_all_nodes;
     }
-    if ($Got_HUP) {
+    if ($GOT_HUP) {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
         $this->stderr('got SIGHUP - sending SIGUSR1');
         my $usr1 = SIGUSR1;
         kill -$usr1, $$ or die q(FAILURE: couldn't signal self);
-        $Got_HUP = undef;
+        $GOT_HUP = undef;
     }
-    if ($Reload_Config) {
+    if ($RELOAD_CONFIG) {
         $this->stderr('got SIGUSR1 - reloading config');
         Tachikoma->reload_config;
         $this->register_router_node;
-        $Reload_Config = undef;
+        $RELOAD_CONFIG = undef;
     }
     return;
 }
 
 sub close_filehandle {
     my ( $self, $this ) = @_;
-    $Reads->remove( $this->{fh} )  if ( $Reads->exists( $this->{fh} ) );
-    $Writes->remove( $this->{fh} ) if ( $Writes->exists( $this->{fh} ) );
-    delete $Timers{ $this->{id} }  if ( defined $this->{id} );
+    $READS->remove( $this->{fh} )  if ( $READS->exists( $this->{fh} ) );
+    $WRITES->remove( $this->{fh} ) if ( $WRITES->exists( $this->{fh} ) );
+    delete $TIMERS{ $this->{id} }  if ( defined $this->{id} );
     return;
 }
 
 sub unregister_reader_node {
     my ( $self, $this ) = @_;
-    $Reads->remove( $this->{fh} ) if ( $Reads->exists( $this->{fh} ) );
+    $READS->remove( $this->{fh} ) if ( $READS->exists( $this->{fh} ) );
     return;
 }
 
 sub unregister_writer_node {
     my ( $self, $this ) = @_;
-    $Writes->remove( $this->{fh} ) if ( $Writes->exists( $this->{fh} ) );
+    $WRITES->remove( $this->{fh} ) if ( $WRITES->exists( $this->{fh} ) );
     return;
 }
 
@@ -197,19 +184,19 @@ sub watch_for_signal {
 sub set_timer {
     my ( $self, $this, $interval, $oneshot ) = @_;
     $interval ||= 0;
-    $Timers{ $this->{id} } =
+    $TIMERS{ $this->{id} } =
         [ $interval, $oneshot, $Tachikoma::Right_Now || Time::HiRes::time ];
     return;
 }
 
 sub stop_timer {
     my ( $self, $this ) = @_;
-    delete $Timers{ $this->{id} } if ( defined $this->{id} );
+    delete $TIMERS{ $this->{id} } if ( defined $this->{id} );
     return;
 }
 
 sub queue {
-    return $Reads, $Writes;
+    return $READS, $WRITES;
 }
 
 1;

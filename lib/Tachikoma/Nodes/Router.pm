@@ -258,12 +258,13 @@ sub notify_timer {
     my $self          = shift;
     my $registrations = $self->{registrations}->{timer};
     for my $name ( keys %{$registrations} ) {
-        if ( not $Tachikoma::Nodes{$name} ) {
+        my $node = $Tachikoma::Nodes{$name};
+        if ( not $node ) {
             $self->stderr("WARNING: $name forgot to unregister");
             delete $registrations->{$name};
             next;
         }
-        $Tachikoma::Nodes{$name}->fire;
+        &{ $node->{fire_cb} }($node);
     }
     return;
 }

@@ -106,14 +106,14 @@ func run_benchmarks {
 
 func run_benchmarks_profiled {
     local time = <1>;
-    set_env NYTPROF addpid=1:file=/tmp/nytprof.out;
-    set_env PERL5OPT -d:NYTProf;
+    env NYTPROF=addpid=1:file=/tmp/nytprof.out;
+    env PERL5OPT=-d:NYTProf;
     run_benchmarks;
     if (<time>) {
         command scheduler in <time> command jobs stop_job benchmarks;
     };
-    set_env NYTPROF;
-    set_env PERL5OPT;
+    env NYTPROF=;
+    env PERL5OPT=;
 }
 
 EOF
