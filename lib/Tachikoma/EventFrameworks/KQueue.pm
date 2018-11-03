@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35769 2018-11-02 08:37:19Z chris $
+# $Id: KQueue.pm 35774 2018-11-02 20:52:09Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -115,7 +115,6 @@ sub drain {
         $EVFILT_PROC   => 'note_fh',
         $EVFILT_SIGNAL => 'handle_signal',
     );
-    my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my @events = $KQUEUE->kevent( keys %TIMERS ? 100 : 60000 );
         $Tachikoma::Right_Now = Time::HiRes::time;
