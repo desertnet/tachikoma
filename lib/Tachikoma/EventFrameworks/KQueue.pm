@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35774 2018-11-02 20:52:09Z chris $
+# $Id: KQueue.pm 35776 2018-11-03 09:20:11Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -21,14 +21,8 @@ use constant {
     LAST_FIRE => 2,
 };
 
-my $KQUEUE        = undef;
-my %TIMERS        = ();
-my $EVFILT_READ   = EVFILT_READ;
-my $EVFILT_WRITE  = EVFILT_WRITE;
-my $EVFILT_TIMER  = EVFILT_TIMER;
-my $EVFILT_VNODE  = EVFILT_VNODE;
-my $EVFILT_PROC   = EVFILT_PROC;
-my $EVFILT_SIGNAL = EVFILT_SIGNAL;
+my $KQUEUE = undef;
+my %TIMERS = ();
 
 sub new {
     my $class = shift;
@@ -99,22 +93,29 @@ sub register_watcher_node {
 
 sub drain {
     my ( $self, $this, $connector ) = @_;
-    my %index = (
-        $EVFILT_READ   => $Tachikoma::Nodes_By_FD,
-        $EVFILT_WRITE  => $Tachikoma::Nodes_By_FD,
-        $EVFILT_TIMER  => $Tachikoma::Nodes_By_ID,
-        $EVFILT_VNODE  => $Tachikoma::Nodes_By_FD,
-        $EVFILT_PROC   => $Tachikoma::Nodes_By_PID,
-        $EVFILT_SIGNAL => { map { $_ => $self } 1 .. 31 },
+    my $evfilt_read   = EVFILT_READ;
+    my $evfilt_write  = EVFILT_WRITE;
+    my $evfilt_timer  = EVFILT_TIMER;
+    my $evfilt_vnode  = EVFILT_VNODE;
+    my $evfilt_proc   = EVFILT_PROC;
+    my $evfilt_signal = EVFILT_SIGNAL;
+    my %index         = (
+        $evfilt_read   => $Tachikoma::Nodes_By_FD,
+        $evfilt_write  => $Tachikoma::Nodes_By_FD,
+        $evfilt_timer  => $Tachikoma::Nodes_By_ID,
+        $evfilt_vnode  => $Tachikoma::Nodes_By_FD,
+        $evfilt_proc   => $Tachikoma::Nodes_By_PID,
+        $evfilt_signal => { map { $_ => $self } 1 .. 31 },
     );
     my %methods = (
-        $EVFILT_READ   => 'drain_fh',
-        $EVFILT_WRITE  => 'fill_fh',
-        $EVFILT_TIMER  => 'fire_cb',
-        $EVFILT_VNODE  => 'note_fh',
-        $EVFILT_PROC   => 'note_fh',
-        $EVFILT_SIGNAL => 'handle_signal',
+        $evfilt_read   => 'drain_fh',
+        $evfilt_write  => 'fill_fh',
+        $evfilt_timer  => 'fire_cb',
+        $evfilt_vnode  => 'note_fh',
+        $evfilt_proc   => 'note_fh',
+        $evfilt_signal => 'handle_signal',
     );
+
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my @events = $KQUEUE->kevent( keys %TIMERS ? 100 : 60000 );
         $Tachikoma::Right_Now = Time::HiRes::time;
