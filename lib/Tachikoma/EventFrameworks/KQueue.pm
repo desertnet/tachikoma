@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35776 2018-11-03 09:20:11Z chris $
+# $Id: KQueue.pm 35789 2018-11-07 09:36:47Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -121,7 +121,7 @@ sub drain {
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for (@events) {
-            my $node = $index{ $_->[KQ_FILTER] }->{ $_->[KQ_IDENT] };
+            my $node = $index{ $_->[KQ_FILTER] }->{ $_->[KQ_IDENT] } or next;
             &{ $node->{ $methods{ $_->[KQ_FILTER] } } }( $node, $_ );
         }
         &{$_}() while ( $_ = shift @Tachikoma::Closing );
