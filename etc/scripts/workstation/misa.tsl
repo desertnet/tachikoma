@@ -111,7 +111,7 @@ make_node Partition scratch:log --filename=/logs/scratch.log --segment_size=(32 
 make_node Partition offset:log  --filename=/logs/offset.log  --segment_size=(256 * 1024)
 make_node Consumer scratch:consumer --partition=scratch:log --offsetlog=offset:log
 
-
+var username=`whoami`;
 
 # sound effects
 func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
@@ -132,7 +132,7 @@ make_node Function server_log:sounds '{
 }'
 make_node Function silc:sounds '{
     local sound = Pop;
-    if (<1> =~ "\bchris\b(?!>)") [ sound = Glass ];
+    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
     afplay { get_sound <sound> };
 }'
 command AfPlay     lazy on
@@ -151,9 +151,9 @@ cd hosts
   connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
 cd ..
 
-connect_node silc_dn                  silc_dn:tee
-connect_node system_logs              system_log:ruleset
-connect_node server_logs              server_log:ruleset
+connect_node silc_dn     silc_dn:tee
+connect_node system_logs system_log:ruleset
+connect_node server_logs server_log:ruleset
 
 command jobs start_job Tail local_system_log /var/log/system.log
 connect_node local_system_log local_system_log:ruleset

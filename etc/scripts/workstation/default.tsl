@@ -142,7 +142,7 @@ command hosts connect_inet localhost:<tachikoma.http.port>      http:service
 # ingest server logs
 connect_node server_log:tee indexers:service/server_log
 
-
+var username=`whoami`;
 
 # sound effects
 func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
@@ -163,7 +163,7 @@ make_node Function server_log:sounds '{
 }'
 make_node Function silc:sounds '{
     local sound = Pop;
-    if (<1> =~ "\bchris\b(?!>)") [ sound = Glass ];
+    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
     afplay { get_sound <sound> };
 }'
 command AfPlay     lazy on

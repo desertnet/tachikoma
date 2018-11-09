@@ -54,7 +54,7 @@ sub add_ed25519_keys {
 
 sub generate_authorized_keys {
     my @ids = @_;
-print <<EOF;
+print <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
 # \$Id\$
@@ -71,7 +71,7 @@ EOF
 for my $id (sort keys %authorized) {
     die "no such key: $id" if (not $Keys{$id});
     my $tags = join("\n            ", sort keys %{ $authorized{$id} });
-    print <<EOF;
+    print <<"EOF";
     '$id' => {
         allow => {map {\$_=>1} qw(
             $tags
@@ -81,27 +81,27 @@ EOF
         my $commands = join("\n            ",
             sort keys %{ $authorized_commands{$id} }
         );
-        print <<EOF;
+        print <<"EOF";
         allow_commands => {map {\$_=>1} qw(
             $commands
         )},
 EOF
     }
     if ($Keys{$id}) {
-        print <<EOF;
+        print <<"EOF";
         public_key =>
 q($Keys{$id}),
 EOF
     }
     if ($Ed25519_Keys{$id}) {
-        print <<EOF;
+        print <<"EOF";
         ed25519 => pack('H*', q($Ed25519_Keys{$id})),
 EOF
     }
     print "    },\n";
 }
 
-print <<EOF;
+print <<'EOF';
 } );
 
 1;
