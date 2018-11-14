@@ -136,9 +136,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             if ( not $should_delete ) {
                 if ( not $theirs_exists ) {
-                    $self->print_less_often(
-                        "WARNING: possible orphan: $my_path_entry")
-                        if ( $my_path_entry !~ m{.svn/[^/]+$} );
+                    $self->print_less_often( 'WARNING: possible orphan: ',
+                        $my_path_entry )
+                        if ($my_path_entry !~ m{.svn/[^/]+$}
+                        and $my_path_entry !~ m{/deleted/} );
                 }
                 else {
                     $self->stderr("WARNING: type mismatch: $my_path_entry");
