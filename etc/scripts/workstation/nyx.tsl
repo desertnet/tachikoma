@@ -341,6 +341,13 @@ cd fsync2:source
   listen_inet --scheme=rsa --use-ssl 0.0.0.0:5702
   register 0.0.0.0:5702 DirStats:client_connector authenticated
 
+
+  # buffer probe
+  command hosts connect_inet --scheme=rsa --host=localhost --port=4391 --name=buffer_top
+  command hosts make_node MemorySieve buffer_top:sieve 4 should_warn
+  make_node BufferProbe buffer_probe 4
+  connect_node buffer_top:sieve buffer_top
+  connect_node buffer_probe     buffer_top:sieve
   secure 2
 cd ..
 

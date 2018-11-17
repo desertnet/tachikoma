@@ -34,7 +34,7 @@ sub buffer_probe {
     print <<"EOF";
 
   # buffer probe
-  command hosts connect_inet --scheme=rsa --host=$host --port=4390 --name=${prefix}buffer_top
+  command hosts connect_inet --scheme=rsa --host=$host --port=4391 --name=${prefix}buffer_top
   command hosts make_node MemorySieve ${prefix}buffer_top:sieve 4 should_warn
   make_node BufferProbe ${prefix}buffer_probe 4
   connect_node ${prefix}buffer_top:sieve ${prefix}buffer_top
