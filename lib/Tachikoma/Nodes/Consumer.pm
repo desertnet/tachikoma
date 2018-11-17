@@ -572,8 +572,8 @@ sub get_offset {
             my $error    = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
-            $stored = $messages->[-1]->payload if ( @{$messages} );
             last if ( not @{$messages} );
+            $stored = $messages->[-1]->payload;
         }
         if ( $self->sync_error ) {
             $self->remove_target;

@@ -247,8 +247,8 @@ sub make_async_consumer {
                 $consumer->cache_dir( $self->cache_dir );
             }
             elsif ( $self->{auto_offset} ) {
-                my $offsets = join q(:), $log, $self->{group};
-                $consumer->offsetlog($offsets);
+                my $offsetlog = join q(:), $log, $self->{group};
+                $consumer->offsetlog($offsetlog);
             }
             $consumer->group( $self->group );
             $consumer->auto_commit( $self->auto_commit );
@@ -483,46 +483,27 @@ sub get_controller {
 sub get_group_cache {
     my $self   = shift;
     my $caches = {};
-    die "ERROR: no group\n" if ( not $self->group );
-    my $mapping = $self->broker->get_mapping( $self->topic );
-    $self->make_sync_consumers($mapping)
-        if ( not keys %{ $self->consumers } );
-    $self->get_offset;
-    for my $partition_id ( keys %{ $self->consumers } ) {
-        my $consumer = $self->consumers->{$partition_id};
-        $caches->{ $consumer->partition } = $consumer->cache;
-    }
-    return $caches;
-}
-
-sub get_cache {
-    my $self   = shift;
-    my $i      = shift;
-    my $caches = {};
-    die "ERROR: no group\n" if ( not $self->group );
-    my $partitions = $self->broker->get_mapping( $self->topic );
-    my $mapping    = { $i => $partitions->{$i} };
-    my $consumer   = $self->consumers->{$i}
-        || $self->make_sync_consumer($i);
-    die "ERROR: couldn't get consumer for group\n"
-        if ( not $consumer );
-    $consumer->get_offset;
-    $self->sync_error($@) if ( not $self->sync_error );
-    return $consumer->cache;
-}
-
-sub get_offset {
-    my $self = shift;
-    for my $partition_id ( keys %{ $self->consumers } ) {
-        my $consumer = $self->consumers->{$partition_id};
-        $consumer->get_offset;
-        if ( $consumer->sync_error ) {
-            $self->sync_error( $consumer->sync_error );
-            $self->remove_consumers;
-            last;
+    my $topic  = $self->topic or die "ERROR: no topic\n";
+    my $group  = $self->group or die "ERROR: no group\n";
+    my $mapping = $self->broker->get_mapping($topic);
+    for my $partition_id ( keys %{$mapping} ) {
+        my $broker_id = $mapping->{$partition_id};
+        my $offsetlog = join q(:), $topic, 'partition', $partition_id, $group;
+        my $consumer  = Tachikoma::Nodes::Consumer->new( $offsetlog );
+        $consumer->next_offset(-2);
+        $consumer->broker_id($broker_id);
+        $consumer->timeout( $self->timeout );
+        $consumer->hub_timeout( $self->hub_timeout );
+        while (1) {
+            my $messages = $consumer->fetch;
+            my $error    = $consumer->sync_error // q();
+            chomp $error;
+            $self->sync_error("GET_OFFSET: $error\n") if ($error);
+            last if ( not @{$messages} );
+            $caches->{$partition_id} = $messages->[-1]->payload;
         }
     }
-    return;
+    return $caches;
 }
 
 sub commit_offset {
@@ -575,8 +556,8 @@ sub make_sync_consumer {
             $consumer->cache_dir( $self->cache_dir );
         }
         elsif ( $self->auto_offset ) {
-            my $offsets = join q(:), $log, $self->group;
-            $consumer->offsetlog($offsets);
+            my $offsetlog = join q(:), $log, $self->group;
+            $consumer->offsetlog($offsetlog);
         }
         $consumer->group( $self->group );
         $consumer->auto_commit( $self->auto_commit );
