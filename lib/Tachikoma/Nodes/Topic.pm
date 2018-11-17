@@ -22,9 +22,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval    = 1;        # delay between synchronous retries
-my $Init_Interval    = 0.25;     # asynchronous partition map check
-my $Online_Interval  = 2;        # asynchronous partition map check
+my $Poll_Interval    = 15;       # delay between polls
 my $Response_Timeout = 300;      # timeout before deleting async responses
 my $Hub_Timeout      = 60;       # timeout waiting for hub
 my $Batch_Threshold  = 64000;    # low water mark before sending batches
@@ -78,7 +76,7 @@ sub arguments {
         $self->{last_check}     = 0;
         $self->{batch}          = [];
         $self->{batch_size}     = [];
-        $self->set_timer( $Init_Interval * 1000 );
+        $self->set_timer;
     }
     return $self->{arguments};
 }
@@ -96,7 +94,7 @@ sub fill {
         }
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->set_timer( $Init_Interval * 1000 );
+        $self->set_timer if ( defined $self->{timer_interval} );
         my %senders = ();
         for my $broker_id ( keys %{ $self->{responses} } ) {
             for my $response ( @{ $self->{responses}->{$broker_id} } ) {
@@ -117,13 +115,15 @@ sub fill {
         if ( $self->{partitions} ) {
             push @{ $self->{batch} }, $message;
             $self->{batch_size} += length $message->[PAYLOAD];
-            my $interval =
-                   $self->{batch_size} > $Batch_Threshold
-                || $Tachikoma::Now - $message->[TIMESTAMP] > 1
-                ? 0
-                : $Online_Interval * 1000;
-            $self->set_timer($interval)
-                if ( $self->{timer_interval} != $interval );
+            if (   $self->{batch_size} > $Batch_Threshold
+                || $Tachikoma::Now - $message->[TIMESTAMP] > 1 )
+            {
+                $self->set_timer(0)
+                    if ( not defined $self->{timer_interval} );
+            }
+            elsif ( defined $self->{timer_interval} ) {
+                $self->set_timer;
+            }
         }
         elsif ( $message->[TYPE] & TM_PERSIST ) {
             my $response = Tachikoma::Message->new;
@@ -152,7 +152,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
             ${ $_[1] } ],
         'Tachikoma::Message'
         );
-    $_[0]->set_timer(0) if ( $_[0]->{timer_interval} );
+    $_[0]->set_timer(0) if ( not defined $_[0]->{timer_interval} );
 }
 
 sub fire {
@@ -207,8 +207,7 @@ sub fire {
         $self->{sink}->fill($message);
         $self->{last_check} = $Tachikoma::Right_Now;
     }
-    $self->set_timer( $Online_Interval * 1000 )
-        if ( $self->{timer_interval} != $Online_Interval * 1000 );
+    $self->set_timer if ( defined $self->{timer_interval} );
     return;
 }
 
@@ -234,15 +233,6 @@ sub update_partitions {
         }
     }
     $self->{partitions} = $partitions if ($okay);
-    $self->set_timer( $Online_Interval * 1000 );
-    return;
-}
-
-sub set_timer {
-    my $self = shift;
-    $self->SUPER::set_timer(@_);
-    $self->{poll_interval} = $self->{timer_interval} / 1000
-        if ( $self->{timer_interval} );
     return;
 }
 

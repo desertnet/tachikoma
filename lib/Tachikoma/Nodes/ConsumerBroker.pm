@@ -23,9 +23,10 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval       = 1;      # synchronous poll for messages
-my $Check_Interval      = 5;      # partition map check
-my $Commit_Interval     = 15;     # commit offsets
+my $Poll_Interval       = 1;      # poll for new messages this often
+my $Startup_Delay       = 5;      # wait at least this long on startup
+my $Check_Interval      = 15;     # synchronous partition map check
+my $Commit_Interval     = 60;     # commit offsets
 my $Default_Timeout     = 900;    # default async message timeout
 my $Default_Hub_Timeout = 60;     # timeout waiting for hub
 
@@ -135,7 +136,7 @@ sub fill {
         my $topic  = $self->topic;
         my $leader = $message->[PAYLOAD];
         chomp $leader;
-        $self->make_broker_connection($leader);
+        $self->make_broker_connection($leader) or return;
         $self->leader_path( join q(/), $leader, $self->group );
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_INFO;
@@ -203,8 +204,6 @@ sub fire {
         $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
     }
     $self->sink->fill($message);
-    $self->set_timer( $Check_Interval * 1000 )
-        if ( not $self->{timer_interval} );
     return;
 }
 
@@ -212,16 +211,14 @@ sub make_broker_connection {
     my $self      = shift;
     my $broker_id = shift;
     my $node      = $Tachikoma::Nodes{$broker_id};
-    my $rv        = 1;
     if ( not $node ) {
         my ( $host, $port ) = split m{:}, $broker_id, 2;
         $node = inet_client_async Tachikoma::Nodes::Socket( $host, $port,
             $broker_id );
         $node->on_EOF('reconnect');
         $node->sink( $self->sink );
-        $rv = undef;
     }
-    return $rv;
+    return $node->auth_complete;
 }
 
 sub make_async_consumer {
@@ -260,7 +257,7 @@ sub make_async_consumer {
         $consumer->max_unanswered( $self->max_unanswered );
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
-        $consumer->set_timer(5000);
+        $consumer->set_timer( $Startup_Delay * 1000 );
         $self->consumers->{$partition_id} = $consumer;
     }
     if (   $consumer->{partition} ne $log
@@ -279,7 +276,7 @@ sub owner {
     my $self = shift;
     if (@_) {
         $self->{owner} = shift;
-        $self->set_timer(0);
+        $self->set_timer;
     }
     return $self->{owner};
 }
@@ -288,7 +285,7 @@ sub edge {
     my $self = shift;
     if (@_) {
         $self->{edge} = shift;
-        $self->set_timer(0);
+        $self->set_timer;
     }
     return $self->{edge};
 }

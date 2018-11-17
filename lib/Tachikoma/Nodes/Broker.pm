@@ -36,7 +36,7 @@ my $Save_Interval       = 3600;          # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;          # have 90% of our share of leaders
 my $Election_Short      = 0;             # wait if everyone is online
 my $Election_Long       = 10;            # wait if a broker is offline
-my $Startup_Delay       = 0;             # wait at least this long on startup
+my $Startup_Delay       = 5;             # wait at least this long on startup
 my $Election_Timeout  = 60;     # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
 my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
@@ -48,6 +48,10 @@ die 'ERROR: data will be lost if Heartbeat_Timeout >= LCO_Timeout'
     if ( $Heartbeat_Timeout >= $LCO_Timeout );
 
 my %Broker_Commands = map { uc $_ => $_ } qw(
+    get_controller
+    get_leader
+    get_topics
+    get_partitions
     empty_topics
     empty_groups
     purge_topics
@@ -345,10 +349,14 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
     elsif ( $Tachikoma::Now - $self->{last_save} > $Save_Interval ) {
         $self->save_topic_states;
     }
-    if (    $self->{stage} eq 'COMPLETE'
-        and $self->{timer_interval} != $Heartbeat_Interval * 1000 )
-    {
-        $self->set_timer( $Heartbeat_Interval * 1000 );
+    if ( $self->{stage} eq 'COMPLETE' ) {
+        $self->set_timer( $Heartbeat_Interval * 1000 )
+            if ( $self->{timer_interval} != $Heartbeat_Interval * 1000 );
+    }
+    elsif ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
+        $self->set_timer( $Rebalance_Interval * 1000 )
+            if ( not $self->{timer_is_active}
+            or $self->{timer_interval} != $Rebalance_Interval * 1000 );
     }
     return;
 }
@@ -391,58 +399,18 @@ sub process_info {
     return;
 }
 
-sub process_command {    ## no critic (ProhibitExcessComplexity)
+sub process_command {
     my $self    = shift;
     my $message = shift;
     my $line    = $message->[PAYLOAD];
     chomp $line;
     my ( $cmd, $args ) = split q( ), $line, 2;
-    $self->stderr( "DEBUG: $line - from ", $message->[FROM] )
-        if (
-            $cmd ne 'GET_CONTROLLER'
-        and $cmd ne 'GET_LEADER'
-        and $cmd ne 'GET_PARTITIONS'
-        and (  $cmd ne 'ADD_CONSUMER_GROUP'
-            or $self->{status} ne 'REBALANCING_PARTITIONS' )
-        );
     if ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
         $self->send_error( $message, "REBALANCING_PARTITIONS\n" );
     }
-    elsif ( $cmd eq 'GET_PARTITIONS' ) {
-        if ( $self->{partitions}->{$args} ) {
-            my $response = Tachikoma::Message->new;
-            $response->[TYPE] = TM_STORABLE;
-            $response->[FROM] = $self->{name};
-            $response->[TO]   = $message->[FROM];
-            $response->[ID]   = $self->{generation};
-            $response->payload( $self->{partitions}->{$args} );
-            $self->{sink}->fill($response);
-        }
-        else {
-            $self->send_error( $message, "CANT_FIND_TOPIC\n" );
-        }
-    }
-    elsif ( $cmd eq 'GET_LEADER' ) {
-        my $group = $self->{consumer_groups}->{$args};
-        if ( $group and $group->{broker_id} ) {
-            $self->send_info( $message, $group->{broker_id} . "\n" );
-        }
-        else {
-            $self->send_error( $message, "CANT_FIND_GROUP\n" );
-        }
-    }
-    elsif ( $cmd eq 'GET_CONTROLLER' ) {
-        my $controller = $self->{controller};
-        if ($controller) {
-            $self->send_info( $message, $controller . "\n" );
-        }
-        else {
-            $self->send_error( $message, "CANT_FIND_CONTROLLER\n" );
-        }
-    }
     elsif ( $Broker_Commands{$cmd} ) {
         my $method = $Broker_Commands{$cmd};
-        $self->$method($args);
+        $self->$method( $args, $message );
     }
     elsif ( $self->{status} ne 'CONTROLLER' ) {
         $self->send_error( $message, "NOT_CONTROLLER\n" );
@@ -1322,67 +1290,6 @@ sub inform_brokers {
     return;
 }
 
-sub send_info {
-    my $self     = shift;
-    my $message  = shift;
-    my $info     = shift;
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_INFO;
-    $response->[FROM]    = $self->{name};
-    $response->[TO]      = $message->[FROM];
-    $response->[ID]      = $self->{generation};
-    $response->[STREAM]  = $self->{broker_id};
-    $response->[PAYLOAD] = $info;
-
-    # chomp $info;
-    # $self->stderr(
-    #     $info, q( ), $self->{generation}, ' for ', $message->[FROM]
-    # );
-    return $self->{sink}->fill($response);
-}
-
-sub send_response {
-    my $self     = shift;
-    my $message  = shift;
-    my $payload  = shift;
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_RESPONSE;
-    $response->[FROM]    = $self->{name};
-    $response->[TO]      = $message->[FROM];
-    $response->[ID]      = $self->{generation};
-    $response->[STREAM]  = $self->{broker_id};
-    $response->[PAYLOAD] = $payload;
-    $self->{sink}->fill($response);
-    chomp $payload;
-    $self->stderr(
-        "INFO: $payload ", $self->{generation},
-        ' for ',           $self->{controller}
-    );
-    return;
-}
-
-sub send_error {
-    my $self     = shift;
-    my $message  = shift;
-    my $error    = shift;
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_ERROR;
-    $response->[FROM]    = $self->{name};
-    $response->[TO]      = $message->[FROM];
-    $response->[ID]      = $self->{generation};
-    $response->[STREAM]  = $self->{broker_id};
-    $response->[PAYLOAD] = $error;
-    chomp $error;
-
-    if ( $error ne 'REBALANCING_PARTITIONS' ) {
-        $self->stderr(
-            "DEBUG: $error ", $self->{generation},
-            ' for ',          $message->[FROM]
-        );
-    }
-    return $self->{sink}->fill($response);
-}
-
 sub process_delete {    ## no critic (ProhibitExcessComplexity)
     my $self         = shift;
     my $broker_id    = $self->{broker_id};
@@ -1620,6 +1527,67 @@ sub add_consumer_group {
     return;
 }
 
+sub get_controller {
+    my $self       = shift;
+    my $args       = shift;
+    my $message    = shift;
+    my $controller = $self->{controller};
+    if ($controller) {
+        $self->send_info( $message, $controller . "\n" );
+    }
+    else {
+        $self->send_error( $message, "CANT_FIND_CONTROLLER\n" );
+    }
+    return;
+}
+
+sub get_leader {
+    my $self    = shift;
+    my $args    = shift;
+    my $message = shift;
+    my $group   = $self->{consumer_groups}->{$args};
+    if ( $group and $group->{broker_id} ) {
+        $self->send_info( $message, $group->{broker_id} . "\n" );
+    }
+    else {
+        $self->send_error( $message, "CANT_FIND_GROUP\n" );
+    }
+    return;
+}
+
+sub get_partitions {
+    my $self    = shift;
+    my $args    = shift;
+    my $message = shift;
+    if ( $self->{partitions}->{$args} ) {
+        my $response = Tachikoma::Message->new;
+        $response->[TYPE] = TM_STORABLE;
+        $response->[FROM] = $self->{name};
+        $response->[TO]   = $message->[FROM];
+        $response->[ID]   = $self->{generation};
+        $response->payload( $self->{partitions}->{$args} );
+        $self->{sink}->fill($response);
+    }
+    else {
+        $self->send_error( $message, "CANT_FIND_TOPIC\n" );
+    }
+    return;
+}
+
+sub get_topics {
+    my $self     = shift;
+    my $args     = shift;
+    my $message  = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE] = TM_STORABLE;
+    $response->[FROM] = $self->{name};
+    $response->[TO]   = $message->[FROM];
+    $response->[ID]   = $self->{generation};
+    $response->payload( [ keys %{ $self->{partitions} } ] );
+    $self->{sink}->fill($response);
+    return;
+}
+
 sub empty_topics {
     my $self    = shift;
     my $glob    = shift;
@@ -1759,6 +1727,67 @@ sub purge_broker_config {
     rmdir "$path/$topic_name/partition";
     rmdir "$path/$topic_name";
     return;
+}
+
+sub send_info {
+    my $self     = shift;
+    my $message  = shift;
+    my $info     = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_INFO;
+    $response->[FROM]    = $self->{name};
+    $response->[TO]      = $message->[FROM];
+    $response->[ID]      = $self->{generation};
+    $response->[STREAM]  = $self->{broker_id};
+    $response->[PAYLOAD] = $info;
+
+    # chomp $info;
+    # $self->stderr(
+    #     $info, q( ), $self->{generation}, ' for ', $message->[FROM]
+    # );
+    return $self->{sink}->fill($response);
+}
+
+sub send_response {
+    my $self     = shift;
+    my $message  = shift;
+    my $payload  = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_RESPONSE;
+    $response->[FROM]    = $self->{name};
+    $response->[TO]      = $message->[FROM];
+    $response->[ID]      = $self->{generation};
+    $response->[STREAM]  = $self->{broker_id};
+    $response->[PAYLOAD] = $payload;
+    $self->{sink}->fill($response);
+    chomp $payload;
+    $self->stderr(
+        "INFO: $payload ", $self->{generation},
+        ' for ',           $self->{controller}
+    );
+    return;
+}
+
+sub send_error {
+    my $self     = shift;
+    my $message  = shift;
+    my $error    = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_ERROR;
+    $response->[FROM]    = $self->{name};
+    $response->[TO]      = $message->[FROM];
+    $response->[ID]      = $self->{generation};
+    $response->[STREAM]  = $self->{broker_id};
+    $response->[PAYLOAD] = $error;
+    chomp $error;
+
+    if ( $error ne 'REBALANCING_PARTITIONS' ) {
+        $self->stderr(
+            "DEBUG: $error ", $self->{generation},
+            ' for ',          $message->[FROM]
+        );
+    }
+    return $self->{sink}->fill($response);
 }
 
 $C{help} = sub {
@@ -2079,8 +2108,8 @@ $C{start_broker} = sub {
     $self->patron->last_check($Tachikoma::Now);
     $self->patron->last_delete($Tachikoma::Now);
     $self->patron->last_save($Tachikoma::Now);
-    $self->patron->last_election( time + $Startup_Delay );
-    $self->patron->set_timer( $Rebalance_Interval * 1000 );
+    $self->patron->last_election($Tachikoma::Now);
+    $self->patron->set_timer( $Startup_Delay * 1000 );
     return $self->okay($envelope);
 };
 

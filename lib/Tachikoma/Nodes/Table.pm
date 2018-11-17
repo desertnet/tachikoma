@@ -236,6 +236,12 @@ sub send_stats {
     return;
 }
 
+sub new_cache {
+    my ( $self, $i ) = @_;
+    $self->{caches}->[$i] = [];
+    return;
+}
+
 sub load_cache {
     my ( $self, $i, $stored ) = @_;
     $self->{caches}->[$i] = $stored->{cache} || [];
@@ -254,6 +260,11 @@ sub load_cache {
         }
     }
     return;
+}
+
+sub save_cache {
+    my ( $self, $i ) = @_;
+    return $self->{caches}->[$i];
 }
 
 ########################
@@ -446,10 +457,6 @@ sub consumer_broker {
         $self->{consumer_broker} = shift;
     }
     return $self->{consumer_broker};
-}
-
-sub new_cache {
-    return [];
 }
 
 1;

@@ -3,12 +3,13 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35735 2018-10-28 14:31:39Z chris $
+# $Id: CommandInterpreter.pm 35829 2018-11-16 22:34:24Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
 use strict;
 use warnings;
+use Tachikoma;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD

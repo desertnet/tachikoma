@@ -28,7 +28,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
     $self->{handling_error}         = undef;
-    $self->{last_fire}              = 0;
+    $self->{last_fire}              = $Tachikoma::Now || time;
     $self->{registrations}->{timer} = {};
     bless $self, $class;
     $self->set_timer(1000);

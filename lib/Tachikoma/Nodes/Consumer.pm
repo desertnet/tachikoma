@@ -23,12 +23,11 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Async_Poll_Interval = 1;
-my $Sync_Poll_Interval  = 1;
-my $Default_Timeout     = 900;
-my $Expire_Interval     = 15;
-my $Commit_Interval     = 15;
-my $Default_Hub_Timeout = 60;
+my $Poll_Interval       = 1;      # poll for new messages this often
+my $Default_Timeout     = 900;    # default async message timeout
+my $Expire_Interval     = 15;     # check message timeouts
+my $Commit_Interval     = 60;     # commit offsets
+my $Default_Hub_Timeout = 60;     # timeout waiting for hub
 my %Targets             = ();
 
 sub new {
@@ -52,7 +51,7 @@ sub new {
     $self->{default_offset} = 'end';
     $self->{group}          = undef;
     $self->{buffer}         = \$new_buffer;
-    $self->{poll_interval}  = $Sync_Poll_Interval;
+    $self->{poll_interval}  = $Poll_Interval;
     $self->{last_receive}   = Time::HiRes::time;
     $self->{cache_dir}      = undef;
     $self->{cache_size}     = undef;
@@ -129,7 +128,7 @@ sub arguments {
         $self->{next_offset}    = undef;
         $self->{default_offset} = $default_offset // 'end';
         $self->{buffer}         = \$new_buffer;
-        $self->{poll_interval}  = $poll_interval || $Async_Poll_Interval;
+        $self->{poll_interval}  = $poll_interval || $Poll_Interval;
         $self->{last_receive}   = $Tachikoma::Now;
         $self->{cache_dir}      = $cache_dir;
         $self->{cache_size}     = undef;
@@ -209,7 +208,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->{status}      = 'ACTIVE';
                 $self->{last_commit} = $Tachikoma::Now;
                 $self->stderr( 'INFO: starting from ',
-                    $self->{saved_offset} // $self->{default_offset} );
+                    $self->{default_offset} )
+                    if ( not $self->{saved_offset} );
                 $self->next_offset( $self->{saved_offset} );
                 $self->set_timer(0) if ( $self->{timer_interval} );
             }
@@ -255,7 +255,9 @@ sub fire {
     {
         $self->commit_offset_async;
     }
-    if ( not $self->{timer_interval} ) {
+    if ( not $self->{timer_interval}
+        or $self->{timer_interval} != $self->{poll_interval} * 1000 )
+    {
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
     if ( length ${ $self->{buffer} }
@@ -339,8 +341,8 @@ sub get_batch_async {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
                 q(.db);
             $self->load_cache( retrieve($file) ) if ( -f $file );
-            $self->stderr( 'INFO: starting from ',
-                $self->{saved_offset} // $self->{default_offset} );
+            $self->stderr( 'INFO: starting from ', $self->{default_offset} )
+                if ( not $self->{saved_offset} );
             $self->{last_commit} = $Tachikoma::Now;
             $offset = $self->{saved_offset};
         }
@@ -401,8 +403,8 @@ sub commit_offset_async {
     my $cache = undef;
     if ( $self->{edge} ) {
         my $i = $self->{partition_id};
-        $cache = $self->{edge}->{caches}->[$i]
-            if ( exists $self->{edge}->{caches} and defined $i );
+        $cache = $self->{edge}->save_cache($i)
+            if ( defined $i and $self->{edge}->can('save_cache') );
     }
     if ( $self->{cache_dir} ) {
         my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q(.db);
@@ -468,8 +470,8 @@ sub edge {
         my $edge = shift;
         my $i    = $self->{partition_id};
         $self->{edge} = $edge;
-        $edge->{caches}->[$i] = $edge->new_cache
-            if ( $edge and exists $edge->{caches} and defined $i );
+        $edge->new_cache($i)
+            if ( $edge and defined $i and $edge->can('new_cache') );
         $self->last_receive($Tachikoma::Now);
         $self->set_timer(0);
     }
@@ -482,8 +484,8 @@ sub remove_node {
     if ( $self->{edge} ) {
         my $edge = $self->{edge};
         my $i    = $self->{partition_id};
-        $edge->{caches}->[$i] = $edge->new_cache
-            if ( $edge and exists $edge->{caches} and defined $i );
+        $edge->new_cache($i)
+            if ( $edge and defined $i and $edge->can('new_cache') );
     }
     return $self->SUPER::remove_node(@_);
 }
