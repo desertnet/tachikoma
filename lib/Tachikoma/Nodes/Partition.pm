@@ -42,10 +42,10 @@ my %Follower_Commands =
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Partition <node name> --filename=<path>            \
-                                --num_segments=<int>         \
-                                --segment_size=<int>         \
-                                --segment_lifespan=<seconds> \
+make_node Partition <node name> --filename=<path>        \
+                                --num_segments=<int>     \
+                                --segment_size=<int>     \
+                                --max_lifespan=<seconds> \
                                 --leader=<node path>
 EOF
 }
@@ -53,20 +53,20 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments        = shift;
-        my $filename         = undef;
-        my $path             = undef;
-        my $num_segments     = $Default_Num_Segments;
-        my $segment_size     = $Default_Segment_Size;
-        my $segment_lifespan = $Default_Segment_Lifespan;
-        my $leader           = undef;
+        my $arguments    = shift;
+        my $filename     = undef;
+        my $path         = undef;
+        my $num_segments = $Default_Num_Segments;
+        my $segment_size = $Default_Segment_Size;
+        my $max_lifespan = $Default_Segment_Lifespan;
+        my $leader       = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
-            'filename=s'         => \$filename,
-            'num_segments=i'     => \$num_segments,
-            'segment_size=i'     => \$segment_size,
-            'segment_lifespan=i' => \$segment_lifespan,
-            'leader=s'           => \$leader,
+            'filename=s'     => \$filename,
+            'num_segments=i' => \$num_segments,
+            'segment_size=i' => \$segment_size,
+            'max_lifespan=i' => \$max_lifespan,
+            'leader=s'       => \$leader,
         );
         die "ERROR: bad arguments for Partition\n" if ( not $r );
         $filename //= shift @{$argv};
@@ -79,7 +79,7 @@ sub arguments {
         $self->{filename}         = $path;
         $self->{num_segments}     = $num_segments;
         $self->{segment_size}     = $segment_size;
-        $self->{segment_lifespan} = $segment_lifespan;
+        $self->{max_lifespan}     = $max_lifespan;
         $self->{status}           = 'ACTIVE';
         $self->{leader}           = undef;
         $self->{leader_path}      = undef;
@@ -573,9 +573,9 @@ sub should_delete {
         else {
             my $last_modified = ( stat $segment->[LOG_FH] )[9];
             $rv = 1
-                if ($self->{segment_lifespan}
+                if ($self->{max_lifespan}
                 and $Tachikoma::Now - $last_modified
-                > $self->{segment_lifespan} );
+                > $self->{max_lifespan} );
         }
     }
     return $rv;
@@ -994,12 +994,12 @@ sub segment_size {
     return $self->{segment_size};
 }
 
-sub segment_lifespan {
+sub max_lifespan {
     my $self = shift;
     if (@_) {
-        $self->{segment_lifespan} = shift;
+        $self->{max_lifespan} = shift;
     }
-    return $self->{segment_lifespan};
+    return $self->{max_lifespan};
 }
 
 sub status {

@@ -38,17 +38,19 @@ EOF
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{caches}          = [];
-    $self->{num_partitions}  = $Default_Num_Partitions;
-    $self->{window_size}     = $Default_Window_Size;
-    $self->{num_buckets}     = $Default_Num_Buckets;
-    $self->{next_window}     = undef;
-    $self->{host}            = undef;
-    $self->{port}            = undef;
-    $self->{topic}           = undef;
-    $self->{field}           = undef;
-    $self->{connector}       = undef;
-    $self->{consumer_broker} = undef;
+    $self->{caches}                  = [];
+    $self->{on_save_cache_callbacks} = [];
+    $self->{cache_timestamp}         = 0;
+    $self->{num_partitions}          = $Default_Num_Partitions;
+    $self->{window_size}             = $Default_Window_Size;
+    $self->{num_buckets}             = $Default_Num_Buckets;
+    $self->{next_window}             = undef;
+    $self->{host}                    = undef;
+    $self->{port}                    = undef;
+    $self->{topic}                   = undef;
+    $self->{field}                   = undef;
+    $self->{connector}               = undef;
+    $self->{consumer_broker}         = undef;
     bless $self, $class;
     return $self;
 }
@@ -122,10 +124,13 @@ sub fill {
 
 sub fire {
     my $self = shift;
-    for my $cache ( @{ $self->{caches} } ) {
+    for my $i ( 0 .. $self->{num_partitions} - 1 ) {
+        my $cache   = $self->{caches}->[$i];
+        my $save_cb = $self->{on_save_cache_callbacks}->[$i];
         unshift @{$cache}, {};
         while ( @{$cache} > $self->{num_buckets} ) {
-            pop @{$cache};
+            my $bucket = pop @{$cache};
+            &{$save_cb}($bucket) if ($save_cb);
         }
     }
     my $delay = $self->{window_size};
@@ -183,7 +188,7 @@ sub get_cache {
         $i += $_ for ( unpack 'C*', md5($key) );
         $i %= $self->{num_partitions};
     }
-    $self->{caches}->[$i] //= [ {} ];
+    $self->{caches}->[$i] //= [];
     return $self->{caches}->[$i];
 }
 
@@ -217,10 +222,10 @@ sub send_entry {
 sub send_stats {
     my ( $self, $to ) = @_;
     my @stats = ();
-    for my $i ( 1 .. $self->{num_partitions} ) {
-        my $cache       = $self->{caches}->[ $i - 1 ];
+    for my $i ( 1 .. $self->num_partitions ) {
+        my $cache       = $self->caches->[ $i - 1 ];
         my @cache_stats = ();
-        for my $b ( 1 .. $self->{num_buckets} ) {
+        for my $b ( 1 .. $self->num_buckets ) {
             my $bucket = $cache->[ $b - 1 ] // {};
             push @cache_stats, sprintf '%6d',
                 $bucket ? scalar keys %{$bucket} : 0;
@@ -229,32 +234,48 @@ sub send_stats {
     }
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
-    $response->[FROM]    = $self->{name};
+    $response->[FROM]    = $self->name;
     $response->[TO]      = $to;
     $response->[PAYLOAD] = join q(), @stats;
-    $self->{sink}->fill($response);
+    $self->sink->fill($response);
     return;
 }
 
-sub new_cache {
+sub on_new_cache {
     my ( $self, $i ) = @_;
-    $self->{caches}->[$i] = [];
+    $self->caches->[$i] = [];
     return;
 }
 
-sub load_cache {
+sub on_load_cache {
     my ( $self, $i, $stored ) = @_;
-    $self->{caches}->[$i] = $stored->{cache} || [];
-    if ( $self->{window_size} ) {
-        my $cache = $self->{caches}->[$i];
-        my $span  = $self->{next_window} - ( $stored->{timestamp} || 0 );
-        my $count = int $span / $self->{window_size};
-        $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
+    $self->caches->[$i] //= [];
+    my $cache = $self->caches->[$i];
+    my $j     = 0;
+    if ( $self->window_size ) {
+        my $span = $self->next_window - $stored->{timestamp};
+        $j = int $span / $self->window_size;
+    }
+    if ( $j < $self->num_buckets ) {
+        $cache->[$j] = $stored->{cache};
+        $self->cache_timestamp( $stored->{timestamp} );
+    }
+    return;
+}
+
+sub on_load_cache_complete {
+    my ( $self, $i ) = @_;
+    $self->caches->[$i] //= [];
+    if ( $self->window_size ) {
+        my $cache = $self->caches->[$i];
+        my $span  = $self->next_window - $self->cache_timestamp;
+        my $count = int $span / $self->window_size;
+        $count = $self->num_buckets if ( $count > $self->num_buckets );
         if ($count) {
             for ( 1 .. $count ) {
                 unshift @{$cache}, {};
             }
-            while ( @{$cache} > $self->{num_buckets} ) {
+            while ( @{$cache} > $self->num_buckets ) {
                 pop @{$cache};
             }
         }
@@ -262,9 +283,27 @@ sub load_cache {
     return;
 }
 
-sub save_cache {
-    my ( $self, $i ) = @_;
-    return $self->{caches}->[$i];
+sub on_save_cache {
+    my ( $self, $i, $stored ) = @_;
+    my $cache = $self->{caches}->[$i] // [];
+    $stored->{cache} = $cache->[0];
+    return;
+}
+
+sub on_save_cache_callbacks {
+    my $self = shift;
+    if (@_) {
+        $self->{on_save_cache_callbacks} = shift;
+    }
+    return $self->{on_save_cache_callbacks};
+}
+
+sub cache_timestamp {
+    my $self = shift;
+    if (@_) {
+        $self->{cache_timestamp} = shift;
+    }
+    return $self->{cache_timestamp};
 }
 
 ########################

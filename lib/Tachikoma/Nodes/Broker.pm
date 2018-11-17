@@ -36,7 +36,7 @@ my $Save_Interval       = 3600;          # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;          # have 90% of our share of leaders
 my $Election_Short      = 0;             # wait if everyone is online
 my $Election_Long       = 10;            # wait if a broker is offline
-my $Startup_Delay       = 5;             # wait at least this long on startup
+my $Startup_Delay       = 2;             # wait at least this long on startup
 my $Election_Timeout  = 60;     # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
 my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
@@ -79,7 +79,7 @@ sub new {
         replication_factor => 2,
         num_segments       => 8,
         segment_size       => 128 * 1024 * 1024,
-        segment_lifespan   => 7 * 86400,
+        max_lifespan       => 7 * 86400,
     };
     $self->{generation}          = 0;
     $self->{is_controller}       = undef;
@@ -1159,7 +1159,7 @@ sub apply_mapping {
             $node->filename("$path/$topic_name/partition/$i");
             $node->num_segments( $topic->{num_segments} );
             $node->segment_size( $topic->{segment_size} );
-            $node->segment_lifespan( $topic->{segment_lifespan} );
+            $node->max_lifespan( $topic->{max_lifespan} );
             $node->sink( $self->sink );
 
             if ($leader) {
@@ -1182,7 +1182,7 @@ sub apply_mapping {
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
                 $node->num_segments( $topic->{num_segments} );
                 $node->segment_size( $caches->{$group_name} );
-                $node->segment_lifespan( $topic->{segment_lifespan} );
+                $node->max_lifespan( $topic->{max_lifespan} );
                 $node->sink( $self->sink );
 
                 if ($leader) {
@@ -1401,7 +1401,7 @@ sub add_topic {
     my $self      = shift;
     my $arguments = shift;
     my ( $topic_name, $num_partitions, $replication_factor, $num_segments,
-        $segment_size, $segment_lifespan, @groups );
+        $segment_size, $max_lifespan, @groups );
     my ( $r, $argv ) = GetOptionsFromString(
         $arguments,
         'topic=s'              => \$topic_name,
@@ -1410,7 +1410,7 @@ sub add_topic {
         'replication_factor=i' => \$replication_factor,
         'num_segments=i'       => \$num_segments,
         'segment_size=i'       => \$segment_size,
-        'segment_lifespan=i'   => \$segment_lifespan,
+        'max_lifespan=i'       => \$max_lifespan,
     );
     $topic_name //= shift @{$argv};
     return $self->stderr("ERROR: bad arguments: ADD_TOPIC $arguments")
@@ -1420,13 +1420,13 @@ sub add_topic {
     $replication_factor ||= $default->{replication_factor};
     $num_segments       ||= $default->{num_segments};
     $segment_size       ||= $default->{segment_size};
-    $segment_lifespan   ||= $default->{segment_lifespan};
+    $max_lifespan       ||= $default->{max_lifespan};
     $self->topics->{$topic_name} = {
         num_partitions     => $num_partitions,
         replication_factor => $replication_factor,
         num_segments       => $num_segments,
         segment_size       => $segment_size,
-        segment_lifespan   => $segment_lifespan,
+        max_lifespan       => $max_lifespan,
     };
 
     for my $group_name (@groups) {
@@ -1474,7 +1474,7 @@ sub save_topic_state {
         '--replication_factor=' . $topic->{replication_factor},
         '--num_segments=' . $topic->{num_segments},
         '--segment_size=' . $topic->{segment_size},
-        '--segment_lifespan=' . $topic->{segment_lifespan},
+        '--max_lifespan=' . $topic->{max_lifespan},
         map "--group=$_",
         @consumer_groups ),
         "\n";
@@ -1802,7 +1802,7 @@ $C{help} = sub {
             . "                    --replication_factor=<count> \\\n"
             . "                    --num_segments=<count>       \\\n"
             . "                    --segment_size=<bytes>       \\\n"
-            . "                    --segment_lifespan=<seconds>\n"
+            . "                    --max_lifespan=<seconds>\n"
             . "          set_consumer_group --group=<group>     \\\n"
             . "                             --topic=<topic>\n"
             . "          list_brokers\n"
@@ -1906,7 +1906,7 @@ $C{list_topics} = sub {
             [
             $topic_name,                  $topic->{num_partitions},
             $topic->{replication_factor}, $topic->{num_segments},
-            $topic->{segment_size},       $topic->{segment_lifespan},
+            $topic->{segment_size},       $topic->{max_lifespan},
             ];
     }
     return $self->response( $envelope, $self->tabulate($results) );

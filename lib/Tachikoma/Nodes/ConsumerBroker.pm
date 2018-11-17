@@ -24,7 +24,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval       = 1;      # poll for new messages this often
-my $Startup_Delay       = 5;      # wait at least this long on startup
+my $Startup_Delay       = 2;      # wait at least this long on startup
 my $Check_Interval      = 15;     # synchronous partition map check
 my $Commit_Interval     = 60;     # commit offsets
 my $Default_Timeout     = 900;    # default async message timeout
@@ -204,6 +204,7 @@ sub fire {
         $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
     }
     $self->sink->fill($message);
+    $self->set_timer if ( $self->{timer_interval} );
     return;
 }
 
@@ -276,7 +277,7 @@ sub owner {
     my $self = shift;
     if (@_) {
         $self->{owner} = shift;
-        $self->set_timer;
+        $self->set_timer( $Startup_Delay * 1000 );
     }
     return $self->{owner};
 }
@@ -285,7 +286,7 @@ sub edge {
     my $self = shift;
     if (@_) {
         $self->{edge} = shift;
-        $self->set_timer;
+        $self->set_timer( $Startup_Delay * 1000 );
     }
     return $self->{edge};
 }

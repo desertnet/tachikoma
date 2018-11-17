@@ -207,9 +207,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             elsif ( $self->{status} eq 'OFFSET' ) {
                 $self->{status}      = 'ACTIVE';
                 $self->{last_commit} = $Tachikoma::Now;
-                $self->stderr( 'INFO: starting from ',
-                    $self->{default_offset} )
-                    if ( not $self->{saved_offset} );
+                $self->load_cache_complete;
                 $self->next_offset( $self->{saved_offset} );
                 $self->set_timer(0) if ( $self->{timer_interval} );
             }
@@ -341,8 +339,7 @@ sub get_batch_async {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
                 q(.db);
             $self->load_cache( retrieve($file) ) if ( -f $file );
-            $self->stderr( 'INFO: starting from ', $self->{default_offset} )
-                if ( not $self->{saved_offset} );
+            $self->load_cache_complete;
             $self->{last_commit} = $Tachikoma::Now;
             $offset = $self->{saved_offset};
         }
@@ -399,24 +396,25 @@ sub expire_timestamps {
 }
 
 sub commit_offset_async {
-    my $self  = shift;
-    my $cache = undef;
-    if ( $self->{edge} ) {
+    my $self   = shift;
+    my $cache  = shift;
+    my $stored = {
+        timestamp => $Tachikoma::Now,
+        offset    => $self->{lowest_offset},
+    };
+    if ($cache) {
+        $stored->{cache} = $cache;
+    }
+    elsif ( $self->{edge} ) {
         my $i = $self->{partition_id};
-        $cache = $self->{edge}->save_cache($i)
-            if ( defined $i and $self->{edge}->can('save_cache') );
+        $self->{edge}->on_save_cache( $i, $stored )
+            if ( defined $i and $self->{edge}->can('on_save_cache') );
     }
     if ( $self->{cache_dir} ) {
         my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
-        nstore(
-            {   timestamp => $Tachikoma::Now,
-                offset    => $self->{lowest_offset},
-                cache     => $cache
-            },
-            $tmp
-        );
+        nstore( $stored, $tmp );
         rename $tmp, $file
             or $self->stderr("ERROR: couldn't rename cache file $tmp: $!");
         $self->{cache_size} = ( stat $file )[7];
@@ -426,11 +424,7 @@ sub commit_offset_async {
         $message->[TYPE]    = TM_STORABLE;
         $message->[FROM]    = $self->{name};
         $message->[TO]      = $self->{offsetlog};
-        $message->[PAYLOAD] = {
-            timestamp => $Tachikoma::Now,
-            offset    => $self->{lowest_offset},
-            cache     => $cache
-        };
+        $message->[PAYLOAD] = $stored;
         $self->{sink}->fill($message);
         $self->{cache_size} = $message->size;
     }
@@ -443,14 +437,37 @@ sub load_cache {
     my $stored = shift;
     if ( ref $stored ) {
         $self->{saved_offset} = $stored->{offset};
-        $self->{edge}->load_cache( $self->{partition_id}, $stored )
-            if (defined $stored->{cache}
-            and $self->{edge}
-            and $self->{edge}->can('load_cache') );
+        if ( $self->{edge} ) {
+            $self->{edge}->on_load_cache( $self->{partition_id}, $stored )
+                if ( defined $stored->{cache}
+                and $self->{edge}->can('on_load_cache') );
+        }
     }
     else {
         $self->print_less_often('WARNING: bad data in cache');
     }
+    return;
+}
+
+sub load_cache_complete {
+    my $self = shift;
+    my $i    = $self->{partition_id};
+    if ( $self->{edge} ) {
+        if ( $self->{edge}->can('on_load_cache_complete') ) {
+            $self->{edge}->on_load_cache_complete($i);
+        }
+        if ( not $self->{auto_commit}
+            and $self->{edge}->can('on_save_cache_callbacks') )
+        {
+            $self->{edge}->on_save_cache_callbacks->[$i] = sub {
+                my $cache = shift;
+                $self->commit_offset_async($cache);
+                return;
+            };
+        }
+    }
+    $self->stderr( 'INFO: starting from ', $self->{default_offset} )
+        if ( not $self->{saved_offset} );
     return;
 }
 

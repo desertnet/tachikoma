@@ -16,10 +16,10 @@ for i (1 .. 2) {
                                                                  --topic=server_log.<field>
                                                                  --group=engine
                                                                  --default_offset=start
-                                                                 --auto_commit=3600;
+                                                                 --auto_commit=0;
             make_node Index          server_log.<field>:index    --num_partitions=4
-                                                                 --window_size=86400
-                                                                 --num_buckets=7;
+                                                                 --window_size=7200
+                                                                 --num_buckets=12;
             connect_edge server_log.<field>:consumer server_log.<field>:index;
             var indexes .= server_log.<field>:index;
         };
