@@ -481,15 +481,15 @@ sub get_controller {
 }
 
 sub get_group_cache {
-    my $self   = shift;
-    my $caches = {};
-    my $topic  = $self->topic or die "ERROR: no topic\n";
-    my $group  = $self->group or die "ERROR: no group\n";
+    my $self    = shift;
+    my $caches  = {};
+    my $topic   = $self->topic or die "ERROR: no topic\n";
+    my $group   = $self->group or die "ERROR: no group\n";
     my $mapping = $self->broker->get_mapping($topic);
     for my $partition_id ( keys %{$mapping} ) {
         my $broker_id = $mapping->{$partition_id};
         my $offsetlog = join q(:), $topic, 'partition', $partition_id, $group;
-        my $consumer  = Tachikoma::Nodes::Consumer->new( $offsetlog );
+        my $consumer  = Tachikoma::Nodes::Consumer->new($offsetlog);
         $consumer->next_offset(-2);
         $consumer->broker_id($broker_id);
         $consumer->timeout( $self->timeout );
