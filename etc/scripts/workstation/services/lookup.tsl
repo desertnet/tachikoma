@@ -17,7 +17,7 @@ for i (<start> .. <end>) {
                                                       --topic=images.indb
                                                       --partition_id=<i>
                                                       --default_offset=start;
-      make_node Table          images.indb:table      --num_partitions=1
+      make_node Table          images.indb:table      --num_partitions=<count>
                                                       --window_size=0
                                                       --num_buckets=1;
       connect_edge images.indb:consumer images.indb:table;

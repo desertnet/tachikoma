@@ -48,8 +48,7 @@ func add_hub {
                                                      --segment_size=(4 * 1024 * 1024)
                                                      --segment_lifespan=(7 * 86400);
                 set_group --group=server_log.<field> --topic=server_log;
-                set_group --group=engine             --topic=server_log.<field>
-                                                     --cache_size=0;
+                set_group --group=engine             --topic=server_log.<field>;
             };
 
             set_topic images.ondisk  --num_partitions=8

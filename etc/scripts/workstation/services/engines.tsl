@@ -16,8 +16,7 @@ for i (1 .. 2) {
                                                                  --topic=server_log.<field>
                                                                  --group=engine
                                                                  --default_offset=start
-                                                                 --cache_dir=<cache_dir>
-                                                                 --auto_commit=300;
+                                                                 --auto_commit=3600;
             make_node Index          server_log.<field>:index    --num_partitions=4
                                                                  --window_size=86400
                                                                  --num_buckets=7;

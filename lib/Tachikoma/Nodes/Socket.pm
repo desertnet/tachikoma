@@ -903,7 +903,7 @@ sub do_not_enter {
 sub fill_buffer_init {
     my $self    = shift;
     my $message = shift;
-    if ( $message->[FROM] eq 'Inet_AtoN' ) {
+    if ( $message->[FROM] =~ m{^Inet_AtoN(?:-\d+)?$} ) {
         #
         # we're a connection starting up, and our Inet_AtoN job is
         # sending us the results of the DNS lookup.
