@@ -9,9 +9,9 @@ $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
 
 my $partition = $ARGV[0];
-my $offset    = $ARGV[1];
-die "usage: dump_message <partition> <offset>\n"
-    if ( not defined $offset );
+my $offset    = $ARGV[1] // '-2';
+die "usage: dump_message <partition> [ <offset> ]\n"
+    if ( not defined $partition );
 my $consumer = Tachikoma::Nodes::Consumer->new($partition);
 $consumer->next_offset($offset);
 my $message = $consumer->fetch->[0];
