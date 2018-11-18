@@ -185,9 +185,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( $self->{leader} ) {
             return $self->send_error( $message, "NOT_LEADER\n" )
                 if ( $message->[FROM] ne $self->{leader_path} );
-            my $offset = ( split m{:}, $message->[ID], 2 )[0];
-            return $self->reset_follower($offset)
-                if ( $offset != $self->{offset} );
+            return $self->reset_follower( $message->[ID] )
+                if ( $message->[ID] != $self->{offset} );
             my $segment = $self->{segments}->[-1];
             $self->create_segment
                 if ( $segment->[LOG_SIZE] >= $self->{segment_size} );
@@ -203,9 +202,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return $self->send_error( $message, "NOT_LEADER\n" )
             if ( $message->[FROM] ne $self->{leader_path} );
         $self->{expecting} = undef;
-        my $offset = ( split m{:}, $message->[ID], 2 )[0];
-        return $self->reset_follower($offset)
-            if ( $offset != $self->{offset} );
+        return $self->reset_follower( $message->[ID] )
+            if ( $message->[ID] != $self->{offset} );
     }
     elsif ( $self->{status} eq 'HALT' ) {
         $self->send_error( $message, "NOT_AVAILABLE\n" );
@@ -460,16 +458,14 @@ sub process_get {
     $response->[TO]   = $path;
     my $read = sysread $fh, $buffer, BUFSIZ;
     die if ( not defined $read );
-    my $next_offset = $offset + $read;
 
     if ( $read > 0
-        and ( $next_offset <= $self->{last_commit_offset} or $broker_id ) )
+        and ( $offset + $read <= $self->{last_commit_offset} or $broker_id ) )
     {
         delete $self->{waiting}->{$to};
-        $response->[ID] = join q(:), $offset, $next_offset;
+        $response->[ID]      = $offset;
         $response->[PAYLOAD] = $buffer;
         $node->fill($response);
-        $offset = $next_offset;
     }
     else {
         $response->[TYPE] = TM_EOF;
