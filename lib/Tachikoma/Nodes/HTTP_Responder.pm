@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: HTTP_Responder.pm 35878 2018-11-18 21:58:21Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -14,7 +14,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
     TM_BYTESTREAM TM_STORABLE
 );
-use File::MkTemp;
+use File::Temp qw( tempfile );
 use POSIX qw( strftime );
 use Time::Local;
 use vars qw( @EXPORT_OK );
@@ -137,9 +137,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     or return $self->stderr(
                     "ERROR: couldn't mkdir $tmp_path: $!")
                     if ( not -d $tmp_path );
-                my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_path );
-                $request->{fh} = $fh;
-                $request->{tmp} = join q(/), $tmp_path, $template;
+                my ( $fh, $template ) =
+                    tempfile( 'X' x 16, DIR => $tmp_path );
+                $request->{fh}  = $fh;
+                $request->{tmp} = $template;
             }
             $request->{length} += length ${$payload};
             if ( length ${$payload} and not syswrite $request->{fh},
