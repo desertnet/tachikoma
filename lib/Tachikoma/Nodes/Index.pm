@@ -55,18 +55,7 @@ sub arguments {
         $self->{window_size}    = $window_size // $Default_Window_Size;
         $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
         $self->{limit}          = $limit || $Default_Limit;
-        $self->{next_window}    = undef;
-
-        if ( $self->{window_size} ) {
-            my $time = time;
-            my ( $sec, $min, $hour ) = localtime $time;
-            my $delay = $self->{window_size};
-            $delay -= $hour * 3600 % $delay if ( $delay > 3600 );
-            $delay -= $min * 60 % $delay    if ( $delay > 60 );
-            $delay -= $sec % $delay;
-            $self->{next_window} = $time + $delay;
-            $self->set_timer( $delay * 1000, 'oneshot' );
-        }
+        $self->{next_window}    = [];
     }
     return $self->{arguments};
 }
@@ -150,10 +139,9 @@ sub get_keys {
 }
 
 sub collect {
-    my ( $self, $timestamp, $key, $value ) = @_;
+    my ( $self, $i, $timestamp, $key, $value ) = @_;
     return 1 if ( not length $value );
-    my $cache = $self->get_cache($key);
-    my $bucket = $self->get_bucket( $cache, $timestamp );
+    my $bucket = $self->get_bucket( $i, $timestamp );
     shift @{ $bucket->{$key} }
         if ( push( @{ $bucket->{$key} //= [] }, $value ) > $self->{limit}
         and $self->{limit} );

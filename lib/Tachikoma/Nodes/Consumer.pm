@@ -23,12 +23,13 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval       = 1;      # poll for new messages this often
-my $Default_Timeout     = 900;    # default async message timeout
-my $Expire_Interval     = 15;     # check message timeouts
-my $Commit_Interval     = 60;     # commit offsets
-my $Default_Hub_Timeout = 60;     # timeout waiting for hub
-my %Targets             = ();
+my $Poll_Interval   = 1;             # poll for new messages this often
+my $Timeout         = 900;           # default async message timeout
+my $Expire_Interval = 15;            # check message timeouts
+my $Commit_Interval = 60;            # commit offsets
+my $Hub_Timeout     = 60;            # timeout waiting for hub
+my $Cache_Type      = 'snapshot';    # save complete state
+my %Targets         = ();
 
 sub new {
     my $class = shift;
@@ -53,11 +54,12 @@ sub new {
     $self->{buffer}         = \$new_buffer;
     $self->{poll_interval}  = $Poll_Interval;
     $self->{last_receive}   = Time::HiRes::time;
+    $self->{cache_type}     = undef;
     $self->{cache_dir}      = undef;
     $self->{cache_size}     = undef;
     $self->{auto_commit}    = $self->{offsetlog} ? $Commit_Interval : undef;
     $self->{last_commit}    = 0;
-    $self->{hub_timeout}    = $Default_Hub_Timeout;
+    $self->{hub_timeout}    = $Hub_Timeout;
 
     # async support
     $self->{expecting}      = undef;
@@ -67,7 +69,7 @@ sub new {
     $self->{last_expire}    = $Tachikoma::Now;
     $self->{msg_unanswered} = 0;
     $self->{max_unanswered} = undef;
-    $self->{timeout}        = $Default_Timeout;
+    $self->{timeout}        = $Timeout;
     $self->{status}         = undef;
 
     # sync support
@@ -89,10 +91,12 @@ make_node Consumer <node name> --partition=<path>            \
                                --max_unanswered=<int>        \
                                --timeout=<seconds>           \
                                --poll_interval=<seconds>     \
+                               --cache_type=<string>         \
                                --cache_dir=<path>            \
                                --auto_commit=<seconds>       \
                                --hub_timeout=<seconds>       \
                                --default_offset=<int|string>
+    # valid cache types: window, snapshot
     # valid offsets: start (0), recent (-2), end (-1)
 EOF
 }
@@ -101,9 +105,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,   $offsetlog,     $max_unanswered,
-            $timeout,     $poll_interval, $cache_dir,
-            $auto_commit, $hub_timeout,   $default_offset
+        my ($partition, $offsetlog,     $max_unanswered,
+            $timeout,   $poll_interval, $cache_type,
+            $cache_dir, $auto_commit,   $hub_timeout,
+            $default_offset
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -111,6 +116,7 @@ sub arguments {
             'offsetlog=s'      => \$offsetlog,
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
+            'cache_type=s'     => \$cache_type,
             'cache_dir=s'      => \$cache_dir,
             'poll_interval=i'  => \$poll_interval,
             'auto_commit=i'    => \$auto_commit,
@@ -130,12 +136,13 @@ sub arguments {
         $self->{buffer}         = \$new_buffer;
         $self->{poll_interval}  = $poll_interval || $Poll_Interval;
         $self->{last_receive}   = $Tachikoma::Now;
+        $self->{cache_type}     = $cache_type // $Cache_Type;
         $self->{cache_dir}      = $cache_dir;
         $self->{cache_size}     = undef;
         $self->{auto_commit}    = $auto_commit // $Commit_Interval;
         $self->{auto_commit} = undef if ( not $offsetlog and not $cache_dir );
         $self->{last_commit} = ( $offsetlog or $cache_dir ) ? 0 : -1;
-        $self->{hub_timeout} = $hub_timeout || $Default_Hub_Timeout;
+        $self->{hub_timeout} = $hub_timeout || $Hub_Timeout;
         $self->{expecting}   = undef;
         $self->{lowest_offset}  = 0;
         $self->{saved_offset}   = undef;
@@ -143,7 +150,7 @@ sub arguments {
         $self->{last_expire}    = $Tachikoma::Now;
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered || 1;
-        $self->{timeout}        = $timeout || $Default_Timeout;
+        $self->{timeout}        = $timeout || $Timeout;
         $self->{status}         = $offsetlog ? 'INIT' : 'ACTIVE';
     }
     return $self->{arguments};
@@ -152,7 +159,7 @@ sub arguments {
 sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
-    my ( $offset, $next_offset ) = split m{:}, $message->[ID], 2;
+    my $offset  = $message->[ID];
     if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         if ( $message->[PAYLOAD] eq 'answer' ) {
             $self->remove_node if ( defined $self->partition_id );
@@ -216,7 +223,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
         }
         else {
-            $self->{next_offset} = $next_offset;
+            $self->{next_offset} = $offset + length $message->[PAYLOAD];
             ${ $self->{buffer} } .= $message->[PAYLOAD];
             $self->set_timer(0)
                 if ($self->{timer_interval}
@@ -302,7 +309,7 @@ sub drain_buffer {
                 defined $i
                 ? join q(/), $self->{name}, $i
                 : $self->{name};
-            $message->[ID] = join q(:), $offset, $offset + $size;
+            $message->[ID] = $offset;
             $self->{counter}++;
             if ($edge) {
                 $edge->fill($message);
@@ -396,19 +403,21 @@ sub expire_timestamps {
 }
 
 sub commit_offset_async {
-    my $self   = shift;
-    my $cache  = shift;
-    my $stored = {
-        timestamp => $Tachikoma::Now,
-        offset    => $self->{lowest_offset},
+    my $self      = shift;
+    my $timestamp = shift;
+    my $cache     = shift;
+    my $stored    = {
+        timestamp  => $timestamp // $Tachikoma::Now,
+        offset     => $self->{lowest_offset},
+        cache_type => $self->{cache_type},
+        cache      => $cache,
     };
-    if ($cache) {
-        $stored->{cache} = $cache;
-    }
-    elsif ( $self->{edge} ) {
+    if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
-        $self->{edge}->on_save_cache( $i, $stored )
-            if ( defined $i and $self->{edge}->can('on_save_cache') );
+        $self->{edge}->on_save_snapshot( $i, $stored )
+            if (defined $i
+            and $self->{edge}
+            and $self->{edge}->can('on_save_snapshot') );
     }
     if ( $self->{cache_dir} ) {
         my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q(.db);
@@ -438,9 +447,18 @@ sub load_cache {
     if ( ref $stored ) {
         $self->{saved_offset} = $stored->{offset};
         if ( $self->{edge} ) {
-            $self->{edge}->on_load_cache( $self->{partition_id}, $stored )
-                if ( defined $stored->{cache}
-                and $self->{edge}->can('on_load_cache') );
+            if ( $self->{cache_type} eq 'snapshot' ) {
+                if ( $self->{edge}->can('on_load_snapshot') ) {
+                    $self->{edge}
+                        ->on_load_snapshot( $self->{partition_id}, $stored );
+                }
+            }
+            elsif ( $self->{cache_type} eq 'window' ) {
+                if ( $self->{edge}->can('on_load_window') ) {
+                    $self->{edge}
+                        ->on_load_window( $self->{partition_id}, $stored );
+                }
+            }
         }
     }
     else {
@@ -453,17 +471,16 @@ sub load_cache_complete {
     my $self = shift;
     my $i    = $self->{partition_id};
     if ( $self->{edge} ) {
-        if ( $self->{edge}->can('on_load_cache_complete') ) {
-            $self->{edge}->on_load_cache_complete($i);
-        }
-        if ( not $self->{auto_commit}
-            and $self->{edge}->can('on_save_cache_callbacks') )
-        {
-            $self->{edge}->on_save_cache_callbacks->[$i] = sub {
-                my $cache = shift;
-                $self->commit_offset_async($cache);
-                return;
-            };
+        if ( $self->{cache_type} eq 'window' ) {
+            if ( $self->{edge}->can('on_save_window') ) {
+                $self->{edge}->on_save_window->[$i] = sub {
+                    $self->commit_offset_async(@_);
+                    return;
+                };
+            }
+            if ( $self->{edge}->can('on_load_window_complete') ) {
+                $self->{edge}->on_load_window_complete($i);
+            }
         }
     }
     $self->stderr( 'INFO: starting from ', $self->{default_offset} )
@@ -621,9 +638,8 @@ sub get_batch_sync {
         my $response  = shift;
         my $expecting = 1;
         if ( length $response->[ID] ) {
-            my ( $offset, $next_offset ) =
-                split m{:}, $response->[ID], 2;
-            my $eof = $response->[TYPE] & TM_EOF;
+            my $offset = $response->[ID];
+            my $eof    = $response->[TYPE] & TM_EOF;
             $self->{offset} //= $offset;
             if (    $self->{next_offset} > 0
                 and $offset != $self->{next_offset} )
@@ -639,7 +655,7 @@ sub get_batch_sync {
                 $self->{eos}         = $eof;
             }
             else {
-                $self->{next_offset} = $next_offset;
+                $self->{next_offset} = $offset + length $response->[PAYLOAD];
                 ${ $self->{buffer} } .= $response->[PAYLOAD];
             }
             $expecting = undef;
@@ -854,6 +870,14 @@ sub last_receive {
         $self->{last_receive} = shift;
     }
     return $self->{last_receive};
+}
+
+sub cache_type {
+    my $self = shift;
+    if (@_) {
+        $self->{cache_type} = shift;
+    }
+    return $self->{cache_type};
 }
 
 sub cache_dir {
