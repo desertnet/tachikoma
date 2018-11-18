@@ -57,8 +57,8 @@ sub fill {
     my $timestamp = $message->[TIMESTAMP];
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
         my $buffer    = { map { split m{:}, $_, 2 } split q( ), $line };
-        my $hostname  = $buffer->{hostname};
-        my $buff_name = $buffer->{buff_name};
+        my $hostname  = $buffer->{hostname} or next;
+        my $buff_name = $buffer->{buff_name} or next;
         $hostname =~ s{[.].*}{};
         $buff_name =~ s{[^\w\d]+}{_}g;
         for my $field (@Fields) {

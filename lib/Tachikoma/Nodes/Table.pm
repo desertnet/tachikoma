@@ -245,10 +245,11 @@ sub send_stats {
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
-    if ( $stored->{timestamp} > $next_window ) {
+    my $timestamp   = $stored->{timestamp} // 0;
+    if ( $timestamp > $next_window ) {
         $self->{caches}->[$i] //= [];
         my $cache = $self->{caches}->[$i];
-        my $span  = $stored->{timestamp} - $next_window;
+        my $span  = $timestamp - $next_window;
         my $count = int $span / $self->{window_size};
         $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
         if ( $count > 1 ) {
@@ -257,7 +258,7 @@ sub on_load_window {
             }
         }
         unshift @{$cache}, $stored->{cache};
-        $self->{next_window}->[$i] = $stored->{timestamp}
+        $self->{next_window}->[$i] = $timestamp
             if ( $self->{window_size} );
         while ( @{$cache} > $self->{num_buckets} ) {
             pop @{$cache};
