@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35726 2018-10-28 12:49:23Z chris $
+# $Id: Node.pm 35854 2018-11-17 23:10:48Z chris $
 #
 
 package Tachikoma::Node;
@@ -29,9 +29,9 @@ sub new {
     my $self  = {
         name          => q(),
         arguments     => undef,
-        owner         => q(),
         sink          => undef,
         edge          => undef,
+        owner         => q(),
         counter       => 0,
         registrations => {},
         configuration => Tachikoma->configuration,
@@ -90,6 +90,12 @@ sub remove_node {
     }
     $self->sink(undef);
     $self->edge(undef);
+    if ( ref( $self->{owner} ) eq 'ARRAY' ) {
+        @{ $self->{owner} } = ();
+    }
+    else {
+        $self->{owner} = q();
+    }
     if ($name) {
         delete Tachikoma->nodes->{$name};
     }
@@ -377,14 +383,6 @@ sub log_midfix {
     }
 }
 
-sub owner {
-    my $self = shift;
-    if (@_) {
-        $self->{owner} = shift;
-    }
-    return $self->{owner};
-}
-
 sub sink {
     my $self = shift;
     if (@_) {
@@ -402,6 +400,14 @@ sub edge {
         $self->{edge} = shift;
     }
     return $self->{edge};
+}
+
+sub owner {
+    my $self = shift;
+    if (@_) {
+        $self->{owner} = shift;
+    }
+    return $self->{owner};
 }
 
 sub counter {
@@ -477,12 +483,6 @@ Override this method to do work when your node receives a message. Typically cal
 
 Similar to fill() but only receives message payloads. This method is typically called via edge(). Used to implement high performance processing, etc.
 
-=head2 owner()
-
-The implementation of "logical" message routing, this contains the path to another node. Used by fill() to address messages. Override this method if you want something to happen when someone connects to your node--i.e. reset msg_unanswered, etc. Also if this node manages other nodes, it might useful to override this method to update their owners.
-
-Usage: $message->to( $self->owner );
-
 =head2 sink()
 
 The primary implementation of "physical" message routing, this contains a reference to another node. Usually the only method called on a sink() is fill(). If this node manages other nodes, it might useful to override this method to update their sinks as well.
@@ -494,6 +494,12 @@ Usage: $self->sink->fill( $message );
 A secondary implementation of "physical" message routing for high performance processing, this contains a reference to another node. Usually the only method called on an edge() is activate(), but it can also be [ab]used for other purposes. If this node manages other nodes, it might useful to override this method to update their edges as well.
 
 Usage: $self->edge->activate( \{ $message->payload } );
+
+=head2 owner()
+
+The implementation of "logical" message routing, this contains the path to another node. Used by fill() to address messages. Override this method if you want something to happen when someone connects to your node--i.e. reset msg_unanswered, etc. Also if this node manages other nodes, it might useful to override this method to update their owners.
+
+Usage: $message->to( $self->owner );
 
 =head2 remove_node()
 
