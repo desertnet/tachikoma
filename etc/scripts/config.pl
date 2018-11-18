@@ -11,7 +11,7 @@ our %fsync_ports = (
 sub header {
     my %options = @_;
     my $version = $options{v} || 1;
-    print <<EOF;
+    print <<"EOF";
 v$version
 #######################################################################
 # Make nodes and jobs
@@ -31,10 +31,10 @@ sub buffer_probe {
     my $prefix = shift || '';
     my $host   = shift || 'localhost';
     $prefix   .= '_' if ($prefix);
-    print <<EOF;
+    print <<"EOF";
 
   # buffer probe
-  command hosts connect_inet --scheme=rsa --host=$host --port=4390 --name=${prefix}buffer_top
+  command hosts connect_inet --scheme=rsa --host=$host --port=4391 --name=${prefix}buffer_top
   command hosts make_node MemorySieve ${prefix}buffer_top:sieve 4 should_warn
   make_node BufferProbe ${prefix}buffer_probe 4
   connect_node ${prefix}buffer_top:sieve ${prefix}buffer_top
@@ -64,7 +64,7 @@ sub fsync_source {
     else {
         $farmer = sub { "make_node JobFarmer  $_[0] $_[1]\n" };
     }
-    print <<EOF;
+    print <<"EOF";
 
 
 #######################################################################
@@ -77,7 +77,7 @@ cd $name:source
   make_node CommandInterpreter hosts
 EOF
     if ($count) {
-        print <<EOF;
+        print <<"EOF";
   make_node Buffer             file:buffer         $name.db $max_files
   make_node Watchdog           file:watchdog       file:gate
   make_node Gate               file:gate
@@ -96,7 +96,7 @@ EOF
         $args   .= " $pedantic" if ($pedantic);
         print '  ', &$farmer('        DirStats', "           $count DirStats  $args");
     }
-    print <<EOF;
+    print <<"EOF";
   make_node Responder          DirStats:cap
   make_node Tee                DirStats:tee
   make_node ClientConnector    DirStats:client_connector DirStats:tee
@@ -113,7 +113,7 @@ EOF
             else {
                 print "    make_node FileSender      FileSender            $path FileSender:tee\n";
             }
-            print <<EOF;
+            print <<"EOF";
     make_node Tee             FileSender:tee
     make_node ClientConnector FileSender:client_connector FileSender:tee
     connect_sink FileSender:tee FileSender # force responses through
@@ -128,7 +128,7 @@ EOF
         for my $i (1 .. $count) {
             print "  connect_node FileSender:load_balancer      $name:bridge$i/FileSender\n";
         }
-        print <<EOF;
+        print <<"EOF";
   connect_node FileSender:cap                output:tee
   connect_node DirStats                      DirStats:cap
   connect_node DirStats:sieve                DirStats
@@ -145,7 +145,7 @@ EOF
         my $i = 1;
         for my $target (@{ $options{targets} }) {
             my $j = $i + 1;
-            print <<EOF;
+            print <<"EOF";
 
   # sync $target
   connect_inet --scheme=rsa --use-ssl --host=$target --port=${port}00 --name=target$i
@@ -153,13 +153,13 @@ EOF
   connect_node target$i:sieve target$i/file:buffer
 EOF
             if ($i == 1) {
-                print <<EOF;
+                print <<"EOF";
   connect_node output:tee    target$i:sieve
 
 EOF
             }
             else {
-                print <<EOF;
+                print <<"EOF";
   make_node Gate target$i:gate
   connect_node target$i:gate target$i:sieve
   connect_node output:tee   target$i:gate
@@ -167,7 +167,7 @@ EOF
 EOF
             }
             if ($j <= @{ $options{targets} }) {
-                print <<EOF;
+                print <<"EOF";
 
   # fall back on target$j
   connect_inet --scheme=rsa --use-ssl --host=$target --port ${port}99 --name=target$i:heartbeat
@@ -186,7 +186,7 @@ EOF
         $i = 1;
         for my $peer (@{ $options{peers} }) {
             my $j = $i + 1;
-            print <<EOF;
+            print <<"EOF";
 
   # suppress dirstats if target$i is up
   connect_inet --scheme=rsa --use-ssl --host=$peer --port=${port}99 --name=peer$i:heartbeat
@@ -201,7 +201,7 @@ EOF
         for my $update_path (@$broadcasts) {
             print "  command scheduler every ${interval}s send DirStats:gate '$update_path'\n";
         }
-        print <<EOF;
+        print <<"EOF";
 
 
   # heartbeat
@@ -213,7 +213,7 @@ EOF
   register 0.0.0.0:${port}99 heartbeat:client_connector authenticated
 EOF
     }
-    print <<EOF;
+    print <<"EOF";
 
 
   # listen ports for incoming connections
@@ -252,7 +252,7 @@ sub fsync_destination {
     else {
         $farmer = sub { "make_node JobFarmer  $_[0] $_[1]" };
     }
-    print <<EOF;
+    print <<"EOF";
 
 
 #######################################################################

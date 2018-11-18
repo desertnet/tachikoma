@@ -226,6 +226,7 @@ sub new {
     $self->{use_SSL}          = undef;
     $self->{auth_challenge}   = undef;
     $self->{auth_timestamp}   = undef;
+    $self->{auth_complete}    = undef;
     $self->{scheme}           = Tachikoma->scheme;
     $self->{delegates}        = {};
     $self->{drain_fh}         = \&Tachikoma::Nodes::FileHandle::drain_fh;
@@ -602,10 +603,11 @@ sub reply_to_client_challenge {
     );
     return if ( not $message );
     $self->{fill} = $self->{fill_modes}->{fill};
-    $self->notify( 'authenticated' => $self->{name} );
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
+    $self->{auth_complete} = $Tachikoma::Now;
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
+    $self->notify( 'authenticated' => $self->{name} );
     return;
 }
 
@@ -616,6 +618,7 @@ sub auth_server_response {
         \&Tachikoma::Nodes::FileHandle::drain_fh,
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
+    $self->{auth_complete} = $Tachikoma::Now;
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
@@ -900,7 +903,7 @@ sub do_not_enter {
 sub fill_buffer_init {
     my $self    = shift;
     my $message = shift;
-    if ( $message->[FROM] eq 'Inet_AtoN' ) {
+    if ( $message->[FROM] =~ m{^Inet_AtoN(?:-\d+)?$} ) {
         #
         # we're a connection starting up, and our Inet_AtoN job is
         # sending us the results of the DNS lookup.
@@ -1244,6 +1247,14 @@ sub auth_timestamp {
         $self->{auth_timestamp} = shift;
     }
     return $self->{auth_timestamp};
+}
+
+sub auth_complete {
+    my $self = shift;
+    if (@_) {
+        $self->{auth_complete} = shift;
+    }
+    return $self->{auth_complete};
 }
 
 sub scheme {

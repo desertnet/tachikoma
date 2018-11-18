@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 35769 2018-11-02 08:37:19Z chris $
+# $Id: Timer.pm 35854 2018-11-17 23:10:48Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -51,7 +51,8 @@ sub fire_cb {
 }
 
 sub fire {
-    my $self    = shift;
+    my $self = shift;
+    return if ( not $self->{sink} );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[FROM]    = $self->{name};
@@ -59,7 +60,7 @@ sub fire {
     $message->[STREAM]  = $self->{stream};
     $message->[PAYLOAD] = $Tachikoma::Right_Now . "\n";
     $self->{counter}++;
-    $self->{sink}->fill($message) if ( $self->{sink} );
+    $self->{sink}->fill($message);
     return;
 }
 
@@ -103,7 +104,7 @@ sub stop_timer_and_remove_node {
     $self->stop_timer if ( $self->{timer_is_active} );
     delete( $Tachikoma::Nodes_By_ID->{ $self->{id} } )
         if ( defined $self->{id} );
-    $self->{pid} = undef;
+    $self->{id} = undef;
     $self->SUPER::remove_node;
     return;
 }

@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_HEARTBEAT TM_PING TM_INFO TM_ERROR TM_EOF
+    TM_HEARTBEAT TM_PING TM_INFO TM_COMPLETION TM_ERROR TM_EOF
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -28,7 +28,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
     $self->{handling_error}         = undef;
-    $self->{last_fire}              = 0;
+    $self->{last_fire}              = $Tachikoma::Now || time;
     $self->{registrations}->{timer} = {};
     bless $self, $class;
     $self->set_timer(1000);
@@ -104,6 +104,9 @@ sub send_error {
     my $error   = shift;
     if ( not $message->[TYPE] & TM_ERROR ) {
         chomp $error;
+        return
+            if ($error eq 'NOT_AVAILABLE'
+            and $message->[TYPE] & TM_COMPLETION );
         if ( length $message->[FROM] ) {
             return $self->drop_message( $message, 'breaking recursion' )
                 if ( $self->handling_error );

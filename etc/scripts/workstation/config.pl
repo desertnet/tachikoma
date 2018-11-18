@@ -4,7 +4,7 @@ use warnings;
 require 'config.pl';
 
 sub workstation_header {
-    print <<EOF;
+    print <<'EOF';
 v2
 include services/config.tsl
 
@@ -26,7 +26,7 @@ make_node Echo               echo
 make_node Scheduler          scheduler
 
 cd server_log:ruleset:config
-  add  100 deny where payload=.* FROM: .* ID: "tachikoma\@<hostname>(?:\\.?.*)" COMMAND: .*
+  add  100 deny where payload=.* FROM: .* ID: "tachikoma@<hostname>(?:\.?.*)" COMMAND: .*
   add  200 deny where payload=silo .* pub .* user .* addr .* is rfc1918
   add  999 copy to error_log:tee where payload="ERROR:|FAILED:|TRAP:|COMMAND:"
   add 1000 redirect to server_log:tee
@@ -42,9 +42,9 @@ cd system_log:ruleset:config
   add 1000 redirect to system_log:tee
 cd ..
 
-command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
-command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
-command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(\@_)'
+command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
+command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
+command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
 command jobs start_job Tail      http_log         /var/log/tachikoma/http-access.log
 
 connect_node system_log:color         system_log
@@ -61,7 +61,7 @@ EOF
 }
 
 sub workstation_benchmarks {
-    print <<EOF;
+    print <<'EOF';
 
 func run_benchmarks {
     command jobs start_job CommandInterpreter benchmarks;
@@ -120,7 +120,7 @@ EOF
 }
 
 sub workstation_partitions {
-    print <<EOF;
+    print <<'EOF';
 
 
 # partitions
@@ -132,7 +132,7 @@ EOF
 }
 
 sub workstation_services {
-    print <<EOF;
+    print <<'EOF';
 
 
 # services
@@ -168,11 +168,11 @@ EOF
 }
 
 sub workstation_sound_effects {
-    print <<EOF;
-
+    print <<'EOF';
+var username=`whoami`;
 
 # sound effects
-func get_sound   { return "/System/Library/Sounds/<1>.aiff\\n" }
+func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
 func afplay      { send AfPlay:sieve <1>; return }
 func cozmo_alert { send CozmoAlert:sieve <1>; return }
 
@@ -182,15 +182,15 @@ make_node MemorySieve CozmoAlert:sieve 1
 make_node JobFarmer   CozmoAlert       1 CozmoAlert
 make_node Function server_log:sounds '{
     local sound = "";
-    # if (<1> =~ "\\sWARNING:\\s")    [ sound = Tink;                    ]
-    if (<1> =~ "\\sERROR:\\s(.*)")  [ sound = Tink;   cozmo_alert <_1> ]
-    elsif (<1> =~ "\\sFAILURE:\\s") [ sound = Sosumi;                  ]
-    elsif (<1> =~ "\\sCOMMAND:\\s") [ sound = Hero;                    ];
+    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;                    ]
+    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   cozmo_alert <_1> ]
+    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi;                  ]
+    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;                    ];
     if (<sound>) { afplay { get_sound <sound> } };
 }'
 make_node Function silc:sounds '{
     local sound = Pop;
-    if (<1> =~ "\\bchris\\b(?!>)") [ sound = Glass ];
+    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
     afplay { get_sound <sound> };
 }'
 command AfPlay     lazy on
@@ -206,7 +206,7 @@ EOF
 }
 
 sub workstation_hosts {
-    print <<EOF;
+    print <<'EOF';
 cd hosts
   connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
   connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4232 server_logs
@@ -214,9 +214,9 @@ cd hosts
   connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
 cd ..
 
-connect_node silc_dn                  silc_dn:tee
-connect_node system_logs              system_log:ruleset
-connect_node server_logs              server_log:ruleset
+connect_node silc_dn     silc_dn:tee
+connect_node system_logs system_log:ruleset
+connect_node server_logs server_log:ruleset
 
 EOF
 }

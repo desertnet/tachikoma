@@ -10,7 +10,7 @@ workstation_partitions();
 workstation_sound_effects();
 
 workstation_hosts();
-print <<EOF;
+print <<'EOF';
 command jobs start_job Tail local_system_log /var/log/system.log
 connect_node local_system_log local_system_log:ruleset
 

@@ -42,10 +42,10 @@ my %Follower_Commands =
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Partition <node name> --filename=<path>            \
-                                --num_segments=<int>         \
-                                --segment_size=<int>         \
-                                --segment_lifespan=<seconds> \
+make_node Partition <node name> --filename=<path>        \
+                                --num_segments=<int>     \
+                                --segment_size=<int>     \
+                                --max_lifespan=<seconds> \
                                 --leader=<node path>
 EOF
 }
@@ -53,20 +53,20 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments        = shift;
-        my $filename         = undef;
-        my $path             = undef;
-        my $num_segments     = $Default_Num_Segments;
-        my $segment_size     = $Default_Segment_Size;
-        my $segment_lifespan = $Default_Segment_Lifespan;
-        my $leader           = undef;
+        my $arguments    = shift;
+        my $filename     = undef;
+        my $path         = undef;
+        my $num_segments = $Default_Num_Segments;
+        my $segment_size = $Default_Segment_Size;
+        my $max_lifespan = $Default_Segment_Lifespan;
+        my $leader       = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
-            'filename=s'         => \$filename,
-            'num_segments=i'     => \$num_segments,
-            'segment_size=i'     => \$segment_size,
-            'segment_lifespan=i' => \$segment_lifespan,
-            'leader=s'           => \$leader,
+            'filename=s'     => \$filename,
+            'num_segments=i' => \$num_segments,
+            'segment_size=i' => \$segment_size,
+            'max_lifespan=i' => \$max_lifespan,
+            'leader=s'       => \$leader,
         );
         die "ERROR: bad arguments for Partition\n" if ( not $r );
         $filename //= shift @{$argv};
@@ -79,7 +79,7 @@ sub arguments {
         $self->{filename}         = $path;
         $self->{num_segments}     = $num_segments;
         $self->{segment_size}     = $segment_size;
-        $self->{segment_lifespan} = $segment_lifespan;
+        $self->{max_lifespan}     = $max_lifespan;
         $self->{status}           = 'ACTIVE';
         $self->{leader}           = undef;
         $self->{leader_path}      = undef;
@@ -185,9 +185,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( $self->{leader} ) {
             return $self->send_error( $message, "NOT_LEADER\n" )
                 if ( $message->[FROM] ne $self->{leader_path} );
-            my $offset = ( split m{:}, $message->[ID], 2 )[0];
-            return $self->reset_follower($offset)
-                if ( $offset != $self->{offset} );
+            return $self->reset_follower( $message->[ID] )
+                if ( $message->[ID] != $self->{offset} );
             my $segment = $self->{segments}->[-1];
             $self->create_segment
                 if ( $segment->[LOG_SIZE] >= $self->{segment_size} );
@@ -203,9 +202,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return $self->send_error( $message, "NOT_LEADER\n" )
             if ( $message->[FROM] ne $self->{leader_path} );
         $self->{expecting} = undef;
-        my $offset = ( split m{:}, $message->[ID], 2 )[0];
-        return $self->reset_follower($offset)
-            if ( $offset != $self->{offset} );
+        return $self->reset_follower( $message->[ID] )
+            if ( $message->[ID] != $self->{offset} );
     }
     elsif ( $self->{status} eq 'HALT' ) {
         $self->send_error( $message, "NOT_AVAILABLE\n" );
@@ -460,16 +458,14 @@ sub process_get {
     $response->[TO]   = $path;
     my $read = sysread $fh, $buffer, BUFSIZ;
     die if ( not defined $read );
-    my $next_offset = $offset + $read;
 
     if ( $read > 0
-        and ( $next_offset <= $self->{last_commit_offset} or $broker_id ) )
+        and ( $offset + $read <= $self->{last_commit_offset} or $broker_id ) )
     {
         delete $self->{waiting}->{$to};
-        $response->[ID] = join q(:), $offset, $next_offset;
+        $response->[ID]      = $offset;
         $response->[PAYLOAD] = $buffer;
         $node->fill($response);
-        $offset = $next_offset;
     }
     else {
         $response->[TYPE] = TM_EOF;
@@ -573,9 +569,9 @@ sub should_delete {
         else {
             my $last_modified = ( stat $segment->[LOG_FH] )[9];
             $rv = 1
-                if ($self->{segment_lifespan}
+                if ($self->{max_lifespan}
                 and $Tachikoma::Now - $last_modified
-                > $self->{segment_lifespan} );
+                > $self->{max_lifespan} );
         }
     }
     return $rv;
@@ -994,12 +990,12 @@ sub segment_size {
     return $self->{segment_size};
 }
 
-sub segment_lifespan {
+sub max_lifespan {
     my $self = shift;
     if (@_) {
-        $self->{segment_lifespan} = shift;
+        $self->{max_lifespan} = shift;
     }
-    return $self->{segment_lifespan};
+    return $self->{max_lifespan};
 }
 
 sub status {

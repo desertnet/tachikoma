@@ -142,7 +142,7 @@ command hosts connect_inet localhost:<tachikoma.http.port>      http:service
 # ingest server logs
 connect_node server_log:tee indexers:service/server_log
 
-
+var username=`whoami`;
 
 # sound effects
 func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
@@ -163,7 +163,7 @@ make_node Function server_log:sounds '{
 }'
 make_node Function silc:sounds '{
     local sound = Pop;
-    if (<1> =~ "\bchris\b(?!>)") [ sound = Glass ];
+    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
     afplay { get_sound <sound> };
 }'
 command AfPlay     lazy on
@@ -182,9 +182,9 @@ cd hosts
   connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
 cd ..
 
-connect_node silc_dn                  silc_dn:tee
-connect_node system_logs              system_log:ruleset
-connect_node server_logs              server_log:ruleset
+connect_node silc_dn     silc_dn:tee
+connect_node system_logs system_log:ruleset
+connect_node server_logs server_log:ruleset
 
 command jobs start_job Tail local_system_log /var/log/system.log
 connect_node local_system_log local_system_log:ruleset
@@ -341,6 +341,13 @@ cd fsync2:source
   listen_inet --scheme=rsa --use-ssl 0.0.0.0:5702
   register 0.0.0.0:5702 DirStats:client_connector authenticated
 
+
+  # buffer probe
+  command hosts connect_inet --scheme=rsa --host=localhost --port=4391 --name=buffer_top
+  command hosts make_node MemorySieve buffer_top:sieve 4 should_warn
+  make_node BufferProbe buffer_probe 4
+  connect_node buffer_top:sieve buffer_top
+  connect_node buffer_probe     buffer_top:sieve
   secure 2
 cd ..
 

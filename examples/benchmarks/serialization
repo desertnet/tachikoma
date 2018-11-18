@@ -4,7 +4,6 @@ use warnings;
 use Tachikoma;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_EOF );
 use Time::HiRes qw( time );
-require '/usr/local/etc/tachikoma.conf';
 
 my (@sizes)  = @ARGV;
 my $total    = 10000;
