@@ -131,7 +131,10 @@ sub include_conf {
         'package ', $package, ";\n",
         ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
     ## use critic
-    die $@ if ( not $okay );
+    if ( not $okay ) {
+        my $error = $@ // "unknown error";
+        die "couldn't include_conf $script_path: $error\n";
+    }
     $config->load_legacy;
     return;
 }
