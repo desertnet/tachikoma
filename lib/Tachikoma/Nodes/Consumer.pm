@@ -483,7 +483,7 @@ sub load_cache_complete {
             }
         }
     }
-    if ( $self->{saved_offset} ) {
+    if ( defined $self->{saved_offset} ) {
         $self->{lowest_offset} = $self->{saved_offset};
     }
     else {
