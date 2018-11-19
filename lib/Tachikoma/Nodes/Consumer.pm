@@ -483,8 +483,12 @@ sub load_cache_complete {
             }
         }
     }
-    $self->stderr( 'INFO: starting from ', $self->{default_offset} )
-        if ( not $self->{saved_offset} );
+    if ( $self->{saved_offset} ) {
+        $self->{lowest_offset} = $self->{saved_offset};
+    }
+    else {
+        $self->stderr( 'INFO: starting from ', $self->{default_offset} );
+    }
     return;
 }
 
