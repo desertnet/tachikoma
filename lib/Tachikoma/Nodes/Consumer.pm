@@ -445,18 +445,17 @@ sub load_cache {
     my $self   = shift;
     my $stored = shift;
     if ( ref $stored ) {
+        my $i = $self->{partition_id};
         $self->{saved_offset} = $stored->{offset};
-        if ( $self->{edge} ) {
+        if ( $self->{edge} and defined $i ) {
             if ( $self->{cache_type} eq 'snapshot' ) {
                 if ( $self->{edge}->can('on_load_snapshot') ) {
-                    $self->{edge}
-                        ->on_load_snapshot( $self->{partition_id}, $stored );
+                    $self->{edge}->on_load_snapshot( $i, $stored );
                 }
             }
             elsif ( $self->{cache_type} eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
-                    $self->{edge}
-                        ->on_load_window( $self->{partition_id}, $stored );
+                    $self->{edge}->on_load_window( $i, $stored );
                 }
             }
         }
@@ -470,7 +469,7 @@ sub load_cache {
 sub load_cache_complete {
     my $self = shift;
     my $i    = $self->{partition_id};
-    if ( $self->{edge} ) {
+    if ( $self->{edge} and defined $i ) {
         if ( $self->{cache_type} eq 'window' ) {
             if ( $self->{edge}->can('on_save_window') ) {
                 $self->{edge}->on_save_window->[$i] = sub {
