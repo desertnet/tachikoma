@@ -430,21 +430,14 @@ sub process_valid_offsets {
 sub process_get {
     my ( $self, $message, $offset, $broker_id ) = @_;
     my $segment = $self->get_segment($offset);
-    if ( $offset < 0 ) {
-        if ( $offset == -1 ) {
-            $offset = $segment->[LOG_OFFSET] + $segment->[LOG_SIZE];
-        }
-        elsif ( not $segment->[LOG_SIZE] and @{ $self->{segments} } > 1 ) {
-            $segment = $self->{segments}->[-2];
-        }
-    }
     if ( not defined $segment ) {
         $self->stderr("ERROR: couldn't find offset: $offset")
             if ( $self->{filename} );
         return;
     }
+    $offset = $self->{offset}
+        if ( $offset == -1 or $offset > $self->{offset} );
     $offset = $segment->[LOG_OFFSET] if ( $offset < $segment->[LOG_OFFSET] );
-    $offset = $self->{offset}        if ( $offset > $self->{offset} );
     my $fh = $segment->[LOG_FH];
     sysseek $fh, $offset - $segment->[LOG_OFFSET], SEEK_SET
         or die "ERROR: couldn't seek: $!";
@@ -875,7 +868,12 @@ sub get_segment {
     my $offset  = shift;
     my $segment = undef;
     if ( $offset < 0 ) {
-        $segment = $self->{segments}->[-1];
+        if ( $offset < -1 and @{ $self->{segments} } > 1 ) {
+            $segment = $self->{segments}->[-2];
+        }
+        else {
+            $segment = $self->{segments}->[-1];
+        }
     }
     else {
         for my $this ( @{ $self->{segments} } ) {
