@@ -77,7 +77,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     if ( not opendir $dh, $my_path ) {
         if ( $! =~ m{No such file or directory|Not a directory} ) {
             if ( $mode eq 'update' and $! =~ m{Not a directory} ) {
-                $self->stderr("removing $my_path");
+                $self->print_less_often('removing ', $my_path);
                 unlink $my_path
                     or $self->stderr("ERROR: couldn't remove $my_path: $!");
             }
@@ -147,7 +147,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 }
                 next;
             }
-            $self->stderr("removing $my_path_entry");
+            $self->print_less_often('removing ', $my_path_entry);
             if ($my_is_dir) {
                 my $errors = [];
                 remove_tree( $my_path_entry, { error => \$errors } );
