@@ -448,12 +448,13 @@ sub load_cache {
         my $i = $self->{partition_id};
         $self->{saved_offset} = $stored->{offset};
         if ( $self->{edge} and defined $i ) {
-            if ( $self->{cache_type} eq 'snapshot' ) {
+            my $cache_type = $stored->{cache_type} // 'snapshot';
+            if ( $cache_type eq 'snapshot' ) {
                 if ( $self->{edge}->can('on_load_snapshot') ) {
                     $self->{edge}->on_load_snapshot( $i, $stored );
                 }
             }
-            elsif ( $self->{cache_type} eq 'window' ) {
+            elsif ( $cache_type eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
                     $self->{edge}->on_load_window( $i, $stored );
                 }
