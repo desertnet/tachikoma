@@ -148,9 +148,7 @@ sub store {
 }
 
 sub roll {
-    my $self        = shift;
-    my $i           = shift;
-    my $timestamp   = shift;
+    my ( $self, $i, $timestamp ) = @_;
     my $cache       = $self->{caches}->[$i];
     my $save_cb     = $self->{on_save_window}->[$i];
     my $next_window = $self->{next_window}->[$i] // 0;
