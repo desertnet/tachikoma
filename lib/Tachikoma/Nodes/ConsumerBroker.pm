@@ -182,7 +182,8 @@ sub fill {
 }
 
 sub fire {
-    my $self    = shift;
+    my $self = shift;
+    return if ( not $self->{sink} );
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_INFO;
     $message->[FROM] = $self->name;
