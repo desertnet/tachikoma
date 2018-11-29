@@ -374,10 +374,8 @@ sub process_get_valid_offsets {
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name} or return;
     return if ( not $node or not $broker_id );
-    $self->{followers}->{$broker_id}        = $to;
-    $self->{in_sync_replicas}->{$broker_id} = -1;
-    $self->{replica_offsets}->{$broker_id}  = -1;
-    $self->{last_commit_offset}             = -1;
+    $self->{followers}->{$broker_id}       = $to;
+    $self->{replica_offsets}->{$broker_id} = -1;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_INFO;
     $response->[FROM]    = $self->{name};
