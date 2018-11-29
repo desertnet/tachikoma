@@ -156,11 +156,11 @@ sub roll {
     my $span        = $timestamp - $next_window;
     my $count       = int $span / $self->{window_size};
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
+
     if ($next_window) {
         &{$save_cb}( $next_window, $cache->[0] ) if ($save_cb);
         $self->{edge}->activate(
-            {
-                partition => $i,
+            {   partition => $i,
                 timestamp => $next_window,
                 bucket    => $cache->[0]
             }
