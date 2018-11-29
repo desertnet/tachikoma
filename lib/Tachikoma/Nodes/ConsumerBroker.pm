@@ -141,7 +141,7 @@ sub arguments {
                 $self->{auto_offset} = undef;
             }
         }
-        $self->{hub_timeout} = $hub_timeout || $Hub_Timeout;
+        $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
         $self->{default_offset} = $default_offset // 'end';
     }
     return $self->{arguments};

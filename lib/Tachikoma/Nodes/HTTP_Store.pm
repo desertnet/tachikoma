@@ -65,7 +65,7 @@ sub fill {
 
     if ( $request->{tmp} ) {
         my $tmp_path = join q(/), $self->{tmp_path}, 'post';
-        my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
+        my $tmp      = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
         local $/ = undef;
         my $fh = undef;
         if ( not open $fh, '<', $tmp ) {

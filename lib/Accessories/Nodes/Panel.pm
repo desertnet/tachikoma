@@ -45,7 +45,7 @@ sub arguments {
         die "invalid option" if ( not $r );
         die "invalid option" if (@$argv);
         $self->{format_string} = $format_string;
-        $self->{timeout} = $timeout if ( defined $timeout );
+        $self->{timeout}       = $timeout if ( defined $timeout );
         @{ $self->{slots} } = split( /,/, $slots );
 
         foreach my $slot ( @{ $self->{slots} } ) {

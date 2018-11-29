@@ -41,7 +41,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $max_rate, $window, $should_warn ) =
             split q( ), $self->{arguments}, 3;
-        $self->{max_rate}    = $max_rate // 1;
+        $self->{max_rate} = $max_rate // 1;
         $self->{window}      = $window || $Default_Window;
         $self->{should_warn} = $should_warn;
         $self->{timestamps}  = [];

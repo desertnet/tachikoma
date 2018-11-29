@@ -40,7 +40,7 @@ sub arguments {
         my $arguments = shift;
         my $offset    = $arguments;
         $self->{arguments} = $arguments;
-        $self->{offset} = $offset || 0;
+        $self->{offset}    = $offset || 0;
     }
     return $self->{arguments};
 }

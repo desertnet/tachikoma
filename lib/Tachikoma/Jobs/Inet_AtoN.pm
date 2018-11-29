@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Inet_AtoN
 # ----------------------------------------------------------------------
 #
-# $Id: Inet_AtoN.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: Inet_AtoN.pm 35958 2018-11-29 01:37:07Z chris $
 #
 
 package Tachikoma::Jobs::Inet_AtoN;
@@ -52,6 +52,7 @@ sub fill {
     if ( $message->[FROM] eq 'Timer' ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_KILLME;
+        $self->timer->stop_timer;
         return $self->SUPER::fill($response);
     }
 

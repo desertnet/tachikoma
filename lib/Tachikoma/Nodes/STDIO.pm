@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35625 2018-10-26 09:02:39Z chris $
+# $Id: STDIO.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -355,7 +355,7 @@ sub fill_fh {
         }
     }
     $self->{output_cursor} = $cursor;
-    $self->{last_fill} = @{$buffer} ? $Tachikoma::Now : 0
+    $self->{last_fill}     = @{$buffer} ? $Tachikoma::Now : 0
         if ( defined $self->{last_fill} );
     $self->unregister_writer_node if ( not @{$buffer} );
     $self->handle_EOF if ( $eof or ( not @{$buffer} and $self->{got_EOF} ) );

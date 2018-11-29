@@ -19,7 +19,7 @@ use Data::Dumper;
 
 sub new {
     my $class = shift;
-    my $self = { ev => Tachikoma::EventFrameworks::Select->new };
+    my $self  = { ev => Tachikoma::EventFrameworks::Select->new };
     bless $self, $class;
     Tachikoma->event_framework( $self->ev );
     return $self;
@@ -45,8 +45,9 @@ sub spawn {
     my $new_shells = sub {
         while ( keys %{ $job_controller->jobs } < $count and @$commands ) {
             my $command = shift(@$commands) or return;
-            my $name = join( '-', 'shell', Tachikoma->counter );
-            $job_controller->start_job( 'ExecFork', $name, $command, '_parent' );
+            my $name    = join( '-', 'shell', Tachikoma->counter );
+            $job_controller->start_job( 'ExecFork', $name, $command,
+                '_parent' );
         }
         $stdin->{fh} = undef if ( keys %Tachikoma::Nodes <= 1 );
         return;

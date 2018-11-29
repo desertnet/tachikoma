@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: HTTP_Auth.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -65,7 +65,7 @@ sub fill {
             $self->stderr("authorization failed for $user");
         }
     }
-    my $realm = $self->{realm} || $request->{headers}->{host} || 'default';
+    my $realm    = $self->{realm} || $request->{headers}->{host} || 'default';
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];

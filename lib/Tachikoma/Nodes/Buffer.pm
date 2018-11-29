@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: Buffer.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -166,7 +166,7 @@ sub handle_response {
     }
     $payload = 'cancel' if ( $payload eq 'answer' and $type & TM_ERROR );
     if ( $payload eq 'cancel' ) {
-        my $tiedhash    = $self->{tiedhash} // $self->tiedhash;
+        my $tiedhash    = $self->{tiedhash}    // $self->tiedhash;
         my $buffer_size = $self->{buffer_size} // $self->get_buffer_size;
         if ( $buffer_size > 0 and $tiedhash->{$message_id} ) {
             $self->{rsp_received}++;

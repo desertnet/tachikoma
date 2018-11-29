@@ -57,7 +57,7 @@ sub arguments {
         $json->convert_blessed(0);
         $self->{tables} = { map { $_ => 1 } @tables };
         $self->{prefix} = $prefix if ( defined $prefix );
-        $self->{json} = $json;
+        $self->{json}   = $json;
     }
     return $self->{arguments};
 }

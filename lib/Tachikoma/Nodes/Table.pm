@@ -154,7 +154,14 @@ sub roll {
     my $next_window = $self->{next_window}->[$i] // 0;
     my $span        = $timestamp - $next_window;
     my $count       = int $span / $self->{window_size};
-    &{$save_cb}( $next_window, $cache->[0] ) if ( $next_window and $save_cb );
+    if ($next_window) {
+        &{$save_cb}( $next_window, $cache->[0] ) if ($save_cb);
+        $self->{edge}->activate(
+            {   timestamp => $next_window,
+                bucket    => $cache->[0]
+            }
+        ) if ( $self->{edge} );
+    }
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
 
     for ( 0 .. $count ) {
@@ -243,7 +250,7 @@ sub send_stats {
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
-    my $timestamp   = $stored->{timestamp} // 0;
+    my $timestamp   = $stored->{timestamp}       // 0;
     if ( $timestamp > $next_window ) {
         $self->{caches}->[$i] //= [];
         my $cache = $self->{caches}->[$i];

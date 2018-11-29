@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35722 2018-10-28 11:59:48Z chris $
+# $Id: Tachikoma.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma;
@@ -572,7 +572,7 @@ sub reset_signal_handlers {
 
 sub open_log_file {
     my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
     chdir q(/) or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
         or die "ERROR: couldn't open log file $log: $!\n";
@@ -622,7 +622,7 @@ sub load_event_framework {
 
 sub touch_log_file {
     my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
     $self->close_log_file;
     $self->open_log_file;
     utime $Tachikoma::Now, $Tachikoma::Now, $log

@@ -86,8 +86,8 @@ sub check_server_id {
         and $short_hostname ne 'localhost'
         and $short_hostname ne '127.0.0.1' )
     {
-        $short_id =~ s{.*@}{};
-        $short_id =~ s{[.].*}{};
+        $short_id       =~ s{.*@}{};
+        $short_id       =~ s{[.].*}{};
         $short_hostname =~ s{[.].*}{};
         if ( $short_id ne $short_hostname ) {
             $self->print_less_often(

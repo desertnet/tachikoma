@@ -43,7 +43,7 @@ sub fill {
     my $got       = length($payload);
     $self->{counter}++;
     while ( $got >= $num_bytes ) {
-        my $bytes = substr( $payload, 0, $num_bytes );
+        my $bytes       = substr( $payload, 0, $num_bytes );
         my $new_payload = substr( $payload, $num_bytes );
         $payload = $new_payload;
         $got -= $num_bytes;

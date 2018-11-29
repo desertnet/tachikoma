@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Timeout
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Timeout.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: HTTP_Timeout.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Timeout;
@@ -29,7 +29,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{timeout} = $self->{arguments} || $Default_Request_Timeout;
+        $self->{timeout}   = $self->{arguments} || $Default_Request_Timeout;
         $self->set_timer;
     }
     return $self->{arguments};

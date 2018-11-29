@@ -227,7 +227,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @entries = readdir $dh;
     closedir $dh or die "ERROR: couldn't closedir $path: $!";
-    my @out = ( join q(), $relative, "\n" );
+    my @out         = ( join q(), $relative, "\n" );
     my @directories = ();
     for my $entry (@entries) {
         next
@@ -240,9 +240,9 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             next;
         }
         my $path_entry = join q(/), $path, $entry;
-        my @lstat = lstat $path_entry;
+        my @lstat      = lstat $path_entry;
         next if ( not @lstat );
-        my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
         my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $last_modified = $lstat[9];

@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35719 2018-10-28 10:15:54Z chris $
+# $Id: Job.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Job;
@@ -129,7 +129,7 @@ sub spawn {
         return;
     }
     else {
-        my $location = $self->configuration->prefix || '/usr/local/bin';
+        my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         $type           = ( $type =~ m{^([\w:]+)$} )[0];
         $username       = ( $username =~ m{^(\S*)$} )[0];
@@ -152,9 +152,9 @@ sub spawn {
         }
         push @command,
             $tachikoma_job, $config_file, $class,
-            $name // q(),
-            $arguments // q(),
-            $owner // q(),
+            $name           // q(),
+            $arguments      // q(),
+            $owner          // q(),
             $should_restart // q();
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;

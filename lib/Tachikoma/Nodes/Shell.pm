@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 35265 2018-10-16 06:42:47Z chris $
+# $Id: Shell.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::Shell;
@@ -53,7 +53,7 @@ sub parse_line {
         if ( not $concatenation->{name} ) {
             $arguments ||= q();
             $arguments =~ s{\\$}{};
-            $concatenation->{name} = $name;
+            $concatenation->{name}      = $name;
             $concatenation->{arguments} = join q(), $arguments, "\n";
         }
         else {
@@ -65,7 +65,7 @@ sub parse_line {
     }
     elsif ( $self->mode eq 'concatenation' ) {
         $self->mode('command');
-        $name = $self->concatenation->{name};
+        $name      = $self->concatenation->{name};
         $arguments = join q(), $self->concatenation->{arguments}, $line;
         $self->concatenation(undef);
     }
@@ -81,7 +81,7 @@ sub parse_line {
         my ( $path, $new_name, $new_arguments ) =
             ( split q( ), $arguments // q(), 3 );
         $message->to( $self->prefix($path) );
-        $command->name( $new_name // q() );
+        $command->name( $new_name           // q() );
         $command->arguments( $new_arguments // q() );
     }
     else {
@@ -104,7 +104,7 @@ sub cd {
         $cwd = $path;
     }
     elsif ( $path =~ m{^[.][.]/?} ) {
-        $cwd =~ s{/?[^/]+$}{};
+        $cwd  =~ s{/?[^/]+$}{};
         $path =~ s{^[.][.]/?}{};
         $cwd = $self->cd( $cwd, $path );
     }

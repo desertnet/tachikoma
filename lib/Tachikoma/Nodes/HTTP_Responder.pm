@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 35878 2018-11-18 21:58:21Z chris $
+# $Id: HTTP_Responder.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -84,7 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $header_text, $body ) = split m{\r\n\r\n}, ${$payload}, 2;
         ${$payload} = $body;
         my @lines = split m{^}, $header_text;
-        my $line = shift @lines;
+        my $line  = shift @lines;
         if ( not $line ) {
             delete $requests->{$name};
             delete $payloads->{$name};
