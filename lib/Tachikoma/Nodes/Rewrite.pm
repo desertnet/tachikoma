@@ -27,7 +27,7 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Rewrite <node name> [ <regex> ]
+make_node Rewrite <node name> [ <pattern> <rewrite> ]
 EOF
 }
 
