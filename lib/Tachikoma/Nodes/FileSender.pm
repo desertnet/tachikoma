@@ -202,10 +202,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error = $@ || 'eval failed';
+                my $error = $@ || 'ERROR: eval failed';
                 eval { $node->remove_node; return 1 }
                     or $self->stderr("ERROR: remove_node failed: $@");
-                $self->stderr("ERROR: $error");
+                $self->stderr($error);
                 return $self->cancel($message);
             }
             $requests->{$stream} = {
