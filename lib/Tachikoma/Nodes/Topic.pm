@@ -59,7 +59,7 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Topic <name> <host>:<port>
+make_node Topic <name> <broker path> [ <topic> ]
 EOF
 }
 
@@ -146,12 +146,29 @@ sub fill {
 }
 
 sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    push @{ $_[0]->{batch} },
-        (
-        bless [ TM_BYTESTREAM, q(), q(), q(), q(), $Tachikoma::Now,
-            ${ $_[1] } ],
-        'Tachikoma::Message'
-        );
+    my $message = Tachikoma::Message->new;
+    if ( ref $_[1] ) {
+        if ( ref $_[1] eq 'SCALAR' ) {
+            $message->[TYPE]    = TM_BYTESTREAM;
+            $message->[PAYLOAD] = ${ $_[1] };
+        }
+        elsif ( ref $_[1] eq 'HASH' ) {
+            $message->[TYPE] = TM_STORABLE;
+            $message->[TO]   = join q(/), $_[0]->{owner}, $_[1]->{partition};
+            $message->[TIMESTAMP] = $_[1]->{timestamp}
+                if ( $_[1]->{timestamp} );
+            $message->[PAYLOAD] = $_[1]->{bucket} // $_[1];
+        }
+        else {
+            $message->[TYPE]    = TM_STORABLE;
+            $message->[PAYLOAD] = $_[1];
+        }
+    }
+    else {
+        $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[PAYLOAD] = $_[1];
+    }
+    push @{ $_[0]->{batch} }, $message;
     $_[0]->set_timer(0) if ( not defined $_[0]->{timer_interval} );
 }
 
