@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR TM_EOF );
-use File::MkTemp;
+use File::Temp qw( tempfile );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -56,17 +56,25 @@ sub fill {
     return $self->stderr('ERROR: unexpected payload')
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     $self->{counter}++;
-    my ( $fh, $template ) = mkstempt( 'X' x 16, $tmp_dir )
-        or return $self->stderr("ERROR: couldn't mkstempt for $path: $!");
-    my $tmp = join q(/), $tmp_dir, $template;
+    my ( $fh, $template );
+    my $okay = eval {
+        ( $fh, $template ) =
+            tempfile( '.temp-' . ( 'X' x 16 ), DIR => $tmp_dir );
+        return 1;
+    };
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        return $self->stderr("ERROR: couldn't tempfile $path: $error");
+    }
     syswrite $fh, $message->[PAYLOAD]
-        or return $self->stderr("ERROR: couldn't write $tmp: $!");
+        or return $self->stderr("ERROR: couldn't write $template: $!");
     close $fh
-        or return $self->stderr("ERROR: couldn't close $tmp: $!");
-    chmod 0644, $tmp
-        or return $self->stderr("ERROR: couldn't chmod $tmp: $!");
-    rename $tmp, $path
-        or return $self->stderr("ERROR: couldn't move $tmp to $path: $!");
+        or return $self->stderr("ERROR: couldn't close $template: $!");
+    chmod 0644, $template
+        or return $self->stderr("ERROR: couldn't chmod $template: $!");
+    rename $template, $path
+        or
+        return $self->stderr("ERROR: couldn't move $template to $path: $!");
     return;
 }
 

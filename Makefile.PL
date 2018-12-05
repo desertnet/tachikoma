@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2018 DesertNet
 #
-# $Id: Makefile.PL 34990 2018-10-01 06:46:57Z chris $
+# $Id: Makefile.PL 35876 2018-11-18 21:33:05Z chris $
 #
 
 use strict;
@@ -37,7 +37,7 @@ WriteMakefile(
         'Net::SSLeay'               => '1.00',
         'IO::Socket::SSL'           => '1.00',
         # these are only necessary to pass tests:
-        'File::MkTemp'              => '1.00',
+        'File::Temp'                => '0.10',
         'BerkeleyDB'                => '0.10',
         'DBI'                       => '1.00',
         'LWP'                       => '1.00',

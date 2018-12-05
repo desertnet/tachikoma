@@ -154,7 +154,7 @@ sub submit {
 
 sub packed {    ## no critic (RequireArgUnpacking)
     if ( $_[0]->[TYPE] & TM_STORABLE and $_[0]->[IS_UNTHAWED] ) {
-        $_[0]->[PAYLOAD] = nfreeze( $_[0]->[PAYLOAD] // {} );
+        $_[0]->[PAYLOAD]     = nfreeze( $_[0]->[PAYLOAD] // {} );
         $_[0]->[IS_UNTHAWED] = 0;
     }
     my $packed = pack 'xxxx N n/a* n/a* n/a* n/a* N a*', @{ $_[0] };

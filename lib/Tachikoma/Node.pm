@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35854 2018-11-17 23:10:48Z chris $
+# $Id: Node.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Node;
@@ -131,7 +131,7 @@ sub unregister {
     die "no such event: $event\n" if ( not $registrations->{$event} );
     if ( $registrations->{$event}->{$name} ) {
         my $responder = Tachikoma->nodes->{_responder};
-        my $shell = $responder ? $responder->{shell} : undef;
+        my $shell     = $responder ? $responder->{shell} : undef;
         if ($shell) {
             delete $shell->callbacks->{$name};
         }
@@ -274,7 +274,7 @@ sub stamp_message {
 sub make_parent_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q();
+    my $path      = q();
     pop @path_list;
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
@@ -291,7 +291,7 @@ sub make_parent_dirs {
 sub make_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q();
+    my $path      = q();
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
         if (    not -d $path

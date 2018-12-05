@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::Epoll
 # ----------------------------------------------------------------------
 #
-# $Id: Epoll.pm 35769 2018-11-02 08:37:19Z chris $
+# $Id: Epoll.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::EventFrameworks::Epoll;
@@ -106,7 +106,7 @@ sub drain {    ## no critic (ProhibitExcessComplexity)
     my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my $check_select = $READS->count or $WRITES->count;
-        my $events = epoll_wait( $EPOLL, 256, $check_select
+        my $events       = epoll_wait( $EPOLL, 256, $check_select
             ? 0
             : 1000 / ( $configuration->{hz} || 10 ) );
         if ( not $events ) {

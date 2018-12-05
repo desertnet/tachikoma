@@ -47,7 +47,7 @@ sub arguments {
             ( $self->{arguments} =~ m{^([\w':./-]+)\s+(.+)$}s );
         die "no package specified\n"   if ( not $package );
         die "no transform specified\n" if ( not $transform );
-        $package =~ s{^|$}{'}g         if ( $package =~ m{^/} );
+        $package =~ s{^|$}{'}g if ( $package =~ m{^/} );
 
         ## no critic (ProhibitStringyEval)
         eval "require $package"

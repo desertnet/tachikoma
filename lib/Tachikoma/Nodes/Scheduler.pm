@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: Scheduler.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -92,7 +92,7 @@ sub fire {
         next if ( $when > 0 or not $enabled );
         my $message = eval { Tachikoma::Message->new( \$packed ) };
         if ($message) {
-            my $name = ( split m{/}, $message->[FROM], 2 )[0] || q();
+            my $name    = ( split m{/}, $message->[FROM], 2 )[0] || q();
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             if ($@) {
                 $self->stderr($@);
@@ -198,7 +198,7 @@ $C{in} = sub {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
         my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
-        my $time = 0;
+        my $time    = 0;
         if ( $spec =~ m{(\d+)d} ) {
             $time += $1 * 60 * 60 * 24;
             $spec =~ s{\d+d}{};
@@ -269,7 +269,7 @@ $C{every} = sub {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
         my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
-        my $time = 0;
+        my $time    = 0;
         if ( $spec =~ m{(\d+)d} ) {
             $time += $1 * 60 * 60 * 24;
             $spec =~ s{\d+d}{};

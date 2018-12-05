@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35726 2018-10-28 12:49:23Z chris $
+# $Id: Config.pm 35881 2018-11-18 22:04:17Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -131,7 +131,10 @@ sub include_conf {
         'package ', $package, ";\n",
         ( $script =~ m{^(.*?)(?:__END__.*)?$}s )[0], "\n";
     ## use critic
-    die $@ if ( not $okay );
+    if ( not $okay ) {
+        my $error = $@ // 'unknown error';
+        die "couldn't include_conf $script_path: $error\n";
+    }
     $config->load_legacy;
     return;
 }

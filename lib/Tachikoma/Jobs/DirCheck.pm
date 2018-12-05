@@ -77,13 +77,13 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     if ( not opendir $dh, $my_path ) {
         if ( $! =~ m{No such file or directory|Not a directory} ) {
             if ( $mode eq 'update' and $! =~ m{Not a directory} ) {
-                $self->stderr("removing $my_path");
+                $self->print_less_often( 'removing ', $my_path );
                 unlink $my_path
                     or $self->stderr("ERROR: couldn't remove $my_path: $!");
             }
             for my $entry ( keys %other ) {
                 my $their_path_entry = join q(/), $relative, $entry;
-                my $response = Tachikoma::Message->new;
+                my $response         = Tachikoma::Message->new;
                 $response->[TYPE]    = TM_BYTESTREAM;
                 $response->[TO]      = $message_to;
                 $response->[PAYLOAD] = join q(), 'update:',
@@ -102,7 +102,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my %checked = ();
     for my $entry (@entries) {
         my $my_path_entry = join q(/), $my_path, $entry;
-        my @lstat = lstat $my_path_entry;
+        my @lstat         = lstat $my_path_entry;
         next if ( not @lstat );
         my $last_modified = $lstat[9];
         if ( $entry =~ m{^[.]} and not $Dot_Include{$entry} ) {
@@ -117,7 +117,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             next;
         }
-        my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
         my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};
@@ -147,7 +147,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 }
                 next;
             }
-            $self->stderr("removing $my_path_entry");
+            $self->print_less_often( 'removing ', $my_path_entry );
             if ($my_is_dir) {
                 my $errors = [];
                 remove_tree( $my_path_entry, { error => \$errors } );

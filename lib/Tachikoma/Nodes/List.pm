@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
-use File::MkTemp;
+use File::Temp qw( tempfile );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
@@ -167,19 +167,19 @@ sub write_list {
     my $parent = ( $path =~ m{^(.*)/[^/]+$} )[0];
     my $okay   = eval {
         $self->make_dirs($parent);
-        ( $fh, $template ) = mkstempt( '.temp-' . ( 'X' x 16 ), $parent );
+        ( $fh, $template ) =
+            tempfile( '.temp-' . ( 'X' x 16 ), DIR => $parent );
         return 1;
     };
     if ( not $okay ) {
         my $error = $@ || 'unknown error';
-        return $self->stderr("ERROR: mkstempt failed: $error");
+        return $self->stderr("ERROR: tempfile failed: $error");
     }
-    my $tmp = join q(/), $parent, $template;
     print {$fh} join q(), @{ $self->{list} };
     close $fh
-        or $self->stderr("ERROR: couldn't close $tmp: $!");
-    rename $tmp, $path
-        or $self->stderr("ERROR: couldn't move $tmp to $path: $!");
+        or $self->stderr("ERROR: couldn't close $template: $!");
+    rename $template, $path
+        or $self->stderr("ERROR: couldn't move $template to $path: $!");
     return;
 }
 

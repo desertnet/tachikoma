@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35685 2018-10-27 19:14:03Z chris $
+# $Id: JobController.pm 35959 2018-11-29 01:42:01Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -67,7 +67,7 @@ sub fill {
     return if ( $self->{shutting_down} );
     if ( $type & TM_KILLME ) {
         my $name = ( split m{/}, $message->[FROM], 2 )[0];
-        my $job = $self->{jobs}->{$name};
+        my $job  = $self->{jobs}->{$name};
         return $self->stderr("ERROR: TM_KILLME from unknown $name")
             if ( not $job );
         $job->{connector}->fill($message);
@@ -82,7 +82,7 @@ sub fill {
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
-        my $to        = $message->[TO] // q();
+        my $to        = $message->[TO]             // q();
         my $job_owner = $job->{connector}->{owner} // q();
         my $job_edge  = $job->{connector}->{edge};
         $message->[FROM] = $from
@@ -269,7 +269,7 @@ $C{restart_job} = sub {
             or return $self->error("verification failed\n");
     }
     my $new_name = sprintf '%s-%06d', $old_name, $self->patron->job_counter;
-    my $owner = $job->owner;
+    my $owner    = $job->owner;
     my $should_restart = $job->should_restart;
     $job->owner(undef);
     $job->should_restart(undef);
@@ -578,7 +578,7 @@ sub dump_config {
             $response .= "$line\n";
         }
         for my $name ( sort keys %{$jobs} ) {
-            my $job = $jobs->{$name};
+            my $job   = $jobs->{$name};
             my $owner = $job->{connector}->{owner} or next;
             $response .= ("connect_node $name $owner\n");
         }

@@ -357,7 +357,7 @@ sub write_offset {
             }
         }
         my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
-        my $fh = undef;
+        my $fh       = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!";
         close $fh or die "ERROR: couldn't close $new_file: $!";
@@ -374,10 +374,8 @@ sub process_get_valid_offsets {
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name} or return;
     return if ( not $node or not $broker_id );
-    $self->{followers}->{$broker_id}        = $to;
-    $self->{in_sync_replicas}->{$broker_id} = -1;
-    $self->{replica_offsets}->{$broker_id}  = -1;
-    $self->{last_commit_offset}             = -1;
+    $self->{followers}->{$broker_id}       = $to;
+    $self->{replica_offsets}->{$broker_id} = -1;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_INFO;
     $response->[FROM]    = $self->{name};
@@ -398,7 +396,7 @@ sub process_valid_offsets {
     my $last_commit_offset = $self->get_last_commit_offset;
     my $old_offsets        = $self->{valid_offsets};
     $self->{valid_offsets} = [ split m{,}, $valid_offsets ];
-    my %valid = map { $_ => 1 } @{ $self->{valid_offsets} };
+    my %valid        = map { $_ => 1 } @{ $self->{valid_offsets} };
     my $should_purge = undef;
     while ( @{$old_offsets} ) {
         $last_commit_offset = $old_offsets->[-1];
@@ -430,28 +428,21 @@ sub process_valid_offsets {
 sub process_get {
     my ( $self, $message, $offset, $broker_id ) = @_;
     my $segment = $self->get_segment($offset);
-    if ( $offset < 0 ) {
-        if ( $offset == -1 ) {
-            $offset = $segment->[LOG_OFFSET] + $segment->[LOG_SIZE];
-        }
-        elsif ( not $segment->[LOG_SIZE] and @{ $self->{segments} } > 1 ) {
-            $segment = $self->{segments}->[-2];
-        }
-    }
     if ( not defined $segment ) {
         $self->stderr("ERROR: couldn't find offset: $offset")
             if ( $self->{filename} );
         return;
     }
+    $offset = $self->{offset}
+        if ( $offset == -1 or $offset > $self->{offset} );
     $offset = $segment->[LOG_OFFSET] if ( $offset < $segment->[LOG_OFFSET] );
-    $offset = $self->{offset}        if ( $offset > $self->{offset} );
     my $fh = $segment->[LOG_FH];
     sysseek $fh, $offset - $segment->[LOG_OFFSET], SEEK_SET
         or die "ERROR: couldn't seek: $!";
     my $buffer = undef;
     my $to     = $message->[FROM];
     my ( $name, $path ) = split m{/}, $to, 2;
-    my $node = $Tachikoma::Nodes{$name} or return;
+    my $node     = $Tachikoma::Nodes{$name} or return;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BATCH;
     $response->[FROM] = $self->{name};
@@ -619,7 +610,7 @@ sub update_offsets {
         # don't write offsets received from the leader until log catches up
         while ( @{$valid_offsets} and $valid_offsets->[0] < $self->{offset} )
         {
-            my $offset = shift @{$valid_offsets};
+            my $offset   = shift @{$valid_offsets};
             my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
             next if ( -e $new_file );
             my $fh = undef;
@@ -848,7 +839,7 @@ sub get_last_commit_offset {
         $last_commit_offset = 0;
         $valid_offsets      = [0];
         my $new_file = join q(/), $offsets_dir, $last_commit_offset;
-        my $fh = undef;
+        my $fh       = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!\n";
         close $fh or die "ERROR: couldn't close $new_file: $!";
@@ -875,7 +866,12 @@ sub get_segment {
     my $offset  = shift;
     my $segment = undef;
     if ( $offset < 0 ) {
-        $segment = $self->{segments}->[-1];
+        if ( $offset < -1 and @{ $self->{segments} } > 1 ) {
+            $segment = $self->{segments}->[-2];
+        }
+        else {
+            $segment = $self->{segments}->[-1];
+        }
     }
     else {
         for my $this ( @{ $self->{segments} } ) {

@@ -77,7 +77,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{verbose} = 1 if ( $self->{arguments} =~ /\bverbose\b/ );
+        $self->{verbose}   = 1 if ( $self->{arguments} =~ /\bverbose\b/ );
     }
     return $self->{arguments};
 }
@@ -188,7 +188,7 @@ sub fire {
         sprintf( "fire: pending chunks: %d", $#{ $self->{pending_chunks} } )
     );
     my $last = $self->{last_displayed_chunk} // {};
-    my $pend = $self->{pending_chunks}->[0] //  {};
+    my $pend = $self->{pending_chunks}->[0]  // {};
     $self->verbose( "last chunk: " . Dumper($last) . "\n" );
     $self->verbose( "pend chunk: " . Dumper($pend) . "\n" );
     #
@@ -246,8 +246,8 @@ sub format_chunk {
     my $output = '';
 
     #$self->send($self->cls);
-    my $dots   = $self->dots($chunk) // '';
-    my $chars  = $self->chars($chunk) // '';
+    my $dots   = $self->dots($chunk)       // '';
+    my $chars  = $self->chars($chunk)      // '';
     my $bright = $self->brightness($chunk) // '';
     $output .= $self->cls . $bright . $dots . $chars;
     $self->verbose( "output length: " . length($output) . "; '$output'" );
@@ -331,7 +331,7 @@ sub chars {
         || length( $chunk->{char4} ) )
     {
         return ( ( $chunk->{char1} // ' ' )
-            . ( $chunk->{char2} // ' ' )
+            . ( $chunk->{char2}     // ' ' )
                 . ( $chunk->{char3} // ' ' )
                 . ( $chunk->{char4} // ' ' ) );
     }

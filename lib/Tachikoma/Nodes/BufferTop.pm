@@ -65,12 +65,12 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $buffers = $self->{buffers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $stats = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $stats     = { map { split m{:}, $_, 2 } split q( ), $line };
         my $buffer_id = join q(:), $stats->{hostname}, $stats->{buff_name};
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];
         my $buffer = $buffers->{$buffer_id} // {};
-        $buffer->{$_} = $stats->{$_} for ( keys %{$stats} );
+        $buffer->{$_}          = $stats->{$_} for ( keys %{$stats} );
         $buffers->{$buffer_id} = $buffer;
     }
     return 1;
@@ -127,7 +127,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
             $rate = $buffer->{last_rate};
         }
         if ( $rate > 0 ) {
-            my $eta = $buffer->{msg_in_buf} / $rate;
+            my $eta   = $buffer->{msg_in_buf} / $rate;
             my $hours = sprintf '%02d', $eta / 3600;
             $buffer->{eta} = strftime( "$hours:%M:%S", localtime $eta );
         }

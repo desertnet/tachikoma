@@ -208,10 +208,6 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         if ( $message->[TYPE] & TM_EOF ) {
             if ( $self->{status} eq 'INIT' ) {
-                $self->{status} = 'OFFSET';
-                $self->set_timer(0) if ( $self->{timer_interval} );
-            }
-            elsif ( $self->{status} eq 'OFFSET' ) {
                 $self->{status}      = 'ACTIVE';
                 $self->{last_commit} = $Tachikoma::Now;
                 $self->load_cache_complete;
@@ -295,7 +291,7 @@ sub drain_buffer {
     while ( $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
-        if ( $self->{status} ne 'ACTIVE' ) {
+        if ( $self->{status} eq 'INIT' ) {
             if ( $message->[TYPE] & TM_STORABLE ) {
                 $self->load_cache( $message->payload );
             }
@@ -345,12 +341,12 @@ sub get_batch_async {
         if ( $self->cache_dir ) {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
                 q(.db);
+            $self->{last_commit} = $Tachikoma::Now;
             $self->load_cache( retrieve($file) ) if ( -f $file );
             $self->load_cache_complete;
-            $self->{last_commit} = $Tachikoma::Now;
             $offset = $self->{saved_offset};
         }
-        if ( $self->status ne 'ACTIVE' ) {
+        if ( $self->status eq 'INIT' ) {
             $offset //= -2;
         }
         elsif ( $self->default_offset eq 'start' ) {
@@ -368,7 +364,7 @@ sub get_batch_async {
     $message->[TYPE] = TM_INFO;
     $message->[FROM] = $self->{name};
     $message->[TO] =
-          $self->{status} ne 'ACTIVE'
+          $self->{status} eq 'INIT'
         ? $self->{offsetlog}
         : $self->{partition};
     $message->[PAYLOAD] = "GET $offset\n";
@@ -445,18 +441,18 @@ sub load_cache {
     my $self   = shift;
     my $stored = shift;
     if ( ref $stored ) {
+        my $i = $self->{partition_id};
         $self->{saved_offset} = $stored->{offset};
-        if ( $self->{edge} ) {
-            if ( $self->{cache_type} eq 'snapshot' ) {
+        if ( $self->{edge} and defined $i ) {
+            my $cache_type = $stored->{cache_type} // 'snapshot';
+            if ( $cache_type eq 'snapshot' ) {
                 if ( $self->{edge}->can('on_load_snapshot') ) {
-                    $self->{edge}
-                        ->on_load_snapshot( $self->{partition_id}, $stored );
+                    $self->{edge}->on_load_snapshot( $i, $stored );
                 }
             }
-            elsif ( $self->{cache_type} eq 'window' ) {
+            elsif ( $cache_type eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
-                    $self->{edge}
-                        ->on_load_window( $self->{partition_id}, $stored );
+                    $self->{edge}->on_load_window( $i, $stored );
                 }
             }
         }
@@ -470,7 +466,7 @@ sub load_cache {
 sub load_cache_complete {
     my $self = shift;
     my $i    = $self->{partition_id};
-    if ( $self->{edge} ) {
+    if ( $self->{edge} and defined $i ) {
         if ( $self->{cache_type} eq 'window' ) {
             if ( $self->{edge}->can('on_save_window') ) {
                 $self->{edge}->on_save_window->[$i] = sub {
@@ -483,8 +479,12 @@ sub load_cache_complete {
             }
         }
     }
-    $self->stderr( 'INFO: starting from ', $self->{default_offset} )
-        if ( not $self->{saved_offset} );
+    if ( defined $self->{saved_offset} ) {
+        $self->{lowest_offset} = $self->{saved_offset};
+    }
+    else {
+        $self->stderr( 'INFO: starting from ', $self->{default_offset} );
+    }
     return;
 }
 
@@ -590,7 +590,7 @@ sub get_offset {
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->group );
         my $name = join q(:), $self->partition, $self->group;
-        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
+        my $file = join q(),  $self->cache_dir, q(/), $name, q(.db);
         $stored = retrieve($file);
         $self->offset( $stored->{offset} );
         $self->cache( $stored->{cache} );
@@ -688,7 +688,7 @@ sub get_messages {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID] = join q(:), $offset, $offset + $size;
+        $message->[ID]   = join q(:), $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
 
@@ -711,7 +711,7 @@ sub commit_offset {
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->group );
         my $name = join q(:), $self->partition, $self->group;
-        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
+        my $file = join q(),  $self->cache_dir, q(/), $name, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(

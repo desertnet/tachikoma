@@ -78,8 +78,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $buffers     = $self->{buffers};
     my $new_buffers = {};
 LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $buffer = { map { split m{:}, $_, 2 } split q( ), $line };
-        my $buffer_id = join q(:), $buffer->{hostname}, $buffer->{buff_name};
+        my $buffer     = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $buffer_id  = join q(:), $buffer->{hostname}, $buffer->{buff_name};
         my $old_buffer = $buffers->{$buffer_id};
         $new_buffers->{$buffer_id} = $buffer;
         $buffer->{id}              = $buffer_id;
@@ -295,36 +295,6 @@ $C{remove_trap_threshold} = sub {
 
 $C{rm_trap} = $C{remove_trap_threshold};
 
-# sub alert {
-#     my $self       = shift;
-#     my $type       = shift;
-#     my $buffer     = shift;
-#     my $warning    = shift;
-#     my $short_host = ( $buffer->{hostname} =~ m{^([^.]+)} )[0];
-#     my $subject    = join q( ),
-#         $warning, 'on', $short_host, $buffer->{buff_name};
-#     return
-#         if ($Tachikoma::Now - $buffer->{"last_$type"} < $Alert_Interval);
-#     $buffer->{"last_$type"} = $Tachikoma::Now;
-#     if ($type eq 'email') {
-#         my $body = q();
-#         $body .= sprintf("%20s: %s\n", 'hostname', $buffer->{hostname});
-#         $body .= sprintf("%20s: %s\n", 'buff_name', $buffer->{buff_name});
-#         for my $field ( sort keys %{$buffer} ) {
-#             next if ($field eq 'hostname'
-#                   or $field eq 'buff_name'
-#                   or $field =~ m{^last_});
-#             $body .= sprintf("%20s: %12d\n", $field, $buffer->{$field});
-#         }
-#         $self->{$type} .= join q(), $subject, qq(\n), $body, qq(\n\n);
-#     }
-#     else {
-#         $self->{$type} .= "$subject\n";
-#     }
-#     $self->{hosts}->{$short_host} = 1;
-#     return;
-# }
-
 sub alert {
     my $self       = shift;
     my $type       = shift;
@@ -403,17 +373,6 @@ sub send_alerts {
         delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};
         local $ENV{PATH} = q();
         my $subject = 'WARNING: BufferMonitor threshold(s) exceeded';
-        my $grep    = '/usr/bin/grep';
-        for my $host ( keys %{ $self->{hosts} } ) {
-            $grep .= " -e $host";
-        }
-        my $grep2 = $grep;
-        $grep .= ' /logs/tachikoma/servers/servers.log | /usr/bin/tail -n100';
-        $grep2
-            .= ' /logs/tachikoma/systems/systems.log | /usr/bin/tail -n100';
-        ## no critic (ProhibitBacktickOperators)
-        my $server_logs = `$grep`;
-        my $system_logs = `$grep2`;
         open my $mail, q(|-), qq(/usr/bin/mail -s "$subject" $email)
             or die "couldn't open mail: $!";
         print {$mail} scalar( localtime time ),
@@ -421,13 +380,9 @@ sub send_alerts {
             q(Affected hosts: ),
             join( q(, ), sort keys %{ $self->{hosts} } ),
             qq(\n\n),
-            $self->{email},
-            qq(\n\n),
-            qq(Last 100 server log entries from affected hosts:\n\n),
-            $server_logs,
-            qq(\n\n),
-            qq(Last 100 system log entries from affected hosts:\n\n),
-            $system_logs;
+            $self->{email};
+        $self->send_log( $mail, 'server' );
+        $self->send_log( $mail, 'system' );
         close $mail or $self->stderr("ERROR: couldn't close mail: $!");
     }
     elsif ( $self->{mon_path} ) {
@@ -446,6 +401,26 @@ sub send_alerts {
     }
     $self->{hosts} = {};
     $self->{$type} = q();
+    return;
+}
+
+sub send_log {
+    my $self = shift;
+    my $mail = shift;
+    my $type = shift;
+    my $file = "/logs/tachikoma/${type}s/${type}s.log";
+    if ( -f $file ) {
+        my $grep = '/usr/bin/grep';
+        for my $host ( keys %{ $self->{hosts} } ) {
+            $grep .= " -e $host";
+        }
+        $grep .= " $file | /usr/bin/tail -n100";
+        ## no critic (ProhibitBacktickOperators)
+        my $logs = `$grep`;
+        print {$mail} qq(\n\n),
+            qq(Last 100 $type log entries from affected hosts:\n\n),
+            $logs;
+    }
     return;
 }
 

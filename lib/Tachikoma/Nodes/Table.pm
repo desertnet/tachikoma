@@ -148,17 +148,24 @@ sub store {
 }
 
 sub roll {
-    my $self        = shift;
-    my $i           = shift;
-    my $timestamp   = shift;
+    my ( $self, $i, $timestamp ) = @_;
+    $self->{caches}->[$i] ||= [];
     my $cache       = $self->{caches}->[$i];
     my $save_cb     = $self->{on_save_window}->[$i];
     my $next_window = $self->{next_window}->[$i] // 0;
     my $span        = $timestamp - $next_window;
     my $count       = int $span / $self->{window_size};
-    &{$save_cb}( $next_window, $cache->[0] ) if ( $next_window and $save_cb );
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
 
+    if ($next_window) {
+        &{$save_cb}( $next_window, $cache->[0] ) if ($save_cb);
+        $self->{edge}->activate(
+            {   partition => $i,
+                timestamp => $next_window,
+                bucket    => $cache->[0]
+            }
+        ) if ( $self->{edge} );
+    }
     for ( 0 .. $count ) {
         unshift @{$cache}, {};
     }
@@ -202,7 +209,7 @@ sub get_bucket {
         $j = int $span / $self->{window_size};
     }
     if ( $j < $self->{num_buckets} ) {
-        $cache->[$j] //= {};
+        $cache->[$j] ||= {};
         $bucket = $cache->[$j];
     }
     return $bucket;
@@ -245,9 +252,9 @@ sub send_stats {
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
-    my $timestamp   = $stored->{timestamp} // 0;
+    my $timestamp   = $stored->{timestamp}       // 0;
     if ( $timestamp > $next_window ) {
-        $self->{caches}->[$i] //= [];
+        $self->{caches}->[$i] ||= [];
         my $cache = $self->{caches}->[$i];
         my $span  = $timestamp - $next_window;
         my $count = int $span / $self->{window_size};
