@@ -74,8 +74,8 @@ sub arguments {
         $self->{topic}          = $topic // $self->{name};
         $self->{next_partition} = 0;
         $self->{last_check}     = 0;
-        $self->{batch}          = [];
-        $self->{batch_size}     = [];
+        $self->{batch}          = {};
+        $self->{batch_size}     = 0;
         $self->set_timer;
     }
     return $self->{arguments};
@@ -113,17 +113,7 @@ sub fill {
     }
     elsif ( $message->[FROM] ne $self->{broker_path} ) {
         if ( $self->{partitions} ) {
-            push @{ $self->{batch} }, $message;
-            $self->{batch_size} += length $message->[PAYLOAD];
-            if (   $self->{batch_size} > $Batch_Threshold
-                || $Tachikoma::Now - $message->[TIMESTAMP] > 1 )
-            {
-                $self->set_timer(0)
-                    if ( not defined $self->{timer_interval} );
-            }
-            elsif ( defined $self->{timer_interval} ) {
-                $self->set_timer;
-            }
+            $self->batch_message($message);
         }
         elsif ( $message->[TYPE] & TM_PERSIST ) {
             my $response = Tachikoma::Message->new;
@@ -168,8 +158,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
         $message->[TYPE]    = TM_BYTESTREAM;
         $message->[PAYLOAD] = $_[1];
     }
-    push @{ $_[0]->{batch} }, $message;
-    $_[0]->set_timer(0) if ( not defined $_[0]->{timer_interval} );
+    $_[0]->batch_message($message);
 }
 
 sub fire {
@@ -177,41 +166,20 @@ sub fire {
     my $partitions = $self->{partitions};
     if ($partitions) {
         my $topic = $self->{topic};
-        my %batch = ();
-        for my $message ( @{ $self->{batch} } ) {
-            my $i = 0;
-            if ( length $message->[TO] ) {
-                $i = $message->[TO];
-            }
-            elsif ( $message->[STREAM] ) {
-                $i += $_ for ( unpack 'C*', md5( $message->[STREAM] ) );
-                $i %= scalar @{$partitions};
-            }
-            else {
-                $i = $self->{next_partition};
-                $self->{next_partition} = ( $i + 1 ) % @{$partitions};
-            }
-            my $broker_id = $partitions->[$i];
-            $batch{$i} //= [];
-            push @{ $batch{$i} }, ${ $message->packed };
-            $message->[$Offset] = $self->{counter}++;
-            $message->[PAYLOAD] = q();
-            push @{ $self->{responses}->{$broker_id} }, $message
-                if ( $message->[TYPE] & TM_PERSIST );
-        }
-        for my $i ( keys %batch ) {
+        my $batch = $self->{batch};
+        for my $i ( keys %{$batch} ) {
             my $broker_id = $partitions->[$i];
             my $message   = Tachikoma::Message->new;
             $message->[TYPE]    = TM_BATCH | TM_PERSIST;
             $message->[FROM]    = $self->{name};
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = $self->{counter};
-            $message->[STREAM]  = scalar @{ $batch{$i} };
-            $message->[PAYLOAD] = join q(), @{ $batch{$i} };
+            $message->[STREAM]  = scalar @{ $batch->{$i} };
+            $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
         }
-        $self->{batch}      = [];
+        $self->{batch}      = {};
         $self->{batch_size} = 0;
     }
     if ($Tachikoma::Right_Now - $self->{last_check} > $self->{poll_interval} )
@@ -225,6 +193,44 @@ sub fire {
         $self->{last_check} = $Tachikoma::Right_Now;
     }
     $self->set_timer if ( defined $self->{timer_interval} );
+    return;
+}
+
+sub batch_message {
+    my $self       = shift;
+    my $message    = shift;
+    my $partitions = $self->{partitions};
+    my $i          = 0;
+    if ( length $message->[TO] ) {
+        $i = $message->[TO];
+        $message->[TO] = q();
+    }
+    elsif ( $message->[STREAM] ) {
+        $i += $_ for ( unpack 'C*', md5( $message->[STREAM] ) );
+        $i %= scalar @{$partitions};
+    }
+    else {
+        $i = $self->{next_partition};
+        $self->{next_partition} = ( $i + 1 ) % @{$partitions};
+    }
+    my $broker_id = $partitions->[$i];
+    $self->{batch}->{$i} //= [];
+    push @{ $self->{batch}->{$i} }, ${ $message->packed };
+    $message->[$Offset] = $self->{counter}++;
+    $message->[PAYLOAD] = q();
+    push @{ $self->{responses}->{$broker_id} }, $message
+        if ( $message->[TYPE] & TM_PERSIST );
+    $self->{batch_size} += length $message->[PAYLOAD];
+
+    if (   $self->{batch_size} > $Batch_Threshold
+        || $Tachikoma::Now - $message->[TIMESTAMP] > 1 )
+    {
+        $self->set_timer(0)
+            if ( not defined $self->{timer_interval} );
+    }
+    elsif ( defined $self->{timer_interval} ) {
+        $self->set_timer;
+    }
     return;
 }
 
