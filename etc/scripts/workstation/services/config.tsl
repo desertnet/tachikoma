@@ -2,8 +2,8 @@
 var hostname = `hostname -s`;
 var home     = `echo ~`;
 
-var topics_dir = /logs/topics;
-var cache_dir  = /logs/cache;
+var topics_dir1 = /pool1;
+var topics_dir2 = /pool2;
 
 var tachikoma.tables.http.port       = 3124;
 var tachikoma.tables.port            = 5100;

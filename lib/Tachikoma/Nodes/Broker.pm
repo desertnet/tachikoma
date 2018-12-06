@@ -67,8 +67,9 @@ my %Controller_Commands = map { uc $_ => $_ } qw(
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{broker_hosts}     = {};
+    $self->{broker_pools}     = {};
     $self->{broker_id}        = undef;
+    $self->{path}             = undef;
     $self->{broker_stats}     = {};
     $self->{brokers}          = {};
     $self->{caches}           = {};
@@ -453,11 +454,11 @@ sub determine_controller {
     my %leaders    = ();
     for my $broker_id ( sort keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
-        if ( not $leaders{ $broker->{host} } ) {
+        if ( not $leaders{ $broker->{pool} } ) {
             $broker->{leader} = 1;
-            $leaders{ $broker->{host} } = 1;
+            $leaders{ $broker->{pool} } = 1;
             $controller //= $broker_id
-                if ( $self->{broker_hosts}->{ $broker->{host} } );
+                if ( $self->{broker_pools}->{ $broker->{pool} } );
         }
         else {
             $broker->{leader} = undef;
@@ -521,16 +522,16 @@ sub receive_heartbeat {
     my $online = 0;
     for my $id ( keys %{ $self->{brokers} } ) {
         my $other = $self->{brokers}->{$id};
-        if ( $other->{host} eq $broker->{host} ) {
+        if ( $other->{pool} eq $broker->{pool} ) {
             $total++;
             $online++
                 if ( $now - $other->{online} < $Heartbeat_Timeout );
         }
     }
     if ( $total and $online == $total ) {
-        $self->{broker_hosts}->{ $broker->{host} } = $Tachikoma::Now;
+        $self->{broker_pools}->{ $broker->{pool} } = $Tachikoma::Now;
         if ($back_online) {
-            $self->stderr( $broker->{host} . ' back online' );
+            $self->stderr( $broker->{pool} . ' back online' );
             $self->rebalance_partitions('inform_brokers');
         }
     }
@@ -601,13 +602,13 @@ sub check_heartbeats {
         $self->offline($broker_id)
             if ( $Tachikoma::Right_Now - $broker->{last_heartbeat}
             > $Heartbeat_Timeout );
-        $offline{ $broker->{host} } = 1
+        $offline{ $broker->{pool} } = 1
             if ( not $broker->{online} );
     }
     for my $broker_id ( keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
         $total++;
-        next if ( $offline{ $broker->{host} } );
+        next if ( $offline{ $broker->{pool} } );
         $online++;
         $votes++ if ( $self->{votes}->{$broker_id} );
     }
@@ -627,12 +628,12 @@ sub offline {
     return
         if ( not $broker or not $broker->{online} or $self->{starting_up} );
     $broker->{online} = 0;
-    $self->{broker_hosts}->{ $broker->{host} } = 0;
+    $self->{broker_pools}->{ $broker->{pool} } = 0;
     delete $self->{waiting_for_halt}->{$broker_id};
     delete $self->{waiting_for_reset}->{$broker_id};
     delete $self->{waiting_for_map}->{$broker_id};
 
-    $self->stderr("$broker_id has gone offline");
+    $self->stderr( $broker->{pool} . ' has gone offline' );
     $self->rebalance_partitions('inform_brokers');
     return;
 }
@@ -686,7 +687,7 @@ sub send_halt {
             if ( $broker_id eq $self->{broker_id}
             or not $broker->{online} );
         $self->{waiting_for_halt}->{$broker_id} = 1
-            if ( $self->{broker_hosts}->{ $broker->{host} } );
+            if ( $self->{broker_pools}->{ $broker->{pool} } );
     }
     $self->{generation}++;
     $self->inform_brokers("REBALANCE_PARTITIONS\n");
@@ -717,7 +718,7 @@ sub send_reset {
             if ( $broker_id eq $self->{broker_id}
             or not $broker->{online} );
         $self->{waiting_for_reset}->{$broker_id} = 1
-            if ( $self->{broker_hosts}->{ $broker->{host} } );
+            if ( $self->{broker_pools}->{ $broker->{pool} } );
     }
     $self->inform_brokers("RESET\n");
     $self->reset_partitions;
@@ -804,23 +805,23 @@ sub reset_partitions {
 sub determine_mapping {
     my $self                = shift;
     my $mapping             = {};
-    my $leaders_by_host     = {};
+    my $leaders_by_pool     = {};
     my $leaders_by_broker   = {};
-    my $followers_by_host   = {};
+    my $followers_by_pool   = {};
     my $followers_by_broker = {};
     my $online_brokers      = {};
     $self->{partitions} = {};
 
-    # partitions assigned to each host
+    # partitions assigned to each pool
     for my $id ( keys %{ $self->{brokers} } ) {
-        my $host = ( split m{:}, $id, 2 )[0];
-        next if ( not $self->{broker_hosts}->{$host} );
-        $leaders_by_host->{$host} = 0;
-        $leaders_by_broker->{$host} //= {};
-        $leaders_by_broker->{$host}->{$id} = 0;
-        $followers_by_host->{$host} = 0;
-        $followers_by_broker->{$host} //= {};
-        $followers_by_broker->{$host}->{$id} = 0;
+        my $pool = $self->{brokers}->{$id}->{pool};
+        next if ( not $self->{broker_pools}->{$pool} );
+        $leaders_by_pool->{$pool} = 0;
+        $leaders_by_broker->{$pool} //= {};
+        $leaders_by_broker->{$pool}->{$id} = 0;
+        $followers_by_pool->{$pool} = 0;
+        $followers_by_broker->{$pool} //= {};
+        $followers_by_broker->{$pool}->{$id} = 0;
         $online_brokers->{$id} = 1;
     }
 
@@ -834,7 +835,7 @@ sub determine_mapping {
                 {   topic_name     => $topic_name,
                     log            => $log_name,
                     mapping        => $mapping,
-                    by_host        => $leaders_by_host,
+                    by_pool        => $leaders_by_pool,
                     by_broker      => $leaders_by_broker,
                     online_brokers => $online_brokers,
                 }
@@ -845,7 +846,7 @@ sub determine_mapping {
                     leader         => $leader,
                     count          => $topic->{replication_factor} - 1,
                     mapping        => $mapping,
-                    by_host        => $followers_by_host,
+                    by_pool        => $followers_by_pool,
                     by_broker      => $followers_by_broker,
                     online_brokers => $online_brokers,
                 }
@@ -941,9 +942,9 @@ sub determine_leader {
         $self->stderr( "NEW LEADER for $log_name - ", $leader ) if ($leader);
     }
     if ($leader) {
-        my $leader_host = ( split m{:}, $leader, 2 )[0];
-        $query->{by_host}->{$leader_host}++;
-        $query->{by_broker}->{$leader_host}->{$leader}++;
+        my $leader_pool = $brokers->{$leader}->{pool};
+        $query->{by_pool}->{$leader_pool}++;
+        $query->{by_broker}->{$leader_pool}->{$leader}++;
     }
     return $leader;
 }
@@ -969,7 +970,7 @@ sub determine_in_sync_replicas {
         next
             if ( not defined $log->{lco}
             or $log->{lco} < $last_commit_offset );
-        $in_sync_replicas{ $brokers->{$broker_id}->{host} } = 1;
+        $in_sync_replicas{ $brokers->{$broker_id}->{pool} } = 1;
     }
     $query->{candidates} = \%in_sync_replicas;
     return;
@@ -984,18 +985,18 @@ sub determine_followers {
     my $count       = $query->{count};
     my $brokers     = $self->{brokers};
     my %skip        = ();
-    my $leader_host = $leader ? ( split m{:}, $leader, 2 )[0] : undef;
+    my $leader_pool = $leader ? $brokers->{$leader}->{pool} : undef;
     my %candidates  = ();
     my @followers   = ();
     die "ERROR: no replication factor specified\n" if ( not defined $count );
-    $skip{$leader_host} = 1 if ($leader_host);
+    $skip{$leader_pool} = 1 if ($leader_pool);
 
     # find existing followers
     for my $broker_id ( keys %{ $query->{online_brokers} } ) {
-        my $broker_host = $brokers->{$broker_id}->{host};
-        next if ( $skip{$broker_host} );
+        my $broker_pool = $brokers->{$broker_id}->{pool};
+        next if ( $skip{$broker_pool} );
         my $broker_lco = $self->{last_commit_offsets}->{$broker_id};
-        $candidates{$broker_host} = 1 if ( $broker_lco->{$log_name} );
+        $candidates{$broker_pool} = 1 if ( $broker_lco->{$log_name} );
     }
 
     # find best followers
@@ -1009,9 +1010,9 @@ sub determine_followers {
             last if ( not $follower );
         }
         push @followers, $follower;
-        my $follower_host = ( split m{:}, $follower, 2 )[0];
-        $query->{by_host}->{$follower_host}++;
-        $query->{by_broker}->{$follower_host}->{$follower}++;
+        my $follower_pool = $brokers->{$follower}->{pool};
+        $query->{by_pool}->{$follower_pool}++;
+        $query->{by_broker}->{$follower_pool}->{$follower}++;
     }
     return \@followers;
 }
@@ -1022,7 +1023,7 @@ sub next_broker {
     my $broker_id = undef;
 
     # find the broker with the fewest partitions
-    $query->{candidates} = $self->{broker_hosts};
+    $query->{candidates} = $self->{broker_pools};
     $broker_id = $self->best_broker($query);
     return $broker_id;
 }
@@ -1034,24 +1035,24 @@ sub best_broker {
     my $want_replica = $query->{want_replica};
     my $skip         = $query->{skip};
     my $mapping      = $query->{mapping};
-    my $by_host      = $query->{by_host};
+    my $by_pool      = $query->{by_pool};
     my $min          = undef;
-    my $best_host    = undef;
+    my $best_pool    = undef;
     my $broker_id    = undef;
 
-    # pick the host with the fewest partitions
-    for my $host ( sort keys %{$by_host} ) {
+    # pick the pool with the fewest partitions
+    for my $pool ( sort keys %{$by_pool} ) {
         next
-            if ( not $candidates->{$host}
-            or ( $skip and $skip->{$host} )
-            or ( defined $min and $by_host->{$host} > $min ) );
-        $min       = $by_host->{$host};
-        $best_host = $host;
+            if ( not $candidates->{$pool}
+            or ( $skip and $skip->{$pool} )
+            or ( defined $min and $by_pool->{$pool} > $min ) );
+        $min       = $by_pool->{$pool};
+        $best_pool = $pool;
     }
 
     # pick the broker with the fewest partitions
-    if ($best_host) {
-        my $by_broker = $query->{by_broker}->{$best_host};
+    if ($best_pool) {
+        my $by_broker = $query->{by_broker}->{$best_pool};
         $broker_id = (
             sort { $by_broker->{$a} <=> $by_broker->{$b} }
                 keys %{$by_broker}
@@ -1062,7 +1063,7 @@ sub best_broker {
             $mapping->{$broker_id}->{$topic_name}->{$log_name} =
                 $query->{leader};
             if ($skip) {
-                $skip->{ $self->{brokers}->{$broker_id}->{host} } = 1;
+                $skip->{ $self->{brokers}->{$broker_id}->{pool} } = 1;
             }
         }
     }
@@ -1295,7 +1296,7 @@ sub process_delete {    ## no critic (ProhibitExcessComplexity)
     my $broker_id    = $self->{broker_id};
     my $broker_lco   = $self->{last_commit_offsets}->{$broker_id};
     my $broker_stats = $self->{broker_stats}->{$broker_id};
-    my $this_host    = $self->{brokers}->{$broker_id}->{host};
+    my $this_pool    = $self->{brokers}->{$broker_id}->{pool};
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         $node->process_delete
@@ -1303,34 +1304,34 @@ sub process_delete {    ## no critic (ProhibitExcessComplexity)
             and not $node->{leader} );
     }
 
-    # purge stale logs, except those for other processes on this host
+    # purge stale logs, except those for other processes on this pool
     my $now = time;
     if (    $self->{brokers}->{$broker_id}->{leader}
-        and $now - $self->{broker_hosts}->{$this_host} < $Heartbeat_Timeout )
+        and $now - $self->{broker_pools}->{$this_pool} < $Heartbeat_Timeout )
     {
         my $brokers            = $self->{brokers};
         my $topics             = $self->{topics};
-        my %logs_for_this_host = ();
+        my %logs_for_this_pool = ();
         for my $id ( keys %{ $self->{last_commit_offsets} } ) {
             next
                 if ( not $brokers->{$id}
-                or $brokers->{$id}->{host} ne $this_host );
+                or $brokers->{$id}->{pool} ne $this_pool );
             my $lco = $self->{last_commit_offsets}->{$id};
             for my $log_name ( keys %{$lco} ) {
                 my $log = $lco->{$log_name} or next;
-                $logs_for_this_host{$log_name} = 1
+                $logs_for_this_pool{$log_name} = 1
                     if ( $now - $log->{is_active} < $LCO_Timeout );
             }
         }
         for my $id ( keys %{ $self->{last_commit_offsets} } ) {
             next
                 if ( not $brokers->{$id}
-                or $brokers->{$id}->{host} ne $this_host );
+                or $brokers->{$id}->{pool} ne $this_pool );
             my $lco = $self->{last_commit_offsets}->{$id};
             for my $log_name ( keys %{$lco} ) {
                 my $log        = $lco->{$log_name} or next;
                 my $topic_name = ( split m{:}, $log_name, 2 )[0];
-                if ( not $logs_for_this_host{$log_name}
+                if ( not $logs_for_this_pool{$log_name}
                     and -e $log->{filename} )
                 {
                     $self->stderr("PURGE: $log_name");
@@ -1369,11 +1370,14 @@ sub process_delete {    ## no critic (ProhibitExcessComplexity)
 sub add_broker {
     my $self      = shift;
     my $arguments = shift;
-    my $broker_id = $arguments;
-    my ( $host, $port ) = split m{:}, $broker_id, 2;
+    my ( $broker_id, $path ) = split q( ), $arguments, 2;
+    my ( $host,      $port ) = split m{:}, $broker_id, 2;
     return if ( not $port );
+    $path ||= $self->{path};
+    my $pool   = join q(:), $host, $path;
     my $online = $broker_id eq $self->{broker_id};
     $self->brokers->{$broker_id} = {
+        pool           => $pool,
         host           => $host,
         port           => $port,
         path           => "$broker_id/broker",
@@ -1382,7 +1386,7 @@ sub add_broker {
         online         => $online,
         leader         => undef,
     };
-    $self->broker_hosts->{$host} = $online;
+    $self->broker_pools->{$pool} = $online;
 
     if ( $broker_id ne $self->{broker_id} ) {
         my $node = $Tachikoma::Nodes{$broker_id};
@@ -1796,7 +1800,7 @@ $C{help} = sub {
     my $envelope = shift;
     return $self->response( $envelope,
               "commands: load_configs                           \\\n"
-            . "          set_broker <host>:<port>               \\\n"
+            . "          set_broker <host>:<port> <path>        \\\n"
             . "          set_topic --topic=<topic>              \\\n"
             . "                    --num_partitions=<count>     \\\n"
             . "                    --replication_factor=<count> \\\n"
@@ -1850,6 +1854,7 @@ $C{list_brokers} = sub {
     my $results  = [
         [   [ 'HOST'           => 'right' ],
             [ 'PORT'           => 'left' ],
+            [ 'POOL'           => 'right' ],
             [ 'LAST HEARTBEAT' => 'right' ],
             [ 'ONLINE'         => 'right' ],
             [ 'LEADER'         => 'right' ],
@@ -1864,6 +1869,7 @@ $C{list_brokers} = sub {
             [
             $broker->{host},
             $broker->{port},
+            $broker->{pool},
             strftime( '%F %T %Z', localtime( $broker->{last_heartbeat} ) ),
             $broker->{online}         ? q(*) : q(),
             $broker->{leader}         ? q(*) : q(),
@@ -2129,12 +2135,12 @@ sub check_status {
     return $error;
 }
 
-sub broker_hosts {
+sub broker_pools {
     my $self = shift;
     if (@_) {
-        $self->{broker_hosts} = shift;
+        $self->{broker_pools} = shift;
     }
-    return $self->{broker_hosts};
+    return $self->{broker_pools};
 }
 
 sub broker_id {

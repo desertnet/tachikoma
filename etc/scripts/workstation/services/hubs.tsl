@@ -6,28 +6,30 @@ if (<_C> > 0) {
 var name = hubs
 include services/daemonize.tsl
 
-var hub_from = <root_port> + 1
-var hub_to   = <root_port> + 4
+var num_hubs = 4;
 var all_hubs
-var my_hubs
 for h (<hostname>) {
-    for i ( <hub_from> .. <hub_to> ) {
-        all_hubs .= "<h>:<i>";
+    for i ( 1 .. <num_hubs> ) {
+        local j = <root_port> + <i>;
+        var "topics_dir.<h>:<j>" = <topics_dir1>;
+        all_hubs .= "<h>:<j>";
+        if ( <topics_dir2> ) {
+            j = <root_port> + <i> + <num_hubs>;
+            var "topics_dir.<h>:<j>" = <topics_dir2>;
+            all_hubs .= "<h>:<j>";
+        };
     };
-}
-for i ( <hub_from> .. <hub_to> ) {
-    my_hubs .= "<hostname>:<i>";
 }
 
 func add_hub {
     local broker_id = <1>;
-    local path      = <2>;
+    local path      = [var "topics_dir.<broker_id>"];
     command jobs start_job CommandInterpreter hub:<broker_id>;
     cd hub:<broker_id>;
-        make_node Broker broker <broker_id> <path>;
+        make_node Broker broker <broker_id> <path> <stick>;
         cd broker;
             for hub (<all_hubs>) {
-                set_broker <hub>;
+                set_broker <hub> [var "topics_dir.<hub>"];
             };
 
             set_topic topic1;
@@ -72,8 +74,13 @@ func add_hub {
     cd ..;
 }
 
-for hub (<my_hubs>) {
-    add_hub <hub> <topics_dir>;
+for i ( 1 .. <num_hubs> ) {
+    local j = <root_port> + <i>;
+    add_hub "<hostname>:<j>";
+    if ( <topics_dir2> ) {
+        j = <root_port> + <i> + <num_hubs>;
+        add_hub "<hostname>:<j>";
+    };
 }
 
 listen_inet localhost:<root_port>

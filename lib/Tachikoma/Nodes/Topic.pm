@@ -228,8 +228,8 @@ sub batch_message {
         $self->set_timer(0)
             if ( not defined $self->{timer_interval} );
     }
-    elsif ( defined $self->{timer_interval} ) {
-        $self->set_timer;
+    elsif ( not defined $self->{timer_interval} ) {
+        $self->set_timer(1000);
     }
     return;
 }
