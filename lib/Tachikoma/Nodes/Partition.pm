@@ -645,6 +645,7 @@ sub reset_follower {
         $self->open_segments(-1);
         $self->{offset} = $offset;
         $self->create_segment;
+        $self->write_offset($offset);
         $self->set_timer( 0, 'oneshot' );
     }
     return;
@@ -683,7 +684,7 @@ sub purge_offsets {
             my $offset_file = "$offsets_dir/$old_offset";
             unlink $offset_file
                 or die "ERROR: couldn't unlink $offset_file: $!";
-            $self->stderr("DEBUG: unlinked $offset_file");
+            $self->stderr("DEBUG: unlinking $offset_file");
         }
     }
     return \@offsets;
