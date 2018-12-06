@@ -222,14 +222,15 @@ sub batch_message {
         if ( $message->[TYPE] & TM_PERSIST );
     $self->{batch_size} += length $message->[PAYLOAD];
 
-    if (   $self->{batch_size} > $Batch_Threshold
-        || $Tachikoma::Now - $message->[TIMESTAMP] > 1 )
-    {
-        $self->set_timer(0)
-            if ( not defined $self->{timer_interval} );
-    }
-    elsif ( not defined $self->{timer_interval} ) {
-        $self->set_timer(1000);
+    if ( not defined $self->{timer_interval} ) {
+        if (   $self->{batch_size} > $Batch_Threshold
+            || $Tachikoma::Now - $message->[TIMESTAMP] > 1 )
+        {
+            $self->set_timer(0);
+        }
+        else {
+            $self->set_timer(1000);
+        }
     }
     return;
 }
