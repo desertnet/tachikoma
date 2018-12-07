@@ -11,21 +11,27 @@ $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
 
-my ( $topic, $group, $batch, $help );
+my ( $topic, $group, $offset, $batch, $help );
 my $mode  = 'values';
 my $total = 0;
 my ( $r, $argv ) = GetOptions(
-    'topic=s' => \$topic,
-    'group=s' => \$group,
-    'batch'   => \$batch,
-    'mode=s'  => \$mode,
-    'help'    => \$help,
+    'topic=s'  => \$topic,
+    'group=s'  => \$group,
+    'offset=s' => \$offset,
+    'batch'    => \$batch,
+    'mode=s'   => \$mode,
+    'help'     => \$help,
 );
 $topic //= $ARGV[0];
 usage() if ( $help or not $r or not $topic );
 
 my $consumer = Tachikoma::Nodes::ConsumerBroker->new( $topic, $group );
-$consumer->default_offset('start') if ($batch);
+if ($offset) {
+    $consumer->default_offset($offset);
+}
+elsif ($batch) {
+    $consumer->default_offset('start');
+}
 $consumer->poll_interval(0.1);
 if ( $mode eq 'keys' ) {
     while (1) {
@@ -122,8 +128,10 @@ sub usage {
     print "Usage:\n"
         . "consume_topic   --topic=<name>\n"
         . "              [ --group=<name>      ]\n"
+        . "              [ --offset=<offset>   ]\n"
         . "              [ --batch             ]\n"
         . "              [ --mode=<string>     ]\n"
+        . "    # valid offsets: start recent end\n"
         . "    # valid modes: keys values debug dump_message dump_payload\n";
     exit 1;
 }
