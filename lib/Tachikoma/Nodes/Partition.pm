@@ -674,7 +674,8 @@ sub purge_offsets {
     my $offsets_dir     = join q(/), $self->{filename}, 'offsets';
     my @offsets         = ();
     if ( -d $offsets_dir ) {
-        my $dh = undef;
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
+        my $dh     = undef;
         opendir $dh, $offsets_dir
             or die "ERROR: couldn't opendir $offsets_dir: $!";
         @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
@@ -684,7 +685,8 @@ sub purge_offsets {
             my $offset_file = "$offsets_dir/$old_offset";
             unlink $offset_file
                 or die "ERROR: couldn't unlink $offset_file: $!";
-            $self->stderr("DEBUG: unlinking $offset_file");
+            $self->stderr("DEBUG: $caller unlinking $offset_file")
+                if ($old_offset);
         }
     }
     return \@offsets;
@@ -695,6 +697,7 @@ sub open_segments {
     my $last_commit_offset = shift;
     my $dh                 = undef;
     my $path               = $self->{filename};
+    my $caller             = ( split m{::}, ( caller 1 )[3] )[-1];
     $self->close_segments;
     $self->make_dirs( join q(/), $path, 'offsets' );
     opendir $dh, $path or die "ERROR: couldn't opendir $path: $!";
@@ -705,7 +708,8 @@ sub open_segments {
         $file =~ m{^(\d+)[.]log$} or next;
         my $offset = $1;
         if ( $offset > $last_commit_offset ) {
-            $self->stderr("WARNING: unlinking $path/$file");
+            $self->stderr("WARNING: $caller unlinking $path/$file")
+                if ($offset);
             unlink "$path/$file"
                 or die "ERROR: couldn't unlink $path/$file: $!";
             next;

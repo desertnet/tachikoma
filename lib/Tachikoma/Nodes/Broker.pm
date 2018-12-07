@@ -927,8 +927,7 @@ sub determine_leader {
 
     # $self->stderr(
     #     "CANDIDATE LEADERS for $log_name - ",
-    #     join q(, ),
-    #     grep $query->{candidates}->{$_},
+    #     map join( q(), $_, ' => ', $query->{candidates}->{$_}, ', ' ),
     #     sort keys %{ $query->{candidates} }
     # );
     $leader = $self->best_broker($query)
@@ -970,7 +969,7 @@ sub determine_in_sync_replicas {
         next
             if ( not defined $log->{lco}
             or $log->{lco} < $last_commit_offset );
-        $in_sync_replicas{ $brokers->{$broker_id}->{pool} } = 1;
+        $in_sync_replicas{ $brokers->{$broker_id}->{pool} } = $log->{lco};
     }
     $query->{candidates} = \%in_sync_replicas;
     return;
@@ -1043,7 +1042,7 @@ sub best_broker {
     # pick the pool with the fewest partitions
     for my $pool ( sort keys %{$by_pool} ) {
         next
-            if ( not $candidates->{$pool}
+            if ( not exists $candidates->{$pool}
             or ( $skip and $skip->{$pool} )
             or ( defined $min and $by_pool->{$pool} > $min ) );
         $min       = $by_pool->{$pool};
@@ -1054,7 +1053,11 @@ sub best_broker {
     if ($best_pool) {
         my $by_broker = $query->{by_broker}->{$best_pool};
         $broker_id = (
-            sort { $by_broker->{$a} <=> $by_broker->{$b} }
+            sort {
+                ( $by_broker->{$a} != $by_broker->{$b} )
+                    ? $by_broker->{$a} <=> $by_broker->{$b}
+                    : $a cmp $b
+                }
                 keys %{$by_broker}
         )[0];
         if ($broker_id) {

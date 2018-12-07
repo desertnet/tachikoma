@@ -84,4 +84,4 @@ for i ( 1 .. <num_hubs> ) {
 }
 
 listen_inet localhost:<root_port>
-secure 3
+insecure
