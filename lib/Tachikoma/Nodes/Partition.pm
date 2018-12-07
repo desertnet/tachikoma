@@ -82,7 +82,6 @@ sub arguments {
         $self->{max_lifespan}     = $max_lifespan;
         $self->{status}           = 'ACTIVE';
         $self->{leader}           = undef;
-        $self->{leader_path}      = undef;
         $self->{followers}        = {};
         $self->{in_sync_replicas} = {};
         $self->{replica_offsets}  = {};
@@ -184,7 +183,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         # only create new follower segments on message boundaries!
         if ( $self->{leader} ) {
             return $self->send_error( $message, "NOT_LEADER\n" )
-                if ( $message->[FROM] ne $self->{leader_path} );
+                if ( $message->[FROM] ne $self->{leader} );
             return $self->reset_follower( $message->[ID] )
                 if ( $message->[ID] != $self->{offset} );
             my $segment = $self->{segments}->[-1];
@@ -200,7 +199,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
     if ( $self->{leader} ) {
         return $self->send_error( $message, "NOT_LEADER\n" )
-            if ( $message->[FROM] ne $self->{leader_path} );
+            if ( $message->[FROM] ne $self->{leader} );
         $self->{expecting} = undef;
         return $self->reset_follower( $message->[ID] )
             if ( $message->[ID] != $self->{offset} );
@@ -926,7 +925,7 @@ sub get_valid_offsets {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{leader_path};
+    $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'GET_VALID_OFFSETS 0 ',
         $self->{broker_id} // $self->{name}, "\n";
     $self->{expecting} = $Tachikoma::Now;
@@ -939,7 +938,7 @@ sub get_batch {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{leader_path};
+    $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'GET ', $self->{offset} // 0, q( ),
         $self->{broker_id} // $self->{name},
         "\n";
@@ -954,7 +953,7 @@ sub send_ack {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{leader_path};
+    $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ),
         $self->{broker_id} // $self->{name},
         "\n";
@@ -1010,28 +1009,13 @@ sub status {
 sub leader {
     my $self = shift;
     if (@_) {
-        my $leader = shift;
+        my $leader                = shift;
         $self->{leader}           = $leader;
         $self->{followers}        = {};
         $self->{in_sync_replicas} = {};
         $self->{replica_offsets}  = {};
-        if ($leader) {
-            my $name = $self->{name};
-            $self->{leader_path} = "$leader/$name";
-        }
-        else {
-            $self->{leader_path} = undef;
-        }
     }
     return $self->{leader};
-}
-
-sub leader_path {
-    my $self = shift;
-    if (@_) {
-        $self->{leader_path} = shift;
-    }
-    return $self->{leader_path};
 }
 
 sub followers {
@@ -1047,7 +1031,6 @@ sub in_sync_replicas {
     if (@_) {
         $self->{in_sync_replicas} = shift;
         $self->{leader}           = undef;
-        $self->{leader_path}      = undef;
         $self->{replica_offsets}  = {};
     }
     return $self->{in_sync_replicas};

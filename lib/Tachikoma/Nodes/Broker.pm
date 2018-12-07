@@ -1167,7 +1167,7 @@ sub apply_mapping {
             $node->sink( $self->sink );
 
             if ($leader) {
-                $node->leader($leader);
+                $node->leader("$leader/$log_name");
                 $node->restart_follower;
             }
             else {
@@ -1190,7 +1190,7 @@ sub apply_mapping {
                 $node->sink( $self->sink );
 
                 if ($leader) {
-                    $node->leader($leader);
+                    $node->leader("$leader/$group_log");
                     $node->restart_follower;
                 }
                 else {
