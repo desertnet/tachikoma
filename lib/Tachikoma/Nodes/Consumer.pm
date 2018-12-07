@@ -142,7 +142,7 @@ sub arguments {
         $self->{cache_size}     = undef;
         $self->{auto_commit}    = $auto_commit // $Commit_Interval;
         $self->{auto_commit} = undef if ( not $offsetlog and not $cache_dir );
-        $self->{last_commit} = ( $offsetlog or $cache_dir ) ? 0 : -1;
+        $self->{last_commit} = 0;
         $self->{last_commit_offset} = -1;
         $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{expecting}          = undef;
@@ -255,8 +255,8 @@ sub fire {
     if (    $self->{status} eq 'ACTIVE'
         and $self->{auto_commit}
         and $self->{last_commit}
-        and $self->{lowest_offset} != $self->{last_commit_offset}
-        and $Tachikoma::Now - $self->{last_commit} > $self->{auto_commit} )
+        and $Tachikoma::Now - $self->{last_commit} > $self->{auto_commit}
+        and $self->{lowest_offset} != $self->{last_commit_offset} )
     {
         $self->commit_offset_async;
     }
@@ -265,15 +265,9 @@ sub fire {
     {
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
-    if ( length ${ $self->{buffer} }
-        and $self->{msg_unanswered} < $self->{max_unanswered} )
-    {
-        $self->drain_buffer;
-    }
-    if ( not $self->{expecting}
-        and $self->{msg_unanswered} < $self->{max_unanswered} )
-    {
-        $self->get_batch_async;
+    if ( $self->{msg_unanswered} < $self->{max_unanswered} ) {
+        $self->drain_buffer if ( length ${ $self->{buffer} } );
+        $self->get_batch_async if ( not $self->{expecting} );
     }
     return;
 }
@@ -436,8 +430,8 @@ sub commit_offset_async {
         $self->{sink}->fill($message);
         $self->{cache_size} = $message->size;
     }
-    $self->{last_commit_offset} = $self->{lowest_offset};
     $self->{last_commit}        = $Tachikoma::Now;
+    $self->{last_commit_offset} = $self->{lowest_offset};
     return;
 }
 

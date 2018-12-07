@@ -1009,7 +1009,7 @@ sub status {
 sub leader {
     my $self = shift;
     if (@_) {
-        my $leader                = shift;
+        my $leader = shift;
         $self->{leader}           = $leader;
         $self->{followers}        = {};
         $self->{in_sync_replicas} = {};
