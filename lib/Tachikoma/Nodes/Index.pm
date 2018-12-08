@@ -74,11 +74,10 @@ sub lookup {
         }
     }
     else {
-        for my $cache ( @{ $self->{caches} } ) {
-            for my $bucket ( @{$cache} ) {
-                next if ( not exists $bucket->{$key} );
-                $rv{$_} = 1 for ( @{ $bucket->{$key} } );
-            }
+        my $i = $self->get_partition_id($key);
+        for my $bucket ( @{ $self->{caches}->[$i] } ) {
+            next if ( not exists $bucket->{$key} );
+            $rv{$_} = 1 for ( @{ $bucket->{$key} } );
         }
     }
     return \%rv;
