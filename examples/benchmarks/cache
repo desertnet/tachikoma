@@ -1,0 +1,69 @@
+#!/usr/bin/perl
+# ----------------------------------------------------------------------
+# cache
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+
+use strict;
+use warnings;
+use Tachikoma::Nodes::Table;
+use Time::HiRes qw( time );
+
+my $Num_Keys    = 100000;
+my $Delay       = 1;
+my $Table       = Tachikoma::Nodes::Table->new;
+my $Bucket_Size = 64;
+
+while ( $Bucket_Size <= 1048576 ) {
+    print "\nbucket_size: $Bucket_Size\n";
+    $Table->bucket_size($Bucket_Size);
+    check_store($Num_Keys);
+    check_lookup($Num_Keys);
+    $Bucket_Size *= 2;
+}
+
+sub check_store {
+    my $num_keys = shift;
+    my $count    = 0;
+    my $then     = time;
+    while (1) {
+        my $i = 1;
+        while ( $i < $num_keys ) {
+            $Table->store( 0, $i++ => 1 );
+        }
+        my $span = time - $then;
+        $count++;
+        if ( $span >= $Delay ) {
+            report( 'store', $count, $num_keys, $span );
+            last;
+        }
+    }
+}
+
+sub check_lookup {
+    my $num_keys = shift;
+    my $count    = 0;
+    my $then     = time;
+    while (1) {
+        my $i = 1;
+        while ( $i < $num_keys ) {
+            $Table->lookup( $i++ );
+        }
+        my $span = time - $then;
+        $count++;
+        if ( $span >= $Delay ) {
+            report( 'lookup', $count, $num_keys, $span );
+            last;
+        }
+    }
+}
+
+sub report {
+    my ( $type, $count, $num_keys, $span ) = @_;
+    printf
+        "%6s %.2f keys per second\n",
+        $type,
+        $count * $num_keys / $span;
+}
