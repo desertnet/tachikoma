@@ -59,7 +59,8 @@ sub new {
     $self->{cache_size}     = undef;
     $self->{auto_commit}    = $self->{offsetlog} ? $Commit_Interval : undef;
     $self->{last_commit}    = 0;
-    $self->{hub_timeout}    = $Hub_Timeout;
+    $self->{last_commit_offset} = -1;
+    $self->{hub_timeout}        = $Hub_Timeout;
 
     # async support
     $self->{expecting}      = undef;
@@ -141,17 +142,18 @@ sub arguments {
         $self->{cache_size}     = undef;
         $self->{auto_commit}    = $auto_commit // $Commit_Interval;
         $self->{auto_commit} = undef if ( not $offsetlog and not $cache_dir );
-        $self->{last_commit} = ( $offsetlog or $cache_dir ) ? 0 : -1;
-        $self->{hub_timeout} = $hub_timeout || $Hub_Timeout;
-        $self->{expecting}   = undef;
-        $self->{lowest_offset}  = 0;
-        $self->{saved_offset}   = undef;
-        $self->{timestamps}     = {};
-        $self->{last_expire}    = $Tachikoma::Now;
-        $self->{msg_unanswered} = 0;
-        $self->{max_unanswered} = $max_unanswered || 1;
-        $self->{timeout}        = $timeout || $Timeout;
-        $self->{status}         = $offsetlog ? 'INIT' : 'ACTIVE';
+        $self->{last_commit} = 0;
+        $self->{last_commit_offset} = -1;
+        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
+        $self->{expecting}          = undef;
+        $self->{lowest_offset}      = 0;
+        $self->{saved_offset}       = undef;
+        $self->{timestamps}         = {};
+        $self->{last_expire}        = $Tachikoma::Now;
+        $self->{msg_unanswered}     = 0;
+        $self->{max_unanswered}     = $max_unanswered || 1;
+        $self->{timeout}            = $timeout || $Timeout;
+        $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
     }
     return $self->{arguments};
 }
@@ -208,8 +210,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         if ( $message->[TYPE] & TM_EOF ) {
             if ( $self->{status} eq 'INIT' ) {
-                $self->{status}      = 'ACTIVE';
-                $self->{last_commit} = $Tachikoma::Now;
+                $self->{status} = 'ACTIVE';
                 $self->load_cache_complete;
                 $self->next_offset( $self->{saved_offset} );
                 $self->set_timer(0) if ( $self->{timer_interval} );
@@ -233,7 +234,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 
 sub fire {
     my $self = shift;
-    return if ( not $self->{owner} and not $self->{edge} );
+    return
+        if ( not $self->{sink}
+        or ( not $self->{owner} and not $self->{edge} ) );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
@@ -252,7 +255,8 @@ sub fire {
     if (    $self->{status} eq 'ACTIVE'
         and $self->{auto_commit}
         and $self->{last_commit}
-        and $Tachikoma::Now - $self->{last_commit} > $self->{auto_commit} )
+        and $Tachikoma::Now - $self->{last_commit} > $self->{auto_commit}
+        and $self->{lowest_offset} != $self->{last_commit_offset} )
     {
         $self->commit_offset_async;
     }
@@ -261,15 +265,9 @@ sub fire {
     {
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
-    if ( length ${ $self->{buffer} }
-        and $self->{msg_unanswered} < $self->{max_unanswered} )
-    {
-        $self->drain_buffer;
-    }
-    if ( not $self->{expecting}
-        and $self->{msg_unanswered} < $self->{max_unanswered} )
-    {
-        $self->get_batch_async;
+    if ( $self->{msg_unanswered} < $self->{max_unanswered} ) {
+        $self->drain_buffer if ( length ${ $self->{buffer} } );
+        $self->get_batch_async if ( not $self->{expecting} );
     }
     return;
 }
@@ -341,7 +339,6 @@ sub get_batch_async {
         if ( $self->cache_dir ) {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
                 q(.db);
-            $self->{last_commit} = $Tachikoma::Now;
             $self->load_cache( retrieve($file) ) if ( -f $file );
             $self->load_cache_complete;
             $offset = $self->{saved_offset};
@@ -433,7 +430,8 @@ sub commit_offset_async {
         $self->{sink}->fill($message);
         $self->{cache_size} = $message->size;
     }
-    $self->{last_commit} = $Tachikoma::Now;
+    $self->{last_commit}        = $Tachikoma::Now;
+    $self->{last_commit_offset} = $self->{lowest_offset};
     return;
 }
 
@@ -485,6 +483,8 @@ sub load_cache_complete {
     else {
         $self->stderr( 'INFO: starting from ', $self->{default_offset} );
     }
+    $self->{last_commit}        = $Tachikoma::Now;
+    $self->{last_commit_offset} = $self->{lowest_offset};
     return;
 }
 
@@ -911,6 +911,14 @@ sub last_commit {
         $self->{last_commit} = shift;
     }
     return $self->{last_commit};
+}
+
+sub last_commit_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{last_commit_offset} = shift;
+    }
+    return $self->{last_commit_offset};
 }
 
 sub hub_timeout {

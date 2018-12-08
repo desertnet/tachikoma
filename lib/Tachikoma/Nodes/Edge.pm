@@ -10,7 +10,10 @@ package Tachikoma::Nodes::Edge;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM TM_STORABLE );
+use Tachikoma::Message qw(
+    TYPE FROM TO TIMESTAMP PAYLOAD
+    TM_BYTESTREAM TM_STORABLE
+);
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -28,7 +31,7 @@ sub fill {
     if ( $message->[TYPE] & TM_STORABLE ) {
         $self->{edge}->activate( $message->payload );
     }
-    else {
+    elsif ( $message->[TYPE] & TM_BYTESTREAM ) {
         $self->{edge}->activate( \$message->[PAYLOAD] );
     }
     return;
@@ -38,12 +41,25 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     my $message = Tachikoma::Message->new;
     $message->[FROM] = $_[0]->{name};
     if ( ref $_[1] ) {
-        $message->[TYPE] = TM_STORABLE;
-        $message->payload( $_[1] );
+        if ( ref $_[1] eq 'SCALAR' ) {
+            $message->[TYPE]    = TM_BYTESTREAM;
+            $message->[PAYLOAD] = ${ $_[1] };
+        }
+        elsif ( ref $_[1] eq 'HASH' ) {
+            $message->[TYPE] = TM_STORABLE;
+            $message->[TO]   = join q(/), $_[0]->{owner}, $_[1]->{partition};
+            $message->[TIMESTAMP] = $_[1]->{timestamp}
+                if ( $_[1]->{timestamp} );
+            $message->[PAYLOAD] = $_[1]->{bucket} // $_[1];
+        }
+        else {
+            $message->[TYPE]    = TM_STORABLE;
+            $message->[PAYLOAD] = $_[1];
+        }
     }
     else {
         $message->[TYPE]    = TM_BYTESTREAM;
-        $message->[PAYLOAD] = ${ $_[1] };
+        $message->[PAYLOAD] = $_[1];
     }
     $_[0]->SUPER::fill($message);
 }

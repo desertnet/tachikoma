@@ -25,7 +25,7 @@ sub fill {
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
     my $process   = ( split q( ), $message->[PAYLOAD], 6 )[4] // '-';
     $process =~ s{\[\d+\]:$}{};
-    $process =~ s{-\d{6}$}{};
+    $process =~ s{\d}{X}g;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]      = TM_BYTESTREAM | TM_PERSIST;
     $response->[FROM]      = $message->[FROM];

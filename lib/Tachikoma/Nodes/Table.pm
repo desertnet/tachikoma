@@ -129,6 +129,7 @@ sub lookup {
 sub store {
     my ( $self, $timestamp, $key, $value ) = @_;
     my $i = $self->get_partition_id($key);
+    $self->{caches}->[$i] ||= [];
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
         $self->roll( $i, $timestamp ) if ( $timestamp > $next_window );
@@ -149,7 +150,6 @@ sub store {
 
 sub roll {
     my ( $self, $i, $timestamp ) = @_;
-    $self->{caches}->[$i] ||= [];
     my $cache       = $self->{caches}->[$i];
     my $save_cb     = $self->{on_save_window}->[$i];
     my $next_window = $self->{next_window}->[$i] // 0;
@@ -192,7 +192,7 @@ sub collect {
 sub get_partition_id {
     my ( $self, $key ) = @_;
     my $i = 0;
-    if ( $self->{num_partitions} ) {
+    if ( $self->{num_partitions} > 1 ) {
         $i += $_ for ( unpack 'C*', md5($key) );
         $i %= $self->{num_partitions};
     }

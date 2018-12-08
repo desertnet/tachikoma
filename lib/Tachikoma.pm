@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Tachikoma.pm 36037 2018-12-06 13:55:27Z chris $
 #
 
 package Tachikoma;
@@ -267,7 +267,7 @@ sub drain {
             local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
             alarm $timeout if ($timeout);
             $read = sysread $fh, ${$buffer}, BUFSIZ, $got;
-            die $!  if ( not defined $read );
+            die "$!\n" if ( not defined $read );
             alarm 0 if ($timeout);
             return 1;
         };

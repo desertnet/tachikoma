@@ -82,7 +82,6 @@ sub arguments {
         $self->{max_lifespan}     = $max_lifespan;
         $self->{status}           = 'ACTIVE';
         $self->{leader}           = undef;
-        $self->{leader_path}      = undef;
         $self->{followers}        = {};
         $self->{in_sync_replicas} = {};
         $self->{replica_offsets}  = {};
@@ -184,7 +183,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         # only create new follower segments on message boundaries!
         if ( $self->{leader} ) {
             return $self->send_error( $message, "NOT_LEADER\n" )
-                if ( $message->[FROM] ne $self->{leader_path} );
+                if ( $message->[FROM] ne $self->{leader} );
             return $self->reset_follower( $message->[ID] )
                 if ( $message->[ID] != $self->{offset} );
             my $segment = $self->{segments}->[-1];
@@ -200,7 +199,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
     if ( $self->{leader} ) {
         return $self->send_error( $message, "NOT_LEADER\n" )
-            if ( $message->[FROM] ne $self->{leader_path} );
+            if ( $message->[FROM] ne $self->{leader} );
         $self->{expecting} = undef;
         return $self->reset_follower( $message->[ID] )
             if ( $message->[ID] != $self->{offset} );
@@ -645,6 +644,7 @@ sub reset_follower {
         $self->open_segments(-1);
         $self->{offset} = $offset;
         $self->create_segment;
+        $self->write_offset($offset);
         $self->set_timer( 0, 'oneshot' );
     }
     return;
@@ -673,7 +673,8 @@ sub purge_offsets {
     my $offsets_dir     = join q(/), $self->{filename}, 'offsets';
     my @offsets         = ();
     if ( -d $offsets_dir ) {
-        my $dh = undef;
+        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
+        my $dh     = undef;
         opendir $dh, $offsets_dir
             or die "ERROR: couldn't opendir $offsets_dir: $!";
         @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
@@ -683,7 +684,8 @@ sub purge_offsets {
             my $offset_file = "$offsets_dir/$old_offset";
             unlink $offset_file
                 or die "ERROR: couldn't unlink $offset_file: $!";
-            $self->stderr("DEBUG: unlinked $offset_file");
+            $self->stderr("DEBUG: $caller unlinking $offset_file")
+                if ($old_offset);
         }
     }
     return \@offsets;
@@ -694,6 +696,7 @@ sub open_segments {
     my $last_commit_offset = shift;
     my $dh                 = undef;
     my $path               = $self->{filename};
+    my $caller             = ( split m{::}, ( caller 1 )[3] )[-1];
     $self->close_segments;
     $self->make_dirs( join q(/), $path, 'offsets' );
     opendir $dh, $path or die "ERROR: couldn't opendir $path: $!";
@@ -704,7 +707,8 @@ sub open_segments {
         $file =~ m{^(\d+)[.]log$} or next;
         my $offset = $1;
         if ( $offset > $last_commit_offset ) {
-            $self->stderr("WARNING: unlinking $path/$file");
+            $self->stderr("WARNING: $caller unlinking $path/$file")
+                if ($offset);
             unlink "$path/$file"
                 or die "ERROR: couldn't unlink $path/$file: $!";
             next;
@@ -921,7 +925,7 @@ sub get_valid_offsets {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{leader_path};
+    $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'GET_VALID_OFFSETS 0 ',
         $self->{broker_id} // $self->{name}, "\n";
     $self->{expecting} = $Tachikoma::Now;
@@ -934,7 +938,7 @@ sub get_batch {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{leader_path};
+    $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'GET ', $self->{offset} // 0, q( ),
         $self->{broker_id} // $self->{name},
         "\n";
@@ -949,7 +953,7 @@ sub send_ack {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_INFO;
     $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{leader_path};
+    $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ),
         $self->{broker_id} // $self->{name},
         "\n";
@@ -1010,23 +1014,8 @@ sub leader {
         $self->{followers}        = {};
         $self->{in_sync_replicas} = {};
         $self->{replica_offsets}  = {};
-        if ($leader) {
-            my $name = $self->{name};
-            $self->{leader_path} = "$leader/$name";
-        }
-        else {
-            $self->{leader_path} = undef;
-        }
     }
     return $self->{leader};
-}
-
-sub leader_path {
-    my $self = shift;
-    if (@_) {
-        $self->{leader_path} = shift;
-    }
-    return $self->{leader_path};
 }
 
 sub followers {
@@ -1042,7 +1031,6 @@ sub in_sync_replicas {
     if (@_) {
         $self->{in_sync_replicas} = shift;
         $self->{leader}           = undef;
-        $self->{leader_path}      = undef;
         $self->{replica_offsets}  = {};
     }
     return $self->{in_sync_replicas};
