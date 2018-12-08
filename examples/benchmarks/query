@@ -13,7 +13,7 @@ require '/usr/local/etc/tachikoma.conf';
 use Getopt::Long qw( GetOptions );
 
 my ( $topic, $keys, $help );
-my @ops = qw( eq ne re nr ge le );
+my @ops     = qw( eq ne re nr ge le );
 my %options = map { $_ => {} } @ops;
 my ( $r, $argv ) = GetOptions(
     'topic=s' => \$topic,
@@ -29,9 +29,9 @@ my ( $r, $argv ) = GetOptions(
 $topic //= $ARGV[0];
 usage() if ( $help or not $r or not $topic );
 
-die "ERROR: no topic\n"    if ( not $topic );
+die "ERROR: no topic\n" if ( not $topic );
 my $engine = Tachikoma::Nodes::QueryEngine->new;
-$engine->hosts({ 'localhost' => [ 5201 .. 5202 ] });
+$engine->hosts( { 'localhost' => [ 5201 .. 5202 ] } );
 $engine->topic($topic);
 my $query = [];
 
