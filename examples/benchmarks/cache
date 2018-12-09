@@ -21,6 +21,7 @@ while ( $Bucket_Size <= 1048576 ) {
     $Table->bucket_size($Bucket_Size);
     check_store($Num_Keys);
     check_lookup($Num_Keys);
+    check_lru_lookup($Num_Keys);
     $Bucket_Size *= 2;
 }
 
@@ -60,10 +61,28 @@ sub check_lookup {
     }
 }
 
+sub check_lru_lookup {
+    my $num_keys = shift;
+    my $count    = 0;
+    my $then     = time;
+    while (1) {
+        my $i = 1;
+        while ( $i < $num_keys ) {
+            $Table->lru_lookup( $i++ );
+        }
+        my $span = time - $then;
+        $count++;
+        if ( $span >= $Delay ) {
+            report( 'lru_lookup', $count, $num_keys, $span );
+            last;
+        }
+    }
+}
+
 sub report {
     my ( $type, $count, $num_keys, $span ) = @_;
     printf
-        "%6s %.2f keys per second\n",
+        "%10s %.2f keys per second\n",
         $type,
         $count * $num_keys / $span;
 }

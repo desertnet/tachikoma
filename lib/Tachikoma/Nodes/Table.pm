@@ -153,6 +153,11 @@ sub lru_lookup {
         if ($j) {
             delete $cache->[$j]->{$key};
             $cache->[0]->{$key} = $value;
+            if ( $self->{bucket_size} ) {
+                $self->roll_count( $i, $Tachikoma::Now, 0 )
+                    if ( $cache->[0]
+                    and scalar keys %{ $cache->[0] } >= $self->{bucket_size} );
+            }
         }
         last;
     }
