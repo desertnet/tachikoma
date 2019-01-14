@@ -23,15 +23,16 @@ use parent qw( Tachikoma::Node );
 use version; our $VERSION = qv('v2.0.197');
 
 my $Default_Num_Partitions = 1;
-my $Default_Window_Size    = 900;
-my $Default_Num_Buckets    = 4;
+my $Default_Num_Buckets    = 2;
+my $Default_Window_Size    = 300;
 
 sub help {
     my $self = shift;
     return <<'EOF';
 make_node Table <node name> --num_partitions=<int> \
+                            --num_buckets=<int>    \
                             --window_size=<int>    \
-                            --num_buckets=<int>
+                            --bucket_size=<int>
 EOF
 }
 
@@ -41,8 +42,9 @@ sub new {
     $self->{caches}          = [];
     $self->{on_save_window}  = [];
     $self->{num_partitions}  = $Default_Num_Partitions;
-    $self->{window_size}     = $Default_Window_Size;
     $self->{num_buckets}     = $Default_Num_Buckets;
+    $self->{window_size}     = undef;
+    $self->{bucket_size}     = undef;
     $self->{next_window}     = [];
     $self->{host}            = undef;
     $self->{port}            = undef;
@@ -58,24 +60,38 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $num_partitions, $window_size, $num_buckets );
+        my ( $num_partitions, $num_buckets, $window_size, $bucket_size );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'num_partitions=i' => \$num_partitions,
-            'window_size=i'    => \$window_size,
             'num_buckets=i'    => \$num_buckets,
+            'window_size=i'    => \$window_size,
+            'bucket_size=i'    => \$bucket_size,
         );
         die "ERROR: invalid option\n" if ( not $r );
+        die "ERROR: num_partitions must be greater than or equal to 1\n"
+            if ( defined $num_partitions and $num_partitions < 1 );
+        die "ERROR: num_buckets must be greater than or equal to 1\n"
+            if ( defined $num_buckets and $num_buckets < 1 );
         die "ERROR: num_buckets must be 1 when window_size is unset\n"
-            if (not $self->{window_size}
+            if (defined $window_size
+            and $window_size == 0
             and $num_buckets
             and $num_buckets != 1 );
+        die "ERROR: window_size and bucket_size can't be used together\n"
+            if ( $window_size and $bucket_size );
         $self->{arguments}      = $arguments;
         $self->{caches}         = [];
         $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
-        $self->{window_size}    = $window_size // $Default_Window_Size;
         $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
-        $self->{next_window}    = [];
+
+        if ($bucket_size) {
+            $self->{bucket_size} = $bucket_size;
+        }
+        else {
+            $self->{window_size} = $window_size // $Default_Window_Size;
+        }
+        $self->{next_window} = [];
     }
     return $self->{arguments};
 }
@@ -126,13 +142,51 @@ sub lookup {
     return $value;
 }
 
+sub lru_lookup {
+    my ( $self, $key ) = @_;
+    my $value = undef;
+    my $i     = $self->get_partition_id($key);
+    my $cache = $self->{caches}->[$i];
+    for my $j ( 0 .. $#{$cache} ) {
+        next if ( not exists $cache->[$j]->{$key} );
+        $value = $cache->[$j]->{$key};
+        if ($j) {
+            delete $cache->[$j]->{$key};
+            $cache->[0]->{$key} = $value;
+            if ( $self->{bucket_size} ) {
+                $self->roll_count( $i, $Tachikoma::Now, 0 )
+                    if ( $cache->[0]
+                    and scalar keys %{ $cache->[0] } >= $self->{bucket_size} );
+            }
+        }
+        last;
+    }
+    return $value;
+}
+
+sub windowed_lookup {
+    my ( $self, $timestamp, $key ) = @_;
+    my $value  = undef;
+    my $i      = $self->get_partition_id($key);
+    my $bucket = $self->get_bucket( $i, $timestamp );
+    $value = $bucket->{$key} if ($bucket);
+    return $value;
+}
+
 sub store {
     my ( $self, $timestamp, $key, $value ) = @_;
     my $i = $self->get_partition_id($key);
     $self->{caches}->[$i] ||= [];
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
-        $self->roll( $i, $timestamp ) if ( $timestamp > $next_window );
+        $self->roll_window( $i, $timestamp )
+            if ( $timestamp > $next_window );
+    }
+    elsif ( $self->{bucket_size} ) {
+        my $cache = $self->{caches}->[$i];
+        $self->roll_count( $i, $timestamp, 0 )
+            if ( $cache->[0]
+            and scalar keys %{ $cache->[0] } >= $self->{bucket_size} );
     }
     if ( $self->collect( $i, $timestamp, $key, $value ) ) {
         $value = undef;
@@ -148,20 +202,31 @@ sub store {
     return;
 }
 
-sub roll {
+sub roll_window {
     my ( $self, $i, $timestamp ) = @_;
-    my $cache       = $self->{caches}->[$i];
-    my $save_cb     = $self->{on_save_window}->[$i];
     my $next_window = $self->{next_window}->[$i] // 0;
     my $span        = $timestamp - $next_window;
     my $count       = int $span / $self->{window_size};
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
+    $self->roll_count( $i, $next_window, $count );
+    my $delay = $self->{window_size};
+    my ( $sec, $min, $hour ) = localtime $timestamp;
+    $delay -= $hour * 3600 % $delay if ( $delay > 3600 );
+    $delay -= $min * 60 % $delay    if ( $delay > 60 );
+    $delay -= $sec % $delay;
+    $self->{next_window}->[$i] = $timestamp + $delay;
+    return;
+}
 
-    if ($next_window) {
-        &{$save_cb}( $next_window, $cache->[0] ) if ($save_cb);
+sub roll_count {
+    my ( $self, $i, $timestamp, $count ) = @_;
+    my $cache   = $self->{caches}->[$i];
+    my $save_cb = $self->{on_save_window}->[$i];
+    if ($timestamp) {
+        &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
         $self->{edge}->activate(
             {   partition => $i,
-                timestamp => $next_window,
+                timestamp => $timestamp,
                 bucket    => $cache->[0]
             }
         ) if ( $self->{edge} );
@@ -172,12 +237,6 @@ sub roll {
     while ( @{$cache} > $self->{num_buckets} ) {
         pop @{$cache};
     }
-    my $delay = $self->{window_size};
-    my ( $sec, $min, $hour ) = localtime $timestamp;
-    $delay -= $hour * 3600 % $delay if ( $delay > 3600 );
-    $delay -= $min * 60 % $delay    if ( $delay > 60 );
-    $delay -= $sec % $delay;
-    $self->{next_window}->[$i] = $timestamp + $delay;
     return;
 }
 
@@ -208,7 +267,7 @@ sub get_bucket {
         my $span = $self->{next_window}->[$i] - $timestamp;
         $j = int $span / $self->{window_size};
     }
-    if ( $j < $self->{num_buckets} ) {
+    if ( $j >= 0 and $j < $self->{num_buckets} ) {
         $cache->[$j] ||= {};
         $bucket = $cache->[$j];
     }
@@ -419,6 +478,14 @@ sub num_partitions {
     return $self->{num_partitions};
 }
 
+sub num_buckets {
+    my $self = shift;
+    if (@_) {
+        $self->{num_buckets} = shift;
+    }
+    return $self->{num_buckets};
+}
+
 sub window_size {
     my $self = shift;
     if (@_) {
@@ -427,12 +494,12 @@ sub window_size {
     return $self->{window_size};
 }
 
-sub num_buckets {
+sub bucket_size {
     my $self = shift;
     if (@_) {
-        $self->{num_buckets} = shift;
+        $self->{bucket_size} = shift;
     }
-    return $self->{num_buckets};
+    return $self->{bucket_size};
 }
 
 sub next_window {
