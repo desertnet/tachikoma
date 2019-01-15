@@ -68,12 +68,10 @@ sub unix_server {
     chown $>, $gid, $filename or die "ERROR: chown: $!" if ($gid);
     my $server = $class->new;
     $server->name($name);
-    $server->{type}                           = 'listen';
-    $server->{filename}                       = $filename;
-    $server->{fileperms}                      = $perms;
-    $server->{filegid}                        = $gid;
-    $server->{registrations}->{connected}     = {};
-    $server->{registrations}->{authenticated} = {};
+    $server->{type}      = 'listen';
+    $server->{filename}  = $filename;
+    $server->{fileperms} = $perms;
+    $server->{filegid}   = $gid;
     $server->fh($socket);
     return $server->register_server_node;
 }
@@ -143,9 +141,7 @@ sub inet_server {
     listen $socket, SOMAXCONN or die "FAILED: listen: $!";
     my $server = $class->new;
     $server->name( join q(:), $hostname, $port );
-    $server->{type}                           = 'listen';
-    $server->{registrations}->{connected}     = {};
-    $server->{registrations}->{authenticated} = {};
+    $server->{type} = 'listen';
     $server->fh($socket);
     return $server->register_server_node;
 }
@@ -236,9 +232,11 @@ sub new {
     $self->{last_downbeat}    = undef;
     $self->{latency_score}    = undef;
     $self->{inet_aton_serial} = undef;
-    $self->{registrations}->{reconnect} = {};
-    $self->{registrations}->{EOF}       = {};
-    $self->{fill_modes}                 = {
+    $self->{registrations}->{connected}     = {};
+    $self->{registrations}->{authenticated} = {};
+    $self->{registrations}->{reconnect}     = {};
+    $self->{registrations}->{EOF}           = {};
+    $self->{fill_modes}                     = {
         null            => \&Tachikoma::Nodes::FileHandle::null_cb,
         unauthenticated => \&do_not_enter,
         init            => \&fill_buffer_init,
@@ -391,6 +389,7 @@ sub init_socket {
         return;
     }
     $self->register_reader_node;
+    $self->notify( 'connected' => $self->{name} );
     return $self->init_connect;
 }
 
@@ -620,6 +619,7 @@ sub auth_server_response {
     );
     $self->{auth_complete} = $Tachikoma::Now;
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
+    $self->notify( 'authenticated' => $self->{name} );
     return;
 }
 
