@@ -232,7 +232,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     return;
 }
 
-sub fire {
+sub fire {    ## no critic (ProhibitExcessComplexity)
     my $self = shift;
     return
         if ( not $self->{sink}
@@ -265,9 +265,15 @@ sub fire {
     {
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
-    if ( $self->{msg_unanswered} < $self->{max_unanswered} ) {
-        $self->drain_buffer if ( length ${ $self->{buffer} } );
-        $self->get_batch_async if ( not $self->{expecting} );
+    if ( $self->{msg_unanswered} < $self->{max_unanswered}
+        and length ${ $self->{buffer} } )
+    {
+        $self->drain_buffer;
+    }
+    if ( $self->{msg_unanswered} < $self->{max_unanswered}
+        and not $self->{expecting} )
+    {
+        $self->get_batch_async;
     }
     return;
 }
