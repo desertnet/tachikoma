@@ -123,12 +123,15 @@ sub fire {
                 "\n";
         }
     }
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_BYTESTREAM;
-    $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{owner};
-    $message->[PAYLOAD] = $out;
-    $self->{sink}->fill($message);
+    if ($out) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = $self->{name};
+        $message->[TO]      = $self->{owner};
+        $message->[PAYLOAD] = $out;
+        $self->{sink}->fill($message);
+        $self->{counter}++;
+    }
     return;
 }
 

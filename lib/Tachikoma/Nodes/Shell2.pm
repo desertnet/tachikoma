@@ -14,7 +14,7 @@ use Tachikoma::Nodes::Shell;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_PING TM_EOF
-    TM_INFO TM_COMPLETION TM_NOREPLY
+    TM_INFO TM_REQUEST TM_COMPLETION TM_NOREPLY
 );
 use Tachikoma::Command;
 use Data::Dumper qw( Dumper );
@@ -1219,6 +1219,25 @@ $BUILTINS{'tell_node'} = sub {
 };
 
 $BUILTINS{'tell'} = $BUILTINS{'tell_node'};
+
+$H{'request_node'} =
+    [ "request_node <path> <request>\n", "    alias: request\n" ];
+
+$BUILTINS{'request_node'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    my ( $proto, $path, $payload ) = split q( ), $line, 3;
+    my $message = Tachikoma::Message->new;
+    $message->type(TM_REQUEST);
+    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
+    $message->stream( $LOCAL{'message.stream'} // q() );
+    $message->to( $self->prefix($path) );
+    $message->payload( $payload // q() );
+    return [ $self->sink->fill($message) ];
+};
+
+$BUILTINS{'request'} = $BUILTINS{'request_node'};
 
 $H{'send_node'} = [ "send_node <path> <bytes>\n", "    alias: send\n" ];
 

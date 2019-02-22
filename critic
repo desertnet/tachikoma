@@ -26,6 +26,7 @@ lib/Tachikoma/Jobs/Shell.pm
 lib/Tachikoma/Jobs/Tail.pm
 lib/Tachikoma/Jobs/TailFork.pm
 lib/Tachikoma/Jobs/TailForks.pm
+lib/Tachikoma/Jobs/Task.pm
 lib/Tachikoma/Jobs/Transform.pm
 lib/Tachikoma/Message.pm
 lib/Tachikoma/Node.pm

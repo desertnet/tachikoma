@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM ID STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_INFO TM_EOF TM_PERSIST
+    TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST TM_EOF TM_PERSIST
 );
 use parent qw( Tachikoma::Node );
 
@@ -67,7 +67,8 @@ sub fill {
     return $self->SUPER::fill($message)
         if (not $type & TM_BYTESTREAM
         and not $type & TM_STORABLE
-        and not $type & TM_INFO );
+        and not $type & TM_INFO
+        and not $type & TM_REQUEST );
     my $persist = $type & TM_PERSIST ? TM_PERSIST : 0;
     my @rv = &{ $self->{function} }( $self, $message, $message->payload );
     for my $transformed (@rv) {

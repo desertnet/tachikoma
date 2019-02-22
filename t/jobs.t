@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 58;
+use Test::More tests => 60;
 
 sub test_construction {
     my $class = shift;
@@ -42,6 +42,7 @@ my @jobs = qw(
     Tachikoma::Jobs::Tail
     Tachikoma::Jobs::TailFork
     Tachikoma::Jobs::TailForks
+    Tachikoma::Jobs::Task
     Tachikoma::Jobs::Transform
     Accessories::Jobs::AfPlay
     Accessories::Jobs::CozmoAlert

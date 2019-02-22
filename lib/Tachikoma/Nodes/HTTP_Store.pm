@@ -15,7 +15,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use CGI;
-use JSON -support_by_pp;
 use POSIX qw( strftime );
 use URI::Escape;
 use parent qw( Tachikoma::Node );
@@ -36,15 +35,9 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $tmp_path, $prefix, @topics ) = split q( ), $self->{arguments};
-        my $json = JSON->new;
-        $json->canonical(1);
-        $json->pretty(1);
-        $json->allow_blessed(1);
-        $json->convert_blessed(0);
         $self->{topics} = { map { $_ => 1 } @topics };
         $self->{tmp_path} = $tmp_path if ( defined $tmp_path );
         $self->{prefix}   = $prefix   if ( defined $prefix );
-        $self->{json}     = $json;
     }
     return $self->{arguments};
 }
@@ -93,11 +86,10 @@ sub fill {
         or not $Tachikoma::Nodes{$topic_name} );
     my $topic  = $Tachikoma::Nodes{$topic_name};
     my $key    = uri_unescape($escaped);
-    my $value  = $self->{json}->decode($postdata);
     my $update = Tachikoma::Message->new;
-    $update->[TYPE]    = ref $value ? TM_STORABLE : TM_BYTESTREAM;
+    $update->[TYPE]    = TM_BYTESTREAM;
     $update->[STREAM]  = $key;
-    $update->[PAYLOAD] = $value;
+    $update->[PAYLOAD] = $postdata;
     $topic->fill($update);
     my $output   = qq({ "result" : "OK" }\n);
     my $response = Tachikoma::Message->new;
@@ -173,14 +165,6 @@ sub topics {
         $self->{topics} = shift;
     }
     return $self->{topics};
-}
-
-sub json {
-    my $self = shift;
-    if (@_) {
-        $self->{json} = shift;
-    }
-    return $self->{json};
 }
 
 1;

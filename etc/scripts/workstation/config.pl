@@ -169,6 +169,9 @@ command hosts connect_inet localhost:<tachikoma.topic_top.port> topic_top:servic
 command jobs  run_job Shell <services>/http.tsl
 command hosts connect_inet localhost:<tachikoma.http.port>      http:service
 
+command jobs  run_job Shell <services>/tasks.tsl
+command hosts connect_inet localhost:<tachikoma.tasks.port>     tasks:service
+
 
 
 # ingest server logs

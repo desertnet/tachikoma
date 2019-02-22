@@ -13,7 +13,7 @@ use Tachikoma::Node;
 use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_EOF TM_INFO TM_KILLME
+    TM_BYTESTREAM TM_STORABLE TM_EOF TM_KILLME
 );
 use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
@@ -228,16 +228,6 @@ FIND_SCRIPT: while ($test_path) {
                 "Sorry, an error occurred while processing your request.\n";
             $self->{sink}->fill($header);
             log_entry( $self, 500, $message );
-        }
-        else {
-            # inform HTTP_Cache_Writer that the script terminated
-            # prematurely so it can send an unlink instead of a rename
-            my $info = Tachikoma::Message->new;
-            $info->[TYPE]    = TM_INFO;
-            $info->[TO]      = $message->[FROM];
-            $info->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
-            $info->[PAYLOAD] = 'renderer_crashed';
-            $self->{sink}->fill($info);
         }
         $self->stderr( "ERROR: in script $script_path", $@ ? ": $@" : q() );
         $dirty = 'true';

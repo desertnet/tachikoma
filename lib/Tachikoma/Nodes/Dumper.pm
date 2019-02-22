@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 35369 2018-10-18 02:21:03Z chris $
+# $Id: Dumper.pm 36116 2019-02-14 05:18:52Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -13,7 +13,7 @@ use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PING TM_COMMAND TM_RESPONSE TM_ERROR
-    TM_INFO TM_PERSIST TM_STORABLE TM_COMPLETION TM_BATCH
+    TM_INFO TM_PERSIST TM_STORABLE TM_COMPLETION TM_BATCH TM_REQUEST
 );
 use Tachikoma::Command;
 use Data::Dumper;
@@ -66,6 +66,7 @@ sub fill {
     }
     elsif ($message->[TYPE] & TM_INFO
         or $message->[TYPE] & TM_BATCH
+        or $message->[TYPE] & TM_REQUEST
         or ( $message->[TYPE] & TM_EOF and $self->{debug} ) )
     {
         $type = TM_BYTESTREAM;

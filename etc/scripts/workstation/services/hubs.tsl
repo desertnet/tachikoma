@@ -6,7 +6,7 @@ if (<_C> > 0) {
 var name = hubs
 include services/daemonize.tsl
 
-var num_hubs = 4;
+var num_hubs = ( <tachikoma.hubs.count> || 4 );
 var all_hubs
 for h (<hostname>) {
     for i ( 1 .. <num_hubs> ) {
@@ -42,15 +42,26 @@ func add_hub {
             set_topic topic2;
             set_group cache                --topic=topic2;
 
+            set_topic tasks                --segment_size=(1024 * 1024)
+                                           --max_lifespan=(7 * 86400);
+            set_group cache                --topic=tasks;
+            set_group IDs                  --topic=tasks;
+
+            set_topic tasks.ID             --num_partitions=4
+                                           --segment_size=(1024 * 1024)
+                                           --max_lifespan=(7 * 86400);
+            set_group IDs                  --topic=tasks.ID;
+            set_group engine               --topic=tasks.ID;
+
             set_topic server_log           --num_partitions=4
                                            --segment_size=(64 * 1024 * 1024)
                                            --max_lifespan=86400;
             for field (<server_log.fields>) {
-                set_topic --topic=server_log.<field> --num_partitions=4
-                                                     --segment_size=(4 * 1024 * 1024)
-                                                     --max_lifespan=(7 * 86400);
-                set_group --group=server_log.<field> --topic=server_log;
-                set_group --group=engine             --topic=server_log.<field>;
+                set_topic server_log.<field> --num_partitions=4
+                                             --segment_size=(4 * 1024 * 1024)
+                                             --max_lifespan=(7 * 86400);
+                set_group server_log.<field> --topic=server_log;
+                set_group engine             --topic=server_log.<field>;
             };
 
             set_topic images.indb    --num_partitions=8

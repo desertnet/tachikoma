@@ -36,6 +36,7 @@ sub new {
     my $self  = $class->SUPER::new;
     my $c     = { %{ $self->{interpreter}->commands } };
     $c->{$_} = $C{$_} for ( keys %C );
+    $self->{registrations}->{events} = {};
     $self->{interpreter}->commands($c);
     bless $self, $class;
     return $self;
@@ -119,6 +120,7 @@ sub fill {
             $copy->[TIMESTAMP], $copy->[PAYLOAD], );
         $buffer_size++;
         $self->{buffer_fills}++;
+        $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
     }
     if ( $type & TM_ERROR ) {
         $self->{errors_passed}++;
@@ -179,6 +181,8 @@ sub handle_response {
         $sth = $dbh->prepare('DELETE FROM queue WHERE message_id=?');
         $sth->execute($message_id);
         delete $msg_unanswered->{$message_id};
+        $self->send_event( $response->[STREAM],
+            { 'type' => 'MSG_CANCELED' } );
     }
     else {
         delete $msg_unanswered->{$message_id};
@@ -356,12 +360,64 @@ EOF
         $self->{pmsg_sent}++;
         $msg_unanswered->{$key} = $Tachikoma::Right_Now;
         $self->{sink}->fill($message);
+        $self->send_event( $stream, { 'type' => 'MSG_SENT' } );
     }
     else {
         $self->{buffer_size}-- if ( $self->{buffer_size} > 0 );
         delete $msg_unanswered->{$key};
         $sth = $dbh->prepare('DELETE FROM queue WHERE message_id=?');
         $sth->execute($key);
+    }
+    return;
+}
+
+sub lookup {
+    my ( $self, $key ) = @_;
+    my $dbh   = $self->dbh;
+    my $value = undef;
+    if ( length $key ) {
+        my $sth = $dbh->prepare(<<'EOF');
+            SELECT next_attempt, attempts,
+                   message_timestamp, message_stream, message_payload
+              FROM queue WHERE message_id=?
+EOF
+        $sth->execute($key);
+        $value = $sth->fetchrow_hashref;
+    }
+    else {
+        $value = [];
+        my $sth = $dbh->prepare(<<'EOF');
+            SELECT message_id, next_attempt, attempts,
+                   message_timestamp, message_stream, message_payload
+              FROM queue
+EOF
+        $sth->execute;
+        while ( my $row = $sth->fetchrow_hashref ) {
+            push @{$value}, $row;
+        }
+    }
+    return $value;
+}
+
+sub send_event {
+    my $self          = shift;
+    my $stream        = shift;
+    my $event         = shift;
+    my $registrations = $self->{registrations}->{events};
+    my $note          = Tachikoma::Message->new;
+    $event->{key}       = $stream;
+    $event->{timestamp} = $Tachikoma::Right_Now;
+    $note->[TYPE]       = TM_STORABLE;
+    $note->[STREAM]     = $stream;
+    $note->[PAYLOAD]    = $event;
+    for my $name ( keys %{$registrations} ) {
+        my $node = $Tachikoma::Nodes{$name};
+        if ( not $node ) {
+            $self->stderr("WARNING: $name forgot to unregister");
+            delete $registrations->{$name};
+            next;
+        }
+        $node->fill($note);
     }
     return;
 }

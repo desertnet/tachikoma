@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: Log.pm 36116 2019-02-14 05:18:52Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -11,7 +11,10 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_SYNC );
 use Tachikoma::Nodes::STDIO;
-use Tachikoma::Message qw( TYPE FROM STREAM PAYLOAD TM_INFO TM_ERROR TM_EOF );
+use Tachikoma::Message qw(
+    TYPE FROM STREAM PAYLOAD
+    TM_REQUEST TM_ERROR TM_EOF
+);
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::FileHandle );
 
@@ -69,13 +72,13 @@ sub fill {
         $self->remove_node if ( $self->{mode} ne 'append' );
         return;
     }
-    elsif ( $message->[TYPE] & TM_INFO ) {
+    elsif ( $message->[TYPE] & TM_REQUEST ) {
         my ( $command, $arguments ) = split q( ), $message->[PAYLOAD], 2;
         if ( $command eq 'rotate' ) {
             $self->rotate($arguments);
         }
         else {
-            $self->stderr( 'WARNING: received bad TM_INFO: ',
+            $self->stderr( 'WARNING: received bad TM_REQUEST: ',
                 $message->[PAYLOAD] );
         }
         return;

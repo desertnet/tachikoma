@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD LAST_MSG_FIELD
-    TM_BYTESTREAM TM_BATCH TM_INFO TM_PERSIST TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_BATCH TM_REQUEST TM_PERSIST TM_ERROR TM_EOF
 );
 use Fcntl qw( :flock SEEK_SET SEEK_END );
 use Getopt::Long qw( GetOptionsFromString );
@@ -121,7 +121,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
     return if ( not $self->{filename} );
-    if ( $message->[TYPE] & TM_INFO ) {
+    if ( $message->[TYPE] & TM_REQUEST ) {
         my $payload = $message->[PAYLOAD];
         chomp $payload;
         my ( $command, $offset, $args ) = split q( ), $payload, 3;
@@ -260,7 +260,7 @@ sub fire {
             my $name = $self->{waiting}->{$follower};
             if ( $Tachikoma::Nodes{$name} ) {
                 my $message = Tachikoma::Message->new;
-                $message->[TYPE]    = TM_INFO;
+                $message->[TYPE]    = TM_REQUEST;
                 $message->[TO]      = $follower;
                 $message->[PAYLOAD] = "UPDATE\n";
                 $self->{sink}->fill($message);
@@ -324,7 +324,7 @@ sub send_offset {
     my $offset = shift;
     for my $broker_id ( keys %{ $self->{followers} } ) {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_INFO;
+        $message->[TYPE]    = TM_REQUEST;
         $message->[TO]      = $self->{followers}->{$broker_id};
         $message->[PAYLOAD] = join q(), 'COMMIT ', $offset, "\n";
         $self->{sink}->fill($message);
@@ -376,7 +376,7 @@ sub process_get_valid_offsets {
     $self->{followers}->{$broker_id}       = $to;
     $self->{replica_offsets}->{$broker_id} = -1;
     my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_INFO;
+    $response->[TYPE]    = TM_REQUEST;
     $response->[FROM]    = $self->{name};
     $response->[TO]      = $path;
     $response->[PAYLOAD] = join q(), 'VALID_OFFSETS ', $offsets, "\n";
@@ -503,7 +503,7 @@ sub process_delete {
         $delete = $keep->[LOG_OFFSET];
         for my $broker_id ( keys %{ $self->{in_sync_replicas} } ) {
             my $message = Tachikoma::Message->new;
-            $message->[TYPE]    = TM_INFO;
+            $message->[TYPE]    = TM_REQUEST;
             $message->[TO]      = $self->{followers}->{$broker_id};
             $message->[PAYLOAD] = join q(), 'DELETE ', $delete, q( ),
                 $self->{last_commit_offset}, "\n";
@@ -923,7 +923,7 @@ sub remove_node {
 sub get_valid_offsets {
     my $self    = shift;
     my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_INFO;
+    $message->[TYPE]    = TM_REQUEST;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'GET_VALID_OFFSETS 0 ',
@@ -936,7 +936,7 @@ sub get_valid_offsets {
 sub get_batch {
     my $self    = shift;
     my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_INFO;
+    $message->[TYPE]    = TM_REQUEST;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'GET ', $self->{offset} // 0, q( ),
@@ -951,7 +951,7 @@ sub send_ack {
     my $self    = shift;
     my $offset  = shift // 0;
     my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_INFO;
+    $message->[TYPE]    = TM_REQUEST;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{leader};
     $message->[PAYLOAD] = join q(), 'ACK ', $offset, q( ),

@@ -77,11 +77,10 @@ sub fill {
     my ( $table_name, $escaped ) = split m{/}, $path, 2;
     return $self->send404($message)
         if ( not length $table_name
-        or not length $escaped
         or not $self->{tables}->{$table_name}
         or not $Tachikoma::Nodes{$table_name} );
     my $table = $Tachikoma::Nodes{$table_name};
-    my $key   = uri_unescape($escaped);
+    my $key   = uri_unescape( $escaped // q() );
     my $value = $table->lookup($key);
     return $self->send404($message) if ( not defined $value );
 

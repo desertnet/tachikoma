@@ -8,6 +8,7 @@
 
 use strict;
 use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Nodes::Table;
 require '/usr/local/etc/tachikoma.conf';
 use JSON -support_by_pp;
@@ -15,11 +16,10 @@ use JSON -support_by_pp;
 my ( $topic, $field, $key, $verbose ) = @ARGV;
 die "no topic\n" if ( not $topic );
 die "no field\n" if ( not $field );
-die "no key\n"   if ( not length $key );
-my $table = Tachikoma::Nodes::Table->new;
+my $consumer = Tachikoma::Nodes::ConsumerBroker->new($topic);
+my $table    = Tachikoma::Nodes::Table->new;
 $table->host('localhost');
 $table->port(5100);
-$table->topic($topic);
 $table->field($field);
 my $json = JSON->new;
 $json->canonical(1);
@@ -31,8 +31,13 @@ my $value   = undef;
 my $payload = $table->fetch($key);
 
 if ($payload) {
-    my ( $partition, $offset ) = split m{:}, $payload, 2;
-    $value = $table->fetch_offset( $partition, $offset );
+    if ( ref $payload ) {
+        $value = $payload;
+    }
+    else {
+        my ( $partition, $offset ) = split m{:}, $payload, 2;
+        $value = $consumer->fetch_offset( $partition, $offset );
+    }
 }
 if ( ref $value eq 'Tachikoma::Message' ) {
     $output = $verbose ? &dump_message($value) : $value->payload;

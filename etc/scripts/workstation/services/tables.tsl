@@ -36,7 +36,7 @@ connect_edge topic1.ID:consumer topic1.ID:table
 topic_probe
 
 # listen for http connections
-make_node HTTP_Responder responder /tmp/http <http_port>
+make_node HTTP_Responder responder /tmp/http <tachikoma.tables.http.port>
 make_node Tee            http:log
 make_node HTTP_Route     root
 make_node HTTP_File      root:dir  <home>/Sites
