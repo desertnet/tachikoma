@@ -6,6 +6,7 @@ connect_hub
 
 
 make_node Topic      topic1.ID            <broker>
+make_node Topic      tasks.ID             <broker>
 make_node Topic      server_log           <broker>
 make_node Topic      server_log.timestamp <broker>
 make_node Topic      server_log.hostname  <broker>
@@ -17,11 +18,23 @@ make_node ConsumerBroker   topic1:consumer      --broker=<broker>      \
                                                 --topic=topic1         \
                                                 --group=IDs            \
                                                 --default_offset=start \
+                                                --max_unanswered=64    \
                                                 --auto_commit=60
 
 make_node IndexByStream    IndexByStream
 
 connect_node topic1:consumer IndexByStream/topic1.ID
+
+
+# task IDs
+make_node ConsumerBroker   tasks:consumer      --broker=<broker>      \
+                                               --topic=tasks          \
+                                               --group=IDs            \
+                                               --default_offset=start \
+                                               --max_unanswered=64    \
+                                               --auto_commit=60
+
+connect_node tasks:consumer IndexByStream/tasks.ID
 
 
 # timestamps

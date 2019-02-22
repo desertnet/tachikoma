@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: CommandInterpreter.pm 36126 2019-02-18 21:12:46Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PING
     TM_COMMAND TM_RESPONSE TM_ERROR
-    TM_INFO TM_STORABLE
+    TM_INFO TM_REQUEST TM_STORABLE
     TM_COMPLETION TM_NOREPLY
 );
 use Tachikoma::Command;
@@ -843,6 +843,10 @@ $C{dump_node} = sub {
     if ( exists $copy->{output_buffer} ) {
         $copy->{output_buffer} = [];
     }
+    delete $copy->{interpreter};
+    for my $key (qw( jobs consumers )) {
+        $copy->{$key} = [ keys %{ $copy->{$key} } ] if ( $copy->{$key} );
+    }
     if (@keys) {
         for my $key ( keys %{$copy} ) {
             delete $copy->{$key} if ( not $want{$key} );
@@ -850,12 +854,6 @@ $C{dump_node} = sub {
         for my $key (@keys) {
             return $self->error( $envelope, qq(can't find key "$key"\n) )
                 if ( not exists $copy->{$key} );
-        }
-    }
-    else {
-        delete $copy->{interpreter};
-        for my $key (qw( jobs consumers )) {
-            $copy->{$key} = [ keys %{ $copy->{$key} } ] if ( $copy->{$key} );
         }
     }
     $response = Dumper $copy;
@@ -1514,6 +1512,27 @@ $C{tell_node} = sub {
 $L{tell} = $HELP->{tell_node};
 
 $C{tell} = $C{tell_node};
+
+$C{request_node} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
+    die qq(no path specified\n) if ( not $path );
+    my $name = ( split m{/}, $path, 2 )[0];
+    die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
+    my $message = Tachikoma::Message->new;
+    $message->type(TM_REQUEST);
+    $message->from( $envelope->from );
+    $message->to($path);
+    $message->payload($arguments) if ( defined $arguments );
+    $self->sink->fill($message);
+    return $self->okay($envelope);
+};
+
+$L{request} = $HELP->{request_node};
+
+$C{request} = $C{request_node};
 
 $C{send_node} = sub {
     my $self     = shift;

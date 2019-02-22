@@ -21,7 +21,7 @@ use parent qw( Exporter );
     TM_COMMAND TM_RESPONSE TM_ERROR
     TM_INFO TM_PERSIST TM_STORABLE
     TM_COMPLETION TM_BATCH TM_KILLME
-    TM_NOREPLY TM_HEARTBEAT
+    TM_NOREPLY TM_HEARTBEAT TM_REQUEST
 );
 
 use version; our $VERSION = qv('v2.0.27');
@@ -53,6 +53,7 @@ use constant {
     TM_KILLME     => 004000,    #  2048
     TM_NOREPLY    => 010000,    #  4096
     TM_HEARTBEAT  => 020000,    #  8192
+    TM_REQUEST    => 040000,    # 16384
 };
 
 # XXX:M
@@ -180,6 +181,7 @@ sub type_as_string {
     if ( $type & TM_KILLME )     { push @out, 'TM_KILLME'; }
     if ( $type & TM_NOREPLY )    { push @out, 'TM_NOREPLY'; }
     if ( $type & TM_HEARTBEAT )  { push @out, 'TM_HEARTBEAT'; }
+    if ( $type & TM_REQUEST )    { push @out, 'TM_REQUEST'; }
     return join ' | ', @out;
 }
 

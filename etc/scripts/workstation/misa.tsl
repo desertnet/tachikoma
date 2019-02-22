@@ -121,6 +121,40 @@ cd partitions
   insecure
 cd ..
 
+
+
+# services
+var services = "<home>/.tachikoma/services";
+
+command jobs  run_job Shell <services>/hubs.tsl
+command hosts connect_inet localhost:<tachikoma.hubs.port>      hubs:service
+
+command jobs  run_job Shell <services>/indexers.tsl
+command hosts connect_inet localhost:<tachikoma.indexers.port>  indexers:service
+
+command jobs  run_job Shell <services>/tables.tsl
+command hosts connect_inet localhost:<tachikoma.tables.port>    tables:service
+
+command jobs  run_job Shell <services>/engines.tsl
+command hosts connect_inet localhost:<tachikoma.engines.port>   engines:service
+
+command jobs  run_job Shell <services>/lookup.tsl
+command hosts connect_inet localhost:<tachikoma.lookup.port>    lookup:service
+
+command jobs  run_job Shell <services>/topic_top.tsl
+command hosts connect_inet localhost:<tachikoma.topic_top.port> topic_top:service
+
+command jobs  run_job Shell <services>/http.tsl
+command hosts connect_inet localhost:<tachikoma.http.port>      http:service
+
+command jobs  run_job Shell <services>/tasks.tsl
+command hosts connect_inet localhost:<tachikoma.tasks.port>     tasks:service
+
+
+
+# ingest server logs
+connect_node server_log:tee indexers:service/server_log
+
 var username=`whoami`;
 
 # sound effects

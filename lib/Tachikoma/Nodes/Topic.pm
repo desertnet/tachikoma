@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD IS_UNTHAWED LAST_MSG_FIELD
-    TM_BYTESTREAM TM_BATCH TM_STORABLE TM_INFO
+    TM_BYTESTREAM TM_BATCH TM_STORABLE TM_REQUEST
     TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Tachikoma;
@@ -185,7 +185,7 @@ sub fire {
     if ($Tachikoma::Right_Now - $self->{last_check} > $self->{poll_interval} )
     {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_INFO;
+        $message->[TYPE]    = TM_REQUEST;
         $message->[FROM]    = $self->{name};
         $message->[TO]      = $self->{broker_path};
         $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
@@ -296,9 +296,9 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     $target->callback(
         sub {
             if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
-            elsif ( $_[0]->[TYPE] & TM_ERROR )    { die $_[0]->[PAYLOAD]; }
-            elsif ( $_[0]->[TYPE] & TM_EOF )      { $expecting = -1; }
-            elsif ( not $_[0]->[TYPE] & TM_INFO ) { die $_[0]->[PAYLOAD]; }
+            elsif ( $_[0]->[TYPE] & TM_ERROR )       { die $_[0]->[PAYLOAD]; }
+            elsif ( $_[0]->[TYPE] & TM_EOF )         { $expecting = -1; }
+            elsif ( not $_[0]->[TYPE] & TM_REQUEST ) { die $_[0]->[PAYLOAD]; }
             return ( $expecting > 0 ? 1 : undef );
         }
     ) if ($persist);
@@ -365,9 +365,9 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     $target->callback(
         sub {
             if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
-            elsif ( $_[0]->[TYPE] & TM_ERROR )    { die $_[0]->[PAYLOAD]; }
-            elsif ( $_[0]->[TYPE] & TM_EOF )      { $expecting = -1; }
-            elsif ( not $_[0]->[TYPE] & TM_INFO ) { die $_[0]->[PAYLOAD]; }
+            elsif ( $_[0]->[TYPE] & TM_ERROR )       { die $_[0]->[PAYLOAD]; }
+            elsif ( $_[0]->[TYPE] & TM_EOF )         { $expecting = -1; }
+            elsif ( not $_[0]->[TYPE] & TM_REQUEST ) { die $_[0]->[PAYLOAD]; }
             return ( $expecting > 0 ? 1 : undef );
         }
     ) if ($persist);
@@ -434,7 +434,7 @@ sub request_partitions {
     my $partitions      = undef;
     my $request_payload = "GET_PARTITIONS $topic\n";
     my $request         = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_INFO;
+    $request->[TYPE]    = TM_REQUEST;
     $request->[TO]      = 'broker';
     $request->[PAYLOAD] = $request_payload;
     $target->callback(
@@ -481,7 +481,7 @@ sub get_controller {
         my $target = $self->get_target($broker_id) or next;
         $self->sync_error(undef);
         my $request = Tachikoma::Message->new;
-        $request->[TYPE]    = TM_INFO;
+        $request->[TYPE]    = TM_REQUEST;
         $request->[TO]      = 'broker';
         $request->[PAYLOAD] = "GET_CONTROLLER\n";
         $target->callback(
@@ -490,7 +490,7 @@ sub get_controller {
                 if ( $response->[TYPE] & TM_RESPONSE ) {
                     return 1;
                 }
-                elsif ( $response->[TYPE] & TM_INFO ) {
+                elsif ( $response->[TYPE] & TM_REQUEST ) {
                     $controller = $response->[PAYLOAD];
                     chomp $controller;
                 }

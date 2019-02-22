@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: JobFarmer.pm 36126 2019-02-18 21:12:46Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
-    TM_COMMAND TM_INFO TM_EOF TM_KILLME TM_ERROR
+    TM_COMMAND TM_EOF TM_KILLME TM_ERROR
 );
 use Tachikoma::Command;
 use Tachikoma::Nodes::JobController;
@@ -178,6 +178,18 @@ sub handle_EOF {
 
     # else: EOF is from job shutdown
     return;
+}
+
+sub lookup {
+    my ( $self, $key ) = @_;
+    my $value = undef;
+    if ( length $key ) {
+        $value = $key;
+    }
+    else {
+        $value = [ keys %{ $self->{job_controller}->{jobs} } ];
+    }
+    return $value;
 }
 
 $C{help} = sub {

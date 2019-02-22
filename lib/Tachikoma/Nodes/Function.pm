@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_INFO TM_STORABLE TM_PERSIST
+    TM_BYTESTREAM TM_INFO TM_REQUEST TM_STORABLE TM_PERSIST
 );
 use parent qw( Tachikoma::Node );
 
@@ -66,7 +66,10 @@ sub fill {
         payload   => $payload
     };
     $self->climb( 'message', $copy, $arguments );
-    if ( $message->[TYPE] & TM_BYTESTREAM or $message->[TYPE] & TM_INFO ) {
+    if (   $message->[TYPE] & TM_BYTESTREAM
+        or $message->[TYPE] & TM_INFO
+        or $message->[TYPE] & TM_REQUEST )
+    {
         my $name = $self->{name};
         $arguments->{q(@)}  = join q( ), $name, $payload;
         $arguments->{q(0)}  = $name;

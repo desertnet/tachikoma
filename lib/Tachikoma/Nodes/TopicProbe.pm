@@ -104,6 +104,7 @@ sub fire {
         $message->[TO]      = $self->{owner};
         $message->[PAYLOAD] = $out;
         $self->{sink}->fill($message);
+        $self->{counter}++;
     }
     return;
 }

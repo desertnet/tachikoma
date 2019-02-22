@@ -10,7 +10,7 @@ package Tachikoma::Nodes::SetType;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE TM_BYTESTREAM TM_INFO TM_PERSIST );
+use Tachikoma::Message qw( TYPE TM_BYTESTREAM TM_INFO TM_REQUEST TM_PERSIST );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -50,6 +50,9 @@ sub fill {
     }
     elsif ( $message_type eq 'info' ) {
         $message->[TYPE] = TM_INFO;
+    }
+    elsif ( $message_type eq 'request' ) {
+        $message->[TYPE] = TM_REQUEST;
     }
     $message->[TYPE] |= TM_PERSIST if ($persist);
     return $self->SUPER::fill($message);

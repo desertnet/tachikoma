@@ -3,8 +3,9 @@ var hostname = `hostname -s`;
 var home     = `echo ~`;
 
 var topics_dir1 = /pool1;
-var topics_dir2 = /pool2;
 
+var tachikoma.tasks.http.port        = 2501;
+var tachikoma.tasks.port             = 2500;
 var tachikoma.tables.http.port       = 3124;
 var tachikoma.tables.port            = 5100;
 var tachikoma.engines.port           = 5200;
@@ -54,13 +55,15 @@ func buffer_probe {
     ];
     connect_inet <buffer_top> buffer_top;
     make_node MemorySieve buffer_top:sieve 4 should_warn;
-    make_node TopicProbe buffer_probe 4 <prefix>;
+    make_node BufferProbe buffer_probe 4 <prefix>;
     connect_node buffer_top:sieve buffer_top;
     connect_node buffer_probe     buffer_top:sieve;
 }
 
 if (<hostname> eq "nyx") {
+    var topics_dir2 = /pool2;
     var auto_commit = 60;
 } else {
+    var tachikoma.hubs.count = 2;
     var auto_commit = 0;
 }

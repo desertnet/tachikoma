@@ -7,7 +7,7 @@ var count = 8;
 var end   = <start> + <count> - 1;
 
 make_node Tee images
-for i (<start> .. <end>) {
+for i ( <start> .. <end> ) {
     command jobs start_job CommandInterpreter images<i>;
     cd images<i>;
       connect_hub;

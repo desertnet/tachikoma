@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
-    TM_INFO TM_STORABLE TM_ERROR
+    TM_REQUEST TM_STORABLE TM_ERROR
 );
 use Tachikoma;
 use parent qw( Tachikoma::Nodes::Timer );
@@ -58,7 +58,7 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    if ( $message->[TYPE] & TM_INFO ) {
+    if ( $message->[TYPE] & TM_REQUEST ) {
         if ( $self->{is_leader} ) {
             my $line = $message->[PAYLOAD];
             chomp $line;

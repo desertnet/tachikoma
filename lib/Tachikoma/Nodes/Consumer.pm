@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID PAYLOAD
-    TM_INFO TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
+    TM_REQUEST TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
     VECTOR_SIZE
 );
 use Tachikoma;
@@ -364,7 +364,7 @@ sub get_batch_async {
         $self->next_offset($offset);
     }
     my $message = Tachikoma::Message->new;
-    $message->[TYPE] = TM_INFO;
+    $message->[TYPE] = TM_REQUEST;
     $message->[FROM] = $self->{name};
     $message->[TO] =
           $self->{status} eq 'INIT'
@@ -561,7 +561,7 @@ sub fetch {
         if ( $self->{eos} and $self->{poll_interval} );
     $self->{eos} = undef;
     my $request = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_INFO;
+    $request->[TYPE]    = TM_REQUEST;
     $request->[TO]      = $self->{partition};
     $request->[PAYLOAD] = join q(), 'GET ', $self->{next_offset}, "\n";
     $target->callback( $self->get_batch_sync );

@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Table;
 use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_INFO
+    TM_BYTESTREAM TM_STORABLE TM_REQUEST
 );
 use Digest::MD5 qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
@@ -159,7 +159,7 @@ sub fetch {
     my $rv        = undef;
     my $tachikoma = $self->{connector};
     my $request   = Tachikoma::Message->new;
-    $request->type(TM_INFO);
+    $request->type(TM_REQUEST);
     $request->to($field);
     $request->payload("GET $key\n");
 
@@ -212,10 +212,10 @@ sub fetch_offset {
         die $consumer->sync_error if ( $consumer->{sync_error} );
         if ( not @{$messages} ) {
             print {*STDERR}
-                "WARNING: fetch_offset failed ($partition:$offset)\n";
+                "WARNING: fetch_offset failed at $partition:$offset\n";
             $value = [];
         }
-        elsif ($offsets) {
+        else {
             $value = [];
             while ( my $message = shift @{$messages} ) {
                 my $this_partition = $message->[FROM];
@@ -227,13 +227,9 @@ sub fetch_offset {
                 }
             }
         }
-        else {
-            my $message = shift @{$messages};
-            $value = $message if ( $message->[ID] =~ m{^$offset:} );
-        }
     }
     else {
-        die "ERROR: consumer lookup failed $partition:$offset";
+        die "ERROR: consumer lookup failed at $partition:$offset\n";
     }
     return $value;
 }
@@ -245,6 +241,23 @@ sub limit {
         $self->{limit} = shift;
     }
     return $self->{limit};
+}
+
+# sync support
+sub topic {
+    my $self = shift;
+    if (@_) {
+        $self->{topic} = shift;
+    }
+    return $self->{topic};
+}
+
+sub consumer_broker {
+    my $self = shift;
+    if (@_) {
+        $self->{consumer_broker} = shift;
+    }
+    return $self->{consumer_broker};
 }
 
 1;

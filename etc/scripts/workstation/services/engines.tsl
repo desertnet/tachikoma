@@ -24,6 +24,17 @@ for i (1 .. 2) {
             var indexes .= server_log.<field>:index;
         };
 
+        make_node ConsumerBroker tasks.ID:consumer --broker=<broker>
+                                                   --topic=tasks.ID
+                                                   --group=engine
+                                                   --default_offset=start
+                                                   --cache_type=window;
+        make_node Index          tasks.ID:index    --num_partitions=4
+                                                   --window_size=86400
+                                                   --num_buckets=7;
+        connect_edge tasks.ID:consumer tasks.ID:index;
+        var indexes .= tasks.ID:index;
+
         make_node QueryEngine QueryEngine <indexes>;
         topic_probe;
         listen_inet <hostname>:<my_port>;

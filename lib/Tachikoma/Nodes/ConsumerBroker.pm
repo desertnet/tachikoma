@@ -14,7 +14,7 @@ use Tachikoma::Nodes::Topic;
 use Tachikoma::Nodes::Consumer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID PAYLOAD
-    TM_INFO TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
+    TM_INFO TM_REQUEST TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
@@ -157,7 +157,7 @@ sub fill {
         $self->make_broker_connection($leader) or return;
         $self->leader_path( join q(/), $leader, $self->group );
         my $response = Tachikoma::Message->new;
-        $response->[TYPE]    = TM_INFO;
+        $response->[TYPE]    = TM_REQUEST;
         $response->[FROM]    = $self->name;
         $response->[TO]      = $self->leader_path;
         $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
@@ -185,7 +185,7 @@ sub fire {
     my $self = shift;
     return if ( not $self->{sink} );
     my $message = Tachikoma::Message->new;
-    $message->[TYPE] = TM_INFO;
+    $message->[TYPE] = TM_REQUEST;
     $message->[FROM] = $self->name;
     $message->[TO]   = $self->broker_path;
     if ( defined $self->{partition_id} or not $self->{group} ) {
@@ -332,7 +332,7 @@ sub remove_node {
     }
     if ( $self->leader_path ) {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_INFO;
+        $message->[TYPE]    = TM_REQUEST;
         $message->[FROM]    = $self->name;
         $message->[TO]      = $self->leader_path;
         $message->[PAYLOAD] = "DISCONNECT\n";
@@ -372,6 +372,34 @@ sub fetch {
     return $messages;
 }
 
+sub fetch_offset {
+    my ( $self, $partition, $offset ) = @_;
+    my $value = undef;
+    my $topic = $self->{topic} or die 'ERROR: no topic';
+    chomp $offset;
+    $self->get_partitions;
+    my $consumer = $self->{consumers}->{$partition}
+        || $self->make_sync_consumer($partition);
+    if ($consumer) {
+        my $messages = undef;
+        $consumer->next_offset($offset);
+        do { $messages = $consumer->fetch }
+            while ( not @{$messages} and not $consumer->eos );
+        die $consumer->sync_error if ( $consumer->sync_error );
+        if ( not @{$messages} ) {
+            die "ERROR: fetch_offset failed at $partition:$offset\n";
+        }
+        else {
+            my $message = shift @{$messages};
+            $value = $message if ( $message->[ID] =~ m{^$offset:} );
+        }
+    }
+    else {
+        die "ERROR: consumer lookup failed at $partition:$offset\n";
+    }
+    return $value;
+}
+
 sub get_partitions {
     my $self = shift;
     $self->{sync_error} = undef;
@@ -406,7 +434,7 @@ sub request_partitions {
     my $partitions      = undef;
     my $request_payload = "GET_PARTITIONS $self->{topic}\n";
     my $request         = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_INFO;
+    $request->[TYPE]    = TM_REQUEST;
     $request->[TO]      = $self->group;
     $request->[PAYLOAD] = $request_payload;
     $target->callback(
@@ -471,7 +499,7 @@ sub request_leader {
     my $leader          = undef;
     my $request_payload = "GET_LEADER $self->{group}\n";
     my $request         = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_INFO;
+    $request->[TYPE]    = TM_REQUEST;
     $request->[TO]      = 'broker';
     $request->[PAYLOAD] = $request_payload;
     $target->callback(
@@ -610,7 +638,7 @@ sub disconnect {
     my $leader  = $self->get_leader or return;
     my $target  = $self->get_target($leader) or return;
     my $request = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_INFO;
+    $request->[TYPE]    = TM_REQUEST;
     $request->[TO]      = $self->group;
     $request->[PAYLOAD] = "DISCONNECT\n";
     $target->fill($request);

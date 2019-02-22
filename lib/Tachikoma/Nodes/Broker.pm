@@ -15,7 +15,8 @@ use Tachikoma::Nodes::ConsumerGroup;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_PING TM_COMMAND TM_RESPONSE TM_INFO TM_STORABLE TM_ERROR TM_EOF
+    TM_PING TM_COMMAND TM_RESPONSE TM_INFO TM_REQUEST
+    TM_STORABLE TM_ERROR TM_EOF
 );
 use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
@@ -48,10 +49,6 @@ die 'ERROR: data will be lost if Heartbeat_Timeout >= LCO_Timeout'
     if ( $Heartbeat_Timeout >= $LCO_Timeout );
 
 my %Broker_Commands = map { uc $_ => $_ } qw(
-    get_controller
-    get_leader
-    get_topics
-    get_partitions
     empty_topics
     empty_groups
     purge_topics
@@ -62,6 +59,13 @@ my %Controller_Commands = map { uc $_ => $_ } qw(
     add_broker
     add_topic
     add_consumer_group
+);
+
+my %Broker_Requests = map { uc $_ => $_ } qw(
+    get_controller
+    get_leader
+    get_topics
+    get_partitions
 );
 
 sub new {
@@ -264,26 +268,20 @@ sub fill {
         and $message->[ID] < $self->{generation} )
     {
         $self->stderr(
-            'WARNING: stale message: ID ',
-            $message->id,
-            q( < ),
-            $self->{generation},
-            q( - ),
-            $message->type_as_string
-                . ( $message->from ? ' from: ' . $message->from : q() )
-                . ( $message->to   ? ' to: ' . $message->to     : q() )
-                . (
-                ( $message->type & TM_INFO or $message->type & TM_ERROR )
-                ? ' payload: ' . $message->payload
-                : q()
-                )
+            'WARNING: stale message: ID ', $message->id,
+            q( < ),                        $self->{generation},
+            q( - ),                        $message->type_as_string,
+            ' from: ',                     $message->from
         );
-    }
-    elsif ( $message->[TYPE] & TM_RESPONSE ) {
-        $self->handle_response($message);
     }
     elsif ( $message->[TYPE] & TM_INFO ) {
         $self->process_info($message);
+    }
+    elsif ( $message->[TYPE] & TM_REQUEST ) {
+        $self->process_request($message);
+    }
+    elsif ( $message->[TYPE] & TM_RESPONSE ) {
+        $self->handle_response($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
         my $error = $message->[PAYLOAD];
@@ -422,6 +420,25 @@ sub process_command {
     }
     else {
         $self->stderr( 'ERROR: unrecognized command: ', $message->[PAYLOAD] );
+    }
+    return;
+}
+
+sub process_request {
+    my $self    = shift;
+    my $message = shift;
+    my $line    = $message->[PAYLOAD];
+    chomp $line;
+    my ( $cmd, $args ) = split q( ), $line, 2;
+    if ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
+        $self->send_error( $message, "REBALANCING_PARTITIONS\n" );
+    }
+    elsif ( $Broker_Requests{$cmd} ) {
+        my $method = $Broker_Requests{$cmd};
+        $self->$method( $args, $message );
+    }
+    else {
+        $self->stderr( 'ERROR: unrecognized request: ', $message->[PAYLOAD] );
     }
     return;
 }

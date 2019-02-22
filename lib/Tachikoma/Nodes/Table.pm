@@ -10,10 +10,9 @@ package Tachikoma::Nodes::Table;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_INFO TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_STORABLE TM_REQUEST TM_ERROR TM_EOF
 );
 use Tachikoma;
 use Digest::MD5 qw( md5 );
@@ -39,19 +38,17 @@ EOF
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{caches}          = [];
-    $self->{on_save_window}  = [];
-    $self->{num_partitions}  = $Default_Num_Partitions;
-    $self->{num_buckets}     = $Default_Num_Buckets;
-    $self->{window_size}     = undef;
-    $self->{bucket_size}     = undef;
-    $self->{next_window}     = [];
-    $self->{host}            = undef;
-    $self->{port}            = undef;
-    $self->{topic}           = undef;
-    $self->{field}           = undef;
-    $self->{connector}       = undef;
-    $self->{consumer_broker} = undef;
+    $self->{caches}         = [];
+    $self->{on_save_window} = [];
+    $self->{num_partitions} = $Default_Num_Partitions;
+    $self->{num_buckets}    = $Default_Num_Buckets;
+    $self->{window_size}    = undef;
+    $self->{bucket_size}    = undef;
+    $self->{next_window}    = [];
+    $self->{host}           = undef;
+    $self->{port}           = undef;
+    $self->{field}          = undef;
+    $self->{connector}      = undef;
     bless $self, $class;
     return $self;
 }
@@ -98,7 +95,7 @@ sub arguments {
 
 sub fill {
     my ( $self, $message ) = @_;
-    if ( $message->[TYPE] & TM_INFO ) {
+    if ( $message->[TYPE] & TM_REQUEST ) {
         my ( $cmd, $key ) = split q( ), $message->[PAYLOAD], 2;
         if ( $cmd eq 'GET' ) {
             chomp $key;
@@ -133,11 +130,21 @@ sub fill {
 sub lookup {
     my ( $self, $key ) = @_;
     my $value = undef;
-    my $i     = $self->get_partition_id($key);
-    for my $bucket ( @{ $self->{caches}->[$i] } ) {
-        next if ( not exists $bucket->{$key} );
-        $value = $bucket->{$key};
-        last;
+    if ( length $key ) {
+        my $i = $self->get_partition_id($key);
+        for my $bucket ( @{ $self->{caches}->[$i] } ) {
+            next if ( not exists $bucket->{$key} );
+            $value = $bucket->{$key};
+            last;
+        }
+    }
+    else {
+        $value = [];
+        for my $cache ( @{ $self->{caches} } ) {
+            for my $bucket ( @{$cache} ) {
+                push @{$value}, keys %{$bucket};
+            }
+        }
     }
     return $value;
 }
@@ -156,7 +163,8 @@ sub lru_lookup {
             if ( $self->{bucket_size} ) {
                 $self->roll_count( $i, $Tachikoma::Now, 0 )
                     if ( $cache->[0]
-                    and scalar keys %{ $cache->[0] } >= $self->{bucket_size} );
+                    and scalar
+                    keys %{ $cache->[0] } >= $self->{bucket_size} );
             }
         }
         last;
@@ -364,13 +372,13 @@ sub on_save_snapshot {
 ########################
 
 sub fetch {
-    my ( $self, $key ) = @_;
-    die 'ERROR: no key' if ( not defined $key );
+    my $self      = shift;
+    my $key       = shift // q();
     my $field     = $self->{field} or die 'ERROR: no field';
     my $rv        = undef;
     my $tachikoma = $self->{connector};
     my $request   = Tachikoma::Message->new;
-    $request->type(TM_INFO);
+    $request->type(TM_REQUEST);
     $request->to($field);
     $request->payload("GET $key\n");
 
@@ -401,7 +409,7 @@ sub mget {
     my $tachikoma = $self->{connector};
     my $request   = Tachikoma::Message->new;
     my $expecting = scalar @{$keys};
-    $request->[TYPE] = TM_INFO;
+    $request->[TYPE] = TM_REQUEST;
     $request->[TO]   = $field;
 
     if ( not $tachikoma ) {
@@ -424,41 +432,6 @@ sub mget {
     }
     $tachikoma->drain;
     return \@rv;
-}
-
-sub fetch_offset {
-    my ( $self, $partition, $offset ) = @_;
-    my $value = undef;
-    my $topic = $self->{topic} or die 'ERROR: no topic';
-    my $group = $self->{consumer_broker};
-    chomp $offset;
-    if ( not $group ) {
-        $group = Tachikoma::Nodes::ConsumerBroker->new($topic);
-        $self->{consumer_broker} = $group;
-    }
-    else {
-        $group->get_partitions;
-    }
-    my $consumer = $group->{consumers}->{$partition}
-        || $group->make_sync_consumer($partition);
-    if ($consumer) {
-        my $messages = undef;
-        $consumer->next_offset($offset);
-        do { $messages = $consumer->fetch }
-            while ( not @{$messages} and not $consumer->eos );
-        die $consumer->sync_error if ( $consumer->sync_error );
-        if ( not @{$messages} ) {
-            die "ERROR: fetch_offset failed ($partition:$offset)";
-        }
-        else {
-            my $message = shift @{$messages};
-            $value = $message if ( $message->[ID] =~ m{^$offset:} );
-        }
-    }
-    else {
-        die "ERROR: consumer lookup failed ($partition:$offset)";
-    }
-    return $value;
 }
 
 # async support
@@ -527,14 +500,6 @@ sub port {
     return $self->{port};
 }
 
-sub topic {
-    my $self = shift;
-    if (@_) {
-        $self->{topic} = shift;
-    }
-    return $self->{topic};
-}
-
 sub field {
     my $self = shift;
     if (@_) {
@@ -549,14 +514,6 @@ sub connector {
         $self->{connector} = shift;
     }
     return $self->{connector};
-}
-
-sub consumer_broker {
-    my $self = shift;
-    if (@_) {
-        $self->{consumer_broker} = shift;
-    }
-    return $self->{consumer_broker};
 }
 
 1;
