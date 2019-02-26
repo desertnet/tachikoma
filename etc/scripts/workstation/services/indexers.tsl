@@ -20,9 +20,6 @@ make_node ConsumerBroker   topic1:consumer      --broker=<broker>      \
                                                 --max_unanswered=64    \
                                                 --auto_commit=60
 make_node IndexByStream    IndexByStream
-on topic1.ID READY {
-    connect_node topic1:consumer IndexByStream/topic1.ID;
-}
 
 
 # timestamps
@@ -33,9 +30,6 @@ make_node ConsumerBroker   server_log:consumer1 --broker=<broker>            \
                                                 --max_unanswered=64          \
                                                 --auto_commit=60
 make_node IndexByTimestamp IndexByTimestamp
-on server_log.timestamp READY {
-    connect_node server_log:consumer1 IndexByTimestamp/server_log.timestamp;
-}
 
 
 # hostnames
@@ -46,9 +40,6 @@ make_node ConsumerBroker   server_log:consumer2 --broker=<broker>           \
                                                 --max_unanswered=64         \
                                                 --auto_commit=60
 make_node IndexByHostname  IndexByHostname
-on server_log.hostname READY {
-    connect_node server_log:consumer2 IndexByHostname/server_log.hostname
-}
 
 
 # processes
@@ -59,12 +50,19 @@ make_node ConsumerBroker   server_log:consumer3 --broker=<broker>          \
                                                 --max_unanswered=64        \
                                                 --auto_commit=60
 make_node IndexByProcess   IndexByProcess
-on server_log.process READY {
-    connect_node server_log:consumer3 IndexByProcess/server_log.process;
-}
 
 
 topic_probe
 
 listen_inet localhost:<root_port>
-secure 2
+insecure
+on topic1.ID READY {
+on server_log.timestamp READY {
+on server_log.hostname READY {
+on server_log.process READY {
+    connect_node topic1:consumer IndexByStream/topic1.ID;
+    connect_node server_log:consumer1 IndexByTimestamp/server_log.timestamp;
+    connect_node server_log:consumer2 IndexByHostname/server_log.hostname;
+    connect_node server_log:consumer3 IndexByProcess/server_log.process;
+    secure 3;
+}}}}

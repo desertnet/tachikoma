@@ -50,13 +50,11 @@ connect_node responder root:auth
 listen_inet localhost:<root_port>
 insecure
 on tasks READY {
-    on tasks.ID READY {
-        on tasks:farm READY {
-            connect_node tasks:queue    tasks:farm;
-            connect_node tasks:consumer IndexByStream/tasks.ID;
-            listen_inet --io <hostname>:<tachikoma.tasks.http.port>;
-            connect_sink <hostname>:<tachikoma.tasks.http.port> responder;
-            secure 3;
-        };
-    };
-}
+on tasks.ID READY {
+on tasks:farm READY {
+    connect_node tasks:queue    tasks:farm;
+    connect_node tasks:consumer IndexByStream/tasks.ID;
+    listen_inet --io <hostname>:<tachikoma.tasks.http.port>;
+    connect_sink <hostname>:<tachikoma.tasks.http.port> responder;
+    secure 3;
+}}}

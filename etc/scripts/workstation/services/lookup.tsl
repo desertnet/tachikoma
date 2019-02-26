@@ -30,13 +30,14 @@ for i ( <start> .. <end> ) {
                                                         --max_unanswered=1024;
         make_node Lookup         images:lookup          images.indb:table;
         make_node Topic          images.orphans         <broker>;
+
+        topic_probe;
+        insecure;
         on images.orphans READY {
             connect_edge images:lookup          images.orphans;
             connect_node images.ondisk:consumer images:lookup;
+            secure 3;
         };
-
-        topic_probe;
-        secure 2;
     cd ..;
     connect_node images images<i>;
 }
