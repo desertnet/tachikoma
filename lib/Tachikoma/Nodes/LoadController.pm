@@ -114,7 +114,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
     }
     elsif ( $type & TM_INFO ) {
-        if ( $message->[STREAM] eq 'reconnect' ) {
+        if ( $message->[STREAM] eq 'RECONNECT' ) {
             $self->note_reconnect( $message->[FROM] );
         }
         else {
@@ -586,7 +586,6 @@ sub add_connector {
     $Tachikoma::Nodes{$id}->register( 'RECONNECT' => $self->name );
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = 1;
-    $self->note_reconnect($id);
     my $tester = (
           $self->{circuit_tester}
         ? $Tachikoma::Nodes{ $self->{circuit_tester} }

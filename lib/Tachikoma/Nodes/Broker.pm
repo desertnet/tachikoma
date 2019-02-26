@@ -389,7 +389,7 @@ sub process_info {
         $self->status('ACTIVE');
         $self->stage('COMPLETE');
     }
-    elsif ( $message->[STREAM] eq 'reconnect' ) {
+    elsif ( $message->[STREAM] eq 'RECONNECT' ) {
         $self->offline( $message->[FROM] );
     }
     else {

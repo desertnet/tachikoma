@@ -51,7 +51,7 @@ sub initialize_graph {
     $job_controller->sink($self);
     $self->job_controller($job_controller);
     $load_controller->name('LoadController');
-    $load_controller->sink($self);
+    $load_controller->sink($interpreter);
     $self->load_controller($load_controller);
     $file_watcher->name('FileWatcher');
     $file_watcher->sink($self);
