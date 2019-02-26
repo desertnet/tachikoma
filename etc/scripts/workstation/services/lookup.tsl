@@ -6,6 +6,8 @@ var start = 0;
 var count = 8;
 var end   = <start> + <count> - 1;
 
+insecure                 # set key for "on" command below
+
 make_node Tee images
 for i ( <start> .. <end> ) {
     command jobs start_job CommandInterpreter images<i>;
