@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 36116 2019-02-14 05:18:52Z chris $
+# $Id: LoadBalancer.pm 36137 2019-02-26 02:08:41Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -68,9 +68,9 @@ sub fill {
     my $to      = $message->[TO];
     if ( $type & TM_COMMAND or ( $type & TM_EOF and not $message->[STREAM] ) )
     {
-        return $self->interpreter->fill($message);
+        $self->interpreter->fill($message);
     }
-    elsif ( $to and $to ne '_return_to_sender' ) {
+    elsif ( $type & TM_RESPONSE ) {
         $self->handle_response($message);
         $self->{sink}->fill($message);
     }

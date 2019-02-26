@@ -52,7 +52,7 @@ sub fire {
     for my $item ( @{ $self->{list} } ) {
         my ( $timestamp, $entry ) = split q( ), $item, 2;
         if ( $timestamp =~ m{\D} or $timestamp < $Tachikoma::Now ) {
-            $self->notify( 'rm' => "rm $item" );
+            $self->notify( 'RM' => "rm $item" );
             $dirty = 1;
             next;
         }

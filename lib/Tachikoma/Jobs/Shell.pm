@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Shell.pm 36137 2019-02-26 02:08:41Z chris $
 #
 
 package Tachikoma::Jobs::Shell;
@@ -13,8 +13,8 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::STDIO qw( TK_R );
 use Tachikoma::Message qw(
-    TYPE FROM
-    TM_BYTESTREAM TM_ERROR TM_EOF
+    TYPE FROM ID STREAM
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use IPC::Open3;
 use Symbol qw( gensym );
@@ -73,6 +73,15 @@ sub fill {
     if ( $from =~ m{^_parent} ) {
         return if ( $type & TM_EOF );
         $self->shell_stdin->fill($message);
+
+        # tell LoadBalancer we're done
+        if ( not $type & TM_PERSIST ) {
+            my $response = Tachikoma::Message->new;
+            $response->[TYPE]   = TM_RESPONSE;
+            $response->[STREAM] = $message->[STREAM];
+            $response->[ID]     = $message->[ID];
+            $self->{sink}->fill($response);
+        }
     }
     elsif ( $from eq 'shell:stdout' ) {
         if ( $type & TM_EOF ) {

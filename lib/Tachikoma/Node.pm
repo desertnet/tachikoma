@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Node.pm 36137 2019-02-26 02:08:41Z chris $
 #
 
 package Tachikoma::Node;
@@ -34,6 +34,7 @@ sub new {
         owner         => q(),
         counter       => 0,
         registrations => {},
+        set_state     => {},
         configuration => Tachikoma->configuration,
     };
     bless $self, $class;
@@ -122,6 +123,10 @@ sub register {
     die "no such event: $event\n" if ( not $registrations->{$event} );
     $registrations->{$event} ||= {};
     $registrations->{$event}->{$name} = $is_function;
+    if ( length $self->{set_state}->{$event} ) {
+        $self->notify_registered( $name, $event,
+            $self->{set_state}->{$event} );
+    }
     return;
 }
 
@@ -222,33 +227,47 @@ sub cancel {
     return;
 }
 
+sub set_state {
+    my ( $self, $event, $payload ) = @_;
+    $payload ||= $event;
+    chomp $payload;
+    $self->{set_state}->{$event} = $payload;
+    $self->notify( $event, $payload );
+    return;
+}
+
 sub notify {
     my ( $self, $event, $payload ) = @_;
     $payload ||= $event;
     chomp $payload;
-    my $registrations = $self->{registrations}->{$event};
-    my $responder     = $Tachikoma::Nodes{_responder};
-    my $shell         = $responder ? $responder->{shell} : undef;
-    for my $name ( keys %{$registrations} ) {
-        if ( defined $registrations->{$name} ) {
-            chomp $payload;
-            if ( not $shell->callback( $name, $payload ) ) {
-                delete $registrations->{$name};
-            }
-            next;
-        }
-        if ( not $Tachikoma::Nodes{$name} ) {
-            $self->stderr("WARNING: $name forgot to unregister");
-            delete $registrations->{$name};
-            next;
-        }
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_INFO;
-        $message->[FROM]    = $self->{name};
-        $message->[STREAM]  = $event;
-        $message->[PAYLOAD] = "$payload\n";
-        $Tachikoma::Nodes{$name}->fill($message);
+    for my $name ( keys %{ $self->{registrations}->{$event} } ) {
+        $self->notify_registered( $name, $event, $payload );
     }
+    return;
+}
+
+sub notify_registered {
+    my ( $self, $name, $event, $payload ) = @_;
+    my $registered = $self->{registrations}->{$event};
+    my $responder  = $Tachikoma::Nodes{_responder};
+    my $shell      = $responder ? $responder->{shell} : undef;
+    if ( defined $registered->{$name} ) {
+        if ( not $shell->callback( $name, $payload ) ) {
+            delete $registered->{$name};
+        }
+        return;
+    }
+    if ( not $Tachikoma::Nodes{$name} ) {
+        $self->stderr("WARNING: $name forgot to unregister");
+        delete $registered->{$name};
+        return;
+    }
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_INFO;
+    $message->[FROM]    = $self->{name};
+    $message->[STREAM]  = $event;
+    $message->[PAYLOAD] = "$payload\n";
+    $Tachikoma::Nodes{$name}->fill($message);
     return;
 }
 

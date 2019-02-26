@@ -583,7 +583,7 @@ sub add_connector {
         use_SSL   => $use_SSL ? 1 : q(),
         reconnect => 1
     ) if ( not $Tachikoma::Nodes{$id} );
-    $Tachikoma::Nodes{$id}->register( 'reconnect' => $self->name );
+    $Tachikoma::Nodes{$id}->register( 'RECONNECT' => $self->name );
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = 1;
     $self->note_reconnect($id);
@@ -635,7 +635,7 @@ sub remove_connector {
 sub remove_node {
     my $self = shift;
     for my $name ( keys %{ $self->{connectors} } ) {
-        $Tachikoma::Nodes{$name}->unregister( 'reconnect' => $self->name )
+        $Tachikoma::Nodes{$name}->unregister( 'RECONNECT' => $self->name )
             if ( $Tachikoma::Nodes{$name} );
     }
     return $self->SUPER::remove_node(@_);

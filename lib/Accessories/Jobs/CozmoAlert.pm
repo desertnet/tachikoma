@@ -36,7 +36,7 @@ sub fill {
         $arguments =~ s(\n)( )g;
         system( '/usr/local/bin/cozmo_alert.py', $arguments );
     }
-    return $self->SUPER::fill($message);
+    return $self->cancel($message);
 }
 
 1;

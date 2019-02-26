@@ -27,8 +27,8 @@ sub new {
     $self->{interpreter} = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
-    $self->{registrations}->{add} = {};
-    $self->{registrations}->{rm}  = {};
+    $self->{registrations}->{ADD} = {};
+    $self->{registrations}->{RM}  = {};
     bless $self, $class;
     return $self;
 }
@@ -63,7 +63,7 @@ sub fill {
     my $item = $message->[PAYLOAD];
     $self->add_item($item);
     $self->write_list;
-    $self->notify( 'add' => "add $item" );
+    $self->notify( 'ADD' => "add $item" );
     return $self->SUPER::fill($message);
 }
 
@@ -122,7 +122,7 @@ $C{add} = sub {
     return $self->error( $envelope, 'no item' ) if ( not length $item );
     $self->patron->add_item($item);
     $self->patron->write_list;
-    $self->patron->notify( 'add' => "add $item" );
+    $self->patron->notify( 'ADD' => "add $item" );
     return $self->okay($envelope);
 };
 
@@ -134,7 +134,7 @@ $C{remove} = sub {
     return $self->error( $envelope, 'no pattern' ) if ( not length $item );
     $self->patron->remove_item($item);
     $self->patron->write_list;
-    $self->patron->notify( 'rm' => "rm $item" );
+    $self->patron->notify( 'RM' => "rm $item" );
     return $self->okay($envelope);
 };
 
@@ -149,7 +149,7 @@ $C{clear} = sub {
     return $self->error( $envelope, 'no pattern' ) if ( not length $glob );
     for my $item ( @{ $self->patron->list } ) {
         if ( $item =~ m{$glob} ) {
-            $self->patron->notify( 'rm' => "rm $item" );
+            $self->patron->notify( 'RM' => "rm $item" );
             next;
         }
         push @new_list, $item;

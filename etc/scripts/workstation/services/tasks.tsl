@@ -12,29 +12,49 @@ make_node JobFarmer tasks:farm  4 Task '
     ls /NONEXISTANT;
     for i in $(seq 10) ; do echo $i ; sleep 1 ; done;
 '
-register     tasks:queue tasks events
+register     tasks:queue tasks MSG_RECEIVED
+register     tasks:queue tasks MSG_SENT
+register     tasks:queue tasks MSG_CANCELED
 connect_node tasks:farm  tasks
-connect_node tasks:queue tasks:farm
+
+
+# index task IDs
+make_node ConsumerBroker tasks:consumer --broker=<broker>      \
+                                        --topic=tasks          \
+                                        --group=IDs            \
+                                        --default_offset=start \
+                                        --max_unanswered=64    \
+                                        --auto_commit=60
+make_node IndexByStream  IndexByStream
+make_node Topic          tasks.ID       <broker>
 
 
 buffer_probe
+topic_probe
 
 # listen for http connections
 make_node HTTP_Responder responder /tmp/http <tachikoma.tasks.http.port>
-make_node Tee            http:log
+make_node HTTP_Timeout
+make_node Log            http:log  /var/log/tachikoma/<name>-access.log
 make_node HTTP_Route     root
 make_node HTTP_Auth      root:auth <home>/Sites/.htpasswd tachikoma-tools
 make_node HTTP_File      root:dir  <home>/Sites
 make_node HTTP_Fetch     fetch:dir /fetch tasks:queue tasks:farm tasks:table
 make_node HTTP_Store     store:dir /tmp/http /store tasks:queue
-make_node HTTP_Timeout
 command root add /      root:dir
 command root add /fetch fetch:dir
 command root add /store store:dir
 connect_node root:auth root
 connect_node responder root:auth
-listen_inet --io <hostname>:<tachikoma.tasks.http.port>
-connect_sink <hostname>:<tachikoma.tasks.http.port> responder
 
 listen_inet localhost:<root_port>
-secure 3
+insecure
+on tasks READY {
+on tasks.ID READY {
+on tasks:farm READY {
+    connect_node tasks:queue    tasks:farm;
+    connect_node tasks:consumer IndexByStream/tasks.ID;
+    listen_inet --io <hostname>:<tachikoma.tasks.http.port>;
+    connect_sink <hostname>:<tachikoma.tasks.http.port> responder;
+    secure 3;
+}}}
