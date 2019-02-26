@@ -232,9 +232,9 @@ sub new {
     $self->{last_downbeat}    = undef;
     $self->{latency_score}    = undef;
     $self->{inet_aton_serial} = undef;
-    $self->{registrations}->{connected}     = {};
-    $self->{registrations}->{authenticated} = {};
-    $self->{registrations}->{reconnect}     = {};
+    $self->{registrations}->{CONNECTED}     = {};
+    $self->{registrations}->{AUTHENTICATED} = {};
+    $self->{registrations}->{RECONNECT}     = {};
     $self->{registrations}->{EOF}           = {};
     $self->{fill_modes}                     = {
         null            => \&Tachikoma::Nodes::FileHandle::null_cb,
@@ -349,7 +349,7 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->notify( 'connected' => $node->{name} );
+    $node->set_state( 'CONNECTED' => $node->{name} );
     $self->{counter}++;
     return;
 }
@@ -389,7 +389,7 @@ sub init_socket {
         return;
     }
     $self->register_reader_node;
-    $self->notify( 'connected' => $self->{name} );
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return $self->init_connect;
 }
 
@@ -606,7 +606,7 @@ sub reply_to_client_challenge {
     $self->register_writer_node;
     $self->{auth_complete} = $Tachikoma::Now;
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
-    $self->notify( 'authenticated' => $self->{name} );
+    $self->set_state( 'AUTHENTICATED' => $self->{name} );
     return;
 }
 
@@ -619,7 +619,7 @@ sub auth_server_response {
     );
     $self->{auth_complete} = $Tachikoma::Now;
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
-    $self->notify( 'authenticated' => $self->{name} );
+    $self->set_state( 'AUTHENTICATED' => $self->{name} );
     return;
 }
 
@@ -962,7 +962,7 @@ sub handle_EOF {
         };
     }
     else {
-        $self->notify( 'EOF' => $self->{name} );
+        $self->set_state( 'EOF' => $self->{name} );
         $self->SUPER::handle_EOF;
     }
     return;
@@ -984,6 +984,7 @@ sub close_filehandle {
         my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
     }
+    $self->{set_state} = {};
     return;
 }
 
@@ -1057,7 +1058,7 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         $self->print_less_often('reconnect: looking up hostname')
             if ( not $self->{address} );
     }
-    $self->notify( 'reconnect' => $self->{name} );
+    $self->set_state( 'RECONNECT' => $self->{name} );
     return $rv;
 }
 

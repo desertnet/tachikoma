@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 36126 2019-02-18 21:12:46Z chris $
+# $Id: JobFarmer.pm 36137 2019-02-26 02:08:41Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
-    TM_COMMAND TM_EOF TM_KILLME TM_ERROR
+    TM_COMMAND TM_STORABLE TM_RESPONSE TM_EOF TM_KILLME TM_ERROR
 );
 use Tachikoma::Command;
 use Tachikoma::Nodes::JobController;
@@ -40,6 +40,7 @@ sub new {
     $self->{interpreter}    = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
+    $self->{registrations}->{READY} = {};
     bless $self, $class;
     return $self;
 }
@@ -82,7 +83,6 @@ sub arguments {
             $self->{load_balancer}->method('preferred');
         }
         $self->{load_balancer}->mode('all');
-        $self->{tee}->name( $name . ':all' ) if ( $self->{tee} );
         if ( not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -104,22 +104,14 @@ sub fill {
             if ( $self->{tee} );
         $self->fire;
     }
+    elsif ($job) {
+        $self->handle_response( $message, $next, $from );
+    }
     elsif ( $message->[TYPE] & TM_EOF ) {
         $self->handle_EOF( $message, $job, $next );
     }
     elsif ( $message->[TYPE] & TM_COMMAND ) {
         $self->{interpreter}->fill($message);
-    }
-    elsif ($job) {
-        $self->{load_balancer}->handle_response($message);
-        if ( $self->{autokill} ) {
-            $self->stamp_message( $message, $self->{name} );
-        }
-        else {
-            $message->[FROM] = $from if ( $next and $next eq '_parent' );
-        }
-        $message->[TO] = $self->{owner} if ( not length $message->[TO] );
-        $self->{sink}->fill($message);
     }
     else {
         $self->{counter}++;
@@ -151,20 +143,29 @@ sub fire {
     }
     @{ $self->{tee}->{owner} } = @keep if ( $self->{tee} );
     @{$owners} = @keep;
+    $self->set_state('READY') if ( not $self->{set_state}->{READY} );
+    return;
+}
+
+sub handle_response {
+    my ( $self, $message, $next, $from ) = @_;
+    if ( $message->[TYPE] & TM_RESPONSE ) {
+        $self->{load_balancer}->handle_response($message);
+    }
+    if ( $self->{autokill} ) {
+        $self->stamp_message( $message, $self->{name} );
+    }
+    else {
+        $message->[FROM] = $from if ( $next and $next eq '_parent' );
+    }
+    $message->[TO] = $self->{owner} if ( not length $message->[TO] );
+    $self->{sink}->fill($message) if ( length $message->[TO] );
     return;
 }
 
 sub handle_EOF {
-    my ( $self, $message, $job, $next ) = @_;
-    if ($job) {
-
-        # some EOF from inside the job
-        $self->stamp_message( $message, $self->{name} )
-            if ( $self->{autokill} );
-        $self->{load_balancer}->handle_response($message);
-        $self->{sink}->fill($message);
-    }
-    elsif ( $message->[STREAM] ) {
+    my ( $self, $message, $next ) = @_;
+    if ( $message->[STREAM] ) {
 
         # some EOF being delivered to job
         $self->{counter}++;

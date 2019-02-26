@@ -38,12 +38,13 @@ sub new {
     $self->{poll_interval} = $Poll_Interval;
 
     # async support
-    $self->{broker_path}    = undef;
-    $self->{next_partition} = undef;
-    $self->{last_check}     = undef;
-    $self->{batch}          = undef;
-    $self->{batch_size}     = 0;
-    $self->{responses}      = {};
+    $self->{broker_path}            = undef;
+    $self->{next_partition}         = undef;
+    $self->{last_check}             = undef;
+    $self->{batch}                  = undef;
+    $self->{batch_size}             = 0;
+    $self->{responses}              = {};
+    $self->{registrations}->{READY} = {};
 
     # sync support
     $self->{hosts}       = { localhost => [ 5501, 5502 ] };
@@ -128,6 +129,7 @@ sub fill {
     }
     elsif ( $message->[TYPE] & TM_STORABLE ) {
         $self->update_partitions($message);
+        $self->set_state('READY') if ( not $self->{set_state}->{READY} );
     }
     else {
         $self->stderr( $message->type_as_string, ' from ', $message->from );
@@ -257,7 +259,7 @@ sub update_partitions {
         }
     }
     $self->{partitions} = $partitions if ($okay);
-    return;
+    return $okay;
 }
 
 ########################

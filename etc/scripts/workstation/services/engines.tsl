@@ -24,6 +24,7 @@ for i (1 .. 2) {
             var indexes .= server_log.<field>:index;
         };
 
+        # task ID index
         make_node ConsumerBroker tasks.ID:consumer --broker=<broker>
                                                    --topic=tasks.ID
                                                    --group=engine

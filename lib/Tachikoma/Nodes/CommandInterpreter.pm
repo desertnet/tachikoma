@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 36126 2019-02-18 21:12:46Z chris $
+# $Id: CommandInterpreter.pm 36137 2019-02-26 02:08:41Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1351,7 +1351,7 @@ $C{connect_sink} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'connect_sink' )
+    $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     my ( $first_name, $second_name ) = split q( ), $command->arguments, 2;
     die qq(no node specified\n) if ( not length $second_name );
@@ -1365,7 +1365,7 @@ $C{connect_edge} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'connect_edge' )
+    $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     my ( $first_name, $second_name ) = split q( ), $command->arguments, 2;
     die qq(no node specified\n) if ( not length $second_name );
@@ -1407,7 +1407,7 @@ $C{disconnect_edge} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'connect_edge' )
+    $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
     $self->disconnect_edge( $command->arguments );
     return $self->okay($envelope);
@@ -2485,10 +2485,9 @@ sub verify_key {
         );
         return 1 if ( not $disabled{$secure_level}->{$cmd_name} );
     }
-    my $allowed = $entry->{allow};
     for my $tag ( @{$tags} ) {
         next if ( $secure_level > 0 and $tag eq 'meta' );
-        return 1 if ( $allowed->{$tag} );
+        return 1 if ( $entry->{allow}->{$tag} );
     }
     $self->stderr(
         'ERROR: verification failed:',

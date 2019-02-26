@@ -36,8 +36,10 @@ sub new {
     my $self  = $class->SUPER::new;
     my $c     = { %{ $self->{interpreter}->commands } };
     $c->{$_} = $C{$_} for ( keys %C );
-    $self->{registrations}->{events} = {};
     $self->{interpreter}->commands($c);
+    $self->{registrations}->{MSG_RECEIVED} = {};
+    $self->{registrations}->{MSG_SENT}     = {};
+    $self->{registrations}->{MSG_CANCELED} = {};
     bless $self, $class;
     return $self;
 }
@@ -403,7 +405,7 @@ sub send_event {
     my $self          = shift;
     my $stream        = shift;
     my $event         = shift;
-    my $registrations = $self->{registrations}->{events};
+    my $registrations = $self->{registrations}->{ $event->{type} };
     my $note          = Tachikoma::Message->new;
     $event->{key}       = $stream;
     $event->{timestamp} = $Tachikoma::Right_Now;

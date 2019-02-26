@@ -117,7 +117,7 @@ sub send_event {
     $event->{key}       = $stream;
     $event->{timestamp} = Time::HiRes::time;
     $note->[TYPE]       = TM_STORABLE;
-    $note->[STREAM]     = "$stream\n";         # XXX: LB hack;
+    $note->[STREAM]     = $stream;
     $note->[PAYLOAD]    = $event;
     $self->SUPER::fill($note);
     return;

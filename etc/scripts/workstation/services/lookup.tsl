@@ -10,31 +10,33 @@ make_node Tee images
 for i ( <start> .. <end> ) {
     command jobs start_job CommandInterpreter images<i>;
     cd images<i>;
-      connect_hub;
+        connect_hub;
 
-      # indb
-      make_node ConsumerBroker images.indb:consumer   --broker=<broker>
-                                                      --topic=images.indb
-                                                      --partition_id=<i>
-                                                      --default_offset=start;
-      make_node Table          images.indb:table      --num_partitions=<count>
-                                                      --window_size=86400
-                                                      --num_buckets=2;
-      connect_edge images.indb:consumer images.indb:table;
+        # indb
+        make_node ConsumerBroker images.indb:consumer   --broker=<broker>
+                                                        --topic=images.indb
+                                                        --partition_id=<i>
+                                                        --default_offset=start;
+        make_node Table          images.indb:table      --num_partitions=<count>
+                                                        --window_size=86400
+                                                        --num_buckets=2;
+        connect_edge images.indb:consumer images.indb:table;
 
-      # ondisk
-      make_node ConsumerBroker images.ondisk:consumer --broker=<broker>
-                                                      --topic=images.ondisk
-                                                      --partition_id=<i>
-                                                      --default_offset=start
-                                                      --max_unanswered=1024;
-      make_node Lookup         images:lookup          images.indb:table;
-      make_node Topic          images.orphans         <broker>;
-      connect_edge images:lookup          images.orphans;
-      connect_node images.ondisk:consumer images:lookup;
+        # ondisk
+        make_node ConsumerBroker images.ondisk:consumer --broker=<broker>
+                                                        --topic=images.ondisk
+                                                        --partition_id=<i>
+                                                        --default_offset=start
+                                                        --max_unanswered=1024;
+        make_node Lookup         images:lookup          images.indb:table;
+        make_node Topic          images.orphans         <broker>;
+        on images.orphans READY {
+            connect_edge images:lookup          images.orphans;
+            connect_node images.ondisk:consumer images:lookup;
+        };
 
-      topic_probe;
-      secure 2;
+        topic_probe;
+        secure 2;
     cd ..;
     connect_node images images<i>;
 }

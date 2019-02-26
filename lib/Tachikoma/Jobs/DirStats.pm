@@ -67,12 +67,13 @@ sub fill {
     $path =~ s{/+$}{};
     my $prefix = $self->prefix;
 
-    if ( $path ne $prefix and $path !~ m{^$prefix/} ) {
-        $self->stderr( "ERROR: bad path: $path from ", $message->from );
-        return $self->cancel($message);
+    if ( $path eq $prefix and $path =~ m{^$prefix/} ) {
+        $self->send_stats( $_, $withsums ) for ( glob $path );
     }
-    $self->send_stats( $_, $withsums ) for ( glob $path );
-    return $self->SUPER::fill($message);
+    else {
+        $self->stderr( "ERROR: bad path: $path from ", $message->from );
+    }
+    return $self->cancel($message);
 }
 
 sub send_stats {

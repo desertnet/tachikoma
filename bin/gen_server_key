@@ -3,7 +3,7 @@
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_key 35698 2018-10-28 02:54:48Z chris $
+# $Id: gen_server_key 36137 2019-02-26 02:08:41Z chris $
 #
 use strict;
 use warnings;
@@ -54,9 +54,11 @@ my \$config = Tachikoma->configuration;
         client
         server
     )},
-    # allow_commands => {map {\$_=>1} qw(
-    #     connect_node
-    # )},
+    allow_commands => {map {\$_=>1} qw(
+        connect_node
+        remote
+        var
+    )},
     public_key =>
 q($public_key)};
 

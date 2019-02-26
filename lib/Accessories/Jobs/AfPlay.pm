@@ -34,7 +34,7 @@ sub fill {
         my $arguments = $message->payload;
         $message->payload( $self->execute( '/usr/bin/afplay', $arguments ) );
     }
-    return $self->SUPER::fill($message);
+    return $self->cancel($message);
 }
 
 1;

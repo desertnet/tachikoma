@@ -13,7 +13,7 @@ use Tachikoma::Node;
 use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_EOF TM_KILLME
+    TM_BYTESTREAM TM_STORABLE TM_RESPONSE TM_EOF TM_KILLME
 );
 use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
@@ -128,7 +128,10 @@ FIND_SCRIPT: while ($test_path) {
             "Requested URL not found.\n";
         $self->{sink}->fill($response);
         log_entry( $self, 404, $message );
-        $response->[TYPE] = TM_EOF;
+
+        # send TM_EOF to signal completion of the request
+        #      TM_RESPONSE to notify Load Balancer
+        $response->[TYPE] = TM_EOF | TM_RESPONSE;
         $response->[TO]   = $message->[FROM];
         return $self->{sink}->fill($response);
     }
@@ -222,7 +225,7 @@ FIND_SCRIPT: while ($test_path) {
             my $header = Tachikoma::Message->new;
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $message->[FROM];
-            $header->[STREAM]  = $message->[STREAM] . "\n";    # XXX: LB hack
+            $header->[STREAM]  = $message->[STREAM];
             $header->[PAYLOAD] = join q(),
                 "HTTP/1.1 500 NOT OK\n\n",
                 "Sorry, an error occurred while processing your request.\n";
@@ -248,8 +251,9 @@ FIND_SCRIPT: while ($test_path) {
     untie *STDOUT;
 
     # send TM_EOF to signal completion of the request
+    #      TM_RESPONSE to notify Load Balancer
     my $response = Tachikoma::Message->new;
-    $response->[TYPE]   = TM_EOF;
+    $response->[TYPE]   = TM_EOF | TM_RESPONSE;
     $response->[TO]     = $message->[FROM];
     $response->[STREAM] = $message->[STREAM];
     $self->{sink}->fill($response);
@@ -316,7 +320,7 @@ sub WRITE {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
-        $header->[STREAM]  = $request->[STREAM] . "\n";    # XXX: LB hack;
+        $header->[STREAM]  = $request->[STREAM];
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
         ${$self}->{sink}->fill($header);
         ${$self}->{sent_header} = 'true';
@@ -326,7 +330,7 @@ sub WRITE {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
-    $message->[STREAM]  = $request->[STREAM] . "\n";       # XXX: LB hack;
+    $message->[STREAM]  = $request->[STREAM];
     $message->[PAYLOAD] = $payload;
     ${$self}->{sink}->fill($message);
     return $length;
@@ -340,7 +344,7 @@ sub PRINT {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
-        $header->[STREAM]  = $request->[STREAM] . "\n";    # XXX: LB hack;
+        $header->[STREAM]  = $request->[STREAM];
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
         ${$self}->{sink}->fill($header);
         ${$self}->{sent_header} = 'true';
@@ -350,7 +354,7 @@ sub PRINT {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
-    $message->[STREAM]  = $request->[STREAM] . "\n";       # XXX: LB hack;
+    $message->[STREAM]  = $request->[STREAM];
     $message->[PAYLOAD] = $payload;
     return ${$self}->{sink}->fill($message);
 }
@@ -362,7 +366,7 @@ sub PRINTF {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
-        $header->[STREAM]  = $request->[STREAM] . "\n";    # XXX: LB hack;
+        $header->[STREAM]  = $request->[STREAM];
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
         ${$self}->{sink}->fill($header);
         ${$self}->{sent_header} = 'true';
@@ -373,7 +377,7 @@ sub PRINTF {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
-    $message->[STREAM]  = $request->[STREAM] . "\n";       # XXX: LB hack;
+    $message->[STREAM]  = $request->[STREAM];
     $message->[PAYLOAD] = $payload;
     return ${$self}->{sink}->fill($message);
 }

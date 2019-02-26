@@ -97,7 +97,6 @@ EOF
         print '  ', &$farmer('        DirStats', "           $count DirStats  $args");
     }
     print <<"EOF";
-  make_node Responder          DirStats:cap
   make_node Tee                DirStats:tee
   make_node ClientConnector    DirStats:client_connector DirStats:tee
   make_node Responder          FileSender:cap
@@ -119,7 +118,7 @@ EOF
     connect_sink FileSender:tee FileSender # force responses through
     connect_node FileSender     _parent/FileSender:cap
     listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}${i}1
-    register 0.0.0.0:${port}${i}1 FileSender:client_connector authenticated
+    register 0.0.0.0:${port}${i}1 FileSender:client_connector AUTHENTICATED
     secure 3
   cd ..
 EOF
@@ -130,7 +129,6 @@ EOF
         }
         print <<"EOF";
   connect_node FileSender:cap                output:tee
-  connect_node DirStats                      DirStats:cap
   connect_node DirStats:sieve                DirStats
   connect_node DirStats:buffer               DirStats:sieve
   connect_node DirStats:set_stream           DirStats:buffer
@@ -210,7 +208,7 @@ EOF
   make_node ClientConnector heartbeat:client_connector heartbeat:tee
   connect_node heartbeat heartbeat:tee
   listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}99
-  register 0.0.0.0:${port}99 heartbeat:client_connector authenticated
+  register 0.0.0.0:${port}99 heartbeat:client_connector AUTHENTICATED
 EOF
     }
     print <<"EOF";
@@ -220,7 +218,7 @@ EOF
   listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}00
   listen_inet --scheme=rsa         127.0.0.1:${port}01
   listen_inet --scheme=rsa --use-ssl 0.0.0.0:${port}02
-  register 0.0.0.0:${port}02 DirStats:client_connector authenticated
+  register 0.0.0.0:${port}02 DirStats:client_connector AUTHENTICATED
 
 EOF
     buffer_probe() if ($probe and $count);

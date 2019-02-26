@@ -29,7 +29,7 @@ sub new {
     $self->{type}                   = 'router';
     $self->{handling_error}         = undef;
     $self->{last_fire}              = $Tachikoma::Now || time;
-    $self->{registrations}->{timer} = {};
+    $self->{registrations}->{TIMER} = {};
     bless $self, $class;
     $self->set_timer(1000);
     return $self;
@@ -262,7 +262,7 @@ sub expire_callbacks {
 
 sub notify_timer {
     my $self          = shift;
-    my $registrations = $self->{registrations}->{timer};
+    my $registrations = $self->{registrations}->{TIMER};
     for my $name ( keys %{$registrations} ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {

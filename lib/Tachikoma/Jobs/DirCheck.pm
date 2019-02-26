@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE
+    TM_BYTESTREAM TM_PING TM_PERSIST TM_RESPONSE
 );
 use Digest::MD5;
 use File::Path qw( remove_tree );
@@ -30,7 +30,12 @@ my %Dot_Include = map { $_ => 1 } qw(
 sub fill {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
-    return if ( not $message->type & TM_BYTESTREAM );
+    if ( $message->[TYPE] & TM_PING ) {
+        my $response = Tachikoma::Message->new;
+        $response->[TYPE] = TM_RESPONSE;
+        return $self->SUPER::fill($response);
+    }
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my ( $relative, $stats ) = split m{\n}, $message->payload, 2;
     chomp $relative;
     return $self->stderr("ERROR: bad path: $relative")

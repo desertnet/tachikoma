@@ -1414,7 +1414,7 @@ sub add_broker {
             $node = inet_client_async Tachikoma::Nodes::Socket( $host, $port,
                 $broker_id );
             $node->on_EOF('reconnect');
-            $node->register( 'reconnect' => $self->{name} );
+            $node->register( 'RECONNECT' => $self->{name} );
             $node->sink( $self->sink );
         }
     }

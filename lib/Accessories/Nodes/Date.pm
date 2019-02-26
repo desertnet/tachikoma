@@ -22,7 +22,7 @@ use version; our $VERSION = qv('v2.0.367');
 # e.g.:
 # make_node Date
 # listen_inet --io 0.0.0.0:5432
-# register 0.0.0.0:5432 Date connected
+# register 0.0.0.0:5432 Date CONNECTED
 
 sub fill {
     my $self    = shift;

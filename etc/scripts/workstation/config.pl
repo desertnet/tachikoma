@@ -46,6 +46,8 @@ command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogC
 command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
 command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
 command jobs start_job Tail      http_log         /var/log/tachikoma/http-access.log
+command jobs start_job Tail      tasks_http_log   /var/log/tachikoma/tasks-access.log
+command jobs start_job Tail      tables_http_log  /var/log/tachikoma/tables-access.log
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
@@ -56,6 +58,8 @@ connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
 connect_node local_server_log         server_log:ruleset
 connect_node http_log                 null
+connect_node tasks_http_log           null
+connect_node tables_http_log          null
 
 EOF
 }
@@ -77,25 +81,25 @@ func run_benchmarks {
       connect_edge 127.0.0.1:5000 null;
       connect_edge 127.0.0.1:6000 null;
 
-      on 127.0.0.1:5001 authenticated {
+      on 127.0.0.1:5001 AUTHENTICATED {
           make_node Null <1>:timer 0 512 100;
           connect_sink <1>:timer <1>;
       };
       on 127.0.0.1:5001 EOF rm <1>:timer;
 
-      on 127.0.0.1:5002 authenticated {
+      on 127.0.0.1:5002 AUTHENTICATED {
           make_node Null <1>:timer 0 16 65000;
           connect_sink <1>:timer <1>;
       };
       on 127.0.0.1:5002 EOF rm <1>:timer;
 
-      on 127.0.0.1:6001 connected {
+      on 127.0.0.1:6001 CONNECTED {
           make_node Null <1>:timer 0 512 100;
           connect_sink <1>:timer <1>;
       };
       on 127.0.0.1:6001 EOF rm <1>:timer;
 
-      on 127.0.0.1:6002 connected {
+      on 127.0.0.1:6002 CONNECTED {
           make_node Null <1>:timer 0 16 65000;
           connect_sink <1>:timer <1>;
       };
