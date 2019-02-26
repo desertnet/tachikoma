@@ -67,7 +67,7 @@ sub fill {
     $path =~ s{/+$}{};
     my $prefix = $self->prefix;
 
-    if ( $path eq $prefix and $path =~ m{^$prefix/} ) {
+    if ( $path eq $prefix or $path =~ m{^$prefix/} ) {
         $self->send_stats( $_, $withsums ) for ( glob $path );
     }
     else {
