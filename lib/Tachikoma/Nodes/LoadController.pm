@@ -114,7 +114,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
     }
     elsif ( $type & TM_INFO ) {
-        if ( $message->[STREAM] eq 'reconnect' ) {
+        if ( $message->[STREAM] eq 'RECONNECT' ) {
             $self->note_reconnect( $message->[FROM] );
         }
         else {
