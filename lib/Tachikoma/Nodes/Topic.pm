@@ -47,8 +47,7 @@ sub new {
     $self->{registrations}->{READY} = {};
 
     # sync support
-    $self->{hosts}       = { localhost => [ 5501, 5502 ] };
-    $self->{broker_ids}  = undef;
+    $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
     $self->{persist}     = 'cancel';
     $self->{hub_timeout} = $Hub_Timeout;
     $self->{targets}     = {};
@@ -417,7 +416,7 @@ sub get_partitions {
     die "ERROR: no topic\n" if ( not $self->topic );
     my $partitions = undef;
     $self->sync_error(undef);
-    for my $broker_id ( keys %{ $self->broker_ids } ) {
+    for my $broker_id ( @{ $self->broker_ids } ) {
         $partitions = $self->request_partitions($broker_id);
         if ($partitions) {
             $self->sync_error(undef);
@@ -479,7 +478,7 @@ sub request_partitions {
 sub get_controller {
     my $self       = shift;
     my $controller = undef;
-    for my $broker_id ( keys %{ $self->broker_ids } ) {
+    for my $broker_id ( @{ $self->broker_ids } ) {
         my $target = $self->get_target($broker_id) or next;
         $self->sync_error(undef);
         my $request = Tachikoma::Message->new;
@@ -644,28 +643,10 @@ sub responses {
 }
 
 # sync support
-sub hosts {
-    my $self = shift;
-    if (@_) {
-        $self->{hosts} = shift;
-    }
-    return $self->{hosts};
-}
-
 sub broker_ids {
     my $self = shift;
     if (@_) {
         $self->{broker_ids} = shift;
-    }
-    if ( not defined $self->{broker_ids} ) {
-        my %broker_ids = ();
-        for my $host ( keys %{ $self->hosts } ) {
-            for my $port ( @{ $self->hosts->{$host} } ) {
-                my $broker_id = join q(:), $host, $port;
-                $broker_ids{$broker_id} = undef;
-            }
-        }
-        $self->{broker_ids} = \%broker_ids;
     }
     return $self->{broker_ids};
 }

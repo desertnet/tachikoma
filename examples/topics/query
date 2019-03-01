@@ -33,7 +33,7 @@ usage() if ( $help or not $r or not $topic );
 
 die "ERROR: no topic\n"    if ( not $topic );
 my $engine = Tachikoma::Nodes::QueryEngine->new;
-$engine->hosts({ 'localhost' => [ 5201 .. 5202 ] });
+$engine->host_ports( [ 'localhost:5201', 'localhost:5202' ] );
 $engine->topic($topic);
 my $json = JSON->new;
 $json->canonical(1);

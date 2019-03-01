@@ -31,7 +31,6 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{indexes}    = undef;
-    $self->{hosts}      = undef;
     $self->{host_ports} = undef;
     $self->{results}    = undef;
     $self->{offsets}    = undef;
@@ -234,10 +233,10 @@ sub query {
 sub send_request {
     my ( $self, $request, $responses ) = @_;
     $self->{connector} ||= {};
-    for my $host_port ( keys %{ $self->host_ports } ) {
-        my ( $host, $port ) = split m{:}, $host_port;
+    for my $host_port ( @{ $self->host_ports } ) {
         my $tachikoma = $self->{connector}->{$host_port};
         if ( not $tachikoma ) {
+            my ( $host, $port ) = split m{:}, $host_port;
             $tachikoma =
                 eval { return Tachikoma->inet_client( $host, $port ) };
             next if ( not $tachikoma );
@@ -289,28 +288,10 @@ sub indexes {
 }
 
 # sync support
-sub hosts {
-    my $self = shift;
-    if (@_) {
-        $self->{hosts} = shift;
-    }
-    return $self->{hosts};
-}
-
 sub host_ports {
     my $self = shift;
     if (@_) {
         $self->{host_ports} = shift;
-    }
-    if ( not defined $self->{host_ports} ) {
-        my %host_ports = ();
-        for my $host ( keys %{ $self->hosts } ) {
-            for my $port ( @{ $self->hosts->{$host} } ) {
-                my $host_port = join q(:), $host, $port;
-                $host_ports{$host_port} = undef;
-            }
-        }
-        $self->{host_ports} = \%host_ports;
     }
     return $self->{host_ports};
 }
