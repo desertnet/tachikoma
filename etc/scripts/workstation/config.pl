@@ -13,12 +13,15 @@ make_node JobController      jobs
 command jobs start_job Tail  local_server_log /var/log/tachikoma/tachikoma-server.log
 make_node Ruleset            server_log:ruleset
 make_node Tee                server_log:tee
+make_node LogColor           server_log:color
 make_node Tee                server_log
 make_node Tee                error_log:tee
+make_node LogColor           error_log:color
 make_node Tee                error_log
 make_node Ruleset            local_system_log:ruleset
 make_node Ruleset            system_log:ruleset
 make_node Tee                system_log:tee
+make_node LogColor           system_log:color
 make_node Tee                system_log
 make_node Tee                silc_dn:tee
 make_node Null               null
@@ -42,12 +45,9 @@ cd system_log:ruleset:config
   add 1000 redirect to system_log:tee
 cd ..
 
-command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
-command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
-command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
-command jobs start_job Tail      http_log         /var/log/tachikoma/http-access.log
-command jobs start_job Tail      tasks_http_log   /var/log/tachikoma/tasks-access.log
-command jobs start_job Tail      tables_http_log  /var/log/tachikoma/tables-access.log
+command jobs start_job Tail http_log        /var/log/tachikoma/http-access.log
+command jobs start_job Tail tasks_http_log  /var/log/tachikoma/tasks-access.log
+command jobs start_job Tail tables_http_log /var/log/tachikoma/tables-access.log
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color

@@ -27,7 +27,6 @@ lib/Tachikoma/Jobs/Tail.pm
 lib/Tachikoma/Jobs/TailFork.pm
 lib/Tachikoma/Jobs/TailForks.pm
 lib/Tachikoma/Jobs/Task.pm
-lib/Tachikoma/Jobs/Transform.pm
 lib/Tachikoma/Message.pm
 lib/Tachikoma/Node.pm
 lib/Tachikoma/Nodes/AgeSieve.pm
@@ -122,7 +121,6 @@ lib/Tachikoma/Nodes/Timestamp.pm
 lib/Tachikoma/Nodes/Topic.pm
 lib/Tachikoma/Nodes/TopicProbe.pm
 lib/Tachikoma/Nodes/TopicTop.pm
-lib/Tachikoma/Nodes/Transform.pm
 lib/Tachikoma/Nodes/Uniq.pm
 lib/Tachikoma/Nodes/Watchdog.pm
 lib/Accessories/Jobs/DNS.pm
@@ -131,6 +129,7 @@ lib/Accessories/Jobs/Fortune.pm
 lib/Accessories/Nodes/Block.pm
 lib/Accessories/Nodes/Bucket.pm
 lib/Accessories/Nodes/Date.pm
+lib/Accessories/Nodes/LogColor.pm
 lib/Accessories/Nodes/Number.pm
 lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/Watcher.pm

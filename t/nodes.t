@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3188;
+use Test::More tests => 3152;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -112,7 +112,6 @@ my %nodes = (
     'Tachikoma::Nodes::Timestamp'         => q(),
     'Tachikoma::Nodes::Topic'             => q(broker),
     'Tachikoma::Nodes::TopicProbe'        => q(1),
-    'Tachikoma::Nodes::Transform'         => q(- return 1;),
     'Tachikoma::Nodes::Uniq'              => q(),
     'Tachikoma::Nodes::Watchdog'          => q(),
     'Accessories::Nodes::Block'           => q(),
