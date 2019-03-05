@@ -657,7 +657,7 @@ sub dump_config {
 
     for my $name ( sort keys %{$controllers} ) {
         for my $path ( keys %{ $controllers->{$name} } ) {
-            my $port = $controllers->{$name}->{$path};
+            my $port = $controllers->{$name}->{$path} // q();
             $response .= "  notify $name $path $port\n";
         }
     }
