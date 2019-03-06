@@ -13,8 +13,9 @@ require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
 
-my $cgi  = CGI->new;
-my $path = $cgi->path_info;
+my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
+my $cgi        = CGI->new;
+my $path       = $cgi->path_info;
 $path =~ s(^/)();
 my ( $topic, $partition, $offset, $count ) = split q(/), $path, 4;
 die "no topic\n" if ( not $topic );
@@ -30,6 +31,7 @@ $json->allow_blessed(1);
 $json->convert_blessed(0);
 CORE::state %groups;
 $groups{$topic} //= Tachikoma::Nodes::ConsumerBroker->new($topic);
+$groups{$topic}->broker_ids($broker_ids);
 my $group    = $groups{$topic};
 my $consumer = $group->consumers->{$partition}
     || $group->make_sync_consumer($partition);

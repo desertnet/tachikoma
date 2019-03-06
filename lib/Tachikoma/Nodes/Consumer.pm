@@ -54,6 +54,7 @@ sub new {
     $self->{buffer}         = \$new_buffer;
     $self->{poll_interval}  = $Poll_Interval;
     $self->{last_receive}   = Time::HiRes::time;
+    $self->{cache}          = undef;
     $self->{cache_type}     = undef;
     $self->{cache_dir}      = undef;
     $self->{cache_size}     = undef;
@@ -74,7 +75,6 @@ sub new {
     $self->{status}         = undef;
 
     # sync support
-    $self->{cache}      = undef;
     $self->{host}       = 'localhost';
     $self->{port}       = 4230;
     $self->{target}     = undef;
@@ -456,7 +456,7 @@ sub load_cache {
             }
             elsif ( $cache_type eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
-                    $self->{edge}->on_load_window( $i, $stored );
+                    $self->{cache} = $stored;
                 }
             }
         }
@@ -478,8 +478,9 @@ sub load_cache_complete {
                     return;
                 };
             }
-            if ( $self->{edge}->can('on_load_window_complete') ) {
-                $self->{edge}->on_load_window_complete($i);
+            if ( $self->{edge}->can('on_load_window') ) {
+                $self->{edge}->on_load_window( $i, $self->{cache} );
+                $self->{cache} = undef;
             }
         }
     }
@@ -878,6 +879,14 @@ sub last_receive {
     return $self->{last_receive};
 }
 
+sub cache {
+    my $self = shift;
+    if (@_) {
+        $self->{cache} = shift;
+    }
+    return $self->{cache};
+}
+
 sub cache_type {
     my $self = shift;
     if (@_) {
@@ -1021,14 +1030,6 @@ sub remove_target {
             if ( $self->{poll_interval} );
     }
     return;
-}
-
-sub cache {
-    my $self = shift;
-    if (@_) {
-        $self->{cache} = shift;
-    }
-    return $self->{cache};
 }
 
 sub host {

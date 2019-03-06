@@ -37,9 +37,6 @@ sub new {
     my $c     = { %{ $self->{interpreter}->commands } };
     $c->{$_} = $C{$_} for ( keys %C );
     $self->{interpreter}->commands($c);
-    $self->{registrations}->{MSG_RECEIVED} = {};
-    $self->{registrations}->{MSG_SENT}     = {};
-    $self->{registrations}->{MSG_CANCELED} = {};
     bless $self, $class;
     return $self;
 }
@@ -399,29 +396,6 @@ EOF
         }
     }
     return $value;
-}
-
-sub send_event {
-    my $self          = shift;
-    my $stream        = shift;
-    my $event         = shift;
-    my $registrations = $self->{registrations}->{ $event->{type} };
-    my $note          = Tachikoma::Message->new;
-    $event->{key}       = $stream;
-    $event->{timestamp} = $Tachikoma::Right_Now;
-    $note->[TYPE]       = TM_STORABLE;
-    $note->[STREAM]     = $stream;
-    $note->[PAYLOAD]    = $event;
-    for my $name ( keys %{$registrations} ) {
-        my $node = $Tachikoma::Nodes{$name};
-        if ( not $node ) {
-            $self->stderr("WARNING: $name forgot to unregister");
-            delete $registrations->{$name};
-            next;
-        }
-        $node->fill($note);
-    }
-    return;
 }
 
 $C{list_messages} = sub {

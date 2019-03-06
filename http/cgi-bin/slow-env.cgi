@@ -16,13 +16,12 @@ $Data::Dumper::Useperl  = 1;
 
 my $cgi = CGI->new;
 
-my $output = join('',
+my $output = join( '',
     '<html><head></head><body><pre>',
-    Dumper(\%ENV),
-    '</pre></body></html>', "\n"
-);
-print $cgi->header(-expires => '+1m');
-for my $line (split(m(^), $output)) {
+    Dumper( \%ENV ),
+    '</pre></body></html>', "\n" );
+print $cgi->header( -expires => '+1m' );
+for my $line ( split( m(^), $output ) ) {
     print $line;
     sleep 1;
 }

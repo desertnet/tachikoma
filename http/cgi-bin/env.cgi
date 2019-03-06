@@ -16,10 +16,9 @@ $Data::Dumper::Useperl  = 1;
 
 my $cgi = CGI->new;
 
-print(
-    $cgi->header,
+print( $cgi->header,
     '<html><head></head><body><pre>',
-    Dumper(\%ENV),
+    Dumper( \%ENV ),
     '</pre></body></html>', "\n"
 );
 

@@ -35,7 +35,6 @@ func add_hub {
             set_topic topic1;
             set_group cache                --topic=topic1;
             set_group IDs                  --topic=topic1;
-
             set_topic topic1.ID            --segment_size=(16 * 1024 * 1024);
             set_group IDs                  --topic=topic1.ID;
 
@@ -46,7 +45,6 @@ func add_hub {
                                            --max_lifespan=(7 * 86400);
             set_group cache                --topic=tasks;
             set_group IDs                  --topic=tasks;
-
             set_topic tasks.ID             --num_partitions=4
                                            --segment_size=(1024 * 1024)
                                            --max_lifespan=(7 * 86400);

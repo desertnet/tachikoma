@@ -320,6 +320,7 @@ sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
     my $timestamp   = $stored->{timestamp}       // 0;
+    $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
         $self->{caches}->[$i] ||= [];
         my $cache = $self->{caches}->[$i];
@@ -338,12 +339,6 @@ sub on_load_window {
             pop @{$cache};
         }
     }
-    return;
-}
-
-sub on_load_window_complete {
-    my ( $self, $i ) = @_;
-    $self->{caches}->[$i] ||= [];
     return;
 }
 

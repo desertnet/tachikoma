@@ -16,10 +16,11 @@ use CGI;
 use JSON;    # -support_by_pp;
 use URI::Escape;
 
-my $host = 'localhost';
-my $port = 5100;
-my $cgi  = CGI->new;
-my $path = $cgi->path_info;
+my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
+my $host       = 'localhost';
+my $port       = 5100;
+my $cgi        = CGI->new;
+my $path       = $cgi->path_info;
 $path =~ s(^/)();
 my ( $topic, $field, $escaped ) = split q(/), $path, 3;
 $escaped = $cgi->param('key') if ( not length $escaped );
@@ -36,6 +37,7 @@ CORE::state %consumer;
 
 if ( not defined $consumer{$topic} ) {
     $consumer{$topic} = Tachikoma::Nodes::ConsumerBroker->new($topic);
+    $consumer{$topic}->broker_ids($broker_ids);
 }
 if ( not defined $table{$topic} ) {
     $table{$topic} = Tachikoma::Nodes::Table->new;

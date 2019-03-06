@@ -41,7 +41,14 @@ my $comma = undef;
 while ( my $value = $engine{$topic}->fetchrow ) {
     my $output = undef;
     if ( ref $value eq 'Tachikoma::Message' ) {
-        $output = $value->payload;
+        $output = {
+            type      => $value->type_as_string,
+            from      => $value->from,
+            id        => $value->id,
+            key       => $value->stream,
+            timestamp => $value->timestamp,
+            value     => $value->payload,
+        };
     }
     else {
         $output = $value;

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Buffer.pm 36254 2019-03-06 05:52:34Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -56,6 +56,9 @@ sub new {
     $self->{times_expire}    = $Default_Times_Expire;
     $self->{is_active}       = undef;
     $self->{interpreter}->commands( \%C );
+    $self->{registrations}->{MSG_RECEIVED} = {};
+    $self->{registrations}->{MSG_SENT}     = {};
+    $self->{registrations}->{MSG_CANCELED} = {};
     bless $self, $class;
     return $self;
 }
@@ -118,6 +121,7 @@ sub fill {
         $Tachikoma::Right_Now + $self->{delay}, 0, ${ $copy->packed };
     $self->{buffer_fills}++;
     $buffer_size++;
+    $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
 
     if ( $type & TM_ERROR ) {
         $self->{errors_passed}++;
@@ -175,6 +179,8 @@ sub handle_response {
         $self->{buffer_size} = $buffer_size;
         delete $tiedhash->{$message_id};
         delete $msg_unanswered->{$message_id};
+        $self->send_event( $response->[STREAM],
+            { 'type' => 'MSG_CANCELED' } );
     }
     else {
         delete $msg_unanswered->{$message_id};
@@ -349,11 +355,63 @@ sub refill {
         $self->{pmsg_sent}++;
         $msg_unanswered->{$key} = [ $Tachikoma::Right_Now, $message->[TYPE] ];
         $self->{sink}->fill($message);
+        $self->send_event( $message->[STREAM], { 'type' => 'MSG_SENT' } );
     }
     else {
         $self->{buffer_size}-- if ( $self->{buffer_size} > 0 );
         delete $msg_unanswered->{$key};
         delete $tiedhash->{$key};
+    }
+    return;
+}
+
+sub lookup {
+    my ( $self, @args ) = @_;
+    my $tiedhash = $self->{tiedhash};
+    my $value    = undef;
+    if ( length $args[0] ) {
+        my $key = shift @args;
+        my ( $timestamp, $attempts, $packed ) = unpack 'F N a*',
+            $tiedhash->{$key};
+        my $message = eval { Tachikoma::Message->new( \$packed ) };
+        $value = {
+            next_attempt      => $timestamp,
+            attempts          => $attempts,
+            message_timestamp => $message->[TIMESTAMP],
+            message_stream    => $message->[STREAM],
+            message_payload   => $message->payload
+            }
+            if ($message);
+    }
+    else {
+        $value = [];
+        for my $key ( keys %{$tiedhash} ) {
+            next if ( not length $key );
+            push @{$value}, $self->lookup($key);
+        }
+    }
+    return $value;
+}
+
+sub send_event {
+    my $self          = shift;
+    my $stream        = shift;
+    my $event         = shift;
+    my $registrations = $self->{registrations}->{ $event->{type} };
+    my $note          = Tachikoma::Message->new;
+    $event->{key}       = $stream;
+    $event->{timestamp} = $Tachikoma::Right_Now;
+    $note->[TYPE]       = TM_STORABLE;
+    $note->[STREAM]     = $stream;
+    $note->[PAYLOAD]    = $event;
+    for my $name ( keys %{$registrations} ) {
+        my $node = $Tachikoma::Nodes{$name};
+        if ( not $node ) {
+            $self->stderr("WARNING: $name forgot to unregister");
+            delete $registrations->{$name};
+            next;
+        }
+        $node->fill($note);
     }
     return;
 }

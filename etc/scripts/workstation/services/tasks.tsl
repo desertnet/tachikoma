@@ -6,7 +6,7 @@ connect_hub
 
 
 make_node Topic     tasks       <broker>
-make_node Queue     tasks:queue tasks.db 4
+make_node Buffer    tasks:queue tasks.db 4
 make_node JobFarmer tasks:farm  4 Task '
     echo --- KEY: "$KEY", VALUE: "$VALUE" ---;
     ls /NONEXISTANT;
@@ -15,6 +15,7 @@ make_node JobFarmer tasks:farm  4 Task '
 register     tasks:queue tasks MSG_RECEIVED
 register     tasks:queue tasks MSG_SENT
 register     tasks:queue tasks MSG_CANCELED
+command      tasks:queue buffer_mode ordered
 connect_node tasks:farm  tasks
 
 
