@@ -11,7 +11,7 @@ use warnings;
 use Tachikoma::Nodes::Topic;
 require '/usr/local/etc/tachikoma.conf';
 use CGI;
-use Digest::MD5 qw( md5 );
+use Digest::MD5 qw( md5 md5_hex );
 use URI::Escape;
 
 my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
@@ -22,8 +22,7 @@ my ( $topic, $escaped ) = split q(/), $path, 2;
 my $postdata = $cgi->param('POSTDATA');
 die "wrong method\n" if ( not length $postdata );
 die "no topic\n"     if ( not length $topic );
-die "no key\n"       if ( not length $escaped );
-my $key    = uri_unescape($escaped);
+my $key    = length $escaped ? uri_unescape($escaped) : md5_hex(rand);
 my $broker = Tachikoma::Nodes::Topic->new($topic);
 $broker->broker_ids($broker_ids);
 my $partitions   = $broker->get_partitions;
