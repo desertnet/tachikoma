@@ -1959,12 +1959,18 @@ $C{list_consumer_groups} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $glob     = $command->arguments;
-    my $results  = [ [ [ 'GROUP NAME' => 'left' ], [ 'TOPIC' => 'left' ] ] ];
+    my $results  = [
+        [   [ 'GROUP NAME' => 'left' ],
+            [ 'TOPIC'      => 'left' ],
+            [ 'CACHE SIZE' => 'right' ]
+        ]
+    ];
     for my $group_name ( sort keys %{ $self->patron->consumer_groups } ) {
         next if ( $glob and $group_name !~ m{$glob} );
         my $consumer_group = $self->patron->consumer_groups->{$group_name};
         for my $topic_name ( sort keys %{ $consumer_group->{topics} } ) {
-            push @{$results}, [ $group_name, $topic_name ];
+            my $cache_size = $consumer_group->{topics}->{$topic_name};
+            push @{$results}, [ $group_name, $topic_name, $cache_size ];
         }
     }
     return $self->response( $envelope, $self->tabulate($results) );
