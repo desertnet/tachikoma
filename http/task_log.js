@@ -1,4 +1,5 @@
-var serverUrl = "http://" + window.location.hostname + ":4242/cgi-bin/topic.cgi/tasks/0/recent/500";
+var serverUrl = "http://" + window.location.hostname
+              + ":4242/cgi-bin/topic.cgi/tasks/0/recent/500";
 var xhttp     = new XMLHttpRequest();
 var timer     = null;
 var output    = [];
@@ -39,7 +40,7 @@ function start_timer() {
                                  + "<td>" + payload             + "</td></tr>";
                     output.unshift(row);
                 }
-                while ( output.length > 500 ) {
+                while (output.length > 1000) {
                     output.pop();
                 }
                 document.getElementById("output").innerHTML

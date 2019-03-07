@@ -5,20 +5,22 @@ var xhttp       = new XMLHttpRequest();
 var parsed_url  = new URL(window.location.href);
 var key         = parsed_url.searchParams.get("key");
 var timer       = null;
+var data        = {};
 if (key) {
-    _execute_query({
+    data = {
         "field": field,
         "op":    "eq",
         "key":   key
-    });
+    };
 }
 else {
-    _execute_query({
+    data = {
         "field": field,
         "op":    "keys",
         "key":   ""
-    });
+    };
 }
+_execute_query();
 
 function render_form() {
     var form_html = '<form onsubmit="execute_query(); return false;" id="query_params">'
@@ -29,7 +31,7 @@ function render_form() {
 }
 
 function execute_query() {
-    var data = {};
+    data = {};
     var form = document.getElementById("query_params");
     for (var i = 0, l = form.length; i < l; ++i) {
         var input = form[i];
@@ -44,10 +46,10 @@ function execute_query() {
     else {
         data["op"] = "keys";
     }
-    _execute_query(data);
+    _execute_query();
 }
 
-function _execute_query(data) {
+function _execute_query() {
     xhttp.addEventListener("progress", updateProgress);
     if (data["op"] == "keys") {
         xhttp.onreadystatechange = function() {
@@ -62,6 +64,9 @@ function _execute_query(data) {
                 }
                 document.getElementById("output").innerHTML = output.join("");
             }
+            else if (this.readyState == 4) {
+                timer = setTimeout(tick, 2000);
+            }
         };
     }
     else {
@@ -69,7 +74,8 @@ function _execute_query(data) {
             var output = [];
             if (this.readyState == 4 && this.status == 200) {
                 if (this.responseText) {
-                    var msg = JSON.parse(this.responseText);
+                    var msg     = JSON.parse(this.responseText);
+                    var running = 1;
                     if (msg[0].error) {
                         document.getElementById("output").innerHTML = "<em>"
                             + msg[0].error + "</em>";
@@ -102,8 +108,11 @@ function _execute_query(data) {
                                          + "<td>" + ev.key             + "</td>"
                                          + "<td>" + payload            + "</td></tr>";
                             output.push(row);
+                            if (ev.type == "MSG_CANCELED") {
+                                running = 0;
+                            }
                         }
-                        while ( output.length > 500 ) {
+                        while (output.length > 1000) {
                             output.shift();
                         }
                         document.getElementById("output").innerHTML
@@ -115,21 +124,30 @@ function _execute_query(data) {
                                     + output.join("")
                                     + "</table>";
                     }
+                    if (running) {
+                        timer = setTimeout(tick, 2000);
+                    }
                 }
                 else {
                     document.getElementById("output").innerHTML = "<em>no results</em>";
                 }
             }
+            else if (this.readyState == 4) {
+                timer = setTimeout(tick, 2000);
+            }
         };
     }
-    console.log(serverUrl);
+    timer = setTimeout(tick, 0);
+}
+
+function updateProgress (oEvent) {
+    document.getElementById("output").innerHTML = "<pre>loaded " + oEvent.loaded + " bytes</pre>";
+}
+
+function tick() {
     xhttp.open("POST", serverUrl, true);
     xhttp.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     var json_data = JSON.stringify(data)
     console.log(json_data);
     xhttp.send(json_data);
-}
-
-function updateProgress (oEvent) {
-    document.getElementById("output").innerHTML = "<pre>loaded " + oEvent.loaded + " bytes</pre>";
 }

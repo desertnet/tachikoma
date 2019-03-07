@@ -44,8 +44,17 @@ else {
 }
 my @messages = ();
 my $results  = undef;
-do { push @messages, @{ $consumer->fetch } }
-    while ( @messages < $count and not $consumer->eos );
+if ( $offset eq 'recent' ) {
+    do {
+        push @messages, @{ $consumer->fetch };
+        shift @messages while ( @messages > $count );
+    }
+    while ( not $consumer->eos );
+}
+else {
+    do { push @messages, @{ $consumer->fetch } }
+        while ( @messages < $count and not $consumer->eos );
+}
 if ( $consumer->sync_error ) {
     print STDERR $consumer->sync_error;
     $results = {
@@ -56,7 +65,7 @@ if ( $consumer->sync_error ) {
 else {
     my @output      = ();
     my $i           = 1;
-    my $next_offset = $offset eq 'end' ? $consumer->offset : $offset;
+    my $next_offset = $offset =~ m{\D} ? $consumer->offset : $offset;
     for my $message (@messages) {
         $next_offset = ( split q(:), $message->id, 2 )[1];
         push @output, $message->payload;
