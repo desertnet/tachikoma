@@ -38,7 +38,7 @@ topic_probe
 # listen for http connections
 make_node HTTP_Responder responder /tmp/http <tachikoma.tables.http.port>
 make_node HTTP_Timeout
-make_node Log            http:log  /var/log/tachikoma/<name>-access.log
+make_node Log            http:log  /var/log/tachikoma/<name>-access.log append 134217728
 make_node HTTP_Route     root
 make_node HTTP_Auth      root:auth <home>/Sites/.htpasswd tachikoma-tools
 make_node HTTP_File      root:dir  <home>/Sites
