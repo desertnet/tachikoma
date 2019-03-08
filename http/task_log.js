@@ -107,7 +107,7 @@ function toggle_task_output() {
     }
     server_url = start_url;
     output     = [];
-    tick();
+    timer      = setTimeout(tick, 0);
 }
 
 function tick() {
