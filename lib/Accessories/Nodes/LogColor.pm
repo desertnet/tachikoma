@@ -28,7 +28,7 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node LogColor <node name> <directory> [ <timeout> ]
+make_node LogColor <node name>
 EOF
 }
 
