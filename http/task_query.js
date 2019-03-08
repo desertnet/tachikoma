@@ -50,7 +50,6 @@ function execute_query() {
 }
 
 function _execute_query() {
-    xhttp.addEventListener("progress", updateProgress);
     if (data["op"] == "keys") {
         xhttp.onreadystatechange = function() {
             if (this.readyState == 4 && this.status == 200) {
@@ -138,10 +137,6 @@ function _execute_query() {
         };
     }
     timer = setTimeout(tick, 0);
-}
-
-function updateProgress (oEvent) {
-    document.getElementById("output").innerHTML = "<pre>loaded " + oEvent.loaded + " bytes</pre>";
 }
 
 function tick() {
