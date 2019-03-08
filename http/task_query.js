@@ -1,6 +1,6 @@
 var topic       = "tasks";
 var field       = "tasks.ID:index";
-var serverUrl   = "http://" + window.location.hostname + ":4242/cgi-bin/query.cgi/" + topic;
+var server_url  = "http://" + window.location.hostname + ":4242/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
 var parsed_url  = new URL(window.location.href);
 var key         = parsed_url.searchParams.get("key");
@@ -140,7 +140,7 @@ function _execute_query() {
 }
 
 function tick() {
-    xhttp.open("POST", serverUrl, true);
+    xhttp.open("POST", server_url, true);
     xhttp.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     var json_data = JSON.stringify(data)
     console.log(json_data);

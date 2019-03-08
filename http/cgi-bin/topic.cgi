@@ -17,7 +17,16 @@ my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
 my $cgi        = CGI->new;
 my $path       = $cgi->path_info;
 $path =~ s(^/)();
-my ( $topic, $partition, $offset, $count ) = split q(/), $path, 4;
+my ( $topic, $partition, $location, $count ) = split q(/), $path, 4;
+my $offset = undef;
+if ($location) {
+    if ($location eq 'last') {
+        $offset = 'recent';
+    }
+    else {
+        $offset = $location;
+    }
+}
 die "no topic\n" if ( not $topic );
 $partition ||= 0;
 $offset    ||= 'start';
@@ -44,8 +53,16 @@ else {
 }
 my @messages = ();
 my $results  = undef;
-do { push @messages, @{ $consumer->fetch } }
-    while ( @messages < $count and not $consumer->eos );
+if ($location eq 'last') {
+    do {
+        push @messages, @{ $consumer->fetch };
+        shift @messages while ( @messages > $count );
+    } while ( not $consumer->eos );
+}
+else {
+    do { push @messages, @{ $consumer->fetch } }
+        while ( @messages < $count and not $consumer->eos );
+}
 if ( $consumer->sync_error ) {
     print STDERR $consumer->sync_error;
     $results = {

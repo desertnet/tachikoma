@@ -1,6 +1,17 @@
-var start_url        = "http://" + window.location.hostname
-                     + ":4242/cgi-bin/topic.cgi/tasks/0/recent/500";
-var server_url       = start_url;
+var server_host      = window.location.hostname;
+var server_port      = 4242;
+var server_path      = "/cgi-bin/topic.cgi"
+var topic            = "tasks";
+var partition        = 0;
+var parsed_url       = new URL(window.location.href);
+var count            = parsed_url.searchParams.get("count") || 1000;
+var prefix_url       = "http://" + server_host + ":" + server_port
+                     + server_path + "/"
+                     + topic       + "/"
+                     + partition   + "/";
+var last_url         = prefix_url  + "/last/"   + count;
+var recent_url       = prefix_url  + "/recent/" + count;
+var server_url       = last_url;
 var xhttp            = new XMLHttpRequest();
 var timer            = null;
 var cached_msg       = [];
@@ -13,7 +24,6 @@ function start_timer() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
-                // console.log(server_url);
                 timer = setTimeout(tick, 2000);
                 if (dirty) {
                     display_table();
@@ -72,7 +82,7 @@ function update_table() {
         }
         output.unshift(row);
     }
-    while (output.length > 1000) {
+    while (output.length > count) {
         output.pop();
     }
     dirty = 1;
@@ -100,14 +110,17 @@ function toggle_task_output() {
     if (show_task_output) {
         show_task_output = 0;
         document.getElementById("toggle").innerHTML = "show output";
+        clearTimeout(timer);
+        server_url = recent_url;
+        timer      = setTimeout(tick, 0);
     }
     else {
         show_task_output = 1;
         document.getElementById("toggle").innerHTML = "hide output";
     }
-    server_url = start_url;
-    output     = [];
-    timer      = setTimeout(tick, 0);
+    output = [];
+    update_table();
+    display_table();
 }
 
 function tick() {

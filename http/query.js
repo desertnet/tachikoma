@@ -1,4 +1,4 @@
-var serverUrl   = "http://" + window.location.hostname + ":4242/cgi-bin/query.cgi/" + topic;
+var server_url  = "http://" + window.location.hostname + ":4242/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
 var num_queries = 1;
 var is_storable = /TM_STORABLE/;
@@ -72,7 +72,7 @@ function execute_query() {
                     });
                     for (var i = 0; i < msg.length; i++) {
                         if (msg[i].type.match(is_storable)) {
-                            output.push(JSON.stringify(msg[i].value) + "\n");
+                            output.push(JSON.stringify(msg[i].value, null, 2) + "\n");
                         }
                         else {
                             output.push(msg[i].value);
@@ -115,7 +115,7 @@ function execute_query() {
             "key" : data["0.key"]
         };
     }
-    xhttp.open("POST", serverUrl, true);
+    xhttp.open("POST", server_url, true);
     xhttp.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     var json_data = JSON.stringify(query_data)
     xhttp.send(json_data);

@@ -1,6 +1,6 @@
-var serverUrl = "http://" + window.location.hostname + ":2501/fetch/tasks:queue";
-var xhttp     = new XMLHttpRequest();
-var timer     = null;
+var server_url = "http://" + window.location.hostname + ":2501/fetch/tasks:queue";
+var xhttp      = new XMLHttpRequest();
+var timer      = null;
 
 function start_timer() {
     xhttp.onreadystatechange = function() {
@@ -23,8 +23,11 @@ function start_timer() {
                 else {
                     tr = "<tr bgcolor=\"#DDDDDD\">";
                 }
+                var key_href = "<a href=\"http://localhost:4242/task_query.html?key="
+                             + msg[i].message_stream + "\">"
+                             + msg[i].message_stream + "</a>";
                 var row = tr + "<td>" + date.toISOString()      + "</td>"
-                             + "<td>" + msg[i].message_stream   + "</td>"
+                             + "<td>" + key_href                + "</td>"
                              + "<td>" + msg[i].message_payload  + "</td>"
                              + "<td>" + msg[i].attempts         + "</td>"
                              + "<td>" + next_date.toISOString() + "</td></tr>";
@@ -52,6 +55,6 @@ function start_timer() {
 }
 
 function tick() {
-    xhttp.open("GET", serverUrl, true);
+    xhttp.open("GET", server_url, true);
     xhttp.send();
 }
