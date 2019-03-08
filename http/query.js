@@ -1,5 +1,3 @@
-var topic       = "server_log";
-var indexes     = [ "hostname", "process", "timestamp" ];
 var serverUrl   = "http://" + window.location.hostname + ":4242/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
 var num_queries = 1;
