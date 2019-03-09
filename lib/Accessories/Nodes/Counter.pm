@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Counter
+# Accessories::Nodes::Counter
 # ----------------------------------------------------------------------
 #
 # $Id: Counter.pm 5634 2010-05-14 23:48:15Z chris $
 #
 
-package Tachikoma::Nodes::Counter;
+package Accessories::Nodes::Counter;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;

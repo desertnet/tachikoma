@@ -45,7 +45,6 @@ lib/Tachikoma/Nodes/CommandInterpreter.pm
 lib/Tachikoma/Nodes/Consumer.pm
 lib/Tachikoma/Nodes/ConsumerBroker.pm
 lib/Tachikoma/Nodes/ConsumerGroup.pm
-lib/Tachikoma/Nodes/Counter.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
 lib/Tachikoma/Nodes/Edge.pm
@@ -128,6 +127,7 @@ lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/Fortune.pm
 lib/Accessories/Nodes/Block.pm
 lib/Accessories/Nodes/Bucket.pm
+lib/Accessories/Nodes/Counter.pm
 lib/Accessories/Nodes/Date.pm
 lib/Accessories/Nodes/LogColor.pm
 lib/Accessories/Nodes/Number.pm
