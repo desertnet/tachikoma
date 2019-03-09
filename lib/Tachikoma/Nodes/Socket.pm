@@ -349,7 +349,6 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->set_state( 'CONNECTED' => $node->{name} );
     $self->{counter}++;
     return;
 }
@@ -389,7 +388,6 @@ sub init_socket {
         return;
     }
     $self->register_reader_node;
-    $self->set_state( 'CONNECTED' => $self->{name} );
     return $self->init_connect;
 }
 
@@ -536,6 +534,7 @@ sub init_connect {
         $self->{drain_fh} = \&reply_to_server_challenge;
         $self->{fill_fh}  = \&Tachikoma::Nodes::FileHandle::null_cb;
     }
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return;
 }
 
@@ -551,6 +550,7 @@ sub init_accept {
     $self->{auth_timestamp} = $message->[TIMESTAMP];
     push @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return;
 }
 
