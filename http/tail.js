@@ -1,6 +1,17 @@
-var xhttp      = new XMLHttpRequest();
-var server_url = "http://" + window.location.hostname + ":4242/cgi-bin/topic.cgi/tasks/0/recent/100";
-var timer      = null;
+var parsed_url  = new URL(window.location.href);
+var server_host = window.location.hostname;
+var server_port = 4242;
+var server_path = "/cgi-bin/topic.cgi"
+var topic       = parsed_url.searchParams.get("topic") || "server_log";
+var partition   = 0;
+var count       = parsed_url.searchParams.get("count") || 100;
+var prefix_url  = "http://" + server_host + ":" + server_port
+                + server_path + "/"
+                + topic       + "/"
+                + partition   + "/";
+var server_url  = prefix_url  + "/recent/" + count;
+var xhttp       = new XMLHttpRequest();
+var timer       = null;
 
 function start_timer() {
     xhttp.onreadystatechange = function() {
@@ -12,7 +23,8 @@ function start_timer() {
                 }
             }
             else {
-                document.getElementById("output").innerHTML = "<pre>" + JSON.stringify(msg, null, 2) + "</pre>";
+                document.getElementById("output").innerHTML = "<pre>"
+                    + msg.payload.join("") + "</pre>";
                 server_url = msg.next_url;
                 if (timer != null) {
                     timer = setTimeout(tick, 0);
