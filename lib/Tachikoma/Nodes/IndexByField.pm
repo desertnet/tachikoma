@@ -33,10 +33,7 @@ sub fill {
     $response->[ID]        = $message->[ID];
     $response->[STREAM]    = $message->payload->{$field};
     $response->[TIMESTAMP] = $message->[TIMESTAMP];
-    $response->[PAYLOAD] =
-        length( $message->[PAYLOAD] )
-        ? "$partition:$offset\n"
-        : q();
+    $response->[PAYLOAD]   = "$partition:$offset\n";
     return $self->{sink}->fill($response);
 }
 
