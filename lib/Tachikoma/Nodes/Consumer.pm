@@ -411,9 +411,7 @@ sub commit_offset_async {
         cache_type => $self->{cache_type},
         cache      => $cache,
     };
-    return
-        if ( not $self->{sink}
-        or ( not $self->{owner} and not $self->{edge} ) );
+    return if ( not $self->{sink} );
     if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
         $self->{edge}->on_save_snapshot( $i, $stored )
