@@ -105,7 +105,7 @@ is( $var->{bar}, 8,  'arithmetic in assignment is evaluated' );
 
 #####################################################################
 
-$parse_tree = $shell->parse('var baz ||= <foo> + 4; baz ||= <foo> + 5');
+$parse_tree = $shell->parse('var baz ||= <foo> + 4; baz//=<foo> + 5');
 $answer     = q();
 $shell->send_command($parse_tree);
 is( $answer,     "", 'nothing is sent by logical assignment operators' );
