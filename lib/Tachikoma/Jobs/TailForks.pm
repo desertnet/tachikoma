@@ -200,7 +200,9 @@ sub rescan_files {
         my $path = $files->{$file}->[0];
         next if ( not -e $path );
         if ( not $Tachikoma::Nodes{"$file:tail"} ) {
-            next if ( keys( %{$forking} ) >= $Max_Forking );
+            next
+                if ( not $forking->{$file}
+                and keys( %{$forking} ) >= $Max_Forking );
             my $tiedhash    = $self->tiedhash;
             my $filepos     = $tiedhash->{$file} || 0;
             my $destination = $self->get_destination($file);
