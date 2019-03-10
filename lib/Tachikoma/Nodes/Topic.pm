@@ -44,6 +44,7 @@ sub new {
     $self->{batch}                  = undef;
     $self->{batch_size}             = 0;
     $self->{responses}              = {};
+    $self->{valid_broker_paths}     = undef;
     $self->{registrations}->{READY} = {};
 
     # sync support
@@ -111,7 +112,7 @@ sub fill {
         }
         $self->{partitions} = undef;
     }
-    elsif ( $message->[FROM] ne $self->{broker_path} ) {
+    elsif ( not $self->is_broker_path( $message->[FROM] ) ) {
         if ( $self->{partitions} ) {
             $self->batch_message($message);
         }
@@ -185,6 +186,7 @@ sub fire {
     }
     if ($Tachikoma::Right_Now - $self->{last_check} > $self->{poll_interval} )
     {
+        $self->{valid_broker_paths} = undef;
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_REQUEST;
         $message->[FROM]    = $self->{name};
@@ -259,6 +261,24 @@ sub update_partitions {
     }
     $self->{partitions} = $partitions if ($okay);
     return $okay;
+}
+
+sub is_broker_path {
+    my ( $self, $path ) = @_;
+    my $paths = $self->{valid_broker_paths};
+    if ( not $paths ) {
+        $paths = { $self->{broker_path} => 1 };
+        my $broker_node = $Tachikoma::Nodes{ $self->{broker_path} };
+        if (    $broker_node
+            and $broker_node->isa('Tachikoma::Nodes::LoadBalancer') )
+        {
+            for my $owner ( @{ $broker_node->owner } ) {
+                $paths->{$owner} = 1;
+            }
+        }
+        $self->{valid_broker_paths} = $paths;
+    }
+    return $paths->{$path};
 }
 
 ########################
@@ -640,6 +660,14 @@ sub responses {
         $self->{responses} = shift;
     }
     return $self->{responses};
+}
+
+sub valid_broker_paths {
+    my $self = shift;
+    if (@_) {
+        $self->{valid_broker_paths} = shift;
+    }
+    return $self->{valid_broker_paths};
 }
 
 # sync support

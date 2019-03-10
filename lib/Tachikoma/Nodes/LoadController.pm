@@ -26,11 +26,12 @@ my %C          = ();
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
+    $self->{host_ports}     = [];
     $self->{connectors}     = {};
     $self->{controllers}    = {};
     $self->{buffers}        = {};
     $self->{load_balancers} = {};
-    $self->{tees}           = {};
+    $self->{misc}           = {};
     $self->{circuit_tester} = 'CircuitTester';
     $self->{circuits}       = {};
     $self->{id_regex}       = '^([^:.]+)';
@@ -55,6 +56,12 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
+        my ( $name, $path, @host_ports ) = split q( ), $self->{arguments};
+        if ( @host_ports ) {
+            $self->misc->{$name} = $path;
+            $self->host_ports(\@host_ports);
+            $self->set_timer;
+        }
     }
     return $self->{arguments};
 }
@@ -79,10 +86,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     $id, $path
                     : $id );
             }
-            my $tees = $self->{tees};
-            for my $name ( keys %{$tees} ) {
+            my $misc = $self->{misc};
+            for my $name ( keys %{$misc} ) {
                 next if ( not $Tachikoma::Nodes{$name} );
-                my $path = $tees->{$name};
+                my $path = $misc->{$name};
                 $self->connect_node( $name, $path
                     ? join q(/),
                     $id, $path
@@ -180,6 +187,17 @@ sub fire {
         }
         $self->{should_kick} = undef;
     }
+    if ( @{ $self->{host_ports} } ) {
+        while ( my $host_port = shift @{$self->{host_ports}} ) {
+            my ( $host, $port, $use_SSL ) = split m{:}, $host_port, 3;
+            $self->add_connector(
+                id      => "$host:$port",
+                host    => $host,
+                port    => $port,
+                use_SSL => $use_SSL
+            );
+        }
+    }
     $self->stop_timer
         if ( not keys %{$offline} and not $self->{should_kick} );
     return;
@@ -191,7 +209,7 @@ sub note_reconnect {
     my $connectors     = $self->{connectors};
     my $buffers        = $self->{buffers};
     my $load_balancers = $self->{load_balancers};
-    my $tees           = $self->{tees};
+    my $misc           = $self->{misc};
     my $offline        = $self->{offline};
     if ( not $offline->{$id} ) {
 
@@ -206,8 +224,8 @@ sub note_reconnect {
                 $id, $path
                 : $id );
         }
-        for my $name ( keys %{$tees} ) {
-            my $path = $tees->{$name};
+        for my $name ( keys %{$misc} ) {
+            my $path = $misc->{$name};
             $self->disconnect_node( $name, $path
                 ? join q(/),
                 $id, $path
@@ -230,7 +248,7 @@ $C{help} = sub {
             . "          list_controllers\n"
             . "          list_buffers\n"
             . "          list_load_balancers\n"
-            . "          list_tees\n"
+            . "          list_misc\n"
             . "          list_circuits\n"
             . "          connect <connector name>\n"
             . "          disconnect <connector name>\n"
@@ -240,8 +258,8 @@ $C{help} = sub {
             . "          unbuffer <buffer name>\n"
             . "          balance <load balancer name> <path>\n"
             . "          unbalance <load balancer name>\n"
-            . "          tee <tee name> <path>\n"
-            . "          untee <tee name>\n"
+            . "          add <name> <path>\n"
+            . "          remove <name>\n"
             . "          circuit_tester [ <circuit tester> ]\n"
             . "          circuit <path>\n"
             . "          uncircuit <path>\n"
@@ -312,27 +330,27 @@ $C{list_load_balancers} = sub {
 
 $C{lsl} = $C{list_load_balancers};
 
-$C{list_tees} = sub {
+$C{list_misc} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $tees     = $self->patron->tees;
+    my $misc     = $self->patron->misc;
     my $response = [ [ [ 'TEE' => 'left' ], [ 'PATH' => 'left' ] ] ];
-    for my $id ( sort keys %{$tees} ) {
-        push @{$response}, [ $id, $tees->{$id} ];
+    for my $id ( sort keys %{$misc} ) {
+        push @{$response}, [ $id, $misc->{$id} ];
     }
     return $self->response( $envelope, $self->tabulate($response) );
 };
 
-$C{lst} = $C{list_tees};
+$C{lst} = $C{list_misc};
 
 $C{list_circuits} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $tees     = $self->patron->circuits;
+    my $misc     = $self->patron->circuits;
     my $response = q();
-    for my $id ( sort keys %{$tees} ) {
+    for my $id ( sort keys %{$misc} ) {
         $response .= "$id\n";
     }
     return $self->response( $envelope, $response );
@@ -473,28 +491,30 @@ $C{unbalance} = sub {
     return $self->okay($envelope);
 };
 
-$C{tee} = sub {
+$C{add} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
     my ( $name, $path ) = split q( ), $command->arguments, 2;
     if ( not $name ) {
-        return $self->error( $envelope, "usage: tee <node name> <path>\n" );
+        return $self->error( $envelope, "usage: add <node name> <path>\n" );
     }
-    $self->patron->tees->{$name} = $path;
+    $self->patron->misc->{$name} = $path;
     return $self->okay($envelope);
 };
 
-$C{untee} = sub {
+$C{remove} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
     if ( not length $command->arguments ) {
-        return $self->error( $envelope, "no tee specified\n" );
+        return $self->error( $envelope, "no name specified\n" );
     }
-    delete $self->patron->tees->{ $command->arguments };
+    delete $self->patron->misc->{ $command->arguments };
     return $self->okay($envelope);
 };
+
+$C{rm} = $C{remove};
 
 $C{circuit_tester} = sub {
     my $self     = shift;
@@ -576,13 +596,15 @@ sub add_connector {
     my $host    = $args{host};
     my $port    = $args{port};
     my $use_SSL = $args{use_SSL};
-    $self->{sink}->connect_inet(
-        name      => $id,
-        host      => $host,
-        port      => $port,
-        use_SSL   => $use_SSL ? 1 : q(),
-        reconnect => 1
-    ) if ( not $Tachikoma::Nodes{$id} );
+    if ( $self->{sink} ) {
+        $self->{sink}->connect_inet(
+            name      => $id,
+            host      => $host,
+            port      => $port,
+            use_SSL   => $use_SSL ? 1 : q(),
+            reconnect => 1
+        ) if ( not $Tachikoma::Nodes{$id} );
+    }
     $Tachikoma::Nodes{$id}->register( 'RECONNECT' => $self->name );
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = 1;
@@ -611,9 +633,9 @@ sub remove_connector {
         my $path = $load_balancers->{$name};
         $self->disconnect_node( $name, $path ? join q(/), $id, $path : $id );
     }
-    my $tees = $self->tees;
-    for my $name ( keys %{$tees} ) {
-        my $path = $tees->{$name};
+    my $misc = $self->misc;
+    for my $name ( keys %{$misc} ) {
+        my $path = $misc->{$name};
         $self->disconnect_node( $name, $path ? join q(/), $id, $path : $id );
     }
     my $tester = (
@@ -648,7 +670,7 @@ sub dump_config {
     my $controllers    = $self->{controllers};
     my $buffers        = $self->{buffers};
     my $load_balancers = $self->{load_balancers};
-    my $tees           = $self->{tees};
+    my $misc           = $self->{misc};
     my $circuit_tester = $self->{circuit_tester};
     my $circuits       = $self->{circuits};
     my $id_regex       = $self->{id_regex};
@@ -669,9 +691,9 @@ sub dump_config {
         my $path = $load_balancers->{$name};
         $response .= "  balance $name" . ( $path ? " $path" : q() ) . "\n";
     }
-    for my $name ( sort keys %{$tees} ) {
-        my $path = $tees->{$name};
-        $response .= "  tee $name" . ( $path ? " $path" : q() ) . "\n";
+    for my $name ( sort keys %{$misc} ) {
+        my $path = $misc->{$name};
+        $response .= "  add $name" . ( $path ? " $path" : q() ) . "\n";
     }
     $response .= "  circuit_tester $circuit_tester\n" if ($circuit_tester);
     for my $name ( sort keys %{$circuits} ) {
@@ -684,6 +706,14 @@ sub dump_config {
     }
     $response .= "cd ..\n";
     return $response;
+}
+
+sub host_ports {
+    my $self = shift;
+    if (@_) {
+        $self->{host_ports} = shift;
+    }
+    return $self->{host_ports};
 }
 
 sub connectors {
@@ -718,12 +748,12 @@ sub load_balancers {
     return $self->{load_balancers};
 }
 
-sub tees {
+sub misc {
     my $self = shift;
     if (@_) {
-        $self->{tees} = shift;
+        $self->{misc} = shift;
     }
-    return $self->{tees};
+    return $self->{misc};
 }
 
 sub circuit_tester {
