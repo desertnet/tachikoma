@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 36137 2019-02-26 02:08:41Z chris $
+# $Id: Shell.pm 36596 2019-03-10 19:21:54Z chris $
 #
 
 package Tachikoma::Jobs::Shell;
@@ -18,7 +18,7 @@ use Tachikoma::Message qw(
 );
 use IPC::Open3;
 use Symbol qw( gensym );
-use POSIX qw( :sys_wait_h SIGKILL );
+use POSIX qw( :sys_wait_h SIGINT SIGKILL );
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -71,7 +71,11 @@ sub fill {
     my $from    = $message->[FROM];
     return if ( not $type & TM_BYTESTREAM and not $type & TM_EOF );
     if ( $from =~ m{^_parent} ) {
-        return if ( $type & TM_EOF );
+        if ( $type & TM_EOF ) {
+            kill SIGINT, $self->{shell_pid};
+            do { } while ( wait >= 0 );
+            return;
+        }
         $self->shell_stdin->fill($message);
 
         # tell LoadBalancer we're done

@@ -4,6 +4,17 @@ var home     = `echo ~`;
 
 var topics_dir1 = /pool1;
 
+var tachikoma.services = (
+    hubs
+    indexers
+    tables
+    engines
+    lookup
+    topic_top
+    http
+    tasks
+);
+
 var tachikoma.tasks.http.port        = 2501;
 var tachikoma.tasks.port             = 2500;
 var tachikoma.tables.http.port       = 3124;

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: JobController.pm 36600 2019-03-10 19:26:19Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX qw( SIGCHLD SIGINT );
+use POSIX qw( SIGCHLD SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
