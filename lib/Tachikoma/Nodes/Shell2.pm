@@ -1599,8 +1599,8 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
         elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
         elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
-        elsif ( $op eq q(//=) and not @{$v} ) { $v = $result; }
-        elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = $result; }
+        elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
+        elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
         else { $self->fatal_parse_error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
