@@ -525,9 +525,8 @@ sub remove_node {
     $self->name(q());
     if ( $self->{edge} ) {
         my $edge = $self->{edge};
-        my $i    = $self->{partition_id};
-        $edge->new_cache($i)
-            if ( $edge and defined $i and $edge->can('new_cache') );
+        $edge->new_cache(undef)
+            if ( $edge and $edge->can('new_cache') );
     }
     return $self->SUPER::remove_node(@_);
 }

@@ -362,6 +362,17 @@ sub on_save_snapshot {
     return;
 }
 
+sub new_cache {
+    my ( $self, $i ) = @_;
+    if ( defined $i ) {
+        $self->{caches}->[$i] = [];
+    }
+    else {
+        $self->{caches} = [];
+    }
+    return;
+}
+
 ########################
 # synchronous interface
 ########################
