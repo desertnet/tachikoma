@@ -73,8 +73,6 @@ func buffer_probe {
 
 if (<hostname> eq "nyx") {
     var topics_dir2 = /pool2;
-    var auto_commit = 60;
 } else {
     var tachikoma.hubs.count = 2;
-    var auto_commit = 0;
 }
