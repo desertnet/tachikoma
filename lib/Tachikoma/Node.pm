@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 36137 2019-02-26 02:08:41Z chris $
+# $Id: Node.pm 36624 2019-03-11 05:26:31Z chris $
 #
 
 package Tachikoma::Node;
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_EOF
+    TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_REQUEST TM_ERROR TM_EOF
 );
 use Tachikoma::Command;
 use Tachikoma::Crypto;
@@ -69,6 +69,9 @@ sub fill {
     my ( $self, $message ) = @_;
     $message->[TO] = $self->{owner} if ( not length $message->[TO] );
     $self->{counter}++;
+
+    # return $self->drop_message( $message, 'no sink' )
+    #     if ( not $self->{sink} );
     return $self->{sink}->fill($message);
 }
 
@@ -288,6 +291,27 @@ sub stamp_message {
         $message->[FROM] = $name;
     }
     return 1;
+}
+
+sub drop_message {
+    my $self    = shift;
+    my $message = shift;
+    my $error   = shift;
+    $self->print_less_often(
+              "WARNING: $error - "
+            . $message->type_as_string
+            . ( $message->from ? ' from: ' . $message->from : q() )
+            . ( $message->to   ? ' to: ' . $message->to     : q() )
+            . (
+            (          $message->type == TM_INFO
+                    or $message->type == TM_REQUEST
+                    or $message->type == TM_ERROR
+            )
+            ? ' payload: ' . $message->payload
+            : q()
+            )
+    );
+    return;
 }
 
 sub make_parent_dirs {

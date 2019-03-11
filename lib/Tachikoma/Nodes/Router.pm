@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_HEARTBEAT TM_PING TM_INFO TM_REQUEST TM_COMPLETION TM_ERROR TM_EOF
+    TM_HEARTBEAT TM_PING TM_COMPLETION TM_ERROR TM_EOF
 );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -123,27 +123,6 @@ sub send_error {
         }
         $self->drop_message( $message, $error );
     }
-    return;
-}
-
-sub drop_message {
-    my $self    = shift;
-    my $message = shift;
-    my $error   = shift;
-    $self->print_less_often(
-              "WARNING: $error - "
-            . $message->type_as_string
-            . ( $message->from ? ' from: ' . $message->from : q() )
-            . ( $message->to   ? ' to: ' . $message->to     : q() )
-            . (
-            (          $message->type == TM_INFO
-                    or $message->type == TM_REQUEST
-                    or $message->type == TM_ERROR
-            )
-            ? ' payload: ' . $message->payload
-            : q()
-            )
-    );
     return;
 }
 

@@ -268,11 +268,13 @@ sub is_broker_path {
     my $paths = $self->{valid_broker_paths};
     if ( not $paths ) {
         $paths = { $self->{broker_path} => 1 };
-        my $broker_node = $Tachikoma::Nodes{ $self->{broker_path} };
-        if (    $broker_node
-            and $broker_node->isa('Tachikoma::Nodes::LoadBalancer') )
-        {
-            for my $owner ( @{ $broker_node->owner } ) {
+        my $node = $Tachikoma::Nodes{ $self->{broker_path} };
+        if ($node) {
+            my $owner = $node->owner;
+            if ( ref $owner ) {
+                $paths->{$_} = 1 for ( @{$owner} );
+            }
+            else {
                 $paths->{$owner} = 1;
             }
         }

@@ -57,9 +57,9 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $name, $path, @host_ports ) = split q( ), $self->{arguments};
-        if ( @host_ports ) {
+        if (@host_ports) {
             $self->misc->{$name} = $path;
-            $self->host_ports(\@host_ports);
+            $self->host_ports( \@host_ports );
             $self->set_timer;
         }
     }
@@ -188,7 +188,7 @@ sub fire {
         $self->{should_kick} = undef;
     }
     if ( @{ $self->{host_ports} } ) {
-        while ( my $host_port = shift @{$self->{host_ports}} ) {
+        while ( my $host_port = shift @{ $self->{host_ports} } ) {
             my ( $host, $port, $use_SSL ) = split m{:}, $host_port, 3;
             $self->add_connector(
                 id      => "$host:$port",

@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 36596 2019-03-10 19:21:54Z chris $
+# $Id: Shell.pm 36622 2019-03-11 05:23:51Z chris $
 #
 
 package Tachikoma::Jobs::Shell;
@@ -72,8 +72,8 @@ sub fill {
     return if ( not $type & TM_BYTESTREAM and not $type & TM_EOF );
     if ( $from =~ m{^_parent} ) {
         if ( $type & TM_EOF ) {
+            ## no critic (RequireCheckedSyscalls)
             kill SIGINT, $self->{shell_pid};
-            do { } while ( wait >= 0 );
             return;
         }
         $self->shell_stdin->fill($message);
@@ -125,7 +125,8 @@ sub remove_node {
         kill SIGKILL, $self->{shell_pid}
             if ( defined $self->{shell_pid} );
     };
-    alarm 5;
+    alarm 15;
+    do { } while ( wait >= 0 );
     $self->SUPER::remove_node;
     return;
 }
