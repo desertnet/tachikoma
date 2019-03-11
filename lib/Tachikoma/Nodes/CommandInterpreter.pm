@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 36624 2019-03-11 05:26:31Z chris $
+# $Id: CommandInterpreter.pm 36626 2019-03-11 05:28:18Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -97,9 +97,8 @@ sub fill {
             $message->[TO] = $message->[FROM];
         }
     }
-
-    # return $self->drop_message( $message, 'no sink' )
-    #     if ( not $self->{sink} );
+    return $self->drop_message( $message, 'no sink' )
+        if ( not $self->{sink} );
     return $self->{sink}->fill($message);
 }
 

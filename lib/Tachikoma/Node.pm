@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 36624 2019-03-11 05:26:31Z chris $
+# $Id: Node.pm 36626 2019-03-11 05:28:18Z chris $
 #
 
 package Tachikoma::Node;
@@ -69,9 +69,8 @@ sub fill {
     my ( $self, $message ) = @_;
     $message->[TO] = $self->{owner} if ( not length $message->[TO] );
     $self->{counter}++;
-
-    # return $self->drop_message( $message, 'no sink' )
-    #     if ( not $self->{sink} );
+    return $self->drop_message( $message, 'no sink' )
+        if ( not $self->{sink} );
     return $self->{sink}->fill($message);
 }
 
