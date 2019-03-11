@@ -68,11 +68,13 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        my ( $file, $node_path ) = split q( ), $command->arguments, 2;
+        my ( $file, $node_path, $stream ) = split q( ), $command->arguments,
+            3;
+        $stream //= q();
         for my $expanded ( glob $file ) {
             my $quoted = $expanded;
             $quoted =~ s{/}{:}g;
-            $self->files->{$quoted} = [ $expanded => $node_path ];
+            $self->files->{$quoted} = [ $expanded, $node_path, $stream ];
         }
         $self->timer->set_timer(0) if ( $self->{timer} );
         return $this->okay($envelope);
@@ -121,7 +123,12 @@ sub initialize_graph {
         my $command  = shift;
         my $envelope = shift;
         my $files    = $self->files;
-        my $response = [ [ [ 'FILE' => 'right' ], [ 'NODE' => 'left' ] ] ];
+        my $response = [
+            [   [ 'FILE'   => 'right' ],
+                [ 'NODE'   => 'left' ],
+                [ 'STREAM' => 'left' ]
+            ]
+        ];
         for my $file ( sort keys %{$files} ) {
             push @{$response}, $files->{$file};
         }
@@ -207,12 +214,15 @@ sub rescan_files {
             my $filepos     = $tiedhash->{$file} || 0;
             my $destination = $self->get_destination($file);
             my $node_path   = $files->{$file}->[1];
+            my $stream      = $files->{$file}->[2];
             next if ( not $destination );
             $tiedhash->{$file} = 0 if ( not $filepos );
             $tails->{$file}    = 1;
             $forking->{$file}  = 1;
+            my $arguments = "--filename=$path --offset=$filepos";
+            $arguments .= " --stream=$stream" if ( length $stream );
             $self->{job_controller}->start_job( 'TailFork', "$file:tail",
-                "$destination $node_path $path $filepos" );
+                "$destination $node_path $arguments" );
             my $message = Tachikoma::Message->new;
             $message->type(TM_BYTESTREAM);
             $message->payload($path);
