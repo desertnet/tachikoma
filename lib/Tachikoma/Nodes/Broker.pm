@@ -43,6 +43,7 @@ my $LCO_Send_Interval = 10;     # how often to send last commit offsets
 my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
 my $Last_LCO_Send     = 0;      # time we last sent LCO
 my $Default_Cache_Size = 8 * 1024 * 1024;    # config for cache partitions
+my $Num_Cache_Segments = 2;
 my %C                  = ();
 
 die 'ERROR: data will be lost if Heartbeat_Timeout >= LCO_Timeout'
@@ -1201,7 +1202,7 @@ sub apply_mapping {
                 }
                 $node->arguments(q());
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
-                $node->num_segments( $topic->{num_segments} );
+                $node->num_segments($Num_Cache_Segments);
                 $node->segment_size( $caches->{$group_name} );
                 $node->max_lifespan( $topic->{max_lifespan} );
                 $node->sink( $self->sink );
