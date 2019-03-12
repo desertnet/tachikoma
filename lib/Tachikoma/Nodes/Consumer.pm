@@ -385,8 +385,7 @@ sub expire_timestamps {
         if ( defined $lowest
         and $Tachikoma::Now - $timestamps->{$lowest} > $self->{timeout} );
     $lowest //= $self->{offset};
-    $self->{lowest_offset} = $lowest
-        if ( defined $lowest and $lowest != $self->{lowest_offset} );
+    $self->{lowest_offset} = $lowest if ( defined $lowest );
     if ( defined $retry ) {
         $self->stderr("RETRY $retry");
         if ( defined $self->partition_id ) {
