@@ -137,7 +137,7 @@ for service (<tachikoma.services>) {
 
 
 # ingest server logs
-connect_node server_log:tee indexers:service/server_log
+connect_node server_log:tee server_logs:service/server_log
 
 var username=`whoami`;
 

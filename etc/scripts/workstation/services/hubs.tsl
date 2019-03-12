@@ -33,27 +33,24 @@ func add_hub {
             };
 
             set_topic topic1;
-            set_group cache                --topic=topic1;
-            set_group IDs                  --topic=topic1;
-            set_topic topic1.ID            --segment_size=(16 * 1024 * 1024);
-            set_group IDs                  --topic=topic1.ID;
+            set_group cache      --topic=topic1;
+            set_group topic1.ID  --topic=topic1;
+            set_topic topic1.ID  --segment_size=(16 * 1024 * 1024);
+            set_group table      --topic=topic1.ID;
 
             set_topic topic2;
-            set_group cache                --topic=topic2;
 
-            set_topic tasks                --segment_size=(1024 * 1024)
-                                           --max_lifespan=(7 * 86400);
-            set_group cache                --topic=tasks;
-            set_group IDs                  --topic=tasks;
-            set_topic tasks.ID             --num_partitions=4
-                                           --segment_size=(1024 * 1024)
-                                           --max_lifespan=(7 * 86400);
-            set_group IDs                  --topic=tasks.ID;
-            set_group engine               --topic=tasks.ID;
+            set_topic tasks      --segment_size=(1024 * 1024)
+                                 --max_lifespan=(7 * 86400);
+            set_group tasks.ID   --topic=tasks;
+            set_topic tasks.ID   --num_partitions=4
+                                 --segment_size=(1024 * 1024)
+                                 --max_lifespan=(7 * 86400);
+            set_group engine     --topic=tasks.ID;
 
-            set_topic server_log           --num_partitions=4
-                                           --segment_size=(64 * 1024 * 1024)
-                                           --max_lifespan=86400;
+            set_topic server_log --num_partitions=4
+                                 --segment_size=(64 * 1024 * 1024)
+                                 --max_lifespan=86400;
             for field (<server_log.fields>) {
                 set_topic server_log.<field> --num_partitions=4
                                              --segment_size=(4 * 1024 * 1024)

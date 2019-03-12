@@ -22,7 +22,7 @@ connect_node tasks:farm  tasks
 # index task IDs
 make_node ConsumerBroker tasks:consumer --broker=<broker>      \
                                         --topic=tasks          \
-                                        --group=IDs            \
+                                        --group=tasks.ID       \
                                         --default_offset=start \
                                         --max_unanswered=64    \
                                         --auto_commit=60
