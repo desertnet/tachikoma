@@ -151,9 +151,18 @@ sub workstation_services {
 
 # services
 var services = "<home>/.tachikoma/services";
-for service (<tachikoma.services>) {
+func start_service {
+    local service = <1>;
     command jobs  start_job Shell <service>:job <services>/<service>.tsl;
     command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
+}
+func stop_service {
+    local service = <1>;
+    command jobs stop_job <service>:job;
+    # rm <service>:service;
+}
+for service (<tachikoma.services>) {
+    start_service <service>;
 }
 
 

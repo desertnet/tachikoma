@@ -1625,12 +1625,14 @@ sub empty_topics {
             if ( ( $glob and $topic_name !~ m{^$glob$} )
             or not $mapping->{$topic_name} );
         for my $name ( keys %{ $mapping->{$topic_name} } ) {
+            $self->stderr("INFO: empty_partition($name)");
             $self->empty_partition($name);
             for my $group_name ( keys %{ $self->{consumer_groups} } ) {
                 my $group = $self->{consumer_groups}->{$group_name};
                 next if ( not $group->{topics}->{$topic_name} );
                 my $cache_name = join q(:), $name, $group_name;
                 $self->empty_partition($cache_name);
+                $self->stderr("INFO: empty_partition($cache_name)");
             }
         }
     }
@@ -1665,6 +1667,7 @@ sub empty_groups {
             for my $name ( keys %{ $mapping->{$topic_name} } ) {
                 my $cache_name = join q(:), $name, $group_name;
                 $self->empty_partition($cache_name);
+                $self->stderr("INFO: empty_partition($cache_name)");
             }
         }
     }

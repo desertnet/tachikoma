@@ -4,52 +4,40 @@ include services/daemonize.tsl
 
 connect_hub
 
-
-make_node Topic      server_log           <broker>
-make_node Topic      server_log.timestamp <broker>
-make_node Topic      server_log.hostname  <broker>
-make_node Topic      server_log.process   <broker>
+make_node Topic server_log <broker>
 
 
-# timestamps
-make_node ConsumerBroker   server_log:consumer1 --broker=<broker>            \
-                                                --topic=server_log           \
-                                                --group=server_log.timestamp \
-                                                --default_offset=start       \
-                                                --max_unanswered=64          \
-                                                --auto_commit=60
-make_node IndexByTimestamp IndexByTimestamp
-
-
-# hostnames
-make_node ConsumerBroker   server_log:consumer2 --broker=<broker>           \
-                                                --topic=server_log          \
-                                                --group=server_log.hostname \
-                                                --default_offset=start      \
-                                                --max_unanswered=64         \
-                                                --auto_commit=60
-make_node IndexByHostname  IndexByHostname
-
-
-# processes
-make_node ConsumerBroker   server_log:consumer3 --broker=<broker>          \
-                                                --topic=server_log         \
-                                                --group=server_log.process \
-                                                --default_offset=start     \
-                                                --max_unanswered=64        \
-                                                --auto_commit=60
-make_node IndexByProcess   IndexByProcess
+func start_indexer {
+    local field   = <1>;
+    local indexer = <2>;
+    command jobs start_job CommandInterpreter index:server_log.<field>;
+    cd index:server_log.<field>;
+        connect_hub;
+        make_node Topic          server_log.<field>  <broker>;
+        make_node ConsumerBroker server_log:consumer --broker=<broker>
+                                                     --topic=server_log
+                                                     --group=server_log.<field>
+                                                     --default_offset=start
+                                                     --max_unanswered=64
+                                                     --auto_commit=60;
+        make_node <indexer> <indexer>;
+        topic_probe;
+        insecure;
+        remote_var field=<field>;
+        remote_var indexer=<indexer>;
+        on server_log.<field> READY {
+            connect_node server_log:consumer <indexer>/server_log.<field>;
+            secure 3;
+        };
+    cd ..;
+}
+insecure;
+start_indexer timestamp IndexByTimestamp
+start_indexer hostname  IndexByHostname
+start_indexer process   IndexByProcess
 
 
 topic_probe
 
 listen_inet localhost:<root_port>
-insecure
-on server_log.timestamp READY {
-on server_log.hostname READY {
-on server_log.process READY {
-    connect_node server_log:consumer1 IndexByTimestamp/server_log.timestamp;
-    connect_node server_log:consumer2 IndexByHostname/server_log.hostname;
-    connect_node server_log:consumer3 IndexByProcess/server_log.process;
-    secure 3;
-}}}
+secure 3
