@@ -149,7 +149,7 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
         }
         elsif ( ref $_[1] eq 'HASH' ) {
             $message->[TYPE] = TM_STORABLE;
-            $message->[TO]   = join q(/), $_[0]->{owner}, $_[1]->{partition};
+            $message->[TO]   = $_[1]->{partition};
             $message->[TIMESTAMP] = $_[1]->{timestamp}
                 if ( $_[1]->{timestamp} );
             $message->[PAYLOAD] = $_[1]->{bucket} // $_[1];
