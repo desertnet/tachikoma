@@ -232,7 +232,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     return;
 }
 
-sub fire {    ## no critic (ProhibitExcessComplexity)
+sub fire {
     my $self = shift;
     return
         if ( not $self->{sink}
@@ -249,16 +249,10 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         }
         return;
     }
-    if ( $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval ) {
-        $self->expire_timestamps or return;
-    }
     if (    $self->{status} eq 'ACTIVE'
-        and $self->{auto_commit}
-        and $self->{last_commit}
-        and $Tachikoma::Now - $self->{last_commit} > $self->{auto_commit}
-        and $self->{lowest_offset} != $self->{last_commit_offset} )
+        and $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval )
     {
-        $self->commit_offset_async;
+        $self->expire_timestamps or return;
     }
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
@@ -395,6 +389,13 @@ sub expire_timestamps {
             $self->arguments( $self->arguments );
             $self->next_offset($lowest);
         }
+    }
+    elsif ( $self->{auto_commit}
+        and $self->{last_commit}
+        and $Tachikoma::Now - $self->{last_commit} >= $self->{auto_commit}
+        and $self->{lowest_offset} != $self->{last_commit_offset} )
+    {
+        $self->commit_offset_async;
     }
     $self->{last_expire} = $Tachikoma::Now;
     return not $retry;

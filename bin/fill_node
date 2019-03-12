@@ -59,7 +59,7 @@ sub send_messages {
         : TM_BYTESTREAM;
     $message->[TO] = $to;
     my $expecting = $throttle ? scalar @{$payloads} : 0;
-    my $rv = eval {
+    my $rv        = eval {
         for my $payload ( @{$payloads} ) {
             $message->[PAYLOAD] = $payload;
             $tachikoma->fill($message);

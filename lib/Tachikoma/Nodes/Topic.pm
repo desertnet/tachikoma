@@ -94,25 +94,35 @@ sub fill {
             $self->cancel( shift @{$responses} );
         }
     }
-    elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->set_timer if ( defined $self->{timer_interval} );
-        my %senders = ();
-        for my $broker_id ( keys %{ $self->{responses} } ) {
-            for my $response ( @{ $self->{responses}->{$broker_id} } ) {
-                $senders{ $response->[FROM] } = 1;
+    elsif ( $self->is_broker_path( $message->[FROM] ) ) {
+        if ( $message->[TYPE] & TM_ERROR ) {
+            $self->set_timer if ( defined $self->{timer_interval} );
+            my %senders = ();
+            for my $broker_id ( keys %{ $self->{responses} } ) {
+                for my $response ( @{ $self->{responses}->{$broker_id} } ) {
+                    $senders{ $response->[FROM] } = 1;
+                }
+                $self->{responses}->{$broker_id} = [];
             }
-            $self->{responses}->{$broker_id} = [];
+            for my $sender ( keys %senders ) {
+                my $copy = bless [ @{$message} ], ref $message;
+                $copy->[TO]     = $sender;
+                $copy->[ID]     = q();
+                $copy->[STREAM] = q();
+                $self->{sink}->fill($copy);
+            }
+            $self->{partitions} = undef;
         }
-        for my $sender ( keys %senders ) {
-            my $copy = bless [ @{$message} ], ref $message;
-            $copy->[TO]     = $sender;
-            $copy->[ID]     = q();
-            $copy->[STREAM] = q();
-            $self->{sink}->fill($copy);
+        elsif ( $message->[TYPE] & TM_STORABLE ) {
+            $self->update_partitions($message);
+            $self->set_state('READY') if ( not $self->{set_state}->{READY} );
         }
-        $self->{partitions} = undef;
+        else {
+            $self->stderr( $message->type_as_string, ' from ',
+                $message->from );
+        }
     }
-    elsif ( not $self->is_broker_path( $message->[FROM] ) ) {
+    elsif ( not $message->[TYPE] & TM_ERROR ) {
         if ( $self->{partitions} ) {
             $self->batch_message($message);
         }
@@ -126,13 +136,6 @@ sub fill {
             $response->[PAYLOAD] = "NOT_AVAILABLE\n";
             $self->{sink}->fill($response);
         }
-    }
-    elsif ( $message->[TYPE] & TM_STORABLE ) {
-        $self->update_partitions($message);
-        $self->set_state('READY') if ( not $self->{set_state}->{READY} );
-    }
-    else {
-        $self->stderr( $message->type_as_string, ' from ', $message->from );
     }
     return;
 }
