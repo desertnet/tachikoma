@@ -12,8 +12,14 @@ function start_timer() {
                 var tr        = "";
                 var date      = new Date();
                 var next_date = new Date();
-                date.setTime( msg[i].message_timestamp * 1000 );
-                next_date.setTime( msg[i].next_attempt * 1000 );
+                date.setTime(
+                    ( msg[i].message_timestamp - date.getTimezoneOffset() * 60 )
+                    * 1000
+                );
+                next_date.setTime(
+                    ( msg[i].next_attempt - date.getTimezoneOffset() * 60 )
+                    * 1000
+                );
                 if (msg[i].attempts > 1) {
                     tr = "<tr bgcolor=\"#FF9999\">";
                 }

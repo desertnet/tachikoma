@@ -48,7 +48,10 @@ function update_table() {
         var tr      = "";
         var date    = new Date();
         var type    = cached_msg.payload[i].type;
-        date.setTime( cached_msg.payload[i].timestamp * 1000 );
+        date.setTime(
+            ( cached_msg.payload[i].timestamp - date.getTimezoneOffset() * 60 )
+            * 1000
+        );
         if (cached_msg.payload[i].type == "TASK_ERROR") {
             tr = "<tr bgcolor=\"#FF9999\">";
         }
@@ -117,6 +120,9 @@ function toggle_task_output() {
     else {
         show_task_output = 1;
         document.getElementById("toggle").innerHTML = "hide output";
+        clearTimeout(timer);
+        server_url = last_url;
+        timer      = setTimeout(tick, 0);
     }
     output = [];
     update_table();

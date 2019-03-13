@@ -88,7 +88,10 @@ function _execute_query() {
                             var ev      = msg[i].value;
                             var date    = new Date();
                             var payload = ev.payload || "";
-                            date.setTime( ev.timestamp * 1000 );
+                            date.setTime(
+                                ( ev.timestamp - date.getTimezoneOffset() * 60 )
+                                * 1000
+                            );
                             if (ev.type == "TASK_ERROR") {
                                 tr = "<tr bgcolor=\"#FF9999\">";
                             }
