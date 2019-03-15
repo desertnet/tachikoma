@@ -6,8 +6,8 @@ connect_hub
 
 
 make_node Topic     tasks       <broker>
-make_node Queue     tasks:queue tasks.q 1
-make_node JobFarmer tasks:farm  1 Task '
+make_node Queue     tasks:queue tasks.q 4
+make_node JobFarmer tasks:farm  4 Task '
     echo --- KEY: "$KEY", VALUE: "$VALUE" ---;
     ls /NONEXISTANT;
     for i in $(seq 10) ; do echo $i ; sleep 1 ; done;
