@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 36600 2019-03-10 19:26:19Z chris $
+# $Id: JobController.pm 36723 2019-03-15 21:16:49Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -71,12 +71,7 @@ sub fill {
         return $self->stderr("ERROR: TM_KILLME from unknown $name")
             if ( not $job );
         $job->{connector}->fill($message);
-        if ( not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') ) {
-            my $old_name = $job->{connector}->name;
-            my $new_name = sprintf '%s-%06d', $old_name, $self->job_counter;
-            $self->rename_job( $old_name, $new_name );
-            return 1;
-        }
+        return if ( not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') );
     }
     return $self->{interpreter}->fill($message) if ( $type & TM_COMMAND );
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
@@ -109,11 +104,18 @@ sub fire {
             $job->remove_node;
             next;
         }
-        $self->stderr( 'restarting ', $job->{original_name} )
-            if ( not $job->{lazy} );
-        $self->restart_job($job);
+        my $since_last = $Tachikoma::Now - $job->{last_restart};
+        my $delay      = $Throttle_Delay - $since_last;
+        if ( $delay < 1
+            and not kill 0, $job->{pid}
+            and $! ne 'Operation not permitted' )
+        {
+            $self->stderr("restarting $name") if ( not $job->{lazy} );
+            delete $restart->{$name};
+            $self->restart_job($job);
+        }
     }
-    %{$restart} = ();
+    $self->stop_timer if ( not keys %{$restart} );
     return;
 }
 
@@ -126,11 +128,8 @@ sub handle_EOF {
         and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer')
         and not Tachikoma->shutting_down )
     {
-        my $since_last = $Tachikoma::Now - $job->{should_restart};
-        my $delay      = $Throttle_Delay - $since_last;
-        $delay = 0 if ( $delay < 0 );
-        $self->{restart}->{$name} = 'true';
-        $self->set_timer( $delay * 1000, 'oneshot' );
+        $self->{restart}->{$name} = 1;
+        $self->set_timer if ( not $self->{timer_is_active} );
     }
     else {
         delete $self->{jobs}->{$name};
@@ -160,7 +159,6 @@ $C{help} = sub {
             . "          maintain_job <job type> [ <job name> [ <arguments> ] ]\n"
             . "          lazy_job <job type> [ <job name> [ <arguments> ] ]\n"
             . "          restart_job <job name>\n"
-            . "          rename_job <old job name> <new job name>\n"
             . "          stop_job <job name>\n"
             . "          kill_job <job name>\n"
             . "          dump_job <job name>\n"
@@ -232,8 +230,7 @@ $C{maintain_job} = sub {
     my ( $type, $name, $arguments ) =
         split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
-    $self->patron->start_job( $type, $name, $arguments, undef,
-        $Tachikoma::Now );
+    $self->patron->start_job( $type, $name, $arguments, undef, 'forever' );
     return $self->okay($envelope);
 };
 
@@ -249,7 +246,7 @@ $C{lazy_job} = sub {
         split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
     $self->patron->start_job( $type, $name, $arguments, undef,
-        $Tachikoma::Now, 'lazy' );
+        'forever', 'lazy' );
     return $self->okay($envelope);
 };
 
@@ -259,26 +256,19 @@ $C{restart_job} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $old_name = $command->arguments;
-    my $job      = $self->patron->jobs->{$old_name};
-    die qq(no such job "$old_name"\n) if ( not $job );
+    my $name     = $command->arguments;
+    my $job      = $self->patron->jobs->{$name};
+    die qq(no such job "$name"\n) if ( not $job );
     if ( $job->{type} eq 'CommandInterpreter'
         and not length( $job->{arguments} ) )
     {
         $self->verify_key( $envelope, ['meta'], 'make_node' )
             or return $self->error("verification failed\n");
     }
-    my $new_name = sprintf '%s-%06d', $old_name, $self->patron->job_counter;
-    my $owner    = $job->owner;
-    my $should_restart = $job->should_restart;
-    $job->owner(undef);
-    $job->should_restart(undef);
-    $self->patron->rename_job( $old_name, $new_name );
+    $job->should_restart('once') if ( not $job->should_restart );
+    $job->last_restart(0);
     $job->connector->handle_EOF;
-    $job->should_restart($should_restart);
-    $self->patron->restart_job($job);
-    $job->owner($owner);
-    return $self->response( $envelope, qq(job "$old_name" restarted.\n) );
+    return $self->response( $envelope, qq(job "$name" restarted.\n) );
 };
 
 $C{restart} = $C{restart_job};
@@ -309,36 +299,6 @@ $C{kill_job} = sub {
 
 $C{kill} = $C{kill_job};
 
-$C{rename_job} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'make_node' )
-        or return $self->error("verification failed\n");
-    my ( $old_name, $new_name ) = split q( ), $command->arguments, 2;
-    my $job = $self->patron->jobs->{$old_name};
-    $self->patron->rename_job( $old_name, $new_name );
-    $job->original_name($new_name);
-    return $self->okay($envelope);
-};
-
-$C{rename} = $C{rename_job};
-$C{mv}     = $C{rename_job};
-
-$C{cut_job} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'make_node' )
-        or return $self->error("verification failed\n");
-    my $name  = $command->arguments;
-    my $error = $self->patron->cut_job($name);
-    return $self->error( $envelope, $error ) if ($error);
-    return $self->response( $envelope, qq(job "$name" cut.\n) );
-};
-
-$C{cut} = $C{cut_job};
-
 $C{dump_job} = sub {
     my $self     = shift;
     my $command  = shift;
@@ -355,9 +315,10 @@ $C{dump_job} = sub {
             delete $copy->{$key} if ( not $want{$key} );
         }
     }
-    $copy->{connector} = $copy->{connector}->{name};
-    $copy->{_stdout}   = $copy->{_stdout}->{name};
-    $copy->{_stderr}   = $copy->{_stderr}->{name};
+    $copy->{configuration} = '...';
+    $copy->{connector}     = $copy->{connector}->{name};
+    $copy->{_stdout}       = $copy->{_stdout}->{name};
+    $copy->{_stderr}       = $copy->{_stderr}->{name};
     return $self->response( $envelope, Dumper $copy);
 };
 
@@ -450,22 +411,23 @@ sub restart_job {
     my $old_job     = shift or die qq(no job specified\n);
     my $type        = $old_job->{type};
     my $name        = $old_job->{original_name};
-    my $tmp_name    = $old_job->{name};
     my $arguments   = $old_job->{arguments};
     my $username    = $old_job->{username};
     my $config_file = $old_job->{config_file};
     die qq(node "$name" exists\n) if ( $Tachikoma::Nodes{$name} );
     my $owner   = $old_job->{connector}->owner;
     my $new_job = Tachikoma::Job->new;
-    delete $self->{jobs}->{$tmp_name} if ( defined $tmp_name );
     $old_job->remove_node;
 
     if ( $old_job->{lazy} ) {
-        $new_job->prepare( $type, $name, $arguments, $owner, $Tachikoma::Now,
+        $new_job->prepare( $type, $name, $arguments, $owner, 'forever',
             $username, $config_file );
     }
     else {
-        $new_job->spawn( $type, $name, $arguments, $owner, $Tachikoma::Now,
+        my $should_restart = undef;
+        $should_restart = $old_job->{should_restart}
+            if ( $old_job->{should_restart} eq 'forever' );
+        $new_job->spawn( $type, $name, $arguments, $owner, $should_restart,
             $username, $config_file );
     }
     $new_job->{connector}->sink($self);
@@ -494,43 +456,6 @@ sub kill_job {
     delete $self->{jobs}->{$name};
     $job->remove_node;
     return;
-}
-
-sub rename_job {
-    my $self     = shift;
-    my $old_name = shift;
-    my $new_name = shift;
-    my $jobs     = $self->{jobs};
-    my $job      = $jobs->{$old_name} or die qq(no such job "$old_name"\n);
-    $job->{connector}->name($new_name);
-    $job->{name} = $new_name;
-    $jobs->{$new_name} = $job;
-    delete $jobs->{$old_name};
-    return;
-}
-
-sub cut_job {
-    my $self = shift;
-    my $name = shift;
-    my $job  = $self->{jobs}->{$name} or die qq(no such job "$name"\n);
-    if ( not exists $Tachikoma::Nodes{$name} ) {
-        if ( not defined $job->{connector}->{sink} ) {
-            if ( not $job->{should_restart} ) {
-                delete $self->{jobs}->{$name};
-                $job->remove_node;
-                return;
-            }
-            else {
-                return "did not cut: job set to restart\n";
-            }
-        }
-        else {
-            return "did not cut: sink still set\n";
-        }
-    }
-    else {
-        return "did not cut: node $name still exists\n";
-    }
 }
 
 sub owner {
@@ -567,9 +492,12 @@ sub dump_config {
         $response = $self->SUPER::dump_config;
         my $jobs = $self->{jobs};
         for my $name ( sort keys %{$jobs} ) {
-            my $job   = $jobs->{$name};
-            my $start = $job->{should_restart} ? 'maintain_job' : 'start_job';
-            my $line  = "command $self->{name} $start $job->{type} $name";
+            my $job = $jobs->{$name};
+            my $start =
+                $job->{should_restart} eq 'forever'
+                ? 'maintain_job'
+                : 'start_job';
+            my $line = "command $self->{name} $start $job->{type} $name";
             if ( $job->{arguments} ) {
                 my $arguments = $job->{arguments};
                 $arguments =~ s{'}{\\'}g;

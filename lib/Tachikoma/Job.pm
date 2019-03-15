@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Job.pm 36723 2019-03-15 21:16:49Z chris $
 #
 
 package Tachikoma::Job;
@@ -43,6 +43,7 @@ sub new {
     $self->{type}           = undef;
     $self->{pid}            = undef;
     $self->{should_restart} = undef;
+    $self->{last_restart}   = undef;
     $self->{lazy}           = undef;
     $self->{username}       = undef;
     $self->{config_file}    = undef;
@@ -123,6 +124,7 @@ sub spawn {
         $self->{type}           = $type;
         $self->{pid}            = $pid;
         $self->{should_restart} = $should_restart;
+        $self->{last_restart}   = $Tachikoma::Now;
         $self->{username}       = $username;
         $self->{config_file}    = $config_file;
         $self->{original_name}  = $name;
@@ -137,7 +139,6 @@ sub spawn {
         $name           = ( $name =~ m{^(\S*)$} )[0];
         $arguments      = ( $arguments =~ m{^(.*)$}s )[0];
         $owner          = ( $owner =~ m{^(\S*)$} )[0];
-        $should_restart = ( $should_restart =~ m{^(\S*)$} )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -154,8 +155,7 @@ sub spawn {
             $tachikoma_job, $config_file, $class,
             $name           // q(),
             $arguments      // q(),
-            $owner          // q(),
-            $should_restart // q();
+            $owner          // q();
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;
     }
@@ -371,6 +371,14 @@ sub should_restart {
         $self->{should_restart} = shift;
     }
     return $self->{should_restart};
+}
+
+sub last_restart {
+    my $self = shift;
+    if (@_) {
+        $self->{last_restart} = shift;
+    }
+    return $self->{last_restart};
 }
 
 sub lazy {

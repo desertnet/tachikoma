@@ -16,8 +16,7 @@ use Tachikoma::Config qw( load_module );
 
 use version; our $VERSION = qv('v2.0.192');
 
-my ( $config_file, $class, $name, $arguments, $owner, $should_restart ) =
-    @ARGV;
+my ( $config_file, $class, $name, $arguments, $owner ) = @ARGV;
 usage() if ( not $class );
 srand;
 my $config = Tachikoma->configuration;
@@ -45,7 +44,6 @@ $job->arguments($arguments);
 $job->owner($owner);
 $job->type($class);
 $job->pid($$);
-$job->should_restart($should_restart);
 local $0 = $name;
 $job->initialize_graph;
 
