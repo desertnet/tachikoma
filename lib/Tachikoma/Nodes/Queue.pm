@@ -102,23 +102,17 @@ sub fill {
     my $message_key = $self->get_message_key($copy);
     if ( length $message_key ) {
         $sth =
-            $dbh->prepare('SELECT attempts FROM queue WHERE message_key=?');
-        $sth->execute($message_key);
-        while ( my $row = $sth->fetchrow_arrayref ) {
-            $has_payload = 1 if ( $row->[0] == 0 );
-        }
-    }
-    if ( not $has_payload ) {
-        $sth =
             $dbh->prepare(
-            'INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-        $sth->execute( $Tachikoma::Right_Now + $self->{delay},
-            0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
-            $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
-        $buffer_size++;
-        $self->{buffer_fills}++;
-        $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
+            'DELETE FROM queue WHERE message_key=? AND attempts=0');
+        $sth->execute($message_key);
     }
+    $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    $sth->execute( $Tachikoma::Right_Now + $self->{delay},
+        0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
+        $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
+    $buffer_size++;
+    $self->{buffer_fills}++;
+    $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
     if ( $type & TM_ERROR ) {
         $self->{errors_passed}++;
         $self->answer($message) if ( $type & TM_PERSIST );
