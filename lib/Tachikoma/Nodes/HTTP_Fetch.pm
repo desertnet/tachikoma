@@ -76,14 +76,23 @@ sub fill {
     my $type            = ( $path =~ m{[.]([^.]+)$} )[0] || 'json';
     my $accept_encoding = $headers->{'accept-encoding'}  || q();
     my ( $table_name, $escaped ) = split m{/}, $path, 2;
-    my $table = $Tachikoma::Nodes{$table_name};
-    return $self->send404($message)
-        if ( not length $table_name
-        or $table_name !~ m{$allowed}
-        or not $table
-        or not $table->can('lookup') );
-    my $key   = uri_unescape( $escaped // q() );
-    my $value = $table->lookup($key);
+    my $value = undef;
+    if ( not length $table_name ) {
+        $value = [];
+        for my $name ( sort keys %Tachikoma::Nodes ) {
+            next if ( $name !~ m{$allowed} );
+            push @{$value}, $name;
+        }
+    }
+    else {
+        my $table = $Tachikoma::Nodes{$table_name};
+        return $self->send404($message)
+            if ( $table_name !~ m{$allowed}
+            or not $table
+            or not $table->can('lookup') );
+        my $key   = uri_unescape( $escaped // q() );
+        $value = $table->lookup($key);
+    }
     return $self->send404($message) if ( not defined $value );
 
     if ( ref $value ) {
