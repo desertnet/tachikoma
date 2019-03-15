@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 36721 2019-03-15 17:44:13Z chris $
+# $Id: Scheduler.pm 36728 2019-03-15 23:13:16Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -396,7 +396,8 @@ sub schedule {    ## no critic (ProhibitManyArgs)
 
 sub remove_node {
     my $self = shift;
-    $self->untie_hash;
+    $self->untie_hash if ( $self->{filename} );
+    $self->{filename} = undef;
     $self->SUPER::remove_node;
     return;
 }
@@ -464,7 +465,6 @@ sub untie_hash {
         close $fh
             or $self->stderr("ERROR: couldn't close ${path}.clean: $!");
     }
-    $self->{filename} = undef;
     $self->{tiedhash} = undef;
     return;
 }
