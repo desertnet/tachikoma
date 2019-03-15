@@ -16,7 +16,7 @@ func start_indexer {
         make_node Topic          server_log.<field>  <broker>;
         make_node ConsumerBroker server_log:consumer --broker=<broker>
                                                      --topic=server_log
-                                                     --group=server_log.<field>
+                                                     --group=index.<field>
                                                      --default_offset=start
                                                      --max_unanswered=64
                                                      --auto_commit=60;

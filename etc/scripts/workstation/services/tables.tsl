@@ -9,7 +9,7 @@ connect_hub
 make_node Topic topic1.ID <broker>
 make_node ConsumerBroker topic1:consumer1   --broker=<broker>      \
                                             --topic=topic1         \
-                                            --group=topic1.ID      \
+                                            --group=index.ID       \
                                             --default_offset=start \
                                             --max_unanswered=64    \
                                             --auto_commit=60

@@ -6,8 +6,8 @@ connect_hub
 
 
 make_node Topic     tasks       <broker>
-make_node Buffer    tasks:queue tasks.db 4
-make_node JobFarmer tasks:farm  4 Task '
+make_node Queue     tasks:queue tasks.q 1
+make_node JobFarmer tasks:farm  1 Task '
     echo --- KEY: "$KEY", VALUE: "$VALUE" ---;
     ls /NONEXISTANT;
     for i in $(seq 10) ; do echo $i ; sleep 1 ; done;
@@ -15,14 +15,14 @@ make_node JobFarmer tasks:farm  4 Task '
 register     tasks:queue tasks MSG_RECEIVED
 register     tasks:queue tasks MSG_SENT
 register     tasks:queue tasks MSG_CANCELED
-command      tasks:queue buffer_mode ordered
+command      tasks:queue set_key_regex '"repo": "([^"]+)'
 connect_node tasks:farm  tasks
 
 
 # index task IDs
 make_node ConsumerBroker tasks:consumer --broker=<broker>      \
                                         --topic=tasks          \
-                                        --group=tasks.ID       \
+                                        --group=index.ID       \
                                         --default_offset=start \
                                         --max_unanswered=64    \
                                         --auto_commit=60
