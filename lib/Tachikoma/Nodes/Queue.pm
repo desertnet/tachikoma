@@ -59,7 +59,8 @@ sub arguments {
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );
         $self->filename($filename);
-        $self->check_payloads('true') if ( $filename =~ m{[.]q$} );
+        $self->check_payload('true') if ( $filename =~ m{[.]q$} );
+        $self->key_regex(undef);
         $self->max_unanswered($max_unanswered) if ($max_unanswered);
     }
     return $self->{arguments};
@@ -98,25 +99,22 @@ sub fill {
     $copy->[TO]   = $self->{owner};
     $copy->[ID]   = $message_id;
     my $has_payload = undef;
-    if ( $self->{check_payloads} ) {
-        if ( $copy->[TYPE] & TM_STORABLE ) {
-            $Storable::canonical = 1;
-            $copy->[PAYLOAD]     = nfreeze( $copy->payload );
-            $copy->[IS_UNTHAWED] = 0;
-        }
-        $sth = $dbh->prepare(
-            'SELECT attempts FROM queue WHERE message_payload=?');
-        $sth->execute( $copy->[PAYLOAD] );
+    my $message_key = $self->get_message_key($copy);
+    if ( length $message_key ) {
+        $sth =
+            $dbh->prepare('SELECT attempts FROM queue WHERE message_key=?');
+        $sth->execute($message_key);
         while ( my $row = $sth->fetchrow_arrayref ) {
             $has_payload = 1 if ( $row->[0] == 0 );
         }
     }
     if ( not $has_payload ) {
         $sth =
-            $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
+            $dbh->prepare(
+            'INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         $sth->execute( $Tachikoma::Right_Now + $self->{delay},
             0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
-            $copy->[TIMESTAMP], $copy->[PAYLOAD], );
+            $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
         $buffer_size++;
         $self->{buffer_fills}++;
         $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
@@ -370,6 +368,35 @@ EOF
     return;
 }
 
+sub get_message_key {
+    my ( $self, $message ) = @_;
+    my $message_key = undef;
+    if ( $message->[TYPE] & TM_STORABLE ) {
+        $Storable::canonical    = 1;
+        $message->[PAYLOAD]     = nfreeze( $message->payload );
+        $message->[IS_UNTHAWED] = 0;
+    }
+    if ( $self->{check_payload} ) {
+        my $key_regex = $self->{key_regex};
+        if ($key_regex) {
+            $message_key = ( $message->[PAYLOAD] =~ m{$key_regex}i )[0];
+        }
+        else {
+            $message_key = $message->[PAYLOAD];
+        }
+    }
+    elsif ( $self->{check_stream} ) {
+        my $key_regex = $self->{key_regex};
+        if ($key_regex) {
+            $message_key = ( $message->[STREAM] =~ m{$key_regex}i )[0];
+        }
+        else {
+            $message_key = $message->[STREAM];
+        }
+    }
+    return $message_key;
+}
+
 sub lookup {
     my ( $self, $key ) = @_;
     my $dbh   = $self->dbh;
@@ -510,7 +537,7 @@ $C{dump_message} = sub {
     my $value = $sth->fetchrow_arrayref;
     if ($value) {
         my ( $next_attempt, $attempts, $type, $id, $stream,
-            $timestamp, $payload )
+            $timestamp, $payload, $message_key )
             = @{$value};
         return $self->response(
             $envelope,
@@ -525,7 +552,8 @@ $C{dump_message} = sub {
                         'id'        => $id,
                         'stream'    => $stream,
                         'timestamp' => $timestamp,
-                        'payload'   => $payload
+                        'payload'   => $payload,
+                        'key'       => $message_key,
                     }
                 }
             )
@@ -537,6 +565,41 @@ $C{dump_message} = sub {
 };
 
 $C{dump} = $C{dump_message};
+
+$C{check_payload} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_payload(1);
+    $self->patron->check_stream(undef);
+    return $self->okay($envelope);
+};
+
+$C{check_stream} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_payload(undef);
+    $self->patron->check_stream(1);
+    return $self->okay($envelope);
+};
+
+$C{no_check} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_payload(undef);
+    $self->patron->check_stream(undef);
+    return $self->okay($envelope);
+};
+
+$C{set_key_regex} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->key_regex( $command->arguments );
+    return $self->okay($envelope);
+};
 
 $C{kick} = sub {
     my $self     = shift;
@@ -600,8 +663,9 @@ sub dbh {
     if ( not defined $self->{dbh} ) {
         $self->make_dirs( $self->db_dir );
         my $path = $self->filename;
-        if ( -e "${path}.clean" ) {
-            unlink "${path}.clean" or warn;
+        if ( -e "${path}.cleanv2" ) {
+            unlink "${path}.clean"   or 1;
+            unlink "${path}.cleanv2" or warn;
         }
         else {
             ## no critic (RequireCheckedSyscalls)
@@ -619,11 +683,12 @@ sub dbh {
                                       message_id,
                                   message_stream,
                                message_timestamp,
-                                 message_payload)
+                                 message_payload,
+                                     message_key)
 EOF
             $dbh->do('CREATE UNIQUE INDEX id_index ON queue (message_id)');
-            $dbh->do('CREATE INDEX payload_index ON queue (message_payload)')
-                if ( $self->{check_payloads} );
+            $dbh->do('CREATE INDEX       key_index ON queue (message_key)')
+                if ( $self->{check_payload} or $self->{check_stream} );
         }
         $dbh->do('PRAGMA synchronous = OFF');
         $dbh->do('PRAGMA journal_mode = TRUNCATE');
@@ -636,18 +701,34 @@ sub close_db {
     my $self = shift;
     $self->{dbh}->disconnect if ( $self->{dbh} );
     my $path = $self->filename;
-    open my $fh, '>>', "${path}.clean" or warn;
+    open my $fh, '>>', "${path}.cleanv2" or warn;
     close $fh or warn;
     $self->buffer_size(undef);
     return;
 }
 
-sub check_payloads {
+sub check_payload {
     my $self = shift;
     if (@_) {
-        $self->{check_payloads} = shift;
+        $self->{check_payload} = shift;
     }
-    return $self->{check_payloads};
+    return $self->{check_payload};
+}
+
+sub check_stream {
+    my $self = shift;
+    if (@_) {
+        $self->{check_stream} = shift;
+    }
+    return $self->{check_stream};
+}
+
+sub key_regex {
+    my $self = shift;
+    if (@_) {
+        $self->{key_regex} = shift;
+    }
+    return $self->{key_regex};
 }
 
 sub db_dir {
