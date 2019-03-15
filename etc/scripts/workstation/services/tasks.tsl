@@ -40,7 +40,7 @@ make_node Log            http:log  /var/log/tachikoma/<name>-access.log append 1
 make_node HTTP_Route     root
 make_node HTTP_Auth      root:auth <home>/Sites/.htpasswd tachikoma-tools
 make_node HTTP_File      root:dir  <home>/Sites
-make_node HTTP_Fetch     fetch:dir /fetch tasks:queue tasks:farm tasks:table
+make_node HTTP_Fetch     fetch:dir /fetch 'tasks:(queue|farm|table)'
 make_node HTTP_Store     store:dir /tmp/http /store tasks:queue
 command root add /      root:dir
 command root add /fetch fetch:dir
