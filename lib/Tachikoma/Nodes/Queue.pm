@@ -105,6 +105,7 @@ sub fill {
             $dbh->prepare(
             'DELETE FROM queue WHERE message_key=? AND attempts=0');
         $sth->execute($message_key);
+        $self->{cache} = undef;
     }
     $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     $sth->execute( $Tachikoma::Right_Now + $self->{delay},
@@ -269,8 +270,9 @@ sub get_next_key {
     $cache = undef if ($restart);
     if ( not $cache ) {
         my %streams = ();
+        my %keys    = ();
         my $sth     = $self->{dbh}->prepare(<<'EOF');
-              SELECT message_id, message_stream
+              SELECT message_id, message_stream, message_key
                 FROM queue
             ORDER BY message_id
                LIMIT 10000
@@ -278,9 +280,12 @@ EOF
         $sth->execute;
         $cache = [];
         for my $row ( @{ $sth->fetchall_arrayref } ) {
-            next if ( $row->[1] and $streams{ $row->[1] } );
+            next
+                if ( ( length $row->[1] and $streams{ $row->[1] } )
+                or ( length $row->[2] and $keys{ $row->[2] } ) );
             push @{$cache}, $row->[0];
             $streams{ $row->[1] } = 1;
+            $keys{ $row->[2] }    = 1;
         }
         $self->{cache} = $cache;
     }
@@ -621,6 +626,9 @@ sub dump_config {
     my $delay           = $self->{delay};
     my $timeout         = $self->{timeout};
     my $times_expire    = $self->{times_expire};
+    my $key_regex       = $self->{key_regex};
+    my $check_payload   = $self->{check_payload};
+    my $check_stream    = $self->{check_stream};
     $response = "make_node Queue $self->{name}";
     $response .= " $filename"
         if ( $filename ne $name or $max_unanswered > 1 );
@@ -636,6 +644,9 @@ sub dump_config {
         if ( $timeout ne $Default_Timeout );
     $settings .= "  set_times_expire $times_expire\n"
         if ( $times_expire ne $Default_Times_Expire );
+    $settings .= "  set_key_regex $key_regex\n" if ($key_regex);
+    $settings .= "  check_payload\n"            if ($check_payload);
+    $settings .= "  check_stream\n"             if ($check_stream);
     $response .= "cd $self->{name}\n" . $settings . "cd ..\n" if ($settings);
     return $response;
 }
@@ -736,6 +747,7 @@ sub db_dir {
 sub remove_node {
     my $self = shift;
     $self->close_db if ( $self->{filename} );
+    $self->{filename} = undef;
     return $self->SUPER::remove_node(@_);
 }
 

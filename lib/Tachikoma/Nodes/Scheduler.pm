@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Scheduler.pm 36721 2019-03-15 17:44:13Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -464,6 +464,7 @@ sub untie_hash {
         close $fh
             or $self->stderr("ERROR: couldn't close ${path}.clean: $!");
     }
+    $self->{filename} = undef;
     $self->{tiedhash} = undef;
     return;
 }
