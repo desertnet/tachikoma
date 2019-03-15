@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 36723 2019-03-15 21:16:49Z chris $
+# $Id: Job.pm 36725 2019-03-15 21:54:05Z chris $
 #
 
 package Tachikoma::Job;
@@ -133,12 +133,12 @@ sub spawn {
     else {
         my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
-        $type           = ( $type =~ m{^([\w:]+)$} )[0];
-        $username       = ( $username =~ m{^(\S*)$} )[0];
-        $config_file    = ( $config_file =~ m{^(\S*)$} )[0];
-        $name           = ( $name =~ m{^(\S*)$} )[0];
-        $arguments      = ( $arguments =~ m{^(.*)$}s )[0];
-        $owner          = ( $owner =~ m{^(\S*)$} )[0];
+        $type        = ( $type =~ m{^([\w:]+)$} )[0];
+        $username    = ( $username =~ m{^(\S*)$} )[0];
+        $config_file = ( $config_file =~ m{^(\S*)$} )[0];
+        $name        = ( $name =~ m{^(\S*)$} )[0];
+        $arguments   = ( $arguments =~ m{^(.*)$}s )[0];
+        $owner       = ( $owner =~ m{^(\S*)$} )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -153,9 +153,9 @@ sub spawn {
         }
         push @command,
             $tachikoma_job, $config_file, $class,
-            $name           // q(),
-            $arguments      // q(),
-            $owner          // q();
+            $name      // q(),
+            $arguments // q(),
+            $owner     // q();
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;
     }

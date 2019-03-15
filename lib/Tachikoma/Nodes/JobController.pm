@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 36723 2019-03-15 21:16:49Z chris $
+# $Id: JobController.pm 36725 2019-03-15 21:54:05Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -106,7 +106,7 @@ sub fire {
         }
         my $since_last = $Tachikoma::Now - $job->{last_restart};
         my $delay      = $Throttle_Delay - $since_last;
-        if ( $delay < 1
+        if (    $delay < 1
             and not kill 0, $job->{pid}
             and $! ne 'Operation not permitted' )
         {
