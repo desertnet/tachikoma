@@ -373,7 +373,7 @@ sub get_message_key {
     if ( $self->{check_payload} ) {
         my $key_regex = $self->{key_regex};
         if ($key_regex) {
-            $message_key = ( $message->[PAYLOAD] =~ m{$key_regex}i )[0];
+            $message_key = join q(:), $message->[PAYLOAD] =~ m{$key_regex}i;
         }
         else {
             $message_key = $message->[PAYLOAD];
@@ -382,7 +382,7 @@ sub get_message_key {
     elsif ( $self->{check_stream} ) {
         my $key_regex = $self->{key_regex};
         if ($key_regex) {
-            $message_key = ( $message->[STREAM] =~ m{$key_regex}i )[0];
+            $message_key = join q(:), $message->[STREAM] =~ m{$key_regex}i;
         }
         else {
             $message_key = $message->[STREAM];
