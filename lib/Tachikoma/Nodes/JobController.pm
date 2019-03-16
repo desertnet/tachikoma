@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 36725 2019-03-15 21:54:05Z chris $
+# $Id: JobController.pm 36764 2019-03-16 07:02:24Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -455,6 +455,19 @@ sub kill_job {
     $job->{should_restart} = undef;
     delete $self->{jobs}->{$name};
     $job->remove_node;
+    return;
+}
+
+sub rename_job {
+    my $self     = shift;
+    my $old_name = shift;
+    my $new_name = shift;
+    my $jobs     = $self->{jobs};
+    my $job      = $jobs->{$old_name} or die qq(no such job "$old_name"\n);
+    $job->{connector}->name($new_name);
+    $job->{name} = $new_name;
+    $jobs->{$new_name} = $job;
+    delete $jobs->{$old_name};
     return;
 }
 
