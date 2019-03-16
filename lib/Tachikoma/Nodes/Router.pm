@@ -43,13 +43,15 @@ sub register_router_node {
 sub drain {
     my $self      = shift;
     my $connector = shift;
-    if ( $self->type eq 'root' ) {
-        my $class   = ref $Tachikoma::Event_Framework;
-        my $version = $self->configuration->wire_version;
-        $self->stderr("starting up - $class - wire format $version");
+    if ( not Tachikoma->shutting_down ) {
+        if ( $self->type eq 'root' ) {
+            my $class   = ref $Tachikoma::Event_Framework;
+            my $version = $self->configuration->wire_version;
+            $self->stderr("starting up - $class - wire format $version");
+        }
+        $Tachikoma::Event_Framework->drain( $self, $connector );
+        $self->shutdown_all_nodes;
     }
-    $Tachikoma::Event_Framework->drain( $self, $connector );
-    $self->shutdown_all_nodes;
     while ( my $close_cb = shift @Tachikoma::Closing ) {
         &{$close_cb}();
     }

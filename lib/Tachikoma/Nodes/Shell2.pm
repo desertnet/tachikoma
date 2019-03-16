@@ -49,7 +49,7 @@ my %TOKENS = (
     ident      => qr{(?: [.+\-*/]* $ident_re $not_op_re | \\. )+}x,
     logical    => qr{(?: [.](?:[.]|(?!\=)) | $math_re | $logical_re )}x,
     op         => qr{(?: [.]= | [+][+] | -- | [|][|]=
-                        | //= | [+]=   | -= | [*]= | /= | = )}x,
+                       | //=? | [+]=   | -= | [*]= | /= | = )}x,
     and           => qr{&&},
     or            => qr{[|][|]},
     command       => qr{[;&]},
@@ -186,6 +186,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( $message->type & TM_EOF ) {
             $self->stderr('ERROR: got EOF while waiting for tokens')
                 if ( $self->parse_buffer );
+            return $self->shutdown_all_nodes
+                if ( $self->{errors} and not $self->{isa_tty} );
             return $self->sink->fill($message);
         }
         $self->{counter}++;

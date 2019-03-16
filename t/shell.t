@@ -176,10 +176,10 @@ is( $answer,
 
 #####################################################################
 
-$parse_tree = $shell->parse('send echo hi there\!');
+$parse_tree = $shell->parse('send echo hi // there\!');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{hi there!}\n", 'backslash escapes characters' );
+is( $answer, "{hi // there!}\n", 'backslash escapes characters' );
 
 #####################################################################
 
