@@ -265,7 +265,7 @@ sub get_destination {
         my $host = $destination;
         $host =~ s{:ssl$}{};
         next
-            if ( $offline->{$host}
+            if ( exists $offline->{$host}
             or $Tachikoma::Now - $online->{$host} < $Delay );
         push @destinations, $destination;
     }
