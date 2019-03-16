@@ -124,6 +124,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( $message->[STREAM] eq 'RECONNECT' ) {
             $self->note_reconnect( $message->[FROM] );
         }
+        elsif ( $message->[STREAM] eq 'AUTHENTICATED' ) {
+            $self->note_authenticated( $message->[FROM] );
+        }
         else {
             my $payload = $message->[PAYLOAD];
             my ( $host, $port, $use_SSL ) = split m{:}, $payload, 3;
@@ -150,10 +153,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 }
 
 sub fire {
-    my $self    = shift;
-    my $my_name = $self->{name};
-    my $offline = $self->{offline};
+    my $self       = shift;
+    my $my_name    = $self->{name};
+    my $offline    = $self->{offline};
+    my $connectors = $self->{connectors};
     for my $id ( keys %{$offline} ) {
+        next if ( not $offline->{$id} );
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_PING;
         $message->[FROM]    = $my_name;
@@ -163,7 +168,8 @@ sub fire {
         $self->{sink}->fill($message);
     }
     if (    $self->{should_kick}
-        and $self->{should_kick} < $Tachikoma::Right_Now )
+        and $self->{should_kick} < $Tachikoma::Right_Now
+        and keys %{$offline} < keys %{$connectors} )
     {
         my $buffers        = $self->{buffers};
         my $load_balancers = $self->{load_balancers};
@@ -231,9 +237,18 @@ sub note_reconnect {
                 $id, $path
                 : $id );
         }
+        $offline->{$id} = undef;
+    }
+    return;
+}
+
+sub note_authenticated {
+    my $self    = shift;
+    my $id      = shift;
+    my $offline = $self->{offline};
+    if ( not $offline->{$id} ) {
         $offline->{$id} = 1;
-        $self->{should_kick} = $Tachikoma::Right_Now + $Kick_Delay
-            if ( keys %{$offline} < keys %{$connectors} );
+        $self->{should_kick} = $Tachikoma::Right_Now + $Kick_Delay;
     }
     $self->set_timer;
     return;
@@ -439,7 +454,8 @@ $C{unnotify} = sub {
     }
     my $controllers = $self->patron->controllers;
     delete $controllers->{$name}->{$path} if ( $controllers->{$name} );
-    delete $controllers->{$name} if ( not keys %{ $controllers->{$name} } );
+    delete $controllers->{$name}
+        if ( not keys %{ $controllers->{$name} } );
     return $self->okay($envelope);
 };
 
@@ -605,9 +621,10 @@ sub add_connector {
             reconnect => 1
         ) if ( not $Tachikoma::Nodes{$id} );
     }
-    $Tachikoma::Nodes{$id}->register( 'RECONNECT' => $self->name );
+    $Tachikoma::Nodes{$id}->register( 'RECONNECT'     => $self->name );
+    $Tachikoma::Nodes{$id}->register( 'AUTHENTICATED' => $self->name );
     $self->connectors->{$id} = $Tachikoma::Now;
-    $self->offline->{$id}    = 1;
+    $self->offline->{$id}    = undef;
     $self->note_reconnect($id);
     my $tester = (
           $self->{circuit_tester}
@@ -631,12 +648,20 @@ sub remove_connector {
     my $load_balancers = $self->load_balancers;
     for my $name ( keys %{$load_balancers} ) {
         my $path = $load_balancers->{$name};
-        $self->disconnect_node( $name, $path ? join q(/), $id, $path : $id );
+        $self->disconnect_node(
+            $name, $path
+            ? join q(/), $id, $path
+            : $id
+        );
     }
     my $misc = $self->misc;
     for my $name ( keys %{$misc} ) {
         my $path = $misc->{$name};
-        $self->disconnect_node( $name, $path ? join q(/), $id, $path : $id );
+        $self->disconnect_node(
+            $name, $path
+            ? join q(/), $id, $path
+            : $id
+        );
     }
     my $tester = (
           $self->{circuit_tester}
@@ -658,6 +683,8 @@ sub remove_node {
     my $self = shift;
     for my $name ( keys %{ $self->{connectors} } ) {
         $Tachikoma::Nodes{$name}->unregister( 'RECONNECT' => $self->name )
+            if ( $Tachikoma::Nodes{$name} );
+        $Tachikoma::Nodes{$name}->unregister( 'AUTHENTICATED' => $self->name )
             if ( $Tachikoma::Nodes{$name} );
     }
     return $self->SUPER::remove_node(@_);
@@ -695,7 +722,8 @@ sub dump_config {
         my $path = $misc->{$name};
         $response .= "  add $name" . ( $path ? " $path" : q() ) . "\n";
     }
-    $response .= "  circuit_tester $circuit_tester\n" if ($circuit_tester);
+    $response .= "  circuit_tester $circuit_tester\n"
+        if ($circuit_tester);
     for my $name ( sort keys %{$circuits} ) {
         $response .= "  circuit $name\n";
     }
