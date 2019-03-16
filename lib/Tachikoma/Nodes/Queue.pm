@@ -271,7 +271,7 @@ sub get_next_key {
     if ( not $cache ) {
         my %streams = ();
         my %keys    = ();
-        my $sth     = $self->{dbh}->prepare(<<'EOF');
+        my $sth     = $self->dbh->prepare(<<'EOF');
               SELECT message_id, message_stream, message_key
                 FROM queue
             ORDER BY message_id
@@ -668,9 +668,8 @@ sub dbh {
     if ( not defined $self->{dbh} ) {
         $self->make_dirs( $self->db_dir );
         my $path = $self->filename;
-        if ( -e "${path}.cleanv2" ) {
-            unlink "${path}.clean"   or 1;
-            unlink "${path}.cleanv2" or warn;
+        if ( -e "${path}.clean" ) {
+            unlink "${path}.clean" or warn;
         }
         else {
             ## no critic (RequireCheckedSyscalls)
@@ -706,7 +705,7 @@ sub close_db {
     my $self = shift;
     $self->{dbh}->disconnect if ( $self->{dbh} );
     my $path = $self->filename;
-    open my $fh, '>>', "${path}.cleanv2" or warn;
+    open my $fh, '>>', "${path}.clean" or warn;
     close $fh or warn;
     $self->buffer_size(undef);
     return;
