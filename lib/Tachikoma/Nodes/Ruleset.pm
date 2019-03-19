@@ -11,7 +11,6 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::CommandInterpreter;
-use Tachikoma::Nodes::Router;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_EOF

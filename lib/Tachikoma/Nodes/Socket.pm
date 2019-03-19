@@ -16,7 +16,6 @@ package Tachikoma::Nodes::Socket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
-use Tachikoma::Nodes::Router;
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_HEARTBEAT TM_ERROR

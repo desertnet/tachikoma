@@ -20,7 +20,7 @@ sub help {
     return <<'EOF';
 make_node ClientConnector <node name> <tee or load balancer> [ <path> ]
 register <listen port> <client connector> <event>
-    possible events: connected, authenticated
+    possible events: CONNECTED, AUTHENTICATED
 EOF
 }
 
