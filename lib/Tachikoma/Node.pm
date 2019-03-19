@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 36626 2019-03-11 05:28:18Z chris $
+# $Id: Node.pm 36778 2019-03-19 04:33:11Z chris $
 #
 
 package Tachikoma::Node;
@@ -126,7 +126,7 @@ sub register {
     $registrations->{$event} ||= {};
     $registrations->{$event}->{$name} = $is_function;
     if ( length $self->{set_state}->{$event} ) {
-        $self->notify_registered( $name, $event,
+        $self->_notify_registered( $name, $event,
             $self->{set_state}->{$event} );
     }
     return;
@@ -243,18 +243,25 @@ sub notify {
     $payload ||= $event;
     chomp $payload;
     for my $name ( keys %{ $self->{registrations}->{$event} } ) {
-        $self->notify_registered( $name, $event, $payload );
+        $self->_notify_registered( $name, $event, $payload );
     }
     return;
 }
 
-sub notify_registered {
+sub _notify_registered {
     my ( $self, $name, $event, $payload ) = @_;
     my $registered = $self->{registrations}->{$event};
     my $responder  = $Tachikoma::Nodes{_responder};
     my $shell      = $responder ? $responder->{shell} : undef;
     if ( defined $registered->{$name} ) {
-        if ( not $shell->callback( $name, $payload ) ) {
+        my $okay = $shell->callback(
+            $name,
+            {   from    => $self->{name},
+                event   => $event,
+                payload => $payload
+            }
+        );
+        if ( not $okay ) {
             delete $registered->{$name};
         }
         return;
@@ -296,20 +303,22 @@ sub drop_message {
     my $self    = shift;
     my $message = shift;
     my $error   = shift;
-    $self->print_less_often(
-              "WARNING: $error - "
+    my $payload = undef;
+    if (   $message->type == TM_INFO
+        or $message->type == TM_REQUEST
+        or $message->type == TM_ERROR )
+    {
+        $payload = ' payload: ' . $message->payload;
+    }
+    elsif ( $message->type & TM_COMMAND ) {
+        my $command = Tachikoma::Command->new( $message->payload );
+        $payload = ' payload: ' . $command->name . q( ) . $command->arguments;
+    }
+    $self->print_less_often( "WARNING: $error - "
             . $message->type_as_string
-            . ( $message->from ? ' from: ' . $message->from : q() )
-            . ( $message->to   ? ' to: ' . $message->to     : q() )
-            . (
-            (          $message->type == TM_INFO
-                    or $message->type == TM_REQUEST
-                    or $message->type == TM_ERROR
-            )
-            ? ' payload: ' . $message->payload
-            : q()
-            )
-    );
+            . ( $message->from   ? ' from: ' . $message->from : q() )
+            . ( $message->to     ? ' to: ' . $message->to     : q() )
+            . ( defined $payload ? $payload                   : q() ) );
     return;
 }
 

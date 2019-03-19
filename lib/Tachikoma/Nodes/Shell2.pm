@@ -1703,16 +1703,15 @@ sub _send_command {
 sub callback {
     my $self      = shift;
     my $id        = shift;
-    my $payload   = shift;
-    my $error     = shift;
+    my $options   = shift;
     my $callbacks = $self->callbacks;
     my $rv        = undef;
     if ( $callbacks->{$id} ) {
         my %arguments = ();
-        $arguments{'0'} = $id;
-        if ( not $error ) {
-            $arguments{q(1)}      = $payload;
-            $arguments{q(@)}      = $payload;
+        $arguments{'0'} = $options->{event};
+        if ( not $options->{error} ) {
+            $arguments{q(1)}      = $options->{payload};
+            $arguments{q(@)}      = $options->{payload};
             $arguments{q(_C)}     = 1;
             $arguments{q(_ERROR)} = q();
         }
@@ -1720,8 +1719,9 @@ sub callback {
             $arguments{q(1)}      = q();
             $arguments{q(@)}      = q();
             $arguments{q(_C)}     = 0;
-            $arguments{q(_ERROR)} = $payload;
+            $arguments{q(_ERROR)} = $options->{payload};
         }
+        $arguments{q(response.from)} = $options->{from};
         my %old_local = %LOCAL;
         $LOCAL{$_} = $arguments{$_} for ( keys %arguments );
         my $okay = eval {

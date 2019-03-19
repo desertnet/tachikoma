@@ -5,7 +5,7 @@
 #
 #  - duct tape everything together at the last minute
 #
-# $Id: Responder.pm 35268 2018-10-16 06:52:24Z chris $
+# $Id: Responder.pm 36778 2019-03-19 04:33:11Z chris $
 #
 
 package Tachikoma::Nodes::Responder;
@@ -57,8 +57,14 @@ sub fill {
             return;
         }
         my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-        $shell->callback( $message->[ID], $command->{payload},
-            $type & TM_ERROR );
+        $shell->callback(
+            $message->[ID],
+            {   from    => $message->[FROM],
+                event   => $command->{name},
+                payload => $command->{payload},
+                error   => $type & TM_ERROR
+            }
+        );
         delete $shell->callbacks->{ $message->[ID] };
         return;
     }
