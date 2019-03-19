@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 36626 2019-03-11 05:28:18Z chris $
+# $Id: CommandInterpreter.pm 36779 2019-03-19 04:47:31Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -20,11 +20,9 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Tachikoma::Crypto;
-use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO;
-use Tachikoma::Nodes::Router;
 use Data::Dumper;
 use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime SIGHUP );
