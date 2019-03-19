@@ -1736,8 +1736,7 @@ sub callback {
         $rv    = 1;
     }
     else {
-        $self->stderr( "WARNING: couldn't find callback for id $id\n",
-            Dumper $self->callbacks );
+        $self->stderr("WARNING: couldn't find callback for id $id");
     }
     return $rv;
 }
