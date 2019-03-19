@@ -221,8 +221,12 @@ sub rescan_files {
             $forking->{$file}  = 1;
             my $arguments = "--filename=$path --offset=$filepos";
             $arguments .= " --stream=$stream" if ( length $stream );
-            $self->{job_controller}->start_job( 'TailFork', "$file:tail",
-                "$destination $node_path $arguments" );
+            $self->{job_controller}->start_job(
+                {   type      => 'TailFork',
+                    name      => "$file:tail",
+                    arguments => "$destination $node_path $arguments"
+                }
+            );
             my $message = Tachikoma::Message->new;
             $message->type(TM_BYTESTREAM);
             $message->payload($path);

@@ -44,8 +44,13 @@ sub spawn {
         while ( keys %{ $job_controller->jobs } < $count and @$commands ) {
             my $command = shift(@$commands) or return;
             my $name    = join( '-', 'shell', Tachikoma->counter );
-            $job_controller->start_job( 'ExecFork', $name, $command,
-                '_parent' );
+            $job_controller->start_job(
+                {   type      => 'ExecFork',
+                    name      => $name,
+                    arguments => $command,
+                    owner     => '_parent',
+                }
+            );
         }
         $stdin->{fh} = undef if ( keys %Tachikoma::Nodes <= 1 );
         return;

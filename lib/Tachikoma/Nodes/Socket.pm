@@ -1081,7 +1081,7 @@ sub dns_lookup {
     }
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
     if ( not $inet_aton ) {
-        $inet_aton = $job_controller->start_job('Inet_AtoN');
+        $inet_aton = $job_controller->start_job( { type => 'Inet_AtoN' } );
         $Tachikoma::Inet_AtoN_Serial++;
     }
     $self->{inet_aton_serial} = $Tachikoma::Inet_AtoN_Serial;

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 36764 2019-03-16 07:02:24Z chris $
+# $Id: JobController.pm 36781 2019-03-19 06:28:17Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -35,6 +35,7 @@ sub new {
     $self->{bytes_written} = 0;
     $self->{restart}       = {};
     $self->{username}      = undef;
+    $self->{config_file}   = undef;
     $self->{shutdown_mode} = 'wait';
     $self->{shutting_down} = undef;
     $self->{interpreter}   = Tachikoma::Nodes::CommandInterpreter->new;
@@ -198,9 +199,13 @@ $C{run_job} = sub {
     my ( $type, $arguments ) =
         split q( ), ( $command->arguments =~ m{(.*)}s )[0], 2;
     die qq(no type specified\n) if ( not $type );
-    $self->patron->start_job( $type,
-        sprintf( '%s-%06d', $type, $self->patron->job_counter ),
-        $arguments, $envelope->from );
+    $self->patron->start_job(
+        {   type => $type,
+            name => sprintf( '%s-%06d', $type, $self->patron->job_counter ),
+            arguments => $arguments,
+            owner     => $envelope->from,
+        }
+    );
     return;
 };
 
@@ -215,7 +220,12 @@ $C{start_job} = sub {
     my ( $type, $name, $arguments ) =
         split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
-    $self->patron->start_job( $type, $name, $arguments );
+    $self->patron->start_job(
+        {   type      => $type,
+            name      => $name,
+            arguments => $arguments
+        }
+    );
     return $self->okay($envelope);
 };
 
@@ -230,7 +240,13 @@ $C{maintain_job} = sub {
     my ( $type, $name, $arguments ) =
         split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
-    $self->patron->start_job( $type, $name, $arguments, undef, 'forever' );
+    $self->patron->start_job(
+        {   type           => $type,
+            name           => $name,
+            arguments      => $arguments,
+            should_restart => 'forever',
+        }
+    );
     return $self->okay($envelope);
 };
 
@@ -245,8 +261,14 @@ $C{lazy_job} = sub {
     my ( $type, $name, $arguments ) =
         split q( ), ( $command->arguments =~ m{(.*)}s )[0], 3;
     $name ||= $type;
-    $self->patron->start_job( $type, $name, $arguments, undef,
-        'forever', 'lazy' );
+    $self->patron->start_job(
+        {   type           => $type,
+            name           => $name,
+            arguments      => $arguments,
+            should_restart => 'forever',
+            lazy           => 1
+        }
+    );
     return $self->okay($envelope);
 };
 
@@ -374,17 +396,16 @@ $C{shutdown_mode} = sub {
 };
 
 sub start_job {
-    my $self           = shift;
-    my $type           = shift or die qq(no type specified\n);
-    my $name           = shift;
-    my $arguments      = shift;
-    my $owner          = shift;
-    my $should_restart = shift;
-    my $lazy           = shift;
-    my $username       = $self->username;
-    my $config_file    = $self->config_file;
-    $type =~ s{[^\w\d:]}{}g;
-    $name ||= $type;
+    my $self    = shift;
+    my $options = shift;
+    die qq(no type specified\n) if ( not $options->{type} );
+    $options->{username}    = $self->username    // q();
+    $options->{config_file} = $self->config_file // q();
+    $options->{type} =~ s{[^\w\d:]}{}g;
+    $options->{name} ||= $options->{type};
+    $options->{arguments} //= q();
+    $options->{owner}     //= q();
+    my $name = $options->{name};
 
     if ( $self->{jobs}->{$name} ) {
         die qq(job "$name" already running\n);
@@ -393,42 +414,39 @@ sub start_job {
         die qq(node "$name" exists\n);
     }
     my $job = Tachikoma::Job->new;
-    if ($lazy) {
-        $job->prepare( $type, $name, $arguments, $owner, $should_restart,
-            $username, $config_file );
+    if ( $options->{lazy} ) {
+        $job->prepare($options);
     }
     else {
-        $job->spawn( $type, $name, $arguments, $owner, $should_restart,
-            $username, $config_file );
+        $job->spawn($options);
     }
     $job->{connector}->sink($self);
+    $job->{connector}->owner( $options->{owner} )
+        if ( length $options->{owner} );
     $self->{jobs}->{ $job->{connector}->name } = $job;
     return $job->{connector};
 }
 
 sub restart_job {
-    my $self        = shift;
-    my $old_job     = shift or die qq(no job specified\n);
-    my $type        = $old_job->{type};
-    my $name        = $old_job->{original_name};
-    my $arguments   = $old_job->{arguments};
-    my $username    = $old_job->{username};
-    my $config_file = $old_job->{config_file};
+    my $self    = shift;
+    my $old_job = shift or die qq(no job specified\n);
+    my $name    = $old_job->{original_name};
     die qq(node "$name" exists\n) if ( $Tachikoma::Nodes{$name} );
     my $owner   = $old_job->{connector}->owner;
     my $new_job = Tachikoma::Job->new;
     $old_job->remove_node;
+    my $options = { name => $name };
+    $options->{$_} = $old_job->{$_}
+        for (qw( type arguments username config_file should_restart lazy ));
 
     if ( $old_job->{lazy} ) {
-        $new_job->prepare( $type, $name, $arguments, $owner, 'forever',
-            $username, $config_file );
+        $new_job->prepare($options);
     }
     else {
-        my $should_restart = undef;
-        $should_restart = $old_job->{should_restart}
-            if ( $old_job->{should_restart} eq 'forever' );
-        $new_job->spawn( $type, $name, $arguments, $owner, $should_restart,
-            $username, $config_file );
+        $options->{should_restart} = undef
+            if ($options->{should_restart}
+            and $options->{should_restart} ne 'forever' );
+        $new_job->spawn($options);
     }
     $new_job->{connector}->sink($self);
     $self->{jobs}->{$name} = $new_job;

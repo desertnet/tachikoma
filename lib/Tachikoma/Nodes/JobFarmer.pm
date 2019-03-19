@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 36137 2019-02-26 02:08:41Z chris $
+# $Id: JobFarmer.pm 36781 2019-03-19 06:28:17Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -415,9 +415,13 @@ sub start_job {
     my $job_arguments = shift;
     my $job_name      = sprintf '%s-%06d',
         $self->{name}, $self->{job_controller}->job_counter;
-    $self->{job_controller}
-        ->start_job( $job_type, $job_name, $job_arguments, undef,
-        $Tachikoma::Now, $self->{lazy} );
+    $self->{job_controller}->start_job(
+        {   type      => $job_type,
+            name      => $job_name,
+            arguments => $job_arguments,
+            lazy      => $self->{lazy}
+        }
+    );
     push @{ $self->{load_balancer}->{owner} }, $job_name;
     push @{ $self->{tee}->{owner} }, $job_name if ( $self->{tee} );
     return;

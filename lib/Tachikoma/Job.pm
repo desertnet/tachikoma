@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 36725 2019-03-15 21:54:05Z chris $
+# $Id: Job.pm 36781 2019-03-19 06:28:17Z chris $
 #
 
 package Tachikoma::Job;
@@ -55,34 +55,27 @@ sub new {
 }
 
 sub prepare {
-    my $self           = shift;
-    my $type           = shift;
-    my $name           = shift;
-    my $arguments      = shift // q();
-    my $owner          = shift // q();
-    my $should_restart = shift // q();
-    my $username       = shift || q();
-    my $config_file    = shift || q();
-    $self->{arguments}      = $arguments;
-    $self->{type}           = $type;
+    my $self    = shift;
+    my $options = shift;
+    $self->{arguments}      = $options->{arguments};
+    $self->{type}           = $options->{type};
     $self->{pid}            = q(-);
-    $self->{should_restart} = $should_restart;
     $self->{lazy}           = 1;
-    $self->{username}       = $username;
-    $self->{config_file}    = $config_file;
-    $self->{original_name}  = $name;
+    $self->{username}       = $options->{username};
+    $self->{config_file}    = $options->{config_file};
+    $self->{original_name}  = $options->{name};
+    $self->{should_restart} = $options->{should_restart};
     $self->{connector}      = Tachikoma::Nodes::Callback->new;
-    $self->{connector}->name($name);
-    $self->{connector}->{owner} = $owner;
+    $self->{connector}->name( $options->{name} );
     $self->{connector}->callback(
         sub {
             my $message = shift;
             my $sink    = $self->{connector}->{sink};
-            $owner = $self->{connector}->{owner};
-            $self->spawn( $type, $name, $arguments, $owner, $should_restart,
-                $username, $config_file );
+            my $owner   = $self->{connector}->{owner};
+            $self->spawn($options);
             if ( $self->{connector}->{type} ) {
                 $self->{connector}->sink($sink);
+                $self->{connector}->owner($owner) if ( length $owner );
                 $self->{connector}->fill($message);
             }
             return;
@@ -92,15 +85,9 @@ sub prepare {
 }
 
 sub spawn {
-    my $self           = shift;
-    my $type           = shift;
-    my $name           = shift;
-    my $arguments      = shift // q();
-    my $owner          = shift // q();
-    my $should_restart = shift // q();
-    my $username       = shift || q();
-    my $config_file    = shift || q();
-    my $filehandles    = {
+    my $self        = shift;
+    my $options     = shift;
+    my $filehandles = {
         parent => {
             stdout => undef,
             stderr => undef,
@@ -119,26 +106,26 @@ sub spawn {
     if ($pid) {
 
         # connect parent filehandles
-        $self->connect_parent( $filehandles, $name, $owner );
-        $self->{arguments}      = $arguments;
-        $self->{type}           = $type;
+        $self->connect_parent( $filehandles, $options->{name} );
+        $self->{arguments}      = $options->{arguments};
+        $self->{type}           = $options->{type};
         $self->{pid}            = $pid;
-        $self->{should_restart} = $should_restart;
         $self->{last_restart}   = $Tachikoma::Now;
-        $self->{username}       = $username;
-        $self->{config_file}    = $config_file;
-        $self->{original_name}  = $name;
+        $self->{username}       = $options->{username};
+        $self->{config_file}    = $options->{config_file};
+        $self->{original_name}  = $options->{name};
+        $self->{should_restart} = $options->{should_restart};
         return;
     }
     else {
         my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
-        $type        = ( $type =~ m{^([\w:]+)$} )[0];
-        $username    = ( $username =~ m{^(\S*)$} )[0];
-        $config_file = ( $config_file =~ m{^(\S*)$} )[0];
-        $name        = ( $name =~ m{^(\S*)$} )[0];
-        $arguments   = ( $arguments =~ m{^(.*)$}s )[0];
-        $owner       = ( $owner =~ m{^(\S*)$} )[0];
+        my $type          = ( $options->{type} =~ m{^([\w:]+)$} )[0];
+        my $username      = ( $options->{username} =~ m{^(\S*)$} )[0];
+        my $config_file   = ( $options->{config_file} =~ m{^(\S*)$} )[0];
+        my $name          = ( $options->{name} =~ m{^(\S*)$} )[0];
+        my $arguments     = ( $options->{arguments} =~ m{^(.*)$}s )[0];
+        my $owner         = ( $options->{owner} =~ m{^(\S*)$} )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -151,11 +138,8 @@ sub spawn {
         if ( $username and $username ne ( getpwuid $< )[0] ) {
             push @command, $SUDO, '-u', $username, '-C', FD_5 + 1;
         }
-        push @command,
-            $tachikoma_job, $config_file, $class,
-            $name      // q(),
-            $arguments // q(),
-            $owner     // q();
+        push @command, $tachikoma_job, $config_file, $class, $name,
+            $arguments, $owner;
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;
     }
@@ -180,11 +164,11 @@ sub init_filehandles {
 }
 
 sub connect_parent {
-    my ( $self, $filehandles, $name, $owner ) = @_;
+    my ( $self, $filehandles, $name ) = @_;
 
     # make a FileHandle to send/receive messages over the socketpair()
     close $filehandles->{child}->{socket} or die $!;
-    $self->make_socketpair( $filehandles->{parent}->{socket}, $name, $owner );
+    $self->make_socketpair( $filehandles->{parent}->{socket}, $name );
 
     # create STDIO and Callback nodes to log the child's STDOUT and STDERR
     close $filehandles->{child}->{stdout} or die $!;
@@ -212,13 +196,12 @@ sub connect_child {
 }
 
 sub make_socketpair {
-    my ( $self, $parent, $name, $owner ) = @_;
+    my ( $self, $parent, $name ) = @_;
     $self->{connector}->remove_node if ( $self->{connector} );
     $self->{connector} =
         Tachikoma::Nodes::FileHandle->filehandle( $parent, TK_R );
     $self->{connector}->name($name);
-    $self->{connector}->{owner} = $owner;
-    $self->{connector}->{type}  = 'job';
+    $self->{connector}->{type} = 'job';
     return;
 }
 
