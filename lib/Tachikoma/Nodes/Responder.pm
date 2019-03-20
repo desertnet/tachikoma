@@ -5,7 +5,7 @@
 #
 #  - duct tape everything together at the last minute
 #
-# $Id: Responder.pm 36778 2019-03-19 04:33:11Z chris $
+# $Id: Responder.pm 36806 2019-03-20 17:59:15Z chris $
 #
 
 package Tachikoma::Nodes::Responder;
@@ -46,16 +46,14 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
-    my $rv      = undef;
+    $self->{counter}++;
     if (    $type & TM_COMMAND
         and ( $type & TM_RESPONSE or $type & TM_ERROR )
         and $message->[ID] )
     {
         my $shell = $self->{shell};
-        if ( not $shell ) {
-            $self->stderr('WARNING: unexpected command response with id');
-            return;
-        }
+        return $self->stderr('WARNING: unexpected command response with id')
+            if ( not $shell );
         my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
         $shell->callback(
             $message->[ID],
@@ -70,21 +68,19 @@ sub fill {
     }
     if ( $self->{client} or $self->{owner} ) {
         $message->[TYPE] ^= TM_PERSIST if ( $type & TM_PERSIST );
-        $rv = $self->SUPER::fill($message);
+        $self->SUPER::fill($message);
     }
-    $self->{counter}++;
-    return $rv if ( not $type & TM_PERSIST or $self->{ignore} );
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
-    $response->[FROM]    = $self->{name};
-    $response->[TO]      = $self->get_last_buffer($message);
-    $response->[ID]      = $message->[ID];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = $type & TM_ERROR ? 'answer' : 'cancel';
-
-    # $self->stderr('sending response to ' . $response->[TO]);
-    $self->router->fill($response);
-    return $rv;
+    if ( $type & TM_PERSIST and not $self->{ignore} ) {
+        my $response = Tachikoma::Message->new;
+        $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
+        $response->[FROM]    = $self->{name};
+        $response->[TO]      = $self->get_last_buffer($message);
+        $response->[ID]      = $message->[ID];
+        $response->[STREAM]  = $message->[STREAM];
+        $response->[PAYLOAD] = $type & TM_ERROR ? 'answer' : 'cancel';
+        $self->router->fill($response);
+    }
+    return;
 }
 
 sub get_last_buffer {
