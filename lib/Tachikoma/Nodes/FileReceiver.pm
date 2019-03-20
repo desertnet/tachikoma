@@ -121,8 +121,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             or $self->stderr("ERROR: couldn't write $path: $!");
     }
     elsif ( $op eq 'symlink' ) {
-        unlink $path
-            or $self->stderr("ERROR: couldn't unlink $path: $!");
+        if ( -e $path ) {
+            unlink $path
+                or $self->stderr("ERROR: couldn't unlink $path: $!");
+        }
         $self->make_parent_dirs($path);
         umask 0022
             or $self->stderr("ERROR: couldn't umask 0022: $!");
