@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 36806 2019-03-20 17:59:15Z chris $
+# $Id: Dumper.pm 36808 2019-03-20 18:08:28Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -125,6 +125,7 @@ sub dump_response {
                 chomp $prompt;
                 $prompt .= '> ' if ( $prompt !~ m{> $} );
             }
+            $self->{newline} = 1;
             $self->{stdin}->prompt($prompt);
             return;
         }
