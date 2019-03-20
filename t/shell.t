@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 79;
+use Test::More tests => 80;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -223,7 +223,17 @@ $answer     = q();
 $shell->send_command($parse_tree);
 is( $answer,
     qq({foo --set arg="one two"  }\n),
-    'send builtin preserves trailing whitespace'
+    'send builtin drops leading whitespace and preserves trailing whitespace'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse('send echo "  foo --set arg=\"one two\"  "');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer,
+    qq({  foo --set arg="one two"  }\n),
+    'send builtin preserves leading and trailing quoted whitespace'
 );
 
 #####################################################################

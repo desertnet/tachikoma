@@ -259,7 +259,10 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
     my $input_ref  = ref $proto ? $proto : \$proto;
     $expecting ||= 'eos';
     while ( my $tok = $self->get_next_token($input_ref) ) {
-        next if ( not $parse_tree and $tok->{type} eq 'whitespace' );
+        next
+            if (not $parse_tree
+            and ( not $expecting or not $PARTIAL{$expecting} )
+            and $tok->{type} eq 'whitespace' );
         my $this_branch = undef;
         if ( $PARTIAL{$expecting} ) {
             $parse_tree //= q();
@@ -1246,8 +1249,24 @@ $H{'send_node'} = [ "send_node <path> <bytes>\n", "    alias: send\n" ];
 $BUILTINS{'send_node'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q(), @{ $self->evaluate($raw_tree) };
-    my ( $proto, $path, $payload ) = split q( ), $line, 3;
+    my $values   = $raw_tree->{value};
+    my $i        = 0;
+    $i++
+        while ( $raw_tree->{type} eq 'leaf'
+        and $values->[$i]->{type} eq 'whitespace' );
+    $i++;
+    $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
+    my $path_tree   = $values->[ $i++ ];
+    my $path_values = $path_tree->{value};
+    push @{$path_values}, $values->[ $i++ ]
+        while ( $i < @{$values} and $values->[$i]->{type} ne 'whitespace' );
+    $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
+    $self->fatal_parse_error('bad arguments for send_node')
+        if ( $i > $#{$values} );
+    my $path       = join q(), @{ $self->evaluate($path_tree) };
+    my $payload_rv = [];
+    $self->evaluate_splice( $values, $payload_rv, $i );
+    my $payload = join q(), @{$payload_rv};
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
     $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
