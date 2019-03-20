@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 36781 2019-03-19 06:28:17Z chris $
+# $Id: JobController.pm 36799 2019-03-20 16:04:49Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -399,12 +399,12 @@ sub start_job {
     my $self    = shift;
     my $options = shift;
     die qq(no type specified\n) if ( not $options->{type} );
-    $options->{username}    = $self->username    // q();
-    $options->{config_file} = $self->config_file // q();
     $options->{type} =~ s{[^\w\d:]}{}g;
     $options->{name} ||= $options->{type};
     $options->{arguments} //= q();
     $options->{owner}     //= q();
+    $options->{username}    = $self->username    // q();
+    $options->{config_file} = $self->config_file // q();
     my $name = $options->{name};
 
     if ( $self->{jobs}->{$name} ) {
@@ -437,7 +437,10 @@ sub restart_job {
     $old_job->remove_node;
     my $options = { name => $name };
     $options->{$_} = $old_job->{$_}
-        for (qw( type arguments username config_file should_restart lazy ));
+        for (
+        qw( type arguments owner username
+        config_file should_restart lazy )
+        );
 
     if ( $old_job->{lazy} ) {
         $new_job->prepare($options);
