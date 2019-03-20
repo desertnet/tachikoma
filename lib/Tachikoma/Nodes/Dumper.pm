@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 36116 2019-02-14 05:18:52Z chris $
+# $Id: Dumper.pm 36806 2019-03-20 17:59:15Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -65,8 +65,8 @@ sub fill {
         $type = $self->dump_command($message);
     }
     elsif ($message->[TYPE] & TM_INFO
-        or $message->[TYPE] & TM_BATCH
         or $message->[TYPE] & TM_REQUEST
+        or $message->[TYPE] & TM_BATCH
         or ( $message->[TYPE] & TM_EOF and $self->{debug} ) )
     {
         $type = TM_BYTESTREAM;
@@ -215,7 +215,7 @@ sub update_prompt {
     my $message      = shift;
     my $use_readline = shift;
     return if ( not $use_readline );
-    if ( not length $message->[PAYLOAD] or $message->[PAYLOAD] =~ m{\n$} ) {
+    if ( $message->[PAYLOAD] =~ m{\n$} ) {
         $self->{newline} = 1;
         $self->{stdin}->prompt;
     }
