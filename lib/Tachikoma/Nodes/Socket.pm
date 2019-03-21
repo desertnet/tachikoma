@@ -958,6 +958,7 @@ sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
     if ( $on_EOF eq 'reconnect' ) {
+        $self->notify( 'RECONNECT' => $self->{name} );
         push @Tachikoma::Closing, sub {
             $self->close_filehandle('reconnect');
         };
@@ -1059,7 +1060,6 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         $self->print_less_often('reconnect: looking up hostname')
             if ( not $self->{address} );
     }
-    $self->set_state( 'RECONNECT' => $self->{name} );
     return $rv;
 }
 

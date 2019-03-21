@@ -621,8 +621,6 @@ sub add_connector {
             reconnect => 1
         ) if ( not $Tachikoma::Nodes{$id} );
     }
-    $Tachikoma::Nodes{$id}->register( 'RECONNECT'     => $self->name );
-    $Tachikoma::Nodes{$id}->register( 'AUTHENTICATED' => $self->name );
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = undef;
     $self->note_reconnect($id);
@@ -631,11 +629,12 @@ sub add_connector {
         ? $Tachikoma::Nodes{ $self->{circuit_tester} }
         : undef
     );
-
     if ( $tester and $tester->isa('Tachikoma::Nodes::CircuitTester') ) {
         $tester->circuits->{ join q(/), $id, $_ } = 1
             for ( keys %{ $self->{circuits} } );
     }
+    $Tachikoma::Nodes{$id}->register( 'RECONNECT'     => $self->name );
+    $Tachikoma::Nodes{$id}->register( 'AUTHENTICATED' => $self->name );
     return;
 }
 
