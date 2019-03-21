@@ -64,15 +64,16 @@ sub new {
     $self->{hub_timeout}        = $Hub_Timeout;
 
     # async support
-    $self->{expecting}      = undef;
-    $self->{lowest_offset}  = 0;
-    $self->{saved_offset}   = undef;
-    $self->{timestamps}     = {};
-    $self->{last_expire}    = $Tachikoma::Now;
-    $self->{msg_unanswered} = 0;
-    $self->{max_unanswered} = undef;
-    $self->{timeout}        = $Timeout;
-    $self->{status}         = undef;
+    $self->{expecting}              = undef;
+    $self->{lowest_offset}          = 0;
+    $self->{saved_offset}           = undef;
+    $self->{timestamps}             = {};
+    $self->{last_expire}            = $Tachikoma::Now;
+    $self->{msg_unanswered}         = 0;
+    $self->{max_unanswered}         = undef;
+    $self->{timeout}                = $Timeout;
+    $self->{status}                 = undef;
+    $self->{registrations}->{READY} = {};
 
     # sync support
     $self->{host}       = 'localhost';
@@ -216,6 +217,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->set_timer(0) if ( $self->{timer_interval} );
             }
             else {
+                $self->set_state( 'READY' => $self->{partition_id} );
                 $self->{next_offset} = $offset;
             }
         }

@@ -1752,7 +1752,7 @@ sub callback {
             $self->stderr($trap);
         }
         %LOCAL = %old_local;
-        $rv    = 1;
+        $rv    = $okay;
     }
     else {
         $self->stderr("WARNING: couldn't find callback for id $id");

@@ -47,11 +47,12 @@ sub new {
     $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
 
     # async support
-    $self->{partition_id}   = undef;
-    $self->{broker_path}    = undef;
-    $self->{leader_path}    = undef;
-    $self->{max_unanswered} = undef;
-    $self->{timeout}        = undef;
+    $self->{partition_id}           = undef;
+    $self->{broker_path}            = undef;
+    $self->{leader_path}            = undef;
+    $self->{max_unanswered}         = undef;
+    $self->{timeout}                = undef;
+    $self->{registrations}->{READY} = {};
 
     # sync support
     $self->{broker}      = undef;
@@ -292,6 +293,11 @@ sub make_async_consumer {
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
         $consumer->set_timer( $Startup_Delay * 1000 );
+        for my $event ( keys %{ $self->{registrations} } ) {
+            my $r = $self->{registrations}->{$event};
+            $consumer->{registrations}->{$event} =
+                { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
+        }
         $self->consumers->{$partition_id} = $consumer;
     }
     if (   $consumer->{partition} ne $log
