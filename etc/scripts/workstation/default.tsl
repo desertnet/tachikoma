@@ -153,18 +153,15 @@ var username=`whoami`;
 # sound effects
 func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
 func afplay      { send AfPlay:sieve <1>; return }
-func cozmo_alert { send CozmoAlert:sieve <1>; return }
 
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay
-make_node MemorySieve CozmoAlert:sieve 1
-make_node JobFarmer   CozmoAlert       1 CozmoAlert
 make_node Function server_log:sounds '{
     local sound = "";
-    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;                    ]
-    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   cozmo_alert <_1> ]
-    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi;                  ]
-    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;                    ];
+    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
+    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
+    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi; ]
+    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
     if (<sound>) { afplay { get_sound <sound> } };
 }'
 make_node Function silc:sounds '{
@@ -173,9 +170,6 @@ make_node Function silc:sounds '{
     afplay { get_sound <sound> };
 }'
 command AfPlay     lazy on
-command CozmoAlert lazy on
-connect_node CozmoAlert       null
-connect_node CozmoAlert:sieve CozmoAlert:load_balancer
 connect_node AfPlay           null
 connect_node AfPlay:sieve     AfPlay:load_balancer
 connect_node server_log:tee   server_log:sounds
