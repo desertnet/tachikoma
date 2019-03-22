@@ -342,7 +342,6 @@ sub on_load_window {
     my $timestamp   = $stored->{timestamp}       // 0;
     $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
-        $self->{caches}->[$i] ||= [];
         my $cache = $self->{caches}->[$i];
         my $span  = $timestamp - $next_window;
         my $count = int $span / $self->{window_size};

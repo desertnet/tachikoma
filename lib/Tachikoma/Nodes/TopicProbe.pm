@@ -75,6 +75,7 @@ sub fire {
                 "\n";
         }
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
+            next if ( not $node->{set_state}->{ACTIVE} );
             my $partition_name = $node->{partition};
             $partition_name =~ s{.*/}{};
             $partition_name = join q(/), $self->{prefix}, $partition_name
