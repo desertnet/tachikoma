@@ -54,6 +54,7 @@ sub new {
     $self->{buffer}         = \$new_buffer;
     $self->{poll_interval}  = $Poll_Interval;
     $self->{last_receive}   = Time::HiRes::time;
+    $self->{cache}          = undef;
     $self->{cache_type}     = undef;
     $self->{cache_dir}      = undef;
     $self->{cache_size}     = undef;
@@ -63,18 +64,18 @@ sub new {
     $self->{hub_timeout}        = $Hub_Timeout;
 
     # async support
-    $self->{expecting}      = undef;
-    $self->{lowest_offset}  = 0;
-    $self->{saved_offset}   = undef;
-    $self->{timestamps}     = {};
-    $self->{last_expire}    = $Tachikoma::Now;
-    $self->{msg_unanswered} = 0;
-    $self->{max_unanswered} = undef;
-    $self->{timeout}        = $Timeout;
-    $self->{status}         = undef;
+    $self->{expecting}              = undef;
+    $self->{lowest_offset}          = 0;
+    $self->{saved_offset}           = undef;
+    $self->{timestamps}             = {};
+    $self->{last_expire}            = $Tachikoma::Now;
+    $self->{msg_unanswered}         = 0;
+    $self->{max_unanswered}         = undef;
+    $self->{timeout}                = $Timeout;
+    $self->{status}                 = undef;
+    $self->{registrations}->{READY} = {};
 
     # sync support
-    $self->{cache}      = undef;
     $self->{host}       = 'localhost';
     $self->{port}       = 4230;
     $self->{target}     = undef;
@@ -216,6 +217,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $self->set_timer(0) if ( $self->{timer_interval} );
             }
             else {
+                $self->set_state( 'READY' => $self->{partition_id} );
                 $self->{next_offset} = $offset;
             }
         }
@@ -232,7 +234,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     return;
 }
 
-sub fire {    ## no critic (ProhibitExcessComplexity)
+sub fire {
     my $self = shift;
     return
         if ( not $self->{sink}
@@ -249,16 +251,10 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         }
         return;
     }
-    if ( $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval ) {
-        $self->expire_timestamps or return;
-    }
     if (    $self->{status} eq 'ACTIVE'
-        and $self->{auto_commit}
-        and $self->{last_commit}
-        and $Tachikoma::Now - $self->{last_commit} > $self->{auto_commit}
-        and $self->{lowest_offset} != $self->{last_commit_offset} )
+        and $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval )
     {
-        $self->commit_offset_async;
+        $self->expire_timestamps or return;
     }
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
@@ -385,8 +381,7 @@ sub expire_timestamps {
         if ( defined $lowest
         and $Tachikoma::Now - $timestamps->{$lowest} > $self->{timeout} );
     $lowest //= $self->{offset};
-    $self->{lowest_offset} = $lowest
-        if ( defined $lowest and $lowest != $self->{lowest_offset} );
+    $self->{lowest_offset} = $lowest if ( defined $lowest );
     if ( defined $retry ) {
         $self->stderr("RETRY $retry");
         if ( defined $self->partition_id ) {
@@ -396,6 +391,13 @@ sub expire_timestamps {
             $self->arguments( $self->arguments );
             $self->next_offset($lowest);
         }
+    }
+    elsif ( $self->{auto_commit}
+        and $self->{last_commit}
+        and $Tachikoma::Now - $self->{last_commit} >= $self->{auto_commit}
+        and $self->{lowest_offset} != $self->{last_commit_offset} )
+    {
+        $self->commit_offset_async;
     }
     $self->{last_expire} = $Tachikoma::Now;
     return not $retry;
@@ -411,6 +413,7 @@ sub commit_offset_async {
         cache_type => $self->{cache_type},
         cache      => $cache,
     };
+    return if ( not $self->{sink} );
     if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
         $self->{edge}->on_save_snapshot( $i, $stored )
@@ -456,7 +459,7 @@ sub load_cache {
             }
             elsif ( $cache_type eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
-                    $self->{edge}->on_load_window( $i, $stored );
+                    $self->{cache} = $stored;
                 }
             }
         }
@@ -478,8 +481,9 @@ sub load_cache_complete {
                     return;
                 };
             }
-            if ( $self->{edge}->can('on_load_window_complete') ) {
-                $self->{edge}->on_load_window_complete($i);
+            if ( $self->{edge}->can('on_load_window') ) {
+                $self->{edge}->on_load_window( $i, $self->{cache} );
+                $self->{cache} = undef;
             }
         }
     }
@@ -523,9 +527,8 @@ sub remove_node {
     $self->name(q());
     if ( $self->{edge} ) {
         my $edge = $self->{edge};
-        my $i    = $self->{partition_id};
-        $edge->new_cache($i)
-            if ( $edge and defined $i and $edge->can('new_cache') );
+        $edge->new_cache(undef)
+            if ( $edge and $edge->can('new_cache') );
     }
     return $self->SUPER::remove_node(@_);
 }
@@ -878,6 +881,14 @@ sub last_receive {
     return $self->{last_receive};
 }
 
+sub cache {
+    my $self = shift;
+    if (@_) {
+        $self->{cache} = shift;
+    }
+    return $self->{cache};
+}
+
 sub cache_type {
     my $self = shift;
     if (@_) {
@@ -1021,14 +1032,6 @@ sub remove_target {
             if ( $self->{poll_interval} );
     }
     return;
-}
-
-sub cache {
-    my $self = shift;
-    if (@_) {
-        $self->{cache} = shift;
-    }
-    return $self->{cache};
 }
 
 sub host {

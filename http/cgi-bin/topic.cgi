@@ -13,10 +13,20 @@ require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
 
-my $cgi  = CGI->new;
-my $path = $cgi->path_info;
+my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
+my $cgi        = CGI->new;
+my $path       = $cgi->path_info;
 $path =~ s(^/)();
-my ( $topic, $partition, $offset, $count ) = split q(/), $path, 4;
+my ( $topic, $partition, $location, $count ) = split q(/), $path, 4;
+my $offset = undef;
+if ($location) {
+    if ($location eq 'last') {
+        $offset = 'recent';
+    }
+    else {
+        $offset = $location;
+    }
+}
 die "no topic\n" if ( not $topic );
 $partition ||= 0;
 $offset    ||= 'start';
@@ -30,6 +40,7 @@ $json->allow_blessed(1);
 $json->convert_blessed(0);
 CORE::state %groups;
 $groups{$topic} //= Tachikoma::Nodes::ConsumerBroker->new($topic);
+$groups{$topic}->broker_ids($broker_ids);
 my $group    = $groups{$topic};
 my $consumer = $group->consumers->{$partition}
     || $group->make_sync_consumer($partition);
@@ -42,8 +53,16 @@ else {
 }
 my @messages = ();
 my $results  = undef;
-do { push @messages, @{ $consumer->fetch } }
-    while ( @messages < $count and not $consumer->eos );
+if ($location eq 'last') {
+    do {
+        push @messages, @{ $consumer->fetch };
+        shift @messages while ( @messages > $count );
+    } while ( not $consumer->eos );
+}
+else {
+    do { push @messages, @{ $consumer->fetch } }
+        while ( @messages < $count and not $consumer->eos );
+}
 if ( $consumer->sync_error ) {
     print STDERR $consumer->sync_error;
     $results = {
@@ -54,7 +73,7 @@ if ( $consumer->sync_error ) {
 else {
     my @output      = ();
     my $i           = 1;
-    my $next_offset = $offset eq 'end' ? $consumer->offset : $offset;
+    my $next_offset = $offset =~ m{\D} ? $consumer->offset : $offset;
     for my $message (@messages) {
         $next_offset = ( split q(:), $message->id, 2 )[1];
         push @output, $message->payload;

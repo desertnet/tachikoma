@@ -16,7 +16,6 @@ package Tachikoma::Nodes::Socket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
-use Tachikoma::Nodes::Router;
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_HEARTBEAT TM_ERROR
@@ -349,7 +348,6 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->set_state( 'CONNECTED' => $node->{name} );
     $self->{counter}++;
     return;
 }
@@ -389,7 +387,6 @@ sub init_socket {
         return;
     }
     $self->register_reader_node;
-    $self->set_state( 'CONNECTED' => $self->{name} );
     return $self->init_connect;
 }
 
@@ -536,6 +533,7 @@ sub init_connect {
         $self->{drain_fh} = \&reply_to_server_challenge;
         $self->{fill_fh}  = \&Tachikoma::Nodes::FileHandle::null_cb;
     }
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return;
 }
 
@@ -551,6 +549,7 @@ sub init_accept {
     $self->{auth_timestamp} = $message->[TIMESTAMP];
     push @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return;
 }
 
@@ -959,6 +958,7 @@ sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
     if ( $on_EOF eq 'reconnect' ) {
+        $self->notify( 'RECONNECT' => $self->{name} );
         push @Tachikoma::Closing, sub {
             $self->close_filehandle('reconnect');
         };
@@ -1060,7 +1060,6 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         $self->print_less_often('reconnect: looking up hostname')
             if ( not $self->{address} );
     }
-    $self->set_state( 'RECONNECT' => $self->{name} );
     return $rv;
 }
 
@@ -1081,7 +1080,7 @@ sub dns_lookup {
     }
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
     if ( not $inet_aton ) {
-        $inet_aton = $job_controller->start_job('Inet_AtoN');
+        $inet_aton = $job_controller->start_job( { type => 'Inet_AtoN' } );
         $Tachikoma::Inet_AtoN_Serial++;
     }
     $self->{inet_aton_serial} = $Tachikoma::Inet_AtoN_Serial;

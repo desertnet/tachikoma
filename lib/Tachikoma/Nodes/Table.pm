@@ -9,15 +9,15 @@
 package Tachikoma::Nodes::Table;
 use strict;
 use warnings;
-use Tachikoma::Node;
+use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_REQUEST TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST TM_ERROR TM_EOF
 );
 use Tachikoma;
 use Digest::MD5 qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Node );
+use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.197');
 
@@ -38,6 +38,7 @@ EOF
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
+    $self->{partitions}     = {};
     $self->{caches}         = [];
     $self->{on_save_window} = [];
     $self->{num_partitions} = $Default_Num_Partitions;
@@ -78,6 +79,7 @@ sub arguments {
         die "ERROR: window_size and bucket_size can't be used together\n"
             if ( $window_size and $bucket_size );
         $self->{arguments}      = $arguments;
+        $self->{partitions}     = {};
         $self->{caches}         = [];
         $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
         $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
@@ -117,12 +119,30 @@ sub fill {
             );
         }
     }
+    elsif ( $message->[TYPE] & TM_INFO ) {
+        if ( $message->[STREAM] eq 'READY' ) {
+            $self->{partitions}->{ $message->[PAYLOAD] } = 1;
+            $self->set_timer if ( not $self->{timer_is_active} );
+        }
+    }
     elsif ( not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF )
     {
         $self->store( $message->[TIMESTAMP], $message->[STREAM],
             $message->payload );
         $self->cancel($message);
+    }
+    return;
+}
+
+sub fire {
+    my $self = shift;
+    if ( $self->{window_size} ) {
+        for my $i ( 0 .. $self->{num_partitions} ) {
+            my $next_window = $self->{next_window}->[$i] // 0;
+            $self->roll_window( $i, $Tachikoma::Now )
+                if ( $Tachikoma::Now >= $next_window );
+        }
     }
     return;
 }
@@ -188,7 +208,7 @@ sub store {
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
         $self->roll_window( $i, $timestamp )
-            if ( $timestamp > $next_window );
+            if ( $timestamp >= $next_window );
     }
     elsif ( $self->{bucket_size} ) {
         my $cache = $self->{caches}->[$i];
@@ -320,6 +340,7 @@ sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
     my $timestamp   = $stored->{timestamp}       // 0;
+    $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
         $self->{caches}->[$i] ||= [];
         my $cache = $self->{caches}->[$i];
@@ -341,12 +362,6 @@ sub on_load_window {
     return;
 }
 
-sub on_load_window_complete {
-    my ( $self, $i ) = @_;
-    $self->{caches}->[$i] ||= [];
-    return;
-}
-
 sub on_save_window {
     my $self = shift;
     if (@_) {
@@ -364,6 +379,17 @@ sub on_load_snapshot {
 sub on_save_snapshot {
     my ( $self, $i, $stored ) = @_;
     $stored->{cache} = $self->{caches}->[$i];
+    return;
+}
+
+sub new_cache {
+    my ( $self, $i ) = @_;
+    if ( defined $i ) {
+        $self->{caches}->[$i] = [];
+    }
+    else {
+        $self->{caches} = [];
+    }
     return;
 }
 
@@ -435,6 +461,14 @@ sub mget {
 }
 
 # async support
+sub partitions {
+    my $self = shift;
+    if (@_) {
+        $self->{partitions} = shift;
+    }
+    return $self->{partitions};
+}
+
 sub caches {
     my $self = shift;
     if (@_) {

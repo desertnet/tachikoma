@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 36137 2019-02-26 02:08:41Z chris $
+# $Id: CommandInterpreter.pm 36779 2019-03-19 04:47:31Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -20,7 +20,6 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Tachikoma::Crypto;
-use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO;
@@ -96,6 +95,8 @@ sub fill {
             $message->[TO] = $message->[FROM];
         }
     }
+    return $self->drop_message( $message, 'no sink' )
+        if ( not $self->{sink} );
     return $self->{sink}->fill($message);
 }
 

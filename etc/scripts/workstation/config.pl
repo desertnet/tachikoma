@@ -13,12 +13,15 @@ make_node JobController      jobs
 command jobs start_job Tail  local_server_log /var/log/tachikoma/tachikoma-server.log
 make_node Ruleset            server_log:ruleset
 make_node Tee                server_log:tee
+make_node LogColor           server_log:color
 make_node Tee                server_log
 make_node Tee                error_log:tee
+make_node LogColor           error_log:color
 make_node Tee                error_log
 make_node Ruleset            local_system_log:ruleset
 make_node Ruleset            system_log:ruleset
 make_node Tee                system_log:tee
+make_node LogColor           system_log:color
 make_node Tee                system_log
 make_node Tee                silc_dn:tee
 make_node Null               null
@@ -42,12 +45,9 @@ cd system_log:ruleset:config
   add 1000 redirect to system_log:tee
 cd ..
 
-command jobs start_job Transform server_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
-command jobs start_job Transform error_log:color  '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
-command jobs start_job Transform system_log:color '/usr/local/etc/tachikoma/LogColor.conf' 'Log::Color::filter(@_)'
-command jobs start_job Tail      http_log         /var/log/tachikoma/http-access.log
-command jobs start_job Tail      tasks_http_log   /var/log/tachikoma/tasks-access.log
-command jobs start_job Tail      tables_http_log  /var/log/tachikoma/tables-access.log
+command jobs start_job Tail http_log        /var/log/tachikoma/http-access.log
+command jobs start_job Tail tasks_http_log  /var/log/tachikoma/tasks-access.log
+command jobs start_job Tail tables_http_log /var/log/tachikoma/tables-access.log
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
@@ -151,35 +151,24 @@ sub workstation_services {
 
 # services
 var services = "<home>/.tachikoma/services";
-
-command jobs  run_job Shell <services>/hubs.tsl
-command hosts connect_inet localhost:<tachikoma.hubs.port>      hubs:service
-
-command jobs  run_job Shell <services>/indexers.tsl
-command hosts connect_inet localhost:<tachikoma.indexers.port>  indexers:service
-
-command jobs  run_job Shell <services>/tables.tsl
-command hosts connect_inet localhost:<tachikoma.tables.port>    tables:service
-
-command jobs  run_job Shell <services>/engines.tsl
-command hosts connect_inet localhost:<tachikoma.engines.port>   engines:service
-
-command jobs  run_job Shell <services>/lookup.tsl
-command hosts connect_inet localhost:<tachikoma.lookup.port>    lookup:service
-
-command jobs  run_job Shell <services>/topic_top.tsl
-command hosts connect_inet localhost:<tachikoma.topic_top.port> topic_top:service
-
-command jobs  run_job Shell <services>/http.tsl
-command hosts connect_inet localhost:<tachikoma.http.port>      http:service
-
-command jobs  run_job Shell <services>/tasks.tsl
-command hosts connect_inet localhost:<tachikoma.tasks.port>     tasks:service
+func start_service {
+    local service = <1>;
+    command jobs  start_job Shell <service>:job <services>/<service>.tsl;
+    command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
+}
+func stop_service {
+    local service = <1>;
+    command jobs stop_job <service>:job;
+    # rm <service>:service;
+}
+for service (<tachikoma.services>) {
+    start_service <service>;
+}
 
 
 
 # ingest server logs
-connect_node server_log:tee indexers:service/server_log
+connect_node server_log:tee server_logs:service/server_log
 
 EOF
 }

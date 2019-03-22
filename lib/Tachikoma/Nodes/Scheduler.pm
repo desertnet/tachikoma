@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Scheduler.pm 36728 2019-03-15 23:13:16Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -396,7 +396,8 @@ sub schedule {    ## no critic (ProhibitManyArgs)
 
 sub remove_node {
     my $self = shift;
-    $self->untie_hash;
+    $self->untie_hash if ( $self->{filename} );
+    $self->{filename} = undef;
     $self->SUPER::remove_node;
     return;
 }

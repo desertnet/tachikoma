@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 36137 2019-02-26 02:08:41Z chris $
+# $Id: Node.pm 36778 2019-03-19 04:33:11Z chris $
 #
 
 package Tachikoma::Node;
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_EOF
+    TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_REQUEST TM_ERROR TM_EOF
 );
 use Tachikoma::Command;
 use Tachikoma::Crypto;
@@ -69,6 +69,8 @@ sub fill {
     my ( $self, $message ) = @_;
     $message->[TO] = $self->{owner} if ( not length $message->[TO] );
     $self->{counter}++;
+    return $self->drop_message( $message, 'no sink' )
+        if ( not $self->{sink} );
     return $self->{sink}->fill($message);
 }
 
@@ -124,7 +126,7 @@ sub register {
     $registrations->{$event} ||= {};
     $registrations->{$event}->{$name} = $is_function;
     if ( length $self->{set_state}->{$event} ) {
-        $self->notify_registered( $name, $event,
+        $self->_notify_registered( $name, $event,
             $self->{set_state}->{$event} );
     }
     return;
@@ -241,18 +243,25 @@ sub notify {
     $payload ||= $event;
     chomp $payload;
     for my $name ( keys %{ $self->{registrations}->{$event} } ) {
-        $self->notify_registered( $name, $event, $payload );
+        $self->_notify_registered( $name, $event, $payload );
     }
     return;
 }
 
-sub notify_registered {
+sub _notify_registered {
     my ( $self, $name, $event, $payload ) = @_;
     my $registered = $self->{registrations}->{$event};
     my $responder  = $Tachikoma::Nodes{_responder};
     my $shell      = $responder ? $responder->{shell} : undef;
     if ( defined $registered->{$name} ) {
-        if ( not $shell->callback( $name, $payload ) ) {
+        my $okay = $shell->callback(
+            $name,
+            {   from    => $self->{name},
+                event   => $event,
+                payload => $payload
+            }
+        );
+        if ( not $okay ) {
             delete $registered->{$name};
         }
         return;
@@ -288,6 +297,29 @@ sub stamp_message {
         $message->[FROM] = $name;
     }
     return 1;
+}
+
+sub drop_message {
+    my $self    = shift;
+    my $message = shift;
+    my $error   = shift;
+    my $payload = undef;
+    if (   $message->type == TM_INFO
+        or $message->type == TM_REQUEST
+        or $message->type == TM_ERROR )
+    {
+        $payload = ' payload: ' . $message->payload;
+    }
+    elsif ( $message->type & TM_COMMAND ) {
+        my $command = Tachikoma::Command->new( $message->payload );
+        $payload = ' payload: ' . $command->name . q( ) . $command->arguments;
+    }
+    $self->print_less_often( "WARNING: $error - "
+            . $message->type_as_string
+            . ( $message->from   ? ' from: ' . $message->from : q() )
+            . ( $message->to     ? ' to: ' . $message->to     : q() )
+            . ( defined $payload ? $payload                   : q() ) );
+    return;
 }
 
 sub make_parent_dirs {

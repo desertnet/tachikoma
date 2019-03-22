@@ -6,7 +6,7 @@ connect_hub
 
 
 make_node Topic     tasks       <broker>
-make_node Queue     tasks:queue tasks.db 4
+make_node Queue     tasks:queue tasks.q 4
 make_node JobFarmer tasks:farm  4 Task '
     echo --- KEY: "$KEY", VALUE: "$VALUE" ---;
     ls /NONEXISTANT;
@@ -15,13 +15,14 @@ make_node JobFarmer tasks:farm  4 Task '
 register     tasks:queue tasks MSG_RECEIVED
 register     tasks:queue tasks MSG_SENT
 register     tasks:queue tasks MSG_CANCELED
+command      tasks:queue set_key_regex '"repo": "([^"]+)'
 connect_node tasks:farm  tasks
 
 
 # index task IDs
 make_node ConsumerBroker tasks:consumer --broker=<broker>      \
                                         --topic=tasks          \
-                                        --group=IDs            \
+                                        --group=index.ID       \
                                         --default_offset=start \
                                         --max_unanswered=64    \
                                         --auto_commit=60
@@ -35,11 +36,11 @@ topic_probe
 # listen for http connections
 make_node HTTP_Responder responder /tmp/http <tachikoma.tasks.http.port>
 make_node HTTP_Timeout
-make_node Log            http:log  /var/log/tachikoma/<name>-access.log
+make_node Log            http:log  /var/log/tachikoma/<name>-access.log append 134217728
 make_node HTTP_Route     root
 make_node HTTP_Auth      root:auth <home>/Sites/.htpasswd tachikoma-tools
 make_node HTTP_File      root:dir  <home>/Sites
-make_node HTTP_Fetch     fetch:dir /fetch tasks:queue tasks:farm tasks:table
+make_node HTTP_Fetch     fetch:dir /fetch tasks:queue
 make_node HTTP_Store     store:dir /tmp/http /store tasks:queue
 command root add /      root:dir
 command root add /fetch fetch:dir

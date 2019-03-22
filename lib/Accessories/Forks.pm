@@ -10,8 +10,6 @@ use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Nodes::JobController;
-use Tachikoma::Nodes::JobFarmer;
-use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::STDIO qw( TK_SYNC );
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_ERROR TM_EOF );
@@ -46,8 +44,13 @@ sub spawn {
         while ( keys %{ $job_controller->jobs } < $count and @$commands ) {
             my $command = shift(@$commands) or return;
             my $name    = join( '-', 'shell', Tachikoma->counter );
-            $job_controller->start_job( 'ExecFork', $name, $command,
-                '_parent' );
+            $job_controller->start_job(
+                {   type      => 'ExecFork',
+                    name      => $name,
+                    arguments => $command,
+                    owner     => '_parent',
+                }
+            );
         }
         $stdin->{fh} = undef if ( keys %Tachikoma::Nodes <= 1 );
         return;
@@ -71,76 +74,6 @@ sub spawn {
     $self->ev->drain( $stdin, $stdin );
 
     delete $Tachikoma::Nodes{_parent};
-    return;
-}
-
-sub farm {
-    my $self     = shift;
-    my $count    = shift;
-    my $commands = shift || [];
-    my $map      = shift;
-    my $reduce   = shift;
-
-    my $router     = Tachikoma::Nodes::Router->new;
-    my $job_farmer = Tachikoma::Nodes::JobFarmer->new;
-    my $output     = Tachikoma::Nodes::Callback->new;
-    my $collector  = Tachikoma::Nodes::Callback->new;
-    my $stdin      = Tachikoma::Nodes::STDIO->filehandle( *STDIN, TK_SYNC );
-    my $timer      = Tachikoma::Nodes::Timer->new;
-
-    $router->name('_router');
-    $timer->arguments(100);
-    $timer->sink($output);
-    $job_farmer->name('Transform');
-    $job_farmer->arguments( join( ' ', $count, 'Transform', '-', $map ) );
-    $job_farmer->sink($output);
-    $job_farmer->load_balancer->sink($collector);
-    $job_farmer->owner('_parent');
-    $job_farmer->fire;
-    $output->name('_parent');
-
-    $collector->callback(
-        sub {
-            my $message = shift;
-            return $Tachikoma::Nodes{ $message->to }->fill($message);
-        }
-    );
-
-    my $waiting = 0;
-    for my $command (@$commands) {
-        my $message = Tachikoma::Message->new;
-        $message->type(TM_BYTESTREAM);
-        $message->from('_parent');
-        $message->stream($command);
-        $message->payload($command);
-        $job_farmer->fill($message);
-        $waiting++;
-    }
-
-    $output->callback(
-        sub {
-            my $message = shift;
-
-            # print Dumper($message);
-            # print "nodes: ", join(', ', sort keys %Tachikoma::Nodes), "\n",
-            #       "waiting: $waiting\n\n";
-            if ( $message->type & TM_ERROR ) {
-                print STDERR $message->payload;
-            }
-            elsif ( not $message->type & TM_EOF and $message->from ) {
-                &$reduce( $message->stream, $message->payload );
-                $waiting--;
-            }
-            $job_farmer->remove_node if ( $waiting < 1 );
-            $stdin->{fh} = undef if ( keys %Tachikoma::Nodes <= 2 );
-            return;
-        }
-    );
-
-    $self->ev->drain( $stdin, $stdin );
-
-    delete $Tachikoma::Nodes{_parent};
-    delete $Tachikoma::Nodes{_router};
     return;
 }
 

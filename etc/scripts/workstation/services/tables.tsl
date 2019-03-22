@@ -5,31 +5,39 @@ include services/daemonize.tsl
 connect_hub
 
 
+# index IDs
+make_node Topic topic1.ID <broker>
+make_node ConsumerBroker topic1:consumer1   --broker=<broker>      \
+                                            --topic=topic1         \
+                                            --group=index.ID       \
+                                            --default_offset=start \
+                                            --max_unanswered=64    \
+                                            --auto_commit=60
+make_node IndexByStream  IndexByStream
+connect_node topic1:consumer1 IndexByStream/topic1.ID
+
+
 # example of caching values for HTTP_Fetch
-make_node ConsumerBroker topic1:consumer    --broker=<broker>      \
+make_node ConsumerBroker topic1:consumer2   --broker=<broker>      \
                                             --topic=topic1         \
                                             --group=cache          \
                                             --default_offset=start \
                                             --auto_commit=60
-
 make_node Table          topic1:table       --num_partitions=1     \
                                             --window_size=0        \
                                             --num_buckets=1
-
-connect_edge topic1:consumer topic1:table
+connect_edge topic1:consumer2 topic1:table
 
 
 # example of caching offsets for fetch.cgi
 make_node ConsumerBroker topic1.ID:consumer --broker=<broker>      \
                                             --topic=topic1.ID      \
-                                            --group=IDs            \
+                                            --group=table          \
                                             --default_offset=start \
                                             --auto_commit=60
-
 make_node Table          topic1.ID:table    --num_partitions=1     \
                                             --window_size=0        \
                                             --num_buckets=1
-
 connect_edge topic1.ID:consumer topic1.ID:table
 
 
@@ -38,7 +46,7 @@ topic_probe
 # listen for http connections
 make_node HTTP_Responder responder /tmp/http <tachikoma.tables.http.port>
 make_node HTTP_Timeout
-make_node Log            http:log  /var/log/tachikoma/<name>-access.log
+make_node Log            http:log  /var/log/tachikoma/<name>-access.log append 134217728
 make_node HTTP_Route     root
 make_node HTTP_Auth      root:auth <home>/Sites/.htpasswd tachikoma-tools
 make_node HTTP_File      root:dir  <home>/Sites

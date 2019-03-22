@@ -39,8 +39,8 @@ my %H = ();
 # special characters that need to be escaped: [(){}\[\]<>&|;"'`]
 my $ident_re  = qr{[^ . + \- * / # () {} \[\] ! = & | ; " ' ` \s \\ ]+}x;
 my $not_op_re = qr{(?: [.](?![.=]) | [+](?![+=]) | -(?![-=])
-                                   | [*](?![=])  | /(?![=]) )*}x;
-my $math_re    = qr{ [+](?![+=]) | -(?![-=]) | [*](?![=]) | /(?![=]) }x;
+                                   | [*](?![=])  | /(?![/=]) )*}x;
+my $math_re    = qr{ [+](?![+=]) | -(?![-=]) | [*](?![=]) | /(?![/=]) }x;
 my $logical_re = qr{ !~ | =~ | !=? | <=? | >=? | == }x;
 
 my %TOKENS = (
@@ -49,7 +49,7 @@ my %TOKENS = (
     ident      => qr{(?: [.+\-*/]* $ident_re $not_op_re | \\. )+}x,
     logical    => qr{(?: [.](?:[.]|(?!\=)) | $math_re | $logical_re )}x,
     op         => qr{(?: [.]= | [+][+] | -- | [|][|]=
-                        | //= | [+]=   | -= | [*]= | /= | = )}x,
+                       | //=? | [+]=   | -= | [*]= | /= | = )}x,
     and           => qr{&&},
     or            => qr{[|][|]},
     command       => qr{[;&]},
@@ -186,6 +186,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( $message->type & TM_EOF ) {
             $self->stderr('ERROR: got EOF while waiting for tokens')
                 if ( $self->parse_buffer );
+            return $self->shutdown_all_nodes
+                if ( $self->{errors} and not $self->{isa_tty} );
             return $self->sink->fill($message);
         }
         $self->{counter}++;
@@ -257,7 +259,10 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
     my $input_ref  = ref $proto ? $proto : \$proto;
     $expecting ||= 'eos';
     while ( my $tok = $self->get_next_token($input_ref) ) {
-        next if ( not $parse_tree and $tok->{type} eq 'whitespace' );
+        next
+            if (not $parse_tree
+            and ( not $expecting or not $PARTIAL{$expecting} )
+            and $tok->{type} eq 'whitespace' );
         my $this_branch = undef;
         if ( $PARTIAL{$expecting} ) {
             $parse_tree //= q();
@@ -1244,8 +1249,24 @@ $H{'send_node'} = [ "send_node <path> <bytes>\n", "    alias: send\n" ];
 $BUILTINS{'send_node'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
-    my $line     = join q(), @{ $self->evaluate($raw_tree) };
-    my ( $proto, $path, $payload ) = split q( ), $line, 3;
+    my $values   = $raw_tree->{value};
+    my $i        = 0;
+    $i++
+        while ( $raw_tree->{type} eq 'leaf'
+        and $values->[$i]->{type} eq 'whitespace' );
+    $i++;
+    $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
+    my $path_tree   = $values->[ $i++ ];
+    my $path_values = $path_tree->{value};
+    push @{$path_values}, $values->[ $i++ ]
+        while ( $i < @{$values} and $values->[$i]->{type} ne 'whitespace' );
+    $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
+    $self->fatal_parse_error('bad arguments for send_node')
+        if ( $i > $#{$values} );
+    my $path       = join q(), @{ $self->evaluate($path_tree) };
+    my $payload_rv = [];
+    $self->evaluate_splice( $values, $payload_rv, $i );
+    my $payload = join q(), @{$payload_rv};
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
     $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
@@ -1599,8 +1620,8 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
         elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
         elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
-        elsif ( $op eq q(//=) and not @{$v} ) { $v = $result; }
-        elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = $result; }
+        elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
+        elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
         else { $self->fatal_parse_error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
@@ -1701,16 +1722,15 @@ sub _send_command {
 sub callback {
     my $self      = shift;
     my $id        = shift;
-    my $payload   = shift;
-    my $error     = shift;
+    my $options   = shift;
     my $callbacks = $self->callbacks;
     my $rv        = undef;
     if ( $callbacks->{$id} ) {
         my %arguments = ();
-        $arguments{'0'} = $id;
-        if ( not $error ) {
-            $arguments{q(1)}      = $payload;
-            $arguments{q(@)}      = $payload;
+        $arguments{'0'} = $options->{event};
+        if ( not $options->{error} ) {
+            $arguments{q(1)}      = $options->{payload};
+            $arguments{q(@)}      = $options->{payload};
             $arguments{q(_C)}     = 1;
             $arguments{q(_ERROR)} = q();
         }
@@ -1718,8 +1738,9 @@ sub callback {
             $arguments{q(1)}      = q();
             $arguments{q(@)}      = q();
             $arguments{q(_C)}     = 0;
-            $arguments{q(_ERROR)} = $payload;
+            $arguments{q(_ERROR)} = $options->{payload};
         }
+        $arguments{q(response.from)} = $options->{from};
         my %old_local = %LOCAL;
         $LOCAL{$_} = $arguments{$_} for ( keys %arguments );
         my $okay = eval {
@@ -1731,11 +1752,10 @@ sub callback {
             $self->stderr($trap);
         }
         %LOCAL = %old_local;
-        $rv    = 1;
+        $rv    = $okay;
     }
     else {
-        $self->stderr( "WARNING: couldn't find callback for id $id\n",
-            Dumper $self->callbacks );
+        $self->stderr("WARNING: couldn't find callback for id $id");
     }
     return $rv;
 }

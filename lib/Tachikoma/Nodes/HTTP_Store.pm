@@ -17,6 +17,7 @@ use Tachikoma::Message qw(
 use CGI;
 use POSIX qw( strftime );
 use URI::Escape;
+use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -80,12 +81,11 @@ sub fill {
     }
     return $self->send404($message)
         if ( not length $topic_name
-        or not length $escaped
         or not length $postdata
         or not $self->{topics}->{$topic_name}
         or not $Tachikoma::Nodes{$topic_name} );
     my $topic  = $Tachikoma::Nodes{$topic_name};
-    my $key    = uri_unescape($escaped);
+    my $key    = length $escaped ? uri_unescape($escaped) : md5_hex(rand);
     my $update = Tachikoma::Message->new;
     $update->[TYPE]    = TM_BYTESTREAM;
     $update->[STREAM]  = $key;

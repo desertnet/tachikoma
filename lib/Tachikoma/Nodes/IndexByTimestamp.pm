@@ -22,7 +22,8 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     $self->{counter}++;
-    return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
+    return $self->cancel($message)
+        if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
     my $timestamp = $message->[TIMESTAMP] - $message->[TIMESTAMP] % 60;
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;

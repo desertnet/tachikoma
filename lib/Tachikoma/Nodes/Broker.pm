@@ -26,24 +26,28 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.165');
 
 my $Path                = '/tmp/topics';
-my $Rebalance_Interval  = 0.2;           # timer during rebalance
-my $Heartbeat_Interval  = 1;             # ping timer
-my $Heartbeat_Timeout   = 60;            # keep this less than delete interval
-my $Halt_Time           = 0;             # wait to catch up
-my $Reset_Time          = 0;             # wait after tear down
-my $Delete_Interval     = 60;            # delete old logs this often
-my $Check_Interval      = 900;           # look for better balance this often
-my $Save_Interval       = 3600;          # re-save topic configs this often
-my $Rebalance_Threshold = 0.90;          # have 90% of our share of leaders
-my $Election_Short      = 0;             # wait if everyone is online
-my $Election_Long       = 10;            # wait if a broker is offline
-my $Startup_Delay       = 2;             # wait at least this long on startup
+my $Rebalance_Interval  = 0.2;            # timer during rebalance
+my $Heartbeat_Interval  = 1;              # ping timer
+my $Heartbeat_Timeout   = 60;             # keep this less than LCO timeout
+my $Halt_Time           = 0;              # wait to catch up
+my $Reset_Time          = 0;              # wait after tear down
+my $Delete_Interval     = 60;             # delete old logs this often
+my $Check_Interval      = 900;            # look for better balance this often
+my $Save_Interval       = 3600;           # re-save topic configs this often
+my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
+my $Election_Short      = 0;              # wait if everyone is online
+my $Election_Long       = 10;             # wait if a broker is offline
+my $Startup_Delay       = 2;              # wait at least this long on startup
 my $Election_Timeout  = 60;     # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
 my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
 my $Last_LCO_Send     = 0;      # time we last sent LCO
 my $Default_Cache_Size = 8 * 1024 * 1024;    # config for cache partitions
+my $Num_Cache_Segments = 2;
 my %C                  = ();
+
+die 'ERROR: data will be lost if Heartbeat_Timeout < LCO_Send_Interval'
+    if ( $Heartbeat_Timeout < $LCO_Send_Interval );
 
 die 'ERROR: data will be lost if Heartbeat_Timeout >= LCO_Timeout'
     if ( $Heartbeat_Timeout >= $LCO_Timeout );
@@ -269,7 +273,7 @@ sub fill {
     {
         $self->stderr(
             'WARNING: stale message: ID ', $message->id,
-            q( < ),                        $self->{generation},
+            q( < ),                        $self->generation,
             q( - ),                        $message->type_as_string,
             ' from: ',                     $message->from
         );
@@ -456,7 +460,7 @@ sub validate {
     }
     elsif ( $stage ne 'INIT' and $message->[ID] < $self->{generation} ) {
         $self->stderr( $self->{stage}, 'ERROR: stale message: ID ',
-            $message->id, q( < ), $self->{generation} );
+            $message->id, q( < ), $self->generation );
     }
     else {
         $rv = 1;
@@ -1201,7 +1205,7 @@ sub apply_mapping {
                 }
                 $node->arguments(q());
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
-                $node->num_segments( $topic->{num_segments} );
+                $node->num_segments($Num_Cache_Segments);
                 $node->segment_size( $caches->{$group_name} );
                 $node->max_lifespan( $topic->{max_lifespan} );
                 $node->sink( $self->sink );
@@ -1624,12 +1628,14 @@ sub empty_topics {
             if ( ( $glob and $topic_name !~ m{^$glob$} )
             or not $mapping->{$topic_name} );
         for my $name ( keys %{ $mapping->{$topic_name} } ) {
+            $self->stderr("INFO: empty_partition($name)");
             $self->empty_partition($name);
             for my $group_name ( keys %{ $self->{consumer_groups} } ) {
                 my $group = $self->{consumer_groups}->{$group_name};
                 next if ( not $group->{topics}->{$topic_name} );
                 my $cache_name = join q(:), $name, $group_name;
                 $self->empty_partition($cache_name);
+                $self->stderr("INFO: empty_partition($cache_name)");
             }
         }
     }
@@ -1664,6 +1670,7 @@ sub empty_groups {
             for my $name ( keys %{ $mapping->{$topic_name} } ) {
                 my $cache_name = join q(:), $name, $group_name;
                 $self->empty_partition($cache_name);
+                $self->stderr("INFO: empty_partition($cache_name)");
             }
         }
     }
@@ -1959,12 +1966,18 @@ $C{list_consumer_groups} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $glob     = $command->arguments;
-    my $results  = [ [ [ 'GROUP NAME' => 'left' ], [ 'TOPIC' => 'left' ] ] ];
+    my $results  = [
+        [   [ 'GROUP NAME' => 'left' ],
+            [ 'TOPIC'      => 'left' ],
+            [ 'CACHE SIZE' => 'right' ]
+        ]
+    ];
     for my $group_name ( sort keys %{ $self->patron->consumer_groups } ) {
         next if ( $glob and $group_name !~ m{$glob} );
         my $consumer_group = $self->patron->consumer_groups->{$group_name};
         for my $topic_name ( sort keys %{ $consumer_group->{topics} } ) {
-            push @{$results}, [ $group_name, $topic_name ];
+            my $cache_size = $consumer_group->{topics}->{$topic_name};
+            push @{$results}, [ $group_name, $topic_name, $cache_size ];
         }
     }
     return $self->response( $envelope, $self->tabulate($results) );

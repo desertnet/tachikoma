@@ -47,16 +47,16 @@ sub new {
     $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
 
     # async support
-    $self->{partition_id}   = undef;
-    $self->{broker_path}    = undef;
-    $self->{leader_path}    = undef;
-    $self->{max_unanswered} = undef;
-    $self->{timeout}        = undef;
+    $self->{partition_id}           = undef;
+    $self->{broker_path}            = undef;
+    $self->{leader_path}            = undef;
+    $self->{max_unanswered}         = undef;
+    $self->{timeout}                = undef;
+    $self->{registrations}->{READY} = {};
 
     # sync support
     $self->{broker}      = undef;
-    $self->{hosts}       = { localhost => [ 5501, 5502 ] };
-    $self->{broker_ids}  = undef;
+    $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
     $self->{hub_timeout} = $Hub_Timeout;
     $self->{targets}     = {};
     $self->{partitions}  = undef;
@@ -293,6 +293,11 @@ sub make_async_consumer {
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
         $consumer->set_timer( $Startup_Delay * 1000 );
+        for my $event ( keys %{ $self->{registrations} } ) {
+            my $r = $self->{registrations}->{$event};
+            $consumer->{registrations}->{$event} =
+                { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
+        }
         $self->consumers->{$partition_id} = $consumer;
     }
     if (   $consumer->{partition} ne $log
@@ -482,7 +487,7 @@ sub get_leader {
     if ( not $self->{leader} ) {
         die "ERROR: no group specified\n" if ( not $self->group );
         my $leader = undef;
-        for my $name ( keys %{ $self->broker_ids } ) {
+        for my $name ( @{ $self->broker_ids } ) {
             $leader = $self->request_leader($name);
             last if ($leader);
         }
@@ -830,17 +835,12 @@ sub broker {
     }
     if ( not defined $self->{broker} ) {
         my $broker = Tachikoma::Nodes::Topic->new( $self->topic );
-        $broker->hosts( $self->hosts );
+        $broker->broker_ids( $self->broker_ids );
         $broker->poll_interval( $self->poll_interval );
         $broker->hub_timeout( $self->hub_timeout );
         $self->{broker} = $broker;
     }
     return $self->{broker};
-}
-
-sub hosts {
-    my (@args) = @_;
-    return Tachikoma::Nodes::Topic::hosts(@args);
 }
 
 sub broker_ids {

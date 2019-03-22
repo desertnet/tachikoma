@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <title>task queue</title>
+  <meta charset="utf-8">
+  <script type="text/javascript" src="task_queue.js"></script>
+  <style>
+    div.a {
+      font-family: "Lucida Console", Monaco, monospace;
+      font-size: 80%;
+    }
+  </style>
+</head>
+<body onload="start_timer()">
+  [<a href="http://localhost:4242/task_log.html">log</a>]
+  [<a href="http://localhost:4242/task_query.html">search</a>]
+  [<em>queue</em>]
+  <div class="a" id="output">
+    <table>
+      <tr>
+        <th>TIMESTAMP</th>
+        <th>KEY</th>
+        <th>VALUE</th>
+        <th># ATTEMPTS</th>
+        <th>NEXT ATTEMPT</th>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

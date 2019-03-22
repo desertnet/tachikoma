@@ -37,9 +37,6 @@ sub new {
     my $c     = { %{ $self->{interpreter}->commands } };
     $c->{$_} = $C{$_} for ( keys %C );
     $self->{interpreter}->commands($c);
-    $self->{registrations}->{MSG_RECEIVED} = {};
-    $self->{registrations}->{MSG_SENT}     = {};
-    $self->{registrations}->{MSG_CANCELED} = {};
     bless $self, $class;
     return $self;
 }
@@ -62,7 +59,8 @@ sub arguments {
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );
         $self->filename($filename);
-        $self->check_payloads('true') if ( $filename =~ m{[.]q$} );
+        $self->check_payload('true') if ( $filename =~ m{[.]q$} );
+        $self->key_regex(undef);
         $self->max_unanswered($max_unanswered) if ($max_unanswered);
     }
     return $self->{arguments};
@@ -101,29 +99,21 @@ sub fill {
     $copy->[TO]   = $self->{owner};
     $copy->[ID]   = $message_id;
     my $has_payload = undef;
-    if ( $self->{check_payloads} ) {
-        if ( $copy->[TYPE] & TM_STORABLE ) {
-            $Storable::canonical = 1;
-            $copy->[PAYLOAD]     = nfreeze( $copy->payload );
-            $copy->[IS_UNTHAWED] = 0;
-        }
-        $sth = $dbh->prepare(
-            'SELECT attempts FROM queue WHERE message_payload=?');
-        $sth->execute( $copy->[PAYLOAD] );
-        while ( my $row = $sth->fetchrow_arrayref ) {
-            $has_payload = 1 if ( $row->[0] == 0 );
-        }
-    }
-    if ( not $has_payload ) {
+    my $message_key = $self->get_message_key($copy);
+    if ( length $message_key ) {
         $sth =
-            $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
-        $sth->execute( $Tachikoma::Right_Now + $self->{delay},
-            0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
-            $copy->[TIMESTAMP], $copy->[PAYLOAD], );
-        $buffer_size++;
-        $self->{buffer_fills}++;
-        $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
+            $dbh->prepare(
+            'DELETE FROM queue WHERE message_key=? AND attempts=0');
+        $sth->execute($message_key);
+        $self->{cache} = undef;
     }
+    $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    $sth->execute( $Tachikoma::Right_Now + $self->{delay},
+        0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
+        $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
+    $buffer_size++;
+    $self->{buffer_fills}++;
+    $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
     if ( $type & TM_ERROR ) {
         $self->{errors_passed}++;
         $self->answer($message) if ( $type & TM_PERSIST );
@@ -280,8 +270,9 @@ sub get_next_key {
     $cache = undef if ($restart);
     if ( not $cache ) {
         my %streams = ();
-        my $sth     = $self->{dbh}->prepare(<<'EOF');
-              SELECT message_id, message_stream
+        my %keys    = ();
+        my $sth     = $self->dbh->prepare(<<'EOF');
+              SELECT message_id, message_stream, message_key
                 FROM queue
             ORDER BY message_id
                LIMIT 10000
@@ -289,9 +280,12 @@ EOF
         $sth->execute;
         $cache = [];
         for my $row ( @{ $sth->fetchall_arrayref } ) {
-            next if ( $row->[1] and $streams{ $row->[1] } );
+            next
+                if ( ( length $row->[1] and $streams{ $row->[1] } )
+                or ( length $row->[2] and $keys{ $row->[2] } ) );
             push @{$cache}, $row->[0];
             $streams{ $row->[1] } = 1;
+            $keys{ $row->[2] }    = 1;
         }
         $self->{cache} = $cache;
     }
@@ -373,6 +367,35 @@ EOF
     return;
 }
 
+sub get_message_key {
+    my ( $self, $message ) = @_;
+    my $message_key = undef;
+    if ( $message->[TYPE] & TM_STORABLE ) {
+        $Storable::canonical    = 1;
+        $message->[PAYLOAD]     = nfreeze( $message->payload );
+        $message->[IS_UNTHAWED] = 0;
+    }
+    if ( $self->{check_payload} ) {
+        my $key_regex = $self->{key_regex};
+        if ($key_regex) {
+            $message_key = join q(:), $message->[PAYLOAD] =~ m{$key_regex}i;
+        }
+        else {
+            $message_key = $message->[PAYLOAD];
+        }
+    }
+    elsif ( $self->{check_stream} ) {
+        my $key_regex = $self->{key_regex};
+        if ($key_regex) {
+            $message_key = join q(:), $message->[STREAM] =~ m{$key_regex}i;
+        }
+        else {
+            $message_key = $message->[STREAM];
+        }
+    }
+    return $message_key;
+}
+
 sub lookup {
     my ( $self, $key ) = @_;
     my $dbh   = $self->dbh;
@@ -399,29 +422,6 @@ EOF
         }
     }
     return $value;
-}
-
-sub send_event {
-    my $self          = shift;
-    my $stream        = shift;
-    my $event         = shift;
-    my $registrations = $self->{registrations}->{ $event->{type} };
-    my $note          = Tachikoma::Message->new;
-    $event->{key}       = $stream;
-    $event->{timestamp} = $Tachikoma::Right_Now;
-    $note->[TYPE]       = TM_STORABLE;
-    $note->[STREAM]     = $stream;
-    $note->[PAYLOAD]    = $event;
-    for my $name ( keys %{$registrations} ) {
-        my $node = $Tachikoma::Nodes{$name};
-        if ( not $node ) {
-            $self->stderr("WARNING: $name forgot to unregister");
-            delete $registrations->{$name};
-            next;
-        }
-        $node->fill($note);
-    }
-    return;
 }
 
 $C{list_messages} = sub {
@@ -536,7 +536,7 @@ $C{dump_message} = sub {
     my $value = $sth->fetchrow_arrayref;
     if ($value) {
         my ( $next_attempt, $attempts, $type, $id, $stream,
-            $timestamp, $payload )
+            $timestamp, $payload, $message_key )
             = @{$value};
         return $self->response(
             $envelope,
@@ -551,7 +551,8 @@ $C{dump_message} = sub {
                         'id'        => $id,
                         'stream'    => $stream,
                         'timestamp' => $timestamp,
-                        'payload'   => $payload
+                        'payload'   => $payload,
+                        'key'       => $message_key,
                     }
                 }
             )
@@ -563,6 +564,41 @@ $C{dump_message} = sub {
 };
 
 $C{dump} = $C{dump_message};
+
+$C{check_payload} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_payload(1);
+    $self->patron->check_stream(undef);
+    return $self->okay($envelope);
+};
+
+$C{check_stream} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_payload(undef);
+    $self->patron->check_stream(1);
+    return $self->okay($envelope);
+};
+
+$C{no_check} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_payload(undef);
+    $self->patron->check_stream(undef);
+    return $self->okay($envelope);
+};
+
+$C{set_key_regex} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->key_regex( $command->arguments );
+    return $self->okay($envelope);
+};
 
 $C{kick} = sub {
     my $self     = shift;
@@ -590,6 +626,9 @@ sub dump_config {
     my $delay           = $self->{delay};
     my $timeout         = $self->{timeout};
     my $times_expire    = $self->{times_expire};
+    my $key_regex       = $self->{key_regex};
+    my $check_payload   = $self->{check_payload};
+    my $check_stream    = $self->{check_stream};
     $response = "make_node Queue $self->{name}";
     $response .= " $filename"
         if ( $filename ne $name or $max_unanswered > 1 );
@@ -605,6 +644,9 @@ sub dump_config {
         if ( $timeout ne $Default_Timeout );
     $settings .= "  set_times_expire $times_expire\n"
         if ( $times_expire ne $Default_Times_Expire );
+    $settings .= "  set_key_regex $key_regex\n" if ($key_regex);
+    $settings .= "  check_payload\n"            if ($check_payload);
+    $settings .= "  check_stream\n"             if ($check_stream);
     $response .= "cd $self->{name}\n" . $settings . "cd ..\n" if ($settings);
     return $response;
 }
@@ -645,11 +687,12 @@ sub dbh {
                                       message_id,
                                   message_stream,
                                message_timestamp,
-                                 message_payload)
+                                 message_payload,
+                                     message_key)
 EOF
             $dbh->do('CREATE UNIQUE INDEX id_index ON queue (message_id)');
-            $dbh->do('CREATE INDEX payload_index ON queue (message_payload)')
-                if ( $self->{check_payloads} );
+            $dbh->do('CREATE INDEX       key_index ON queue (message_key)')
+                if ( $self->{check_payload} or $self->{check_stream} );
         }
         $dbh->do('PRAGMA synchronous = OFF');
         $dbh->do('PRAGMA journal_mode = TRUNCATE');
@@ -668,12 +711,28 @@ sub close_db {
     return;
 }
 
-sub check_payloads {
+sub check_payload {
     my $self = shift;
     if (@_) {
-        $self->{check_payloads} = shift;
+        $self->{check_payload} = shift;
     }
-    return $self->{check_payloads};
+    return $self->{check_payload};
+}
+
+sub check_stream {
+    my $self = shift;
+    if (@_) {
+        $self->{check_stream} = shift;
+    }
+    return $self->{check_stream};
+}
+
+sub key_regex {
+    my $self = shift;
+    if (@_) {
+        $self->{key_regex} = shift;
+    }
+    return $self->{key_regex};
 }
 
 sub db_dir {
@@ -687,6 +746,7 @@ sub db_dir {
 sub remove_node {
     my $self = shift;
     $self->close_db if ( $self->{filename} );
+    $self->{filename} = undef;
     return $self->SUPER::remove_node(@_);
 }
 

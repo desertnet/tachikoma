@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 77;
+use Test::More tests => 80;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -105,6 +105,14 @@ is( $var->{bar}, 8,  'arithmetic in assignment is evaluated' );
 
 #####################################################################
 
+$parse_tree = $shell->parse('var baz ||= <foo> + 4; baz//=<foo> + 5');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer,     "", 'nothing is sent by logical assignment operators' );
+is( $var->{baz}, 9,  'logical assignment is evaluated correctly' );
+
+#####################################################################
+
 $parse_tree = $shell->parse('date; bar = <foo> + 7');
 $answer     = q();
 $shell->send_command($parse_tree);
@@ -168,10 +176,10 @@ is( $answer,
 
 #####################################################################
 
-$parse_tree = $shell->parse('send echo hi there\!');
+$parse_tree = $shell->parse('send echo hi // there\!');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{hi there!}\n", 'backslash escapes characters' );
+is( $answer, "{hi // there!}\n", 'backslash escapes characters' );
 
 #####################################################################
 
@@ -215,7 +223,17 @@ $answer     = q();
 $shell->send_command($parse_tree);
 is( $answer,
     qq({foo --set arg="one two"  }\n),
-    'send builtin preserves trailing whitespace'
+    'send builtin drops leading whitespace and preserves trailing whitespace'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse('send echo "  foo --set arg=\"one two\"  "');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer,
+    qq({  foo --set arg="one two"  }\n),
+    'send builtin preserves leading and trailing quoted whitespace'
 );
 
 #####################################################################

@@ -22,7 +22,8 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     $self->{counter}++;
-    return if ( not $message->[TYPE] & TM_STORABLE );
+    return $self->cancel($message)
+        if ( not $message->[TYPE] & TM_STORABLE );
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
     my $field     = $self->{arguments};
@@ -33,10 +34,7 @@ sub fill {
     $response->[ID]        = $message->[ID];
     $response->[STREAM]    = $message->payload->{$field};
     $response->[TIMESTAMP] = $message->[TIMESTAMP];
-    $response->[PAYLOAD] =
-        length( $message->[PAYLOAD] )
-        ? "$partition:$offset\n"
-        : q();
+    $response->[PAYLOAD]   = "$partition:$offset\n";
     return $self->{sink}->fill($response);
 }
 

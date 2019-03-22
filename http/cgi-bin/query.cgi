@@ -13,9 +13,9 @@ require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
 
-my $hosts = { 'localhost' => [ 5201 .. 5202 ] };
-my $cgi   = CGI->new;
-my $topic = $cgi->path_info;
+my $host_ports = [ 'localhost:5201', 'localhost:5202' ];
+my $cgi        = CGI->new;
+my $topic      = $cgi->path_info;
 $topic =~ s(^/)();
 die "no topic\n" if ( not $topic );
 my $postdata = $cgi->param('POSTDATA') or die "ERROR: wrong method\n";
@@ -29,7 +29,7 @@ CORE::state %engine;
 
 if ( not defined $engine{$topic} ) {
     $engine{$topic} = Tachikoma::Nodes::QueryEngine->new;
-    $engine{$topic}->hosts($hosts);
+    $engine{$topic}->host_ports($host_ports);
     $engine{$topic}->topic($topic);
 }
 print $cgi->header(
@@ -41,7 +41,14 @@ my $comma = undef;
 while ( my $value = $engine{$topic}->fetchrow ) {
     my $output = undef;
     if ( ref $value eq 'Tachikoma::Message' ) {
-        $output = $value->payload;
+        $output = {
+            type      => $value->type_as_string,
+            from      => $value->from,
+            id        => $value->id,
+            key       => $value->stream,
+            timestamp => $value->timestamp,
+            value     => $value->payload,
+        };
     }
     else {
         $output = $value;

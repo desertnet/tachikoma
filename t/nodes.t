@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3188;
+use Test::More tests => 3158;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -48,7 +48,6 @@ my %nodes = (
     'Tachikoma::Nodes::Consumer'              => q(--partition=foo),
     'Tachikoma::Nodes::ConsumerBroker'        => q(--topic=foo),
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
-    'Tachikoma::Nodes::Counter'               => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
     'Tachikoma::Nodes::Edge'                  => undef,
@@ -62,7 +61,7 @@ my %nodes = (
     'Tachikoma::Nodes::Hopper'            => q(),
     'Tachikoma::Nodes::HTTP_Auth'         => undef,
     'Tachikoma::Nodes::HTTP_File'         => q(),
-    'Tachikoma::Nodes::HTTP_Fetch'        => q(),
+    'Tachikoma::Nodes::HTTP_Fetch'        => q(/ .*:table),
     'Tachikoma::Nodes::HTTP_Responder'    => q(),
     'Tachikoma::Nodes::HTTP_Route'        => q(),
     'Tachikoma::Nodes::HTTP_Store'        => q(),
@@ -112,12 +111,12 @@ my %nodes = (
     'Tachikoma::Nodes::Timestamp'         => q(),
     'Tachikoma::Nodes::Topic'             => q(broker),
     'Tachikoma::Nodes::TopicProbe'        => q(1),
-    'Tachikoma::Nodes::Transform'         => q(- return 1;),
     'Tachikoma::Nodes::Uniq'              => q(),
     'Tachikoma::Nodes::Watchdog'          => q(),
     'Accessories::Nodes::Block'           => q(),
     'Accessories::Nodes::Bucket'          => qq($t/bucket),
     'Accessories::Nodes::ByteSplit'       => q(),
+    'Accessories::Nodes::Counter'         => q(),
     'Accessories::Nodes::Date'            => q(),
     'Accessories::Nodes::HexDump'         => q(),
     'Accessories::Nodes::IndexByHostname' => q(),

@@ -44,11 +44,11 @@ sub new {
     $self->{batch}                  = undef;
     $self->{batch_size}             = 0;
     $self->{responses}              = {};
+    $self->{valid_broker_paths}     = undef;
     $self->{registrations}->{READY} = {};
 
     # sync support
-    $self->{hosts}       = { localhost => [ 5501, 5502 ] };
-    $self->{broker_ids}  = undef;
+    $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
     $self->{persist}     = 'cancel';
     $self->{hub_timeout} = $Hub_Timeout;
     $self->{targets}     = {};
@@ -94,25 +94,35 @@ sub fill {
             $self->cancel( shift @{$responses} );
         }
     }
-    elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->set_timer if ( defined $self->{timer_interval} );
-        my %senders = ();
-        for my $broker_id ( keys %{ $self->{responses} } ) {
-            for my $response ( @{ $self->{responses}->{$broker_id} } ) {
-                $senders{ $response->[FROM] } = 1;
+    elsif ( $self->is_broker_path( $message->[FROM] ) ) {
+        if ( $message->[TYPE] & TM_ERROR ) {
+            $self->set_timer if ( defined $self->{timer_interval} );
+            my %senders = ();
+            for my $broker_id ( keys %{ $self->{responses} } ) {
+                for my $response ( @{ $self->{responses}->{$broker_id} } ) {
+                    $senders{ $response->[FROM] } = 1;
+                }
+                $self->{responses}->{$broker_id} = [];
             }
-            $self->{responses}->{$broker_id} = [];
+            for my $sender ( keys %senders ) {
+                my $copy = bless [ @{$message} ], ref $message;
+                $copy->[TO]     = $sender;
+                $copy->[ID]     = q();
+                $copy->[STREAM] = q();
+                $self->{sink}->fill($copy);
+            }
+            $self->{partitions} = undef;
         }
-        for my $sender ( keys %senders ) {
-            my $copy = bless [ @{$message} ], ref $message;
-            $copy->[TO]     = $sender;
-            $copy->[ID]     = q();
-            $copy->[STREAM] = q();
-            $self->{sink}->fill($copy);
+        elsif ( $message->[TYPE] & TM_STORABLE ) {
+            $self->update_partitions($message);
+            $self->set_state('READY') if ( not $self->{set_state}->{READY} );
         }
-        $self->{partitions} = undef;
+        else {
+            $self->stderr( $message->type_as_string, ' from ',
+                $message->from );
+        }
     }
-    elsif ( $message->[FROM] ne $self->{broker_path} ) {
+    elsif ( not $message->[TYPE] & TM_ERROR ) {
         if ( $self->{partitions} ) {
             $self->batch_message($message);
         }
@@ -127,13 +137,6 @@ sub fill {
             $self->{sink}->fill($response);
         }
     }
-    elsif ( $message->[TYPE] & TM_STORABLE ) {
-        $self->update_partitions($message);
-        $self->set_state('READY') if ( not $self->{set_state}->{READY} );
-    }
-    else {
-        $self->stderr( $message->type_as_string, ' from ', $message->from );
-    }
     return;
 }
 
@@ -145,8 +148,8 @@ sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
             $message->[PAYLOAD] = ${ $_[1] };
         }
         elsif ( ref $_[1] eq 'HASH' ) {
-            $message->[TYPE] = TM_STORABLE;
-            $message->[TO]   = join q(/), $_[0]->{owner}, $_[1]->{partition};
+            $message->[TYPE]      = TM_STORABLE;
+            $message->[TO]        = $_[1]->{partition};
             $message->[TIMESTAMP] = $_[1]->{timestamp}
                 if ( $_[1]->{timestamp} );
             $message->[PAYLOAD] = $_[1]->{bucket} // $_[1];
@@ -186,6 +189,7 @@ sub fire {
     }
     if ($Tachikoma::Right_Now - $self->{last_check} > $self->{poll_interval} )
     {
+        $self->{valid_broker_paths} = undef;
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_REQUEST;
         $message->[FROM]    = $self->{name};
@@ -260,6 +264,26 @@ sub update_partitions {
     }
     $self->{partitions} = $partitions if ($okay);
     return $okay;
+}
+
+sub is_broker_path {
+    my ( $self, $path ) = @_;
+    my $paths = $self->{valid_broker_paths};
+    if ( not $paths ) {
+        $paths = { $self->{broker_path} => 1 };
+        my $node = $Tachikoma::Nodes{ $self->{broker_path} };
+        if ($node) {
+            my $owner = $node->owner;
+            if ( ref $owner ) {
+                $paths->{$_} = 1 for ( @{$owner} );
+            }
+            else {
+                $paths->{$owner} = 1;
+            }
+        }
+        $self->{valid_broker_paths} = $paths;
+    }
+    return $paths->{$path};
 }
 
 ########################
@@ -417,7 +441,7 @@ sub get_partitions {
     die "ERROR: no topic\n" if ( not $self->topic );
     my $partitions = undef;
     $self->sync_error(undef);
-    for my $broker_id ( keys %{ $self->broker_ids } ) {
+    for my $broker_id ( @{ $self->broker_ids } ) {
         $partitions = $self->request_partitions($broker_id);
         if ($partitions) {
             $self->sync_error(undef);
@@ -479,7 +503,7 @@ sub request_partitions {
 sub get_controller {
     my $self       = shift;
     my $controller = undef;
-    for my $broker_id ( keys %{ $self->broker_ids } ) {
+    for my $broker_id ( @{ $self->broker_ids } ) {
         my $target = $self->get_target($broker_id) or next;
         $self->sync_error(undef);
         my $request = Tachikoma::Message->new;
@@ -643,29 +667,19 @@ sub responses {
     return $self->{responses};
 }
 
-# sync support
-sub hosts {
+sub valid_broker_paths {
     my $self = shift;
     if (@_) {
-        $self->{hosts} = shift;
+        $self->{valid_broker_paths} = shift;
     }
-    return $self->{hosts};
+    return $self->{valid_broker_paths};
 }
 
+# sync support
 sub broker_ids {
     my $self = shift;
     if (@_) {
         $self->{broker_ids} = shift;
-    }
-    if ( not defined $self->{broker_ids} ) {
-        my %broker_ids = ();
-        for my $host ( keys %{ $self->hosts } ) {
-            for my $port ( @{ $self->hosts->{$host} } ) {
-                my $broker_id = join q(:), $host, $port;
-                $broker_ids{$broker_id} = undef;
-            }
-        }
-        $self->{broker_ids} = \%broker_ids;
     }
     return $self->{broker_ids};
 }
