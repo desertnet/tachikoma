@@ -300,7 +300,7 @@ sub fill {
     return;
 }
 
-sub fire {    ## no critic (ProhibitExcessComplexity)
+sub fire {
     my $self = shift;
     if ( $self->{stage} eq 'INIT' or $self->{stage} eq 'COMPLETE' ) {
         $self->determine_controller;
@@ -318,27 +318,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         $self->rebalance_partitions('inform_brokers');
     }
     elsif ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
-        my $span = $Tachikoma::Now - $self->{last_election};
-        my $wait = $total == $online ? $Election_Short : $Election_Long;
-        if ( $span > $wait ) {
-            $self->{starting_up} = undef;
-            if ( $self->{is_controller} ) {
-
-                # $self->stderr("CONTROLLER $self->{stage} cycle");
-                $self->send_halt          if ( $self->{stage} eq 'INIT' );
-                $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
-                $self->send_reset         if ( $self->{stage} eq 'RESET' );
-                $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
-                $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
-                $self->send_mapping       if ( $self->{stage} eq 'SEND' );
-                $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
-                $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
-                $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
-            }
-        }
-        $self->{last_check}  = $Tachikoma::Now;
-        $self->{last_delete} = $Tachikoma::Now;
-        $self->{last_save}   = $Tachikoma::Now;
+        $self->process_rebalance( $total, $online );
     }
     elsif ( $self->{is_controller}
         and defined $self->{last_check}
@@ -677,6 +657,52 @@ sub rebalance_partitions {
     return;
 }
 
+sub process_rebalance {
+    my $self   = shift;
+    my $total  = shift;
+    my $online = shift;
+    my $span   = $Tachikoma::Now - $self->{last_election};
+    my $wait   = $total == $online ? $Election_Short : $Election_Long;
+    if ( $span > $wait ) {
+        $self->{starting_up} = undef;
+        if ( $self->{is_controller} ) {
+
+            # $self->stderr("CONTROLLER $self->{stage} cycle");
+            $self->send_halt          if ( $self->{stage} eq 'INIT' );
+            $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
+            $self->send_reset         if ( $self->{stage} eq 'RESET' );
+            $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
+            $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
+            $self->send_mapping       if ( $self->{stage} eq 'SEND' );
+            $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
+            $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
+            $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
+        }
+    }
+    $self->{last_check}  = $Tachikoma::Now;
+    $self->{last_delete} = $Tachikoma::Now;
+    $self->{last_save}   = $Tachikoma::Now;
+    return;
+}
+
+sub send_halt {
+    my $self = shift;
+    $self->{waiting_for_halt} = {};
+    for my $broker_id ( keys %{ $self->{brokers} } ) {
+        my $broker = $self->{brokers}->{$broker_id};
+        next
+            if ( $broker_id eq $self->{broker_id}
+            or not $broker->{online} );
+        $self->{waiting_for_halt}->{$broker_id} = 1
+            if ( $self->{broker_pools}->{ $broker->{pool} } );
+    }
+    $self->{generation}++;
+    $self->inform_brokers("REBALANCE_PARTITIONS\n");
+    $self->inform_brokers("HALT\n");
+    $self->{stage} = 'HALT';
+    return;
+}
+
 sub halt_partitions {
     my $self           = shift;
     my $topics         = $self->{topics};
@@ -696,24 +722,6 @@ sub halt_partitions {
             }
         }
     }
-    return;
-}
-
-sub send_halt {
-    my $self = shift;
-    $self->{waiting_for_halt} = {};
-    for my $broker_id ( keys %{ $self->{brokers} } ) {
-        my $broker = $self->{brokers}->{$broker_id};
-        next
-            if ( $broker_id eq $self->{broker_id}
-            or not $broker->{online} );
-        $self->{waiting_for_halt}->{$broker_id} = 1
-            if ( $self->{broker_pools}->{ $broker->{pool} } );
-    }
-    $self->{generation}++;
-    $self->inform_brokers("REBALANCE_PARTITIONS\n");
-    $self->inform_brokers("HALT\n");
-    $self->{stage} = 'HALT';
     return;
 }
 
@@ -744,19 +752,6 @@ sub send_reset {
     $self->inform_brokers("RESET\n");
     $self->reset_partitions;
     $self->{stage} = 'PAUSE';
-    return;
-}
-
-sub wait_for_reset {
-    my $self = shift;
-    return $self->rebalance_partitions('inform_brokers')
-        if ( $Tachikoma::Now - $self->{last_election} > $Election_Timeout );
-    if ( not keys %{ $self->{waiting_for_reset} }
-        and $Tachikoma::Right_Now - $self->{last_reset} > $Reset_Time )
-    {
-        $self->stderr( $self->{stage} . ' RESET_COMPLETE' );
-        $self->{stage} = 'MAP';
-    }
     return;
 }
 
@@ -819,6 +814,19 @@ sub reset_partitions {
             my $broker_stats = $self->{broker_stats}->{$broker_id};
             delete $broker_stats->{$log_name};
         }
+    }
+    return;
+}
+
+sub wait_for_reset {
+    my $self = shift;
+    return $self->rebalance_partitions('inform_brokers')
+        if ( $Tachikoma::Now - $self->{last_election} > $Election_Timeout );
+    if ( not keys %{ $self->{waiting_for_reset} }
+        and $Tachikoma::Right_Now - $self->{last_reset} > $Reset_Time )
+    {
+        $self->stderr( $self->{stage} . ' RESET_COMPLETE' );
+        $self->{stage} = 'MAP';
     }
     return;
 }
@@ -1315,12 +1323,12 @@ sub inform_brokers {
     return;
 }
 
-sub process_delete {    ## no critic (ProhibitExcessComplexity)
+sub process_delete {
     my $self         = shift;
     my $broker_id    = $self->{broker_id};
     my $broker_lco   = $self->{last_commit_offsets}->{$broker_id};
     my $broker_stats = $self->{broker_stats}->{$broker_id};
-    my $this_pool    = $self->{brokers}->{$broker_id}->{pool};
+    my $now          = time;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         $node->process_delete
@@ -1329,7 +1337,27 @@ sub process_delete {    ## no critic (ProhibitExcessComplexity)
     }
 
     # purge stale logs, except those for other processes on this pool
-    my $now = time;
+    $self->purge_stale_logs;
+    for my $log_name ( keys %{$broker_lco} ) {
+        next if ( $Tachikoma::Nodes{$log_name} );
+        my $log = $broker_lco->{$log_name} or next;
+        if ( $now - $log->{is_active} >= $LCO_Timeout ) {
+            delete $broker_lco->{$log_name};
+        }
+    }
+    for my $log_name ( keys %{$broker_stats} ) {
+        delete $broker_stats->{$log_name}
+            if ( not exists $broker_lco->{$log_name} );
+    }
+    $self->{last_delete} = $Tachikoma::Now;
+    return;
+}
+
+sub purge_stale_logs {
+    my $self      = shift;
+    my $broker_id = $self->{broker_id};
+    my $this_pool = $self->{brokers}->{$broker_id}->{pool};
+    my $now       = time;
     if (    $self->{brokers}->{$broker_id}->{leader}
         and $now - $self->{broker_pools}->{$this_pool} < $Heartbeat_Timeout )
     {
@@ -1376,18 +1404,6 @@ sub process_delete {    ## no critic (ProhibitExcessComplexity)
             }
         }
     }
-    for my $log_name ( keys %{$broker_lco} ) {
-        next if ( $Tachikoma::Nodes{$log_name} );
-        my $log = $broker_lco->{$log_name} or next;
-        if ( $now - $log->{is_active} >= $LCO_Timeout ) {
-            delete $broker_lco->{$log_name};
-        }
-    }
-    for my $log_name ( keys %{$broker_stats} ) {
-        delete $broker_stats->{$log_name}
-            if ( not exists $broker_lco->{$log_name} );
-    }
-    $self->{last_delete} = $Tachikoma::Now;
     return;
 }
 
@@ -1410,7 +1426,7 @@ sub add_broker {
         online         => $online,
         leader         => undef,
     };
-    $self->broker_pools->{$pool} = $online;
+    $self->broker_pools->{$pool} = $online ? $Tachikoma::Now : 0;
 
     if ( $broker_id ne $self->{broker_id} ) {
         my $node = $Tachikoma::Nodes{$broker_id};
