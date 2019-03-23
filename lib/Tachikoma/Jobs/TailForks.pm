@@ -27,7 +27,6 @@ use parent qw( Tachikoma::Job );
 use version; our $VERSION = qv('v2.0.368');
 
 my $Home          = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $Old_DB_Dir    = "$Home/.tachikoma/Tails";
 my $DB_Dir        = "$Home/.tachikoma/tails";
 my $Max_Forking   = 8;
 my $Scan_Interval = 15;
@@ -412,9 +411,6 @@ sub db_dir {
     my $self = shift;
     if (@_) {
         $DB_Dir = shift;
-    }
-    if ( -d $Old_DB_Dir ) {
-        system('/bin/mv', $Old_DB_Dir, $DB_Dir);
     }
     return $DB_Dir;
 }
