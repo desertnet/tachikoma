@@ -65,6 +65,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         if ( $type eq 'deny' ) {
             last;
         }
+        elsif ( $type eq 'cancel' ) {
+            $self->cancel($message);
+            last;
+        }
         elsif ( $type eq 'allow' or $type eq 'redirect' or $type eq 'copy' ) {
             $copy->[TO] =
                    ( $type eq 'allow' ? $message_to : $to )
@@ -114,7 +118,7 @@ $C{help} = sub {
             . "          add_rule <id> rewrite [ <field>=<regex> ]\n"
             . "                                [ to <replacement> ]\n"
             . "          remove_rule <id>\n"
-            . "   types: allow deny copy redirect log\n" );
+            . "   types: allow deny cancel copy redirect log\n" );
 };
 
 $C{list_rules} = sub {
@@ -194,7 +198,7 @@ $C{add_rule} = sub {
         );
     }
     my %valid_types =
-        map { $_ => 1 } qw( allow deny copy redirect rewrite log );
+        map { $_ => 1 } qw( allow deny cancel copy redirect rewrite log );
     if ( not $type or not $valid_types{$type} ) {
         return $self->error( $envelope, "syntax error\n" );
     }

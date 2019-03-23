@@ -81,8 +81,7 @@ sub fill {
         }
     }
     else {
-        $payload = $self->cleanup_syslog( $message, $payload )
-            // return "$payload\n";
+        $payload = $self->cleanup_syslog( $message, $payload );
         if ( $payload =~ m{ su\b| sudo\b} ) {
             $payload = "\e[42m\e[2K$payload\e[0m";
         }
@@ -116,19 +115,16 @@ sub cleanup_syslog {
     my $payload  = $original;
     my $m        = $self->months;
     my $months   = join q(|), keys %{$m};
-    $payload =~ s{^($months)\s+(\d{1,2}) (\d\d):(\d\d):(\d\d)}{}gi or return;
-    my ( $mon, $day, $hour, $min, $sec ) = ( $m->{ lc $1 }, $2, $3, $4, $5 );
-    return $original if ( not defined $mon );
-
+    $payload =~ s{^($months)\s+(\d{1,2}) (\d\d):(\d\d):(\d\d)}{}i;
     if ( $payload =~ s{^(\s+\S+)\s+(\d{4}-\d\d-\d\d [\d:,]+)}{$2$1} ) {
         $payload =~ s{(\s+])}{]}g;
-        return $payload;
     }
-    my $year = ( localtime $message->[TIMESTAMP] )[5];
-    return
-
-       # strftime('%F %T %Z', $sec, $min, $hour, $day, $mon, $year) . $payload
-        strftime( '%F %T %Z', localtime $message->[TIMESTAMP] ) . $payload;
+    else {
+        $payload =~ s{^(\S)}{ $1};
+        $payload = strftime( '%F %T %Z', localtime $message->[TIMESTAMP] )
+            . $payload;
+    }
+    return $payload;
 }
 
 sub months {
