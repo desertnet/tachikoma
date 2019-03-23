@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 36778 2019-03-19 04:33:11Z chris $
+# $Id: Node.pm 36854 2019-03-23 06:12:03Z chris $
 #
 
 package Tachikoma::Node;
@@ -406,7 +406,7 @@ sub log_prefix {
         chomp $msg;
         my $router = $Tachikoma::Nodes{_router};
         $msg =~ s{^}{$prefix}mg
-            if ( $router and $router->{type} ne 'router' );
+            if ( not $router or $router->{type} ne 'router' );
         return $msg . "\n";
     }
     else {
