@@ -3,7 +3,6 @@ include services/config.tsl
 
 make_node CommandInterpreter hosts
 make_node JobController      jobs
-command jobs start_job Tail  local_server_log /var/log/tachikoma/tachikoma-server.log
 make_node Ruleset            server_log:ruleset
 make_node Tee                server_log:tee
 make_node LogColor           server_log:color
@@ -17,20 +16,21 @@ make_node Tee                system_log:tee
 make_node LogColor           system_log:color
 make_node Tee                system_log
 make_node Tee                silc_dn:tee
+make_node Tee                http_log
 make_node Null               null
 make_node Echo               echo
 make_node Scheduler          scheduler
 
 cd server_log:ruleset:config
-  add  100 deny where payload=.* FROM: .* ID: "tachikoma@<hostname>(?:\.?.*)" COMMAND: .*
-  add  200 deny where payload=silo .* pub .* user .* addr .* is rfc1918
+  add  100 cancel where payload=.* FROM: .* ID: "tachikoma@<hostname>(?:\.?.*)" COMMAND: .*
+  add  200 cancel where payload=silo .* pub .* user .* addr .* is rfc1918
   add  999 copy to error_log:tee where payload="ERROR:|FAILED:|TRAP:|COMMAND:"
   add 1000 redirect to server_log:tee
 cd ..
 
 cd local_system_log:ruleset:config
   add 100 allow where payload=sudo
-  add 1000 deny
+  add 1000 cancel
 cd ..
 
 cd system_log:ruleset:config
@@ -38,9 +38,13 @@ cd system_log:ruleset:config
   add 1000 redirect to system_log:tee
 cd ..
 
-command jobs start_job Tail http_log        /var/log/tachikoma/http-access.log
-command jobs start_job Tail tasks_http_log  /var/log/tachikoma/tasks-access.log
-command jobs start_job Tail tables_http_log /var/log/tachikoma/tables-access.log
+command jobs start_job TailForks tails localhost:4230
+cd tails
+  add_tail /var/log/tachikoma/tachikoma-server.log server_log:ruleset
+  add_tail /var/log/tachikoma/http-access.log      http_log
+  add_tail /var/log/tachikoma/tasks-access.log     http_log
+  add_tail /var/log/tachikoma/tables-access.log    http_log
+cd ..
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
@@ -49,10 +53,6 @@ connect_node error_log:color          error_log
 connect_node error_log:tee            error_log:color
 connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
-connect_node local_server_log         server_log:ruleset
-connect_node http_log                 null
-connect_node tasks_http_log           null
-connect_node tables_http_log          null
 
 
 func run_benchmarks {
@@ -133,6 +133,7 @@ func start_service {
     local service = <1>;
     command jobs  start_job Shell <service>:job <services>/<service>.tsl;
     command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
+    command tails add_tail /var/log/tachikoma/<service>.log server_log:ruleset;
 }
 func stop_service {
     local service = <1>;
@@ -156,7 +157,7 @@ func afplay      { send AfPlay:sieve <1>; return }
 
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay
-make_node Function server_log:sounds '{
+make_node Function    server_log:sounds '{
     local sound = "";
     # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
     if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
@@ -169,11 +170,12 @@ make_node Function silc:sounds '{
     if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
     afplay { get_sound <sound> };
 }'
-command AfPlay     lazy on
-connect_node AfPlay           null
-connect_node AfPlay:sieve     AfPlay:load_balancer
-connect_node server_log:tee   server_log:sounds
-connect_node silc_dn:tee      silc:sounds
+command AfPlay lazy on
+connect_node AfPlay:sieve      AfPlay:load_balancer
+connect_node server_log:sounds _responder
+connect_node server_log:tee    server_log:sounds
+connect_node silc:sounds       _responder
+connect_node silc_dn:tee       silc:sounds
 
 cd hosts
   connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
@@ -186,9 +188,11 @@ connect_node silc_dn     silc_dn:tee
 connect_node system_logs system_log:ruleset
 connect_node server_logs server_log:ruleset
 
-command jobs start_job Tail local_system_log /var/log/system.log
-connect_node local_system_log local_system_log:ruleset
-
+command tails add_tail /var/log/system.log local_system_log:ruleset
+cd tails
+  start_tail
+  secure 1
+cd ..
 
 
 #######################################################################

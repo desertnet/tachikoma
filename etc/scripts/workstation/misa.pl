@@ -8,13 +8,10 @@ workstation_benchmarks();
 workstation_partitions();
 workstation_services();
 workstation_sound_effects();
-
 workstation_hosts();
-print <<'EOF';
-command jobs start_job Tail local_system_log /var/log/system.log
-connect_node local_system_log local_system_log:ruleset
+print "command tails add_tail /var/log/system.log local_system_log:ruleset\n";
+workstation_footer();
 
-EOF
 fsync_source(
     path       => '<home>/Documents',
     pedantic   => 1,
