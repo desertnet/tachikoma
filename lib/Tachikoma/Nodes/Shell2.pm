@@ -147,7 +147,7 @@ sub new {
     $self->{prefix}        = undef;
     $self->{mode}          = 'command';
     $self->{isa_tty}       = undef;
-    $self->{want_reply}  = undef;
+    $self->{want_reply}    = undef;
     $self->{stdin}         = undef;
     $self->{dumper}        = undef;
     $self->{responder}     = undef;
