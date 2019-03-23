@@ -147,7 +147,7 @@ sub new {
     $self->{prefix}        = undef;
     $self->{mode}          = 'command';
     $self->{isa_tty}       = undef;
-    $self->{should_reply}  = undef;
+    $self->{want_reply}  = undef;
     $self->{stdin}         = undef;
     $self->{dumper}        = undef;
     $self->{responder}     = undef;
@@ -1709,7 +1709,7 @@ sub _send_command {
     my $payload   = shift;
     my $path      = shift;
     my $message   = $self->command( $name, $arguments, $payload );
-    $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->should_reply );
+    $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->want_reply );
     $message->from( $LOCAL{'message.from'} // $self->{responder}->{name}
             // q() );
     $message->to( $self->prefix($path) );
@@ -1932,12 +1932,12 @@ sub isa_tty {
     return $self->{isa_tty};
 }
 
-sub should_reply {
+sub want_reply {
     my $self = shift;
     if (@_) {
-        $self->{should_reply} = shift;
+        $self->{want_reply} = shift;
     }
-    return $self->{should_reply} // $LOCAL{'message.from'};
+    return $self->{want_reply} // $LOCAL{'message.from'};
 }
 
 sub stdin {
