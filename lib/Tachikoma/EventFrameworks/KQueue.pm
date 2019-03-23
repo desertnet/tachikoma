@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: KQueue.pm 36854 2019-03-23 06:12:03Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -155,16 +155,16 @@ sub handle_signal {
     }
     elsif ( $id == SIGHUP ) {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
-        print {*STDERR} "got SIGHUP - sending SIGUSR1\n";
+        Tachikoma->stderr("got SIGHUP - sending SIGUSR1");
         my $usr1 = SIGUSR1;
         kill -$usr1, $$ or die q(FAILURE: couldn't signal self);
     }
     elsif ( $id == SIGUSR1 ) {
-        print {*STDERR} "got SIGUSR1 - reloading config\n";
+        Tachikoma->stderr("got SIGUSR1 - reloading config");
         Tachikoma->reload_config;
     }
     else {
-        print {*STDERR} "shutting down - received signal\n";
+        Tachikoma->stderr("shutting down - received signal");
         Tachikoma->shutdown_all_nodes;
     }
     return;
