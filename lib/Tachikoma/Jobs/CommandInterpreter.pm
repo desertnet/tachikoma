@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 35438 2018-10-20 22:16:18Z chris $
+# $Id: CommandInterpreter.pm 36854 2019-03-23 06:12:03Z chris $
 #
 
 package Tachikoma::Jobs::CommandInterpreter;
@@ -43,7 +43,6 @@ sub initialize_graph {
         }
     }
     $responder->name('_responder');
-    $responder->ignore('true');
     $responder->shell($shell);
     $shell->sink($interpreter);
     for my $line (@lines) {
