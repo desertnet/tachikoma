@@ -137,7 +137,7 @@ $C{list_rules} = sub {
             my ( $type, $from, $to, $field_id, $regex ) = @{ $rules->{$id} };
             my $field = $field_id ? $enum[$field_id] : undef;
             if ($regex) {
-                $regex =~ s{^[(]([?]([^][:]?)?)?}{};
+                $regex =~ s{^[(][?][\^]:}{};
                 $regex =~ s{[)]$}{};
                 $regex =~ s{'}{\\'}g;
             }
@@ -256,7 +256,7 @@ sub dump_config {
         my ( $type, $from, $to, $field_id, $regex ) = @{ $rules->{$id} };
         my $field = $field_id ? $enum[$field_id] : undef;
         if ($regex) {
-            $regex =~ s{^[(]([?]([^][:]?)?)?}{};
+            $regex =~ s{^[(][?][\^]:}{};
             $regex =~ s{[)]$}{};
             $regex =~ s{'}{\\'}g;
         }
