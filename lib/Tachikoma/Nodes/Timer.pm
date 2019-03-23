@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 36137 2019-02-26 02:08:41Z chris $
+# $Id: Timer.pm 36888 2019-03-23 19:36:58Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -46,13 +46,13 @@ sub fire_cb {
     my $self = shift;
     $self->{timer_is_active} = undef
         if ( ( $self->{timer_is_active} // q() ) ne 'forever' );
+    return if ( not $self->{sink} );
     $self->fire;
     return;
 }
 
 sub fire {
     my $self = shift;
-    return if ( not $self->{sink} );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[FROM]    = $self->{name};
