@@ -1,7 +1,7 @@
 #!/bin/sh
 socket="/tmp/tachikoma.socket"
 if [ -e $socket ] ; then
-    exec /usr/local/bin/tachikoma --socket $socket --verbose -- $@
+    exec /usr/local/bin/tachikoma --socket $socket --verbose $@
 else
-    exec /usr/local/bin/tachikoma --host localhost --verbose -- $@
+    exec /usr/local/bin/tachikoma --host localhost --verbose $@
 fi
