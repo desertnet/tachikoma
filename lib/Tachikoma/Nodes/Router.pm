@@ -27,6 +27,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
+    $self->{fire_cb}                = \&fire_cb;
     $self->{handling_error}         = undef;
     $self->{last_fire}              = $Tachikoma::Now || time;
     $self->{registrations}->{TIMER} = {};
@@ -128,7 +129,7 @@ sub send_error {
     return;
 }
 
-sub fire {
+sub fire_cb {
     my $self         = shift;
     my @again        = ();
     my $reconnecting = Tachikoma->nodes_to_reconnect;
