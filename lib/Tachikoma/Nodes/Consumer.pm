@@ -263,7 +263,6 @@ sub handle_EOF {
 
 sub fire {
     my $self = shift;
-    return if ( not $self->{owner} and not $self->{edge} );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
