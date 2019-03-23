@@ -199,9 +199,7 @@ make_node Function silc:sounds '{
 }'
 command AfPlay lazy on
 connect_node AfPlay:sieve      AfPlay:load_balancer
-connect_node server_log:sounds _responder
 connect_node server_log:tee    server_log:sounds
-connect_node silc:sounds       _responder
 connect_node silc_dn:tee       silc:sounds
 
 EOF
