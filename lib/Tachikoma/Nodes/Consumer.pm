@@ -263,9 +263,7 @@ sub handle_EOF {
 
 sub fire {
     my $self = shift;
-    return
-        if ( not $self->{sink}
-        or ( not $self->{owner} and not $self->{edge} ) );
+    return if ( not $self->{owner} and not $self->{edge} );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
@@ -286,7 +284,13 @@ sub fire {
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
     {
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        if ( defined $self->{partition_id} ) {
+            $self->stop_timer;
+            $self->{timer_interval} = $self->{poll_interval} * 1000;
+        }
+        else {
+            $self->set_timer( $self->{poll_interval} * 1000 );
+        }
     }
     if ( $self->{msg_unanswered} < $self->{max_unanswered}
         and length ${ $self->{buffer} } )
