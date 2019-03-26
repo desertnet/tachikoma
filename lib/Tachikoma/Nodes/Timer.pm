@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 36888 2019-03-23 19:36:58Z chris $
+# $Id: Timer.pm 36916 2019-03-25 20:35:51Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -52,7 +52,7 @@ sub fire_cb {
 }
 
 sub fire {
-    my $self = shift;
+    my $self    = shift;
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[FROM]    = $self->{name};
