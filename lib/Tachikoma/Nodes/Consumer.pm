@@ -367,6 +367,7 @@ sub drain_buffer {
 sub get_batch_async {
     my $self   = shift;
     my $offset = $self->{next_offset};
+    return if ( not $self->{sink} );
     if ( not defined $offset ) {
         if ( $self->cache_dir ) {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
