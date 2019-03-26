@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 36254 2019-03-06 05:52:34Z chris $
+# $Id: Buffer.pm 36933 2019-03-26 15:54:39Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -264,8 +264,9 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                         unlink $self->filename or warn;
                         $self->tiedhash(undef);
                     }
+                    $self->{cache}           = undef;
                     $self->{last_clear_time} = $Tachikoma::Now;
-                    $is_empty = 'true';
+                    $is_empty                = 'true';
                 }
             }
             last;

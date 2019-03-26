@@ -245,8 +245,9 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                 $dbh->disconnect;
                 unlink $self->filename or warn;
                 $self->dbh(undef);
+                $self->{cache}           = undef;
                 $self->{last_clear_time} = $Tachikoma::Now;
-                $is_empty = 'true';
+                $is_empty                = 'true';
             }
             last;
         }
