@@ -469,6 +469,7 @@ $C{buffer} = sub {
             "usage: buffer <node name> <path>\n" );
     }
     $self->patron->buffers->{$name} = $path;
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -480,6 +481,7 @@ $C{unbuffer} = sub {
         return $self->error( $envelope, "no buffer specified\n" );
     }
     delete $self->patron->buffers->{ $command->arguments };
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -493,6 +495,7 @@ $C{balance} = sub {
             "usage: balance <node name> <path>\n" );
     }
     $self->patron->load_balancers->{$name} = $path;
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -504,6 +507,7 @@ $C{unbalance} = sub {
         return $self->error( $envelope, "no load balancer specified\n" );
     }
     delete $self->patron->load_balancers->{ $command->arguments };
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -516,6 +520,7 @@ $C{add} = sub {
         return $self->error( $envelope, "usage: add <node name> <path>\n" );
     }
     $self->patron->misc->{$name} = $path;
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -527,6 +532,7 @@ $C{remove} = sub {
         return $self->error( $envelope, "no name specified\n" );
     }
     delete $self->patron->misc->{ $command->arguments };
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -552,6 +558,7 @@ $C{circuit} = sub {
         return $self->error( $envelope, "usage: circuit <path>\n" );
     }
     $self->patron->circuits->{$path} = 1;
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -563,6 +570,7 @@ $C{uncircuit} = sub {
         return $self->error( $envelope, "no circuit specified\n" );
     }
     delete $self->patron->circuits->{ $command->arguments };
+    $self->patron->should_kick( $Tachikoma::Right_Now + $Kick_Delay );
     return $self->okay($envelope);
 };
 
@@ -600,7 +608,6 @@ $C{kick} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->patron->offline( { %{ $self->patron->connectors } } );
     $self->patron->should_kick(1);
     $self->patron->fire;
     return $self->okay($envelope);
@@ -827,6 +834,10 @@ sub should_kick {
     my $self = shift;
     if (@_) {
         $self->{should_kick} = shift;
+        if ( $self->{should_kick} ) {
+            $self->offline( { %{ $self->connectors } } );
+            $self->set_timer;
+        }
     }
     return $self->{should_kick};
 }
