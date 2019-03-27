@@ -124,6 +124,12 @@ my %PROMPTS = (
     string3 => q(`> ),
     newline => q(> ),
 );
+my %SPECIAL = (
+    e => "\e",
+    n => "\n",
+    r => "\r",
+    t => "\t",
+);
 my %EVALUATORS = ();
 my %BUILTINS   = ();
 my %OPERATORS  = ();
@@ -389,11 +395,15 @@ sub dequote {
         or $type eq 'string1'
         or $type eq 'string3' )
     {
-        ${$value} =~ s{\\e}{\e}g;
-        ${$value} =~ s{\\n}{\n}g;
-        ${$value} =~ s{\\r}{\r}g;
-        ${$value} =~ s{\\t}{\t}g;
-        ${$value} =~ s{\\([^<\w>])}{$1}g;
+        my $normal = sub {
+            my $char = shift;
+            my $rv   = $char;
+            if ($char =~ m{[\w.(){}\[\]<>|?]}) {
+                $rv = "\\$char";
+            }
+            return $rv;
+        };
+        ${$value} =~ s{\\(.)}{ $SPECIAL{$1} // &$normal($1) }ge;
     }
     elsif ( $type eq 'string2' ) {
         ${$value} =~ s{\\([\\'])}{$1}g;

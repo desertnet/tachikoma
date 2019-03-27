@@ -22,19 +22,19 @@ make_node Echo               echo
 make_node Scheduler          scheduler
 
 cd server_log:ruleset:config
-  add  100 cancel where payload=.* FROM: .* ID: "tachikoma@<hostname>(?:\.?.*)" COMMAND: .*
-  add  200 cancel where payload=silo .* pub .* user .* addr .* is rfc1918
+  add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"
+  add  200 cancel where payload="silo '\S+' pub '\S+' user '\S+' addr '[\d.]+' is rfc1918"
   add  999 copy to error_log:tee where payload="ERROR:|FAILED:|TRAP:|COMMAND:"
   add 1000 redirect to server_log:tee
 cd ..
 
 cd local_system_log:ruleset:config
-  add 100 allow where payload=sudo
-  add 1000 cancel
+  add 100 cancel where payload='WirelessUtility\[\d+\]: -\[SiteSurveyPageController'
+  add 1000 redirect to system_log:ruleset
 cd ..
 
 cd system_log:ruleset:config
-  add 200  deny where payload=ipmi0: KCS
+  add 100  cancel where payload=ipmi0: KCS
   add 1000 redirect to system_log:tee
 cd ..
 
@@ -48,7 +48,6 @@ cd ..
 
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
-connect_node local_system_log:ruleset system_log:ruleset
 connect_node error_log:color          error_log
 connect_node error_log:tee            error_log:color
 connect_node server_log:color         server_log
