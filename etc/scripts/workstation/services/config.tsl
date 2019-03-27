@@ -15,8 +15,8 @@ var tachikoma.services = (
     hubs
 );
 
-var tachikoma.tasks.http.port        = 2501;
 var tachikoma.tasks.port             = 2500;
+var tachikoma.tasks.http.port        = 2501;
 var tachikoma.http.port              = 4241;
 var tachikoma.topic_top.hostname     = localhost;
 var tachikoma.topic_top.port         = 4380;
