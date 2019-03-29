@@ -38,11 +38,11 @@ my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
 my $Election_Short      = 0;              # wait if everyone is online
 my $Election_Long       = 10;             # wait if a broker is offline
 my $Startup_Delay       = 2;              # wait at least this long on startup
-my $Election_Timeout  = 60;     # how long to wait before starting over
+my $Election_Timeout  = 90;     # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
 my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
 my $Last_LCO_Send     = 0;      # time we last sent LCO
-my $Default_Cache_Size = 8 * 1024 * 1024;    # config for cache partitions
+my $Default_Cache_Size = 128 * 1024;    # config for cache partitions
 my $Num_Cache_Segments = 2;
 my %C                  = ();
 
