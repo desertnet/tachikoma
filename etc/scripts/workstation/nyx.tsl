@@ -308,7 +308,7 @@ cd fsync2:source
 
 
   # buffer probe
-  command hosts connect_inet --scheme=rsa --host=localhost --port=4391 --name=buffer_top
+  command hosts connect_inet --scheme=rsa --host=localhost --port=4395 --name=buffer_top
   command hosts make_node MemorySieve buffer_top:sieve 4 should_warn
   make_node BufferProbe buffer_probe 4
   connect_node buffer_top:sieve buffer_top

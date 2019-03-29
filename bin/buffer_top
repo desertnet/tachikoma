@@ -26,7 +26,7 @@ my $select_fields = join(
         )
 );
 my $host      = 'localhost';
-my $port      = 4392;
+my $port      = 4396;
 my $use_SSL   = undef;
 my %where     = ();
 my %where_not = ();
