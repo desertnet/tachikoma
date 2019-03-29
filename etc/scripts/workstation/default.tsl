@@ -55,6 +55,8 @@ connect_node server_log:color         server_log
 connect_node server_log:tee           server_log:color
 
 
+
+# benchmarks
 func run_benchmarks_profiled {
     local time = <1>;
     env NYTPROF=addpid=1:file=/tmp/nytprof.out;
@@ -109,11 +111,12 @@ for service (<tachikoma.services>) {
 # ingest server logs
 connect_node server_log:tee server_logs:service/server_log
 
-var username=`whoami`;
+
 
 # sound effects
-func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
-func afplay      { send AfPlay:sieve <1>; return }
+var username=`whoami`;
+func get_sound { return "/System/Library/Sounds/<1>.aiff\n" }
+func afplay    { send AfPlay:sieve <1>; return }
 
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay

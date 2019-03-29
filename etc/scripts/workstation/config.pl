@@ -67,6 +67,8 @@ EOF
 sub workstation_benchmarks {
     print <<'EOF';
 
+
+# benchmarks
 func run_benchmarks_profiled {
     local time = <1>;
     env NYTPROF=addpid=1:file=/tmp/nytprof.out;
@@ -136,11 +138,12 @@ EOF
 
 sub workstation_sound_effects {
     print <<'EOF';
-var username=`whoami`;
+
 
 # sound effects
-func get_sound   { return "/System/Library/Sounds/<1>.aiff\n" }
-func afplay      { send AfPlay:sieve <1>; return }
+var username=`whoami`;
+func get_sound { return "/System/Library/Sounds/<1>.aiff\n" }
+func afplay    { send AfPlay:sieve <1>; return }
 
 make_node MemorySieve AfPlay:sieve     1
 make_node JobFarmer   AfPlay           4 AfPlay
