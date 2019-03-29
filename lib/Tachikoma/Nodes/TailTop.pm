@@ -160,9 +160,10 @@ COLLECT: for my $tail_id ( keys %{$tails} ) {
                 next COLLECT;
             }
         }
-        for my $field (
-            qw( file_size bytes_answered _distance _recv_rate _send_rate ))
-        {
+        for my $field (qw( file_size bytes_answered )) {
+            $totals->{"_$field"} += $tail->{$field} if ( $tail->{$field} );
+        }
+        for my $field (qw( _distance _recv_rate _send_rate )) {
             $totals->{$field} += $tail->{$field} if ( $tail->{$field} );
         }
         my $key = $tail->{$sort};
@@ -184,7 +185,7 @@ COLLECT: for my $tail_id ( keys %{$tails} ) {
         sprintf "\e[H%3d tails; key: \e[91mDISTANCE > 10M\e[0m%s\n",
         $total, q( ) x ( $width - length $output );
     $totals->{$_} = Tachikoma::Nodes::TopicTop::human( $totals->{"_$_"} )
-        for (qw( distance recv_rate send_rate ));
+        for (qw( file_size bytes_answered distance recv_rate send_rate ));
     $output .= join q(),
         sprintf(
         join( q(), $color, $self->{format}, $reset, "\n" ),
