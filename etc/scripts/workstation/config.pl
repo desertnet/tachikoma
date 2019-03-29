@@ -53,6 +53,7 @@ cd tails
   add_tail /var/log/tachikoma/tables-access.log    http_log
 cd ..
 
+connect_node system_log               _responder
 connect_node system_log:color         system_log
 connect_node system_log:tee           system_log:color
 connect_node error_log:color          error_log
