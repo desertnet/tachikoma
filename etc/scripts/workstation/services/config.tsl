@@ -12,8 +12,13 @@ var tachikoma.services = (
     tables
     engines
     server_logs
-    lookup
     hubs
+);
+
+var server_log.fields = (
+    hostname
+    timestamp
+    process
 );
 
 var tachikoma.tasks.port             = 2500;
@@ -29,6 +34,7 @@ var tachikoma.buffer_top.output.port = 4392;
 var tachikoma.tail_top.hostname      = localhost;
 var tachikoma.tail_top.input.port    = 4393;
 var tachikoma.tail_top.output.port   = 4394;
+var tachikoma.benchmarks.port        = 4900;
 var tachikoma.tables.port            = 5100;
 var tachikoma.tables.http.port       = 5124;
 var tachikoma.engines.port           = 5200;
@@ -42,12 +48,6 @@ var broker     = <hub>/broker;
 var tail_top   = <tachikoma.tail_top.hostname>:<tachikoma.tail_top.input.port>;
 var topic_top  = <tachikoma.topic_top.hostname>:<tachikoma.topic_top.input.port>;
 var buffer_top = <tachikoma.buffer_top.hostname>:<tachikoma.buffer_top.input.port>;
-
-var server_log.fields = (
-    hostname
-    timestamp
-    process
-);
 
 func connect_hub {
     connect_inet <hub> <hub>;

@@ -67,52 +67,11 @@ EOF
 sub workstation_benchmarks {
     print <<'EOF';
 
-func run_benchmarks {
-    command jobs start_job CommandInterpreter benchmarks;
-
-    cd benchmarks;
-      listen_inet       127.0.0.1:5000;
-      listen_inet       127.0.0.1:5001;
-      listen_inet       127.0.0.1:5002;
-      listen_inet --io  127.0.0.1:6000;
-      listen_inet --io  127.0.0.1:6001;
-      listen_inet --io  127.0.0.1:6002;
-      make_node Null null;
-      connect_edge 127.0.0.1:5000 null;
-      connect_edge 127.0.0.1:6000 null;
-
-      on 127.0.0.1:5001 AUTHENTICATED {
-          make_node Null <1>:timer 0 512 100;
-          connect_sink <1>:timer <1>;
-      };
-      on 127.0.0.1:5001 EOF rm <1>:timer;
-
-      on 127.0.0.1:5002 AUTHENTICATED {
-          make_node Null <1>:timer 0 16 65000;
-          connect_sink <1>:timer <1>;
-      };
-      on 127.0.0.1:5002 EOF rm <1>:timer;
-
-      on 127.0.0.1:6001 CONNECTED {
-          make_node Null <1>:timer 0 512 100;
-          connect_sink <1>:timer <1>;
-      };
-      on 127.0.0.1:6001 EOF rm <1>:timer;
-
-      on 127.0.0.1:6002 CONNECTED {
-          make_node Null <1>:timer 0 16 65000;
-          connect_sink <1>:timer <1>;
-      };
-      on 127.0.0.1:6002 EOF rm <1>:timer;
-      insecure;
-    cd ..;
-}
-
 func run_benchmarks_profiled {
     local time = <1>;
     env NYTPROF=addpid=1:file=/tmp/nytprof.out;
     env PERL5OPT=-d:NYTProf;
-    run_benchmarks;
+    start_service benchmarks;
     if (<time>) {
         command scheduler in <time> command jobs stop_job benchmarks;
     };
@@ -130,15 +89,16 @@ sub workstation_partitions {
 # partitions
 command jobs start_job CommandInterpreter partitions
 cd partitions
-  make_node Partition scratch:log     --filename=/logs/scratch.log         \
+  make_node Partition scratch:log     --filename=/logs/scratch.log      \
                                       --segment_size=(32 * 1024 * 1024)
-  make_node Partition follower:log    --filename=/logs/follower.log        \
-                                      --segment_size=(32 * 1024 * 1024)    \
+  make_node Partition follower:log    --filename=/logs/follower.log     \
+                                      --segment_size=(32 * 1024 * 1024) \
                                       --leader=scratch:log
-  make_node Partition offset:log      --filename=/logs/offset.log          \
+  make_node Partition offset:log      --filename=/logs/offset.log       \
                                       --segment_size=(256 * 1024)
-  make_node Consumer scratch:consumer --partition=scratch:log              \
+  make_node Consumer scratch:consumer --partition=scratch:log           \
                                       --offsetlog=offset:log
+  buffer_probe
   insecure
 cd ..
 
