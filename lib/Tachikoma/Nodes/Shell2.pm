@@ -392,7 +392,7 @@ sub dequote {
     my $type  = $tok->{type};
     my $value = \$tok->{value}->[0];
     if ( $type eq 'ident' ) {
-        ${$value} =~ s{\\(.)}{ $SPECIAL{$1} // $1 }ge;
+        ${$value} =~ s{\\(.)}{$1}g;
     }
     elsif ( $type eq 'string1' or $type eq 'string3' ) {
         my $normal = sub {
