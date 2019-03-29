@@ -26,7 +26,7 @@ my $select_fields = join(
         )
 );
 my $host      = 'localhost';
-my $port      = '4392';
+my $port      = 4392;
 my $use_SSL   = undef;
 my %where     = ();
 my %where_not = ();
@@ -64,7 +64,7 @@ my $get_input = Tachikoma::Nodes::Callback->new;
 my $tachikoma =
     Tachikoma::Nodes::Socket->inet_client( $host, $port, undef, $use_SSL );
 my $shutdown = Tachikoma::Nodes::Shutdown->new;
-my $stdout = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
+my $stdout   = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
 
 $get_input->callback(
     sub {

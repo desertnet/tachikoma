@@ -42,7 +42,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
         die "ERROR: bad arguments for BufferProbe\n"
-            if ( not $seconds or $seconds =~ m{\D} );
+            if ( $seconds and $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
         $self->prefix( $prefix || $0 );
@@ -68,30 +68,20 @@ sub fire {
             $buff_name ||= join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
             $out .= join q(),
-                'hostname:',
-                $self->{my_hostname},
-                ' buff_name:',
-                $buff_name,
-                ' buff_fills:',
-                $node->{buffer_fills},
-                ' err_sent:',
-                $node->{errors_passed},
-                ' max_unanswered:',
-                $node->{max_unanswered},
-                ' msg_in_buf:',
-                $node->{buffer_size} // $node->get_buffer_size,
-                ' msg_rcvd:',
-                $node->{counter},
-                ' msg_sent:',
-                $node->{msg_sent},
-                ' msg_unanswered:',
+                'hostname:'        => $self->{my_hostname},
+                ' buff_name:'      => $buff_name,
+                ' buff_fills:'     => $node->{buffer_fills},
+                ' err_sent:'       => $node->{errors_passed},
+                ' max_unanswered:' => $node->{max_unanswered},
+                ' msg_in_buf:'     => $node->{buffer_size}
+                // $node->get_buffer_size,
+                ' msg_rcvd:' => $node->{counter},
+                ' msg_sent:' => $node->{msg_sent},
+                ' msg_unanswered:' =>
                 scalar( keys %{ $node->{msg_unanswered} } ),
-                ' p_msg_sent:',
-                $node->{pmsg_sent},
-                ' resp_rcvd:',
-                $node->{rsp_received},
-                ' resp_sent:',
-                $node->{rsp_sent},
+                ' p_msg_sent:' => $node->{pmsg_sent},
+                ' resp_rcvd:'  => $node->{rsp_received},
+                ' resp_sent:'  => $node->{rsp_sent},
                 "\n";
         }
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
@@ -99,27 +89,18 @@ sub fire {
             $buff_name =~ s{:}{_}g;
             my $partition = $Tachikoma::Nodes{ $node->{partition} } or next;
             $out .= join q(),
-                'hostname:',
-                $self->{my_hostname},
-                ' buff_name:',
-                $buff_name,
-                ' buff_fills:',
-                $partition->{counter},
-                ' err_sent:', 0,
-                ' max_unanswered:',
-                $node->{max_unanswered},
-                ' msg_in_buf:',
-                $partition->{counter} - $node->{counter},
-                ' msg_rcvd:',
-                $partition->{counter},
-                ' msg_sent:', 0,
-                ' msg_unanswered:',
-                $node->{msg_unanswered},
-                ' p_msg_sent:',
-                $node->{counter},
-                ' resp_rcvd:',
-                $node->{counter} - $node->{msg_unanswered},
-                ' resp_sent:', 0,
+                'hostname:'        => $self->{my_hostname},
+                ' buff_name:'      => $buff_name,
+                ' buff_fills:'     => $partition->{counter},
+                ' err_sent:'       => 0,
+                ' max_unanswered:' => $node->{max_unanswered},
+                ' msg_in_buf:' => $partition->{counter} - $node->{counter},
+                ' msg_rcvd:'   => $partition->{counter},
+                ' msg_sent:'   => 0,
+                ' msg_unanswered:' => $node->{msg_unanswered},
+                ' p_msg_sent:'     => $node->{counter},
+                ' resp_rcvd:' => $node->{counter} - $node->{msg_unanswered},
+                ' resp_sent:' => 0,
                 "\n";
         }
     }
