@@ -391,14 +391,14 @@ sub dequote {
     my $tok   = shift;
     my $type  = $tok->{type};
     my $value = \$tok->{value}->[0];
-    if (   $type eq 'ident' ) {
+    if ( $type eq 'ident' ) {
         ${$value} =~ s{\\(.)}{ $SPECIAL{$1} // $1 }ge;
     }
     elsif ( $type eq 'string1' or $type eq 'string3' ) {
         my $normal = sub {
             my $char = shift;
             my $rv   = $char;
-            if ($char =~ m{[\w.(){}\[\]<>|?]}) {
+            if ( $char =~ m{[\w.(){}\[\]<>|?]} ) {
                 $rv = "\\$char";
             }
             return $rv;
