@@ -3,6 +3,7 @@ var hostname = `hostname -s`;
 var home     = `echo ~`;
 
 var topics_dir1 = /pool1;
+var topics_dir2;
 
 var tachikoma.services = (
     tasks
@@ -25,15 +26,20 @@ var tachikoma.topic_top.output.port  = 4382;
 var tachikoma.buffer_top.hostname    = localhost;
 var tachikoma.buffer_top.input.port  = 4391;
 var tachikoma.buffer_top.output.port = 4392;
+var tachikoma.tail_top.hostname      = localhost;
+var tachikoma.tail_top.input.port    = 4393;
+var tachikoma.tail_top.output.port   = 4394;
 var tachikoma.tables.port            = 5100;
 var tachikoma.tables.http.port       = 5124;
 var tachikoma.engines.port           = 5200;
 var tachikoma.server_logs.port       = 5300;
 var tachikoma.lookup.port            = 5400;
 var tachikoma.hubs.port              = 5500;
+var tachikoma.hubs.count             = 4;
 
 var hub        = localhost:5501;
 var broker     = <hub>/broker;
+var tail_top   = <tachikoma.tail_top.hostname>:<tachikoma.tail_top.input.port>;
 var topic_top  = <tachikoma.topic_top.hostname>:<tachikoma.topic_top.input.port>;
 var buffer_top = <tachikoma.buffer_top.hostname>:<tachikoma.buffer_top.input.port>;
 
@@ -47,6 +53,18 @@ func connect_hub {
     connect_inet <hub> <hub>;
 }
 
+func tail_probe {
+    local prefix;
+    if (<_C>) [
+        prefix = <1>;
+    ];
+    connect_inet <tail_top> tail_top;
+    make_node MemorySieve tail_top:sieve 4 should_warn;
+    make_node TailProbe   tail_probe     4 <prefix>;
+    connect_node tail_top:sieve tail_top;
+    connect_node tail_probe     tail_top:sieve;
+}
+
 func topic_probe {
     local prefix;
     if (<_C>) [
@@ -54,7 +72,7 @@ func topic_probe {
     ];
     connect_inet <topic_top> topic_top;
     make_node MemorySieve topic_top:sieve 4 should_warn;
-    make_node TopicProbe topic_probe 4 <prefix>;
+    make_node TopicProbe  topic_probe     4 <prefix>;
     connect_node topic_top:sieve topic_top;
     connect_node topic_probe     topic_top:sieve;
 }
@@ -66,7 +84,7 @@ func buffer_probe {
     ];
     connect_inet <buffer_top> buffer_top;
     make_node MemorySieve buffer_top:sieve 4 should_warn;
-    make_node BufferProbe buffer_probe 4 <prefix>;
+    make_node BufferProbe buffer_probe     4 <prefix>;
     connect_node buffer_top:sieve buffer_top;
     connect_node buffer_probe     buffer_top:sieve;
 }

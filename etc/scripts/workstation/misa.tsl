@@ -189,8 +189,9 @@ connect_node server_logs server_log:ruleset
 
 command tails add_tail /var/log/system.log local_system_log:ruleset
 cd tails
+  tail_probe
   start_tail
-  secure 1
+  insecure
 cd ..
 
 

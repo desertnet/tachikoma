@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2018 DesertNet
 #
-# $Id: Makefile.PL 35876 2018-11-18 21:33:05Z chris $
+# $Id: Makefile.PL 36946 2019-03-28 16:52:34Z chris $
 #
 
 use strict;
@@ -54,6 +54,7 @@ WriteMakefile(
         bin/tachikoma-gui
         bin/tachikoma-job
         bin/tachikoma-server
+        bin/tail_top
         bin/topic_top
     )],
 );

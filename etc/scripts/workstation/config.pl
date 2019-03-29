@@ -225,8 +225,9 @@ EOF
 sub workstation_footer {
     print <<'EOF';
 cd tails
+  tail_probe
   start_tail
-  secure 1
+  insecure
 cd ..
 EOF
 }

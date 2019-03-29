@@ -112,6 +112,8 @@ lib/Tachikoma/Nodes/SudoFarmer.pm
 lib/Tachikoma/Nodes/TTY.pm
 lib/Tachikoma/Nodes/Table.pm
 lib/Tachikoma/Nodes/Tail.pm
+lib/Tachikoma/Nodes/TailProbe.pm
+lib/Tachikoma/Nodes/TailTop.pm
 lib/Tachikoma/Nodes/Tee.pm
 lib/Tachikoma/Nodes/TimedList.pm
 lib/Tachikoma/Nodes/Timeout.pm

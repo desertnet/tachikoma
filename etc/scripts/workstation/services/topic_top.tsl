@@ -16,5 +16,12 @@ register     <hostname>:<tachikoma.buffer_top.output.port> buffer_top:client_con
 listen_inet  <hostname>:<tachikoma.buffer_top.input.port>
 connect_node <hostname>:<tachikoma.buffer_top.input.port> buffer_top:tee
 
+make_node Tee             tail_top:tee
+make_node ClientConnector tail_top:client_connector tail_top:tee
+listen_inet  <hostname>:<tachikoma.tail_top.output.port>
+register     <hostname>:<tachikoma.tail_top.output.port> tail_top:client_connector AUTHENTICATED
+listen_inet  <hostname>:<tachikoma.tail_top.input.port>
+connect_node <hostname>:<tachikoma.tail_top.input.port> tail_top:tee
+
 listen_inet localhost:<root_port>
 secure 3

@@ -1,0 +1,127 @@
+#!perl
+# ----------------------------------------------------------------------
+# TailTop client
+# ----------------------------------------------------------------------
+#
+# $Id$
+#
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::EventFrameworks::Select;
+use Tachikoma::Nodes::Router;
+use Tachikoma::Nodes::Socket;
+use Tachikoma::Nodes::STDIO qw( TK_R TK_SYNC );
+use Tachikoma::Nodes::Shutdown;
+use Tachikoma::Nodes::TailTop;
+use Tachikoma::Message qw( PAYLOAD );
+use Getopt::Long;
+require '/usr/local/etc/tachikoma.conf';
+
+my $help          = undef;
+my $list_fields   = undef;
+my $select_fields = join(
+    ',', qw(
+        hostname filename file_size
+        recv_rate direction2 send_rate
+        distance eta
+        )
+);
+my $host      = 'localhost';
+my $port      = 4394;
+my $use_SSL   = undef;
+my %where     = ();
+my %where_not = ();
+my %width     = ();
+my $sort      = '_distance';
+my $threshold = 1;
+my $delay     = 4;
+my $lines     = undef;          # XXX: until wrappers are updated
+
+my $r = GetOptions(
+    'host=s'      => \$host,
+    'port=i'      => \$port,
+    'use-ssl'     => \$use_SSL,
+    'select=s'    => \$select_fields,
+    'where=s'     => \%where,
+    'where_not=s' => \%where_not,
+    'width=s'     => \%width,
+    'sort=s'      => \$sort,
+    'threshold=f' => \$threshold,
+    'delay=f'     => \$delay,
+    'list_fields' => \$list_fields,
+    'help'        => \$help,
+    'lines=i'     => \$lines,           # XXX: until wrappers are updated
+);
+usage() if ( $help or not $r );
+
+Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
+
+my $buffer_top = Tachikoma::Nodes::TailTop->new;
+list_fields() if ($list_fields);
+
+my $router    = Tachikoma::Nodes::Router->new;
+my $stdin     = Tachikoma::Nodes::STDIO->filehandle( *STDIN, TK_R );
+my $get_input = Tachikoma::Nodes::Callback->new;
+my $tachikoma =
+    Tachikoma::Nodes::Socket->inet_client( $host, $port, undef, $use_SSL );
+my $shutdown = Tachikoma::Nodes::Shutdown->new;
+my $stdout   = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
+
+$get_input->callback(
+    sub {
+        my $message = shift;
+        my $key     = $message->[PAYLOAD];
+        if ( $key eq 'q' ) {
+            $router->shutdown_all_nodes;
+            return;
+        }
+        elsif ( $key =~ m(\d) ) {
+            $buffer_top->delay( $key || 10 );
+            return;
+        }
+        $buffer_top->fire;
+        return;
+    }
+);
+$stdin->sink($get_input);
+$tachikoma->sink($shutdown);
+$shutdown->sink($buffer_top);
+$buffer_top->sink($stdout);
+$buffer_top->name('buffer_top');
+
+for my $field ( keys %width ) {
+    $buffer_top->fields->{$field}->{size} = $width{$field};
+}
+
+$buffer_top->select_fields($select_fields);
+$buffer_top->where( \%where );
+$buffer_top->where_not( \%where_not );
+$buffer_top->sort_by($sort);
+$buffer_top->threshold($threshold);
+$buffer_top->delay($delay);
+
+system( '/bin/stty', '-echo', 'cbreak' );
+$router->drain($tachikoma);
+
+sub list_fields {
+    print join( ' ', sort keys %{ $buffer_top->fields } ), "\n";
+    exit 1;
+}
+
+sub usage {
+    print "Usage:\n"
+        . "buffer_top [ --host=<host>                              ]\n"
+        . "           [ --port=<port>                              ]\n"
+        . "           [ --use-ssl                                  ]\n"
+        . "           [ --select=<fields>                          ]\n"
+        . "           [ --where <field>=<regex>                    ]\n"
+        . "           [ --where_not <field>=<regex>                ]\n"
+        . "           [ --width <field>=<size>                     ]\n"
+        . "           [ --sort=<field>                             ]\n"
+        . "           [ --threshold=<seconds>                      ]\n"
+        . "           [ --delay=<seconds>                          ]\n"
+        . "           [ --list_fields                              ]\n"
+        . "           [ --help                                     ]\n";
+    exit 1;
+}
