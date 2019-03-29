@@ -705,6 +705,7 @@ EOF
 sub close_db {
     my $self = shift;
     $self->{dbh}->disconnect if ( $self->{dbh} );
+    $self->{dbh} = undef;
     my $path = $self->filename;
     open my $fh, '>>', "${path}.clean" or warn;
     close $fh or warn;
