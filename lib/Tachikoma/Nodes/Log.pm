@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 36116 2019-02-14 05:18:52Z chris $
+# $Id: Log.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -92,10 +92,6 @@ sub fill {
     $self->rotate
         if ( $self->{max_size} and $self->{size} > $self->{max_size} );
     return $self->SUPER::fill($message);
-}
-
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    syswrite $_[0]->{fh}, ${ $_[1] } or die $!;
 }
 
 sub rotate {

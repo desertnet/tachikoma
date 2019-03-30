@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 36779 2019-03-19 04:47:31Z chris $
+# $Id: CommandInterpreter.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1423,17 +1423,20 @@ $C{slurp_file} = sub {
     my $buffer_mode = shift // 'binary';
     $self->verify_key( $envelope, ['meta'], 'slurp' )
         or return $self->error("verification failed\n");
-    my ( $path, $edge_name ) = split q( ), $command->arguments, 2;
+    my ( $path, $sink_name ) = split q( ), $command->arguments, 2;
     my $owner = $envelope->[FROM];
     my $name  = ( split m{/}, $owner, 2 )[0];
-    my $edge  = undef;
+    my $sink  = undef;
     die qq(no path specified\n)       if ( not $path );
     die qq(no such file: "$path"\n)   if ( not -f $path );
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
 
-    if ( length $edge_name ) {
-        $edge = $Tachikoma::Nodes{$edge_name};
-        die qq(can't find node "$edge_name"\n) if ( not $edge );
+    if ( length $sink_name ) {
+        $sink = $Tachikoma::Nodes{$sink_name};
+        die qq(can't find node "$sink_name"\n) if ( not $sink );
+    }
+    else {
+        $sink = $self;
     }
     do {
         $name = sprintf 'slurp-%016d', Tachikoma->counter;
@@ -1444,15 +1447,14 @@ $C{slurp_file} = sub {
         $node = Tachikoma::Nodes::Tail->new;
         $node->name($name);
         $node->arguments( join q( ), $path, 0,
-            $edge ? 0
+            length $sink_name ? 0
             : (         $buffer_mode
                     and $buffer_mode eq 'line-buffered' ) ? 256
             : 8 );
         $node->buffer_mode($buffer_mode);
         $node->owner($owner) if ( length $owner );
-        $node->sink($self);
-        $node->edge($edge);
-        $node->on_EOF( $edge ? 'close' : 'wait_to_close' );
+        $node->sink($sink);
+        $node->on_EOF( length $sink_name ? 'close' : 'wait_to_close' );
         return 1;
     };
     if ( not $okay ) {
@@ -1668,28 +1670,6 @@ $C{on} = sub {
         delete $shell->callbacks->{$id};
         die $@;
     }
-    return $self->okay($envelope);
-};
-
-$H{activate} = ["activate <node path> <payload>\n"];
-
-$C{activate} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
-    die qq(no path specified\n) if ( not $path );
-    my $name = ( split m{/}, $path, 2 )[0];
-    my $node = $Tachikoma::Nodes{$name};
-    die qq(can't find node "$name"\n) if ( not $node );
-
-    if ( defined $arguments ) {
-        $arguments .= "\n";
-    }
-    else {
-        $arguments = q();
-    }
-    $node->activate( \$arguments );
     return $self->okay($envelope);
 };
 

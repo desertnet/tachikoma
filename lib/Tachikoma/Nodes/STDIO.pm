@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: STDIO.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -191,45 +191,6 @@ sub drain_buffer_lines {
     return;
 }
 
-sub drain_buffer_edge {
-    my ( $self, $buffer ) = @_;
-    $self->{bytes_read} += length ${$buffer};
-    return $self->{edge}->activate($buffer);
-}
-
-sub drain_buffer_edge_blocks {
-    my ( $self, $buffer ) = @_;
-    my $payload = $self->{line_buffer} . ${$buffer};
-    my $part    = q();
-    if ( substr( $payload, -1, 1 ) ne "\n" ) {
-        if ( $payload =~ s{\n(.+)$}{\n}i ) {
-            $part = $1;
-        }
-        else {
-            $self->{line_buffer} = $payload;
-            return;
-        }
-    }
-    $self->{line_buffer} = $part;
-    $self->{bytes_read} += length $payload;
-    return $self->{edge}->activate( \$payload );
-}
-
-sub drain_buffer_edge_lines {
-    my ( $self, $buffer ) = @_;
-    for my $line ( split m{^}, ${$buffer} ) {
-        if ( substr( $line, -1, 1 ) ne "\n" ) {
-            $self->{line_buffer} .= $line;
-            next;    # also last
-        }
-        my $payload = $self->{line_buffer} . $line;
-        $self->{line_buffer} = q();
-        $self->{bytes_read} += length $payload;
-        $self->{edge}->activate( \$payload );
-    }
-    return;
-}
-
 sub fill {
     my $self           = shift;
     my $message        = shift;
@@ -276,11 +237,6 @@ sub fill {
         $self->SUPER::fill($message);
     }
     return;
-}
-
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    push @{ $_[0]->{output_buffer} }, $_[1];
-    $_[0]->register_writer_node if ( not $_[0]->{flags} & TK_W );
 }
 
 sub fill_buffer {
@@ -439,28 +395,12 @@ sub owner {
     return $self->{owner};
 }
 
-sub edge {
-    my $self = shift;
-    if (@_) {
-        $self->{edge} = shift;
-        $self->set_drain_buffer;
-    }
-    return $self->{edge};
-}
-
 sub set_drain_buffer {
     my $self = shift;
-    $self->{drain_buffer} = (
-          $self->{edge}
-        ? $self->{buffer_mode} eq 'binary'
-                ? \&drain_buffer_edge
-                : $self->{buffer_mode} eq 'block-buffered'
-            ? \&drain_buffer_edge_blocks
-            : \&drain_buffer_edge_lines
-        : $self->{buffer_mode} eq 'binary'         ? \&drain_buffer_normal
+    $self->{drain_buffer} =
+          $self->{buffer_mode} eq 'binary'         ? \&drain_buffer_normal
         : $self->{buffer_mode} eq 'block-buffered' ? \&drain_buffer_blocks
-        :                                            \&drain_buffer_lines
-    );
+        :                                            \&drain_buffer_lines;
     return;
 }
 

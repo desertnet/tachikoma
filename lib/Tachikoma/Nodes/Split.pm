@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Split.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -50,31 +50,6 @@ sub arguments {
 }
 
 sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
-    if ( $_[0]->{edge} ) {
-        my $edge      = $_[0]->{edge};
-        my $delimiter = $_[0]->{delimiter};
-        $_[0]->{counter}++;
-        if ( not $delimiter or $delimiter eq 'newline' ) {
-            for my $line ( split m{(?<=\n)}, $_[1]->[PAYLOAD] ) {
-                if ( $line !~ m{\n} ) {
-                    $_[0]->{line_buffer} .= $line;
-                    next;    # also last
-                }
-                my $payload = $_[0]->{line_buffer} . $line;
-                $_[0]->{line_buffer} = q();
-                $_[0]->{edge}->activate( \$payload );
-            }
-        }
-        elsif ( $delimiter eq 'whitespace' ) {
-            $_[0]->{edge}->activate( \"$_\n" )
-                for ( split q( ), $_[1]->[PAYLOAD] );
-        }
-        else {
-            $_[0]->{edge}->activate( \"$_\n" )
-                for ( split m{$delimiter}, $_[1]->[PAYLOAD] );
-        }
-        return $_[0]->cancel( $_[1] );
-    }
     my $self       = shift;
     my $message    = shift;
     my $messages   = undef;

@@ -125,26 +125,6 @@ sub fill {
     return 1;
 }
 
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    $_[0]->{counter}++;
-    $_[0]->{buffer_fills}++;
-    return if ( $_[0]->{buffer_mode} eq 'null' );
-    my $dbh        = $_[0]->dbh;
-    my $message_id = undef;
-    $_[0]->get_buffer_size if ( not defined $_[0]->{buffer_size} );
-    my $sth = $dbh->prepare('SELECT count(1) FROM queue WHERE message_id=?');
-    do {
-        $message_id = $_[0]->msg_counter;
-        $sth->execute($message_id);
-    } while ( $sth->fetchrow_arrayref->[0] );
-    $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?)');
-    $sth->execute( $Tachikoma::Right_Now, 0, TM_BYTESTREAM | TM_PERSIST,
-        $message_id, q(), $Tachikoma::Now, ${ $_[1] } );
-    $_[0]->{buffer_size}++;
-    $_[0]->set_timer( $Timer_Interval * 1000 )
-        if ( $_[0]->{owner} and not $_[0]->{timer_is_active} );
-}
-
 sub handle_response {
     my $self       = shift;
     my $response   = shift;

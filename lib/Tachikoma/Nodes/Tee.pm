@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 35523 2018-10-22 11:51:51Z chris $
+# $Id: Tee.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -118,18 +118,6 @@ sub handle_response {
         $self->answer($original);
     }
     return;
-}
-
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    my $owners = $_[0]->{owner};
-    my @keep   = ();
-    for my $owner ( @{$owners} ) {
-        my $name = ( split m{/}, $owner, 2 )[0];
-        my $node = $Tachikoma::Nodes{$name} or next;
-        push @keep, $owner;
-        $node->activate( $_[1] );
-    }
-    @{$owners} = @keep if ( @keep < @{$owners} );
 }
 
 sub fire {

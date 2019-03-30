@@ -101,20 +101,6 @@ sub fill {
     return 1;
 }
 
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    if ( $_[0]->{count_mode} eq 'simple' ) {
-        $_[0]->{one_second}++;
-    }
-    elsif ( $_[0]->{count_mode} eq 'sizes' ) {
-        $_[0]->{one_second} += length ${ $_[1] };
-    }
-    else {
-        my $value = ${ $_[1] };
-        chomp $value;
-        $_[0]->{one_second} += $value;
-    }
-}
-
 sub fire {
     my $self           = shift;
     my $one_second     = $self->{one_second};

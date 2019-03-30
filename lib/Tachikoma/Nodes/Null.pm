@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Null
 # ----------------------------------------------------------------------
 #
-# $Id: Null.pm 35293 2018-10-16 20:32:45Z chris $
+# $Id: Null.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Null;
@@ -60,8 +60,6 @@ sub fill {
         if ( length $self->{arguments} and not $self->{timer_is_active} );
     return;
 }
-
-sub activate { }
 
 sub fire {
     my $self    = shift;

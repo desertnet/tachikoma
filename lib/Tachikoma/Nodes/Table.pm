@@ -252,12 +252,6 @@ sub roll_count {
     my $save_cb = $self->{on_save_window}->[$i];
     if ($timestamp) {
         &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
-        $self->{edge}->activate(
-            {   partition => $i,
-                timestamp => $timestamp,
-                bucket    => $cache->[0]
-            }
-        ) if ( $self->{edge} );
     }
     for ( 0 .. $count ) {
         unshift @{$cache}, {};

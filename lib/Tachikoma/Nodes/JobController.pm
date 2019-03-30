@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 36799 2019-03-20 16:04:49Z chris $
+# $Id: JobController.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -80,14 +80,12 @@ sub fill {
     if ($job) {
         my $to        = $message->[TO]             // q();
         my $job_owner = $job->{connector}->{owner} // q();
-        my $job_edge  = $job->{connector}->{edge};
         $message->[FROM] = $from
             if ($next
             and $next eq '_parent'
             and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') );
         return $self->handle_EOF( $message, $name, $job )
             if ( not $next and $to eq $job_owner and $type & TM_EOF );
-        return $job_edge->activate( $message->[PAYLOAD] ) if ($job_edge);
     }
     return $self->{interpreter}->fill($message);
 }

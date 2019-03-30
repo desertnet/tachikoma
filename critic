@@ -47,7 +47,6 @@ lib/Tachikoma/Nodes/ConsumerBroker.pm
 lib/Tachikoma/Nodes/ConsumerGroup.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
-lib/Tachikoma/Nodes/Edge.pm
 lib/Tachikoma/Nodes/FileController.pm
 lib/Tachikoma/Nodes/FileHandle.pm
 lib/Tachikoma/Nodes/FileReceiver.pm
