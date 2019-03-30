@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: Split.pm 37106 2019-03-30 23:23:46Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -49,7 +49,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (RequireArgUnpacking, ProhibitExcessComplexity)
+sub fill {
     my $self       = shift;
     my $message    = shift;
     my $messages   = undef;
