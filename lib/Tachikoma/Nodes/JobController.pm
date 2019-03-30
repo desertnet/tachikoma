@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: JobController.pm 37108 2019-03-30 23:48:35Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -526,7 +526,8 @@ sub dump_config {
         for my $name ( sort keys %{$jobs} ) {
             my $job = $jobs->{$name};
             my $start =
-                $job->{should_restart} eq 'forever'
+                (       $job->{should_restart}
+                    and $job->{should_restart} eq 'forever' )
                 ? 'maintain_job'
                 : 'start_job';
             my $line = "command $self->{name} $start $job->{type} $name";
