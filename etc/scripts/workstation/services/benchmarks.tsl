@@ -9,8 +9,8 @@ listen_inet --io  127.0.0.1:6000;
 listen_inet --io  127.0.0.1:6001;
 listen_inet --io  127.0.0.1:6002;
 make_node Null null;
-connect_edge 127.0.0.1:5000 null;
-connect_edge 127.0.0.1:6000 null;
+connect_sink 127.0.0.1:5000 null;
+connect_sink 127.0.0.1:6000 null;
 
 on 127.0.0.1:5001 AUTHENTICATED {
     make_node Null <1>:timer 0 512 100;
