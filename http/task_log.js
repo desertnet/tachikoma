@@ -116,6 +116,7 @@ function toggle_task_output() {
     output = [];
     update_table();
     display_table();
+    output = [];
 }
 
 function tick() {
