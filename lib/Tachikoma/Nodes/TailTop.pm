@@ -179,7 +179,7 @@ COLLECT: for my $tail_id ( keys %{$tails} ) {
     my $color    = "\e[90m";
     my $reset    = "\e[0m";
     my $output =
-        sprintf '%3d tails; key: DISTANCE >= 10M',
+        sprintf '%3d tails; key: DISTANCE > 10M',
         $total;
     $output =
         sprintf "\e[H%3d tails; key: \e[91mDISTANCE > 10M\e[0m%s\n",
