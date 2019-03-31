@@ -125,18 +125,6 @@ sub range {
     return \%rv;
 }
 
-sub get_keys {
-    my ($self) = @_;
-    my %unique = ();
-    for my $cache ( @{ $self->{caches} } ) {
-        for my $bucket ( @{$cache} ) {
-            next if ( not $bucket );
-            $unique{$_} += @{ $bucket->{$_} } for ( keys %{$bucket} );
-        }
-    }
-    return \%unique;
-}
-
 sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
     return 1 if ( not length $value );

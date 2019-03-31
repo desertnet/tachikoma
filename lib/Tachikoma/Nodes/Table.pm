@@ -330,6 +330,18 @@ sub send_stats {
     return;
 }
 
+sub get_keys {
+    my ($self) = @_;
+    my %unique = ();
+    for my $cache ( @{ $self->{caches} } ) {
+        for my $bucket ( @{$cache} ) {
+            next if ( not $bucket );
+            $unique{$_}++ for ( keys %{$bucket} );
+        }
+    }
+    return \%unique;
+}
+
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
