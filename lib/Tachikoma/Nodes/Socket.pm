@@ -273,9 +273,7 @@ sub accept_connection {
             if ( $! != EAGAIN );
         return;
     }
-    my ( $node, $port, $address );
-    my $unix = $self->{filename};
-    ( $port, $address ) = unpack_sockaddr_in($paddr) if ( not $unix );
+    my $node = $self->new;
 
     if ( $self->{use_SSL} ) {
         my $config = $self->{configuration};
@@ -301,7 +299,6 @@ sub accept_connection {
                 grep $_, $!, IO::Socket::SSL::errstr() );
             return;
         }
-        $node             = $self->new;
         $node->{type}     = 'accept';
         $node->{drain_fh} = \&init_SSL_connection;
         $node->{fill_fh}  = \&init_SSL_connection;
@@ -309,19 +306,18 @@ sub accept_connection {
         $node->fh($ssl_client);
     }
     else {
-        $node = $self->new;
         $node->{type} = 'accept';
         $node->fh($client);
-        $node->init_accept;
     }
-    my $name;
-    if ($unix) {
+    my $name = undef;
+    if ( $self->{filename} ) {
         my $my_name = $self->{name};
         do {
             $name = join q(:), $my_name, Tachikoma->counter;
         } while ( exists $Tachikoma::Nodes{$name} );
     }
     else {
+        my ( $port, $address ) = unpack_sockaddr_in($paddr);
         $name = join q(:), inet_ntoa($address), $port;
         if ( exists $Tachikoma::Nodes{$name} ) {
             $self->stderr("WARNING: $name exists");
@@ -348,6 +344,7 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
+    $node->init_accept if ( not $self->{use_SSL} );
     $self->{counter}++;
     return;
 }
