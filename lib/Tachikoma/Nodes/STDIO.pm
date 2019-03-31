@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: STDIO.pm 37112 2019-03-31 17:21:30Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -62,6 +62,7 @@ sub init_connect {
     $self->{fill_fh}   = \&fill_fh;
     $self->{drain_fh}  = \&drain_fh;
     $self->{last_fill} = 0;
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return;
 }
 
@@ -70,6 +71,7 @@ sub init_accept {
     $self->{fill_fh}   = \&fill_fh;
     $self->{drain_fh}  = \&drain_fh;
     $self->{last_fill} = 0;
+    $self->set_state( 'CONNECTED' => $self->{name} );
     return;
 }
 
