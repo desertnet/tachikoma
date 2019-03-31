@@ -840,28 +840,6 @@ sub drain_buffer_normal {
     return $got;
 }
 
-sub drain_buffer_edge {
-    my $self   = shift;
-    my $buffer = shift;
-    my $name   = $self->{name};
-    my $edge   = $self->{edge};
-    my $got    = length ${$buffer};
-    my $size   = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-    while ( $got >= $size and $size > 0 ) {
-        my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
-        $got -= $size;
-        $self->{bytes_read} += $size;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-        if ( $message->[TYPE] & TM_HEARTBEAT ) {
-            $self->reply_to_heartbeat($message);
-            next;
-        }
-        $edge->activate( \$message->[PAYLOAD] );
-    }
-    return $got;
-}
-
 sub reply_to_heartbeat {
     my $self    = shift;
     my $message = shift;
@@ -1157,19 +1135,9 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
     return $response;
 }
 
-sub edge {
-    my $self = shift;
-    if (@_) {
-        $self->{edge} = shift;
-        $self->set_drain_buffer;
-    }
-    return $self->{edge};
-}
-
 sub set_drain_buffer {
     my $self = shift;
-    $self->{drain_buffer} =
-        $self->{edge} ? \&drain_buffer_edge : \&drain_buffer_normal;
+    $self->{drain_buffer} = \&drain_buffer_normal;
     return;
 }
 

@@ -252,12 +252,6 @@ sub roll_count {
     my $save_cb = $self->{on_save_window}->[$i];
     if ($timestamp) {
         &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
-        $self->{edge}->activate(
-            {   partition => $i,
-                timestamp => $timestamp,
-                bucket    => $cache->[0]
-            }
-        ) if ( $self->{edge} );
     }
     for ( 0 .. $count ) {
         unshift @{$cache}, {};
@@ -342,7 +336,6 @@ sub on_load_window {
     my $timestamp   = $stored->{timestamp}       // 0;
     $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
-        $self->{caches}->[$i] ||= [];
         my $cache = $self->{caches}->[$i];
         my $span  = $timestamp - $next_window;
         my $count = int $span / $self->{window_size};

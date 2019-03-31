@@ -35,7 +35,7 @@ for i (1 .. 2) {
                                                    --window_size=86400
                                                    --num_buckets=7;
         connect_edge tasks.ID:consumer tasks.ID:index;
-        register     tasks.ID:consumer tasks.ID:index READY;
+        # register     tasks.ID:consumer tasks.ID:index READY;
         var indexes .= tasks.ID:index;
 
         make_node QueryEngine QueryEngine <indexes>;

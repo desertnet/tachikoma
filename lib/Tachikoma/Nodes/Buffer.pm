@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 36254 2019-03-06 05:52:34Z chris $
+# $Id: Buffer.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -134,24 +134,6 @@ sub fill {
     return 1;
 }
 
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    $_[0]->{counter}++;
-    $_[0]->{buffer_fills}++;
-    return if ( $_[0]->{buffer_mode} eq 'null' );
-    my $tiedhash   = $_[0]->{tiedhash} // $_[0]->tiedhash;
-    my $message_id = undef;
-    $_[0]->get_buffer_size if ( not defined $_[0]->{buffer_size} );
-    do {
-        $message_id = $_[0]->msg_counter;
-    } while ( exists $tiedhash->{$message_id} );
-    $tiedhash->{$message_id} = pack 'F N N N xx xx xx xx xxxx a*',
-        $Tachikoma::Right_Now, 0, 18 + length( ${ $_[1] } ),
-        TM_BYTESTREAM | TM_PERSIST, ${ $_[1] };
-    $_[0]->{buffer_size}++;
-    $_[0]->set_timer( $Timer_Interval * 1000 )
-        if ( $_[0]->{owner} and not $_[0]->{timer_is_active} );
-}
-
 sub handle_response {
     my $self       = shift;
     my $response   = shift;
@@ -264,8 +246,9 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                         unlink $self->filename or warn;
                         $self->tiedhash(undef);
                     }
+                    $self->{cache}           = undef;
                     $self->{last_clear_time} = $Tachikoma::Now;
-                    $is_empty = 'true';
+                    $is_empty                = 'true';
                 }
             }
             last;

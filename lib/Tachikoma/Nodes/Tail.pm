@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Tail.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -442,11 +442,6 @@ sub wait_to_delete_EOF {
 sub send_EOF {
     my (@args) = @_;
     return Tachikoma::Nodes::STDIO::send_EOF(@args);
-}
-
-sub edge {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::edge(@args);
 }
 
 sub set_drain_buffer {

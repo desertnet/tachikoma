@@ -73,16 +73,11 @@ function update_table() {
         var key_href = "<a href=\"task_query.html?key="
                      + cached_msg.payload[i].key + "\">"
                      + cached_msg.payload[i].key + "</a>";
+        var payload = cached_msg.payload[i].payload || "";
         var row = tr + "<td>" + date.toISOString() + "</td>"
                      + "<td>" + type               + "</td>"
-                     + "<td>" + key_href           + "</td>";
-        if (show_task_output) {
-            var payload = cached_msg.payload[i].payload || "";
-            row += "<td>" + payload + "</td></tr>";
-        }
-        else {
-            row += "</tr>";
-        }
+                     + "<td>" + key_href           + "</td>"
+                     + "<td>" + payload            + "</td></tr>";
         output.unshift(row);
     }
     while (output.length > count) {
@@ -92,18 +87,12 @@ function update_table() {
 }
 
 function display_table() {
-    var row = "<tr><th>TIMESTAMP</th>"
-            + "<th>TYPE</th>"
-            + "<th>KEY</th>";
-    if (show_task_output) {
-        row += "<th>VALUE</th></tr>";
-    }
-    else {
-        row += "</tr>";
-    }
     document.getElementById("output").innerHTML
                 = "<table>"
-                + row
+                + "<tr><th>TIMESTAMP</th>"
+                + "<th>TYPE</th>"
+                + "<th>KEY</th>"
+                + "<th>VALUE</th></tr>"
                 + output.join("")
                 + "</table>";
     dirty = 0;
@@ -127,6 +116,7 @@ function toggle_task_output() {
     output = [];
     update_table();
     display_table();
+    output = [];
 }
 
 function tick() {

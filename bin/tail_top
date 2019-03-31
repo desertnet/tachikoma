@@ -1,6 +1,6 @@
 #!perl
 # ----------------------------------------------------------------------
-# BufferTop client
+# TailTop client
 # ----------------------------------------------------------------------
 #
 # $Id$
@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO qw( TK_R TK_SYNC );
 use Tachikoma::Nodes::Shutdown;
-use Tachikoma::Nodes::BufferTop;
+use Tachikoma::Nodes::TailTop;
 use Tachikoma::Message qw( PAYLOAD );
 use Getopt::Long;
 require '/usr/local/etc/tachikoma.conf';
@@ -22,16 +22,18 @@ my $help          = undef;
 my $list_fields   = undef;
 my $select_fields = join(
     ',', qw(
-        hostname buff_name direction2 msg_in_buf send_rate eta
+        hostname filename file_size
+        recv_rate direction2 send_rate
+        distance eta
         )
 );
 my $host      = 'localhost';
-my $port      = 4396;
+my $port      = 4392;
 my $use_SSL   = undef;
 my %where     = ();
 my %where_not = ();
 my %width     = ();
-my $sort      = 'msg_in_buf';
+my $sort      = '_distance';
 my $threshold = 1;
 my $delay     = 4;
 my $lines     = undef;          # XXX: until wrappers are updated
@@ -55,7 +57,7 @@ usage() if ( $help or not $r );
 
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
-my $buffer_top = Tachikoma::Nodes::BufferTop->new;
+my $buffer_top = Tachikoma::Nodes::TailTop->new;
 list_fields() if ($list_fields);
 
 my $router    = Tachikoma::Nodes::Router->new;

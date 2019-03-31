@@ -142,6 +142,13 @@ sub send_offset {
     return $self->SUPER::fill($message);
 }
 
+sub shutdown_all_nodes {
+    my $self = shift;
+    $self->send_offset if ( $self->{offset} != $self->{last_offset} );
+    $self->SUPER::shutdown_all_nodes;
+    return;
+}
+
 sub tail {
     my $self = shift;
     if (@_) {

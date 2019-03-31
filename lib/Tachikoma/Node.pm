@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 36778 2019-03-19 04:33:11Z chris $
+# $Id: Node.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Node;
@@ -72,11 +72,6 @@ sub fill {
     return $self->drop_message( $message, 'no sink' )
         if ( not $self->{sink} );
     return $self->{sink}->fill($message);
-}
-
-sub activate {
-    my ($self) = @_;
-    return $self->print_less_often('ERROR: activation failed');
 }
 
 sub remove_node {
@@ -406,7 +401,7 @@ sub log_prefix {
         chomp $msg;
         my $router = $Tachikoma::Nodes{_router};
         $msg =~ s{^}{$prefix}mg
-            if ( $router and $router->{type} ne 'router' );
+            if ( not $router or $router->{type} ne 'router' );
         return $msg . "\n";
     }
     else {
@@ -528,11 +523,7 @@ Override this method to parse your arguments and initialize your node. This is a
 
 =head2 fill( $message )
 
-Override this method to do work when your node receives a message. Typically called via sink(). See also activate().
-
-=head2 activate( $payload )
-
-Similar to fill() but only receives message payloads. This method is typically called via edge(). Used to implement high performance processing, etc.
+Override this method to do work when your node receives a message. Typically called via sink().
 
 =head2 sink()
 
@@ -542,9 +533,9 @@ Usage: $self->sink->fill( $message );
 
 =head2 edge()
 
-A secondary implementation of "physical" message routing for high performance processing, this contains a reference to another node. Usually the only method called on an edge() is activate(), but it can also be [ab]used for other purposes. If this node manages other nodes, it might useful to override this method to update their edges as well.
+A secondary implementation of "physical" message routing, this contains a reference to another node. Usually the only method called on an edge() is fill(), but it can also be [ab]used for other purposes. If this node manages other nodes, it might useful to override this method to update their edges as well.
 
-Usage: $self->edge->activate( \{ $message->payload } );
+Usage: $self->edge->fill( \{ $message->payload } );
 
 =head2 owner()
 

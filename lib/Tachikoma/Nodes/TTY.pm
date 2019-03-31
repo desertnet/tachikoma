@@ -5,7 +5,7 @@
 #
 # Tachikoma::Nodes::STDIO plus Readline support
 #
-# $Id: TTY.pm 35585 2018-10-24 02:44:55Z chris $
+# $Id: TTY.pm 37026 2019-03-29 12:05:59Z chris $
 #
 
 package Tachikoma::Nodes::TTY;
@@ -30,7 +30,7 @@ sub new {
     $self->{drain_fh}     = \&drain_fh;
     $self->{use_readline} = undef;
     $self->{term}         = undef;
-    $self->{prompt}       = undef;
+    $self->{prompt}       = q();
     $self->{width}        = undef;
     $self->{completions}  = { 'help' => [], 'ls' => [] };
     $self->{queue}        = [];

@@ -124,6 +124,12 @@ my %PROMPTS = (
     string3 => q(`> ),
     newline => q(> ),
 );
+my %SPECIAL = (
+    e => "\e",
+    n => "\n",
+    r => "\r",
+    t => "\t",
+);
 my %EVALUATORS = ();
 my %BUILTINS   = ();
 my %OPERATORS  = ();
@@ -147,7 +153,7 @@ sub new {
     $self->{prefix}        = undef;
     $self->{mode}          = 'command';
     $self->{isa_tty}       = undef;
-    $self->{should_reply}  = undef;
+    $self->{want_reply}    = undef;
     $self->{stdin}         = undef;
     $self->{dumper}        = undef;
     $self->{responder}     = undef;
@@ -385,15 +391,19 @@ sub dequote {
     my $tok   = shift;
     my $type  = $tok->{type};
     my $value = \$tok->{value}->[0];
-    if (   $type eq 'ident'
-        or $type eq 'string1'
-        or $type eq 'string3' )
-    {
-        ${$value} =~ s{\\e}{\e}g;
-        ${$value} =~ s{\\n}{\n}g;
-        ${$value} =~ s{\\r}{\r}g;
-        ${$value} =~ s{\\t}{\t}g;
-        ${$value} =~ s{\\([^<\w>])}{$1}g;
+    if ( $type eq 'ident' ) {
+        ${$value} =~ s{\\(.)}{$1}g;
+    }
+    elsif ( $type eq 'string1' or $type eq 'string3' ) {
+        my $normal = sub {
+            my $char = shift;
+            my $rv   = $char;
+            if ( $char =~ m{[\w.(){}\[\]<>|?]} ) {
+                $rv = "\\$char";
+            }
+            return $rv;
+        };
+        ${$value} =~ s{\\(.)}{ $SPECIAL{$1} // &$normal($1) }ge;
     }
     elsif ( $type eq 'string2' ) {
         ${$value} =~ s{\\([\\'])}{$1}g;
@@ -1709,7 +1719,7 @@ sub _send_command {
     my $payload   = shift;
     my $path      = shift;
     my $message   = $self->command( $name, $arguments, $payload );
-    $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->should_reply );
+    $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->want_reply );
     $message->from( $LOCAL{'message.from'} // $self->{responder}->{name}
             // q() );
     $message->to( $self->prefix($path) );
@@ -1932,12 +1942,12 @@ sub isa_tty {
     return $self->{isa_tty};
 }
 
-sub should_reply {
+sub want_reply {
     my $self = shift;
     if (@_) {
-        $self->{should_reply} = shift;
+        $self->{want_reply} = shift;
     }
-    return $self->{should_reply} // $LOCAL{'message.from'};
+    return $self->{want_reply} // $LOCAL{'message.from'};
 }
 
 sub stdin {

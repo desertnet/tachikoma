@@ -213,16 +213,6 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     return;
 }
 
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    push @{ $_[0]->{batch} },
-        (
-        bless [ TM_BYTESTREAM, q(), q(), q(), q(), $Tachikoma::Now,
-            ${ $_[1] } ],
-        'Tachikoma::Message'
-        );
-    $_[0]->set_timer( 0, 'oneshot' );
-}
-
 sub fire {
     my $self      = shift;
     my $batch     = $self->{batch};

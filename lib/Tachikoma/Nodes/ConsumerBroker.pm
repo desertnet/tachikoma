@@ -45,6 +45,7 @@ sub new {
     $self->{cache_dir}      = undef;
     $self->{auto_commit}    = $self->{group} ? $Commit_Interval : undef;
     $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
+    $self->{last_check}     = 0;
 
     # async support
     $self->{partition_id}           = undef;
@@ -61,7 +62,6 @@ sub new {
     $self->{targets}     = {};
     $self->{partitions}  = undef;
     $self->{leader}      = undef;
-    $self->{last_check}  = 0;
     $self->{last_expire} = 0;
     $self->{eos}         = undef;
     $self->{sync_error}  = undef;
@@ -182,20 +182,25 @@ sub fill {
 }
 
 sub fire {
-    my $self = shift;
-    return if ( not $self->{sink} );
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE] = TM_REQUEST;
-    $message->[FROM] = $self->name;
-    $message->[TO]   = $self->broker_path;
-    if ( defined $self->{partition_id} or not $self->{group} ) {
-        $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
+    my $self      = shift;
+    my $consumers = $self->{consumers};
+    if ( $Tachikoma::Now - $self->{last_check} > $Check_Interval ) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE] = TM_REQUEST;
+        $message->[FROM] = $self->name;
+        $message->[TO]   = $self->broker_path;
+        if ( defined $self->{partition_id} or not $self->{group} ) {
+            $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
+        }
+        else {
+            $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
+        }
+        $self->sink->fill($message);
+        $self->{last_check} = $Tachikoma::Now;
     }
-    else {
-        $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
+    for my $partition_id ( keys %{$consumers} ) {
+        $consumers->{$partition_id}->fire;
     }
-    $self->sink->fill($message);
-    $self->set_timer if ( $self->{timer_interval} );
     return;
 }
 
@@ -289,10 +294,13 @@ sub make_async_consumer {
             $consumer->auto_commit( $self->auto_commit );
         }
         $consumer->default_offset( $self->default_offset );
+        $consumer->poll_interval( $self->poll_interval );
+        $consumer->hub_timeout( $self->hub_timeout );
         $consumer->max_unanswered( $self->max_unanswered );
+        $consumer->timeout( $self->timeout );
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
-        $consumer->set_timer( $Startup_Delay * 1000 );
+
         for my $event ( keys %{ $self->{registrations} } ) {
             my $r = $self->{registrations}->{$event};
             $consumer->{registrations}->{$event} =
@@ -315,8 +323,9 @@ sub make_async_consumer {
 sub owner {
     my $self = shift;
     if (@_) {
-        $self->{owner} = shift;
-        $self->set_timer( $Startup_Delay * 1000 );
+        $self->{owner}      = shift;
+        $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{owner};
 }
@@ -324,8 +333,9 @@ sub owner {
 sub edge {
     my $self = shift;
     if (@_) {
-        $self->{edge} = shift;
-        $self->set_timer( $Startup_Delay * 1000 );
+        $self->{edge}       = shift;
+        $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{edge};
 }
@@ -776,6 +786,14 @@ sub auto_offset {
     return $self->{auto_offset};
 }
 
+sub last_check {
+    my $self = shift;
+    if (@_) {
+        $self->{last_check} = shift;
+    }
+    return $self->{last_check};
+}
+
 # async support
 sub partition_id {
     my $self = shift;
@@ -872,14 +890,6 @@ sub leader {
         $self->{leader} = shift;
     }
     return $self->{leader};
-}
-
-sub last_check {
-    my $self = shift;
-    if (@_) {
-        $self->{last_check} = shift;
-    }
-    return $self->{last_check};
 }
 
 sub last_expire {

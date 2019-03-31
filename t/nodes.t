@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3158;
+use Test::More tests => 3230;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -50,7 +50,6 @@ my %nodes = (
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
-    'Tachikoma::Nodes::Edge'                  => undef,
     'Tachikoma::Nodes::FileController'        => q(),
     'Tachikoma::Nodes::FileReceiver'          => q(),
     'Tachikoma::Nodes::FileSender'            => q(),
@@ -104,6 +103,7 @@ my %nodes = (
     'Tachikoma::Nodes::SudoFarmer'        => undef,
     'Tachikoma::Nodes::Table'             => q(),
     'Tachikoma::Nodes::Tail'              => q(/etc/hosts),
+    'Tachikoma::Nodes::TailProbe'         => q(),
     'Tachikoma::Nodes::Tee'               => q(),
     'Tachikoma::Nodes::TimedList'         => q(),
     'Tachikoma::Nodes::Timeout'           => q(),
@@ -121,6 +121,7 @@ my %nodes = (
     'Accessories::Nodes::HexDump'         => q(),
     'Accessories::Nodes::IndexByHostname' => q(),
     'Accessories::Nodes::IndexByProcess'  => q(),
+    'Accessories::Nodes::LogColor'        => q(),
     'Accessories::Nodes::Number'          => q(),
     'Accessories::Nodes::Panel'           => undef,
     'Accessories::Nodes::SFESerLCD'       => q(),
@@ -153,6 +154,7 @@ my %skip_all_tests = (
     'Tachikoma::Nodes::Shell2'         => 1,
     'Tachikoma::Nodes::SQL'            => 1,
     'Tachikoma::Nodes::StorableToJSON' => 1,
+    'Tachikoma::Nodes::TailTop'        => 1,
     'Tachikoma::Nodes::TopicTop'       => 1,
     'Accessories::Nodes::SFE4DigitLED' => 1,
     'Accessories::Nodes::Watcher'      => 1,

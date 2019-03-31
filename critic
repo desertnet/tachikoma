@@ -47,7 +47,6 @@ lib/Tachikoma/Nodes/ConsumerBroker.pm
 lib/Tachikoma/Nodes/ConsumerGroup.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
-lib/Tachikoma/Nodes/Edge.pm
 lib/Tachikoma/Nodes/FileController.pm
 lib/Tachikoma/Nodes/FileHandle.pm
 lib/Tachikoma/Nodes/FileReceiver.pm
@@ -112,6 +111,8 @@ lib/Tachikoma/Nodes/SudoFarmer.pm
 lib/Tachikoma/Nodes/TTY.pm
 lib/Tachikoma/Nodes/Table.pm
 lib/Tachikoma/Nodes/Tail.pm
+lib/Tachikoma/Nodes/TailProbe.pm
+lib/Tachikoma/Nodes/TailTop.pm
 lib/Tachikoma/Nodes/Tee.pm
 lib/Tachikoma/Nodes/TimedList.pm
 lib/Tachikoma/Nodes/Timeout.pm

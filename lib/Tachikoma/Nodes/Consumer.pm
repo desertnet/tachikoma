@@ -64,16 +64,17 @@ sub new {
     $self->{hub_timeout}        = $Hub_Timeout;
 
     # async support
-    $self->{expecting}              = undef;
-    $self->{lowest_offset}          = 0;
-    $self->{saved_offset}           = undef;
-    $self->{timestamps}             = {};
-    $self->{last_expire}            = $Tachikoma::Now;
-    $self->{msg_unanswered}         = 0;
-    $self->{max_unanswered}         = undef;
-    $self->{timeout}                = $Timeout;
-    $self->{status}                 = undef;
-    $self->{registrations}->{READY} = {};
+    $self->{expecting}               = undef;
+    $self->{lowest_offset}           = 0;
+    $self->{saved_offset}            = undef;
+    $self->{timestamps}              = {};
+    $self->{last_expire}             = $Tachikoma::Now;
+    $self->{msg_unanswered}          = 0;
+    $self->{max_unanswered}          = undef;
+    $self->{timeout}                 = $Timeout;
+    $self->{status}                  = undef;
+    $self->{registrations}->{ACTIVE} = {};
+    $self->{registrations}->{READY}  = {};
 
     # sync support
     $self->{host}       = 'localhost';
@@ -159,39 +160,15 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     my $offset  = $message->[ID];
     if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
-        if ( $message->[PAYLOAD] eq 'answer' ) {
-            $self->remove_node if ( defined $self->partition_id );
-        }
-        elsif ( $self->{timestamps}->{$offset} ) {
-            $self->{last_receive} = $Tachikoma::Now;
-            delete $self->{timestamps}->{$offset};
-            if ( $self->{msg_unanswered} > 0 ) {
-                $self->{msg_unanswered}--;
-            }
-            else {
-                $self->print_less_often(
-                    'WARNING: unexpected response from ' . $message->[FROM] );
-                $self->{msg_unanswered} = 0;
-            }
-            $self->set_timer(0)
-                if ($self->{timer_interval}
-                and $self->{msg_unanswered} < $self->{max_unanswered} );
-        }
+        $self->handle_response($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->stderr( $message->[PAYLOAD] )
-            if ( $message->[PAYLOAD] ne "NOT_AVAILABLE\n" );
-        if ( defined $self->partition_id ) {
-            $self->remove_node;
-        }
-        else {
-            $self->arguments( $self->arguments );
-        }
+        $self->handle_error($message);
     }
     else {
         if ( not $self->{expecting} ) {
@@ -210,16 +187,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->{offset} = $offset;
         }
         if ( $message->[TYPE] & TM_EOF ) {
-            if ( $self->{status} eq 'INIT' ) {
-                $self->{status} = 'ACTIVE';
-                $self->load_cache_complete;
-                $self->next_offset( $self->{saved_offset} );
-                $self->set_timer(0) if ( $self->{timer_interval} );
-            }
-            else {
-                $self->set_state( 'READY' => $self->{partition_id} );
-                $self->{next_offset} = $offset;
-            }
+            $self->handle_EOF($offset);
         }
         else {
             $self->{next_offset} = $offset + length $message->[PAYLOAD];
@@ -230,15 +198,71 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $self->{last_receive} = $Tachikoma::Now;
         $self->{expecting}    = undef;
+        $self->set_state( 'ACTIVE' => $self->{partition_id} )
+            if ( not $self->{set_state}->{ACTIVE}
+            and $self->{status} eq 'ACTIVE' );
+    }
+    return;
+}
+
+sub handle_response {
+    my $self    = shift;
+    my $message = shift;
+    my $offset  = $message->[ID];
+    if ( $message->[PAYLOAD] eq 'answer' ) {
+        $self->remove_node if ( defined $self->partition_id );
+    }
+    elsif ( $self->{timestamps}->{$offset} ) {
+        $self->{last_receive} = $Tachikoma::Now;
+        delete $self->{timestamps}->{$offset};
+        if ( $self->{msg_unanswered} > 0 ) {
+            $self->{msg_unanswered}--;
+        }
+        else {
+            $self->print_less_often(
+                'WARNING: unexpected response from ' . $message->[FROM] );
+            $self->{msg_unanswered} = 0;
+        }
+        $self->set_timer(0)
+            if ($self->{timer_interval}
+            and $self->{msg_unanswered} < $self->{max_unanswered} );
+    }
+    return;
+}
+
+sub handle_error {
+    my $self    = shift;
+    my $message = shift;
+    $self->stderr( $message->[PAYLOAD] )
+        if ( $message->[PAYLOAD] ne "NOT_AVAILABLE\n" );
+    if ( defined $self->partition_id ) {
+        $self->remove_node;
+    }
+    else {
+        $self->arguments( $self->arguments );
+    }
+    return;
+}
+
+sub handle_EOF {
+    my $self   = shift;
+    my $offset = shift;
+    if ( $self->{status} eq 'INIT' ) {
+        $self->{status} = 'ACTIVE';
+        $self->load_cache_complete;
+        $self->next_offset( $self->{saved_offset} );
+        $self->set_timer(0) if ( $self->{timer_interval} );
+    }
+    else {
+        $self->{next_offset} = $offset;
+        $self->set_state( 'READY' => $self->{partition_id} )
+            if ( not $self->{set_state}->{READY} );
     }
     return;
 }
 
 sub fire {
     my $self = shift;
-    return
-        if ( not $self->{sink}
-        or ( not $self->{owner} and not $self->{edge} ) );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
@@ -259,7 +283,13 @@ sub fire {
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
     {
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        if ( defined $self->{partition_id} ) {
+            $self->stop_timer;
+            $self->{timer_interval} = $self->{poll_interval} * 1000;
+        }
+        else {
+            $self->set_timer( $self->{poll_interval} * 1000 );
+        }
     }
     if ( $self->{msg_unanswered} < $self->{max_unanswered}
         and length ${ $self->{buffer} } )
@@ -337,6 +367,7 @@ sub drain_buffer {
 sub get_batch_async {
     my $self   = shift;
     my $offset = $self->{next_offset};
+    return if ( not $self->{sink} );
     if ( not defined $offset ) {
         if ( $self->cache_dir ) {
             my $file = join q(), $self->{cache_dir}, q(/), $self->{name},

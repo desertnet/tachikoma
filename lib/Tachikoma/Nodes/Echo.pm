@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Echo
 # ----------------------------------------------------------------------
 #
-# $Id: Echo.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: Echo.pm 37101 2019-03-30 23:08:39Z chris $
 #
 
 package Tachikoma::Nodes::Echo;
@@ -31,10 +31,6 @@ sub fill {
     $message->[TO] = join q(/), $owner, $to if ( $owner     and $to );
     $message->[TO] = $message->[FROM]       if ( not $owner and not $to );
     return $self->SUPER::fill($message);
-}
-
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    $_[0]->{edge}->activate( $_[1] );
 }
 
 1;

@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::TopicProbe
+# Tachikoma::Nodes::TailProbe
 # ----------------------------------------------------------------------
 #
-# $Id: TopicProbe.pm 9044 2010-12-05 01:38:21Z chris $
+# $Id: TailProbe.pm 9044 2010-12-05 01:38:21Z chris $
 #
 
-package Tachikoma::Nodes::TopicProbe;
+package Tachikoma::Nodes::TailProbe;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
@@ -15,7 +15,7 @@ use Time::HiRes;
 use Sys::Hostname qw( hostname );
 use parent qw( Tachikoma::Nodes::Timer );
 
-use version; our $VERSION = qv('v2.0.367');
+use version; our $VERSION = qv('v2.0.368');
 
 my $Default_Interval = 5;    # seconds
 
@@ -32,7 +32,7 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node TopicProbe <node name> <seconds> [ <prefix> ]
+make_node TailProbe <node name> <seconds> [ <prefix> ]
 EOF
 }
 
@@ -41,11 +41,11 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
-        die "ERROR: bad arguments for TopicProbe\n"
+        die "ERROR: bad arguments for TailProbe\n"
             if ( $seconds and $seconds =~ m{\D} );
         $seconds ||= $Default_Interval;
         $self->set_timer( $seconds * 1000 );
-        $self->prefix( $prefix || q() );
+        $self->prefix( $prefix || $0 );
     }
     return $self->{arguments};
 }
@@ -61,40 +61,22 @@ sub fire {
         $elapsed - $interval
     ) if ( $elapsed > $interval * 2 );
     $self->{last_time} = Time::HiRes::time;
-    for my $name ( keys %Tachikoma::Nodes ) {
-        my $node = $Tachikoma::Nodes{$name};
-        if ( $node->isa('Tachikoma::Nodes::Partition') ) {
-            next if ( $node->{leader} );
-            my $partition_name = $node->{name};
-            $partition_name = join q(/), $self->{prefix}, $partition_name
-                if ( $self->{prefix} );
-            $partition_name =~ s{:}{_}g;
-            $out .= join q(),
-                'partition:' => $partition_name,
-                ' p_offset:' => $node->{last_commit_offset} // 0,
-                "\n";
-        }
-        elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
-            next if ( not $node->{set_state}->{ACTIVE} );
-            my $partition_name = $node->{partition};
-            $partition_name =~ s{.*/}{};
-            $partition_name = join q(/), $self->{prefix}, $partition_name
-                if ( $self->{prefix} );
-            $partition_name =~ s{:}{_}g;
-            my $consumer_name = $node->{name};
-            $consumer_name =~ s{^_}{};
-            $consumer_name = join q(/), $self->{prefix}, $consumer_name
-                if ( $self->{prefix} );
-            $consumer_name =~ s{:}{_}g;
+    my $node = $Tachikoma::Nodes{$0};
+
+    if ( $node and $node->can('tiedhash') and $node->can('files') ) {
+        my $tiedhash = $node->tiedhash;
+        my $files    = $node->files;
+        for my $name ( sort keys %{$tiedhash} ) {
+            my $filename  = $files->{$name}->[0];
+            my $tail_name = join q(/), $self->{prefix}, $name;
+            $tail_name =~ s{:}{_}g;
+            $filename  =~ s{:}{_}g;
             $out .= join q(),
                 'hostname:'        => $self->{my_hostname},
-                ' partition:'      => $partition_name,
-                ' consumer:'       => $consumer_name,
-                ' c_offset:'       => $node->{offset} // 0,
-                ' cache_size:'     => $node->{cache_size} // 0,
-                ' msg_sent:'       => $node->{counter} // 0,
-                ' msg_unanswered:' => $node->{msg_unanswered} // 0,
-                ' max_unanswered:' => $node->{max_unanswered} // 0,
+                ' tail_name:'      => $tail_name,
+                ' filename:'       => $filename,
+                ' bytes_answered:' => $tiedhash->{$name},
+                ' file_size:'      => ( stat $filename )[7],
                 "\n";
         }
     }

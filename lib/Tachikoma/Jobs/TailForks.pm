@@ -27,10 +27,9 @@ use parent qw( Tachikoma::Job );
 use version; our $VERSION = qv('v2.0.368');
 
 my $Home          = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir        = "$Home/.tachikoma/Tails";
+my $DB_Dir        = "$Home/.tachikoma/tails";
 my $Max_Forking   = 8;
-my $Scan_Interval = 30;
-my $Delay         = 60;
+my $Scan_Interval = 15;
 my $Last_Cache    = 0;
 
 sub initialize_graph {
@@ -268,9 +267,7 @@ sub get_destination {
     for my $destination ( @{ $self->{connect_list} } ) {
         my $host = $destination;
         $host =~ s{:ssl$}{};
-        next
-            if ( exists $offline->{$host}
-            or $Tachikoma::Now - $online->{$host} < $Delay );
+        next if ( exists $offline->{$host} );
         push @destinations, $destination;
     }
     return if ( not @destinations );

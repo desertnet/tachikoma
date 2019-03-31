@@ -240,7 +240,7 @@ is( $answer,
 
 $parse_tree = $shell->parse( '
     for name ("foo" "bar") {
-        send echo hi <name>\n;
+        send echo hi "<name>\n";
         send echo bye <name>\n;
     }
 ' );
@@ -248,12 +248,10 @@ $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, '{hi foo
 }
-{bye foo
-}
+{bye foon}
 {hi bar
 }
-{bye bar
-}
+{bye barn}
 ', 'for loops set variables and iterate correctly'
 );
 
@@ -365,7 +363,7 @@ is( $answer, "{yes}\n{no}\n", 'else statements branch correctly' );
 $parse_tree = $shell->parse( '
     for x (1 .. 2) {
         for y (3 .. 4) {
-           send echo <index> - <x> - <y>\n;
+           send echo "<index> - <x> - <y>\n";
         };
     }
 ' );
@@ -588,7 +586,7 @@ is( $answer, "{foo   bar\n}\n", 'variables can be used as function names' );
 #####################################################################
 
 $parse_tree = $shell->parse( '
-    func test { send echo <0> <@>\n; };
+    func test { send echo <0> <@>"\n"; };
     test "foo  bar"
 ' );
 $answer = q();
@@ -613,7 +611,7 @@ is( $answer,
 
 #####################################################################
 
-$parse_tree = $shell->parse('send echo ((foo eq foo)\n);');
+$parse_tree = $shell->parse('send echo ((foo eq foo)"\n");');
 $answer     = q();
 $shell->send_command($parse_tree);
 is( $answer, "{1\n}\n", 'nested parenthesis are evaluted for operators' );

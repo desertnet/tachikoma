@@ -79,7 +79,7 @@ sub fill {
     my $shell     = $self->shell;
     my $old_local = $shell->set_local($arguments);
     my $okay      = eval {
-        $rv = $shell->send_command( $self->{parse_tree} );
+        $shell->send_command( $self->{parse_tree} );
         return 1;
     };
     $shell->restore_local($old_local);
@@ -100,10 +100,11 @@ sub fill {
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BYTESTREAM;
     $response->[TYPE] |= $persist if ($persist);
-    $response->[FROM]    = $message->[FROM];
-    $response->[ID]      = $message->[ID];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q(), @{$rv};
+    $response->[FROM]      = $message->[FROM];
+    $response->[ID]        = $message->[ID];
+    $response->[STREAM]    = $message->[STREAM];
+    $response->[TIMESTAMP] = $message->[TIMESTAMP];
+    $response->[PAYLOAD]   = join q(), @{$rv};
     return $self->SUPER::fill($response);
 }
 

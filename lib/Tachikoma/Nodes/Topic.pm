@@ -140,32 +140,6 @@ sub fill {
     return;
 }
 
-sub activate {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    my $message = Tachikoma::Message->new;
-    if ( ref $_[1] ) {
-        if ( ref $_[1] eq 'SCALAR' ) {
-            $message->[TYPE]    = TM_BYTESTREAM;
-            $message->[PAYLOAD] = ${ $_[1] };
-        }
-        elsif ( ref $_[1] eq 'HASH' ) {
-            $message->[TYPE]      = TM_STORABLE;
-            $message->[TO]        = $_[1]->{partition};
-            $message->[TIMESTAMP] = $_[1]->{timestamp}
-                if ( $_[1]->{timestamp} );
-            $message->[PAYLOAD] = $_[1]->{bucket} // $_[1];
-        }
-        else {
-            $message->[TYPE]    = TM_STORABLE;
-            $message->[PAYLOAD] = $_[1];
-        }
-    }
-    else {
-        $message->[TYPE]    = TM_BYTESTREAM;
-        $message->[PAYLOAD] = $_[1];
-    }
-    $_[0]->batch_message($message);
-}
-
 sub fire {
     my $self       = shift;
     my $partitions = $self->{partitions};

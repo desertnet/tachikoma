@@ -10,6 +10,3 @@ initialize [var name]
 
 make_node CommandInterpreter hosts
 make_node JobController      jobs
-command hosts connect_inet localhost
-command jobs  start_job Tail local_server_log <log_file>
-connect_node local_server_log localhost/server_log:ruleset

@@ -79,6 +79,7 @@ sub execute {
             if ( $fh eq $child_out ) {
                 my $output = <$child_out>;
                 if ( length $output ) {
+                    $output =~ s{\e\[\d+m}{}g;
                     $self->send_event(
                         { type => 'TASK_OUTPUT', payload => $output } );
                     $sent = 1;
@@ -87,6 +88,7 @@ sub execute {
             elsif ( $fh eq $child_err ) {
                 my $error = <$child_err>;
                 if ( length $error ) {
+                    $error =~ s{\e\[\d+m}{}g;
                     $self->send_event(
                         { type => 'TASK_ERROR', payload => $error } );
                     $sent = 1;
