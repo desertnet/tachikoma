@@ -55,7 +55,6 @@ sub arguments {
         my ( $filename, $max_unanswered ) =
             split q( ), $self->{arguments}, 2;
         die "ERROR: no filename specified\n" if ( not $filename );
-        $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );
         $self->filename($filename);
@@ -74,11 +73,10 @@ sub fill {
         if ( $type == ( TM_PERSIST | TM_RESPONSE ) or $type == TM_ERROR );
     return $self->SUPER::fill($message)
         if ( $type & TM_COMMAND or $type & TM_EOF );
-    my $dbh            = $self->dbh;
+    my $dbh            = $self->{dbh} // $self->dbh;
     my $message_id     = undef;
     my $unanswered     = keys %{ $self->{msg_unanswered} };
     my $max_unanswered = $self->{max_unanswered};
-    my $buffer_size    = $self->{buffer_size} // $self->get_buffer_size;
     my $copy           = bless [ @{$message} ], ref $message;
     $self->set_timer(0)
         if ( $self->{owner} and $unanswered < $max_unanswered );
@@ -105,13 +103,17 @@ sub fill {
             $dbh->prepare(
             'DELETE FROM queue WHERE message_key=? AND attempts=0');
         $sth->execute($message_key);
-        $self->{cache} = undef;
+        $self->{cache}       = undef;
+        $self->{buffer_size} = undef;
+    }
+    else {
+        $self->get_buffer_size if ( not defined $self->{buffer_size} );
+        $self->{buffer_size}++;
     }
     $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     $sth->execute( $Tachikoma::Right_Now + $self->{delay},
         0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
         $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
-    $buffer_size++;
     $self->{buffer_fills}++;
     $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
     if ( $type & TM_ERROR ) {
@@ -121,7 +123,6 @@ sub fill {
     elsif ( $type & TM_PERSIST ) {
         $self->cancel($message);
     }
-    $self->{buffer_size} = $buffer_size;
     return 1;
 }
 
@@ -186,16 +187,14 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
 
     my $max_unanswered = $self->{max_unanswered};
     my $msg_unanswered = $self->{msg_unanswered};
-    my $buffer_mode    = $self->{buffer_mode};
     my $timeout        = $self->{timeout} * 1000;
-    my $restart        = undef;
 
     # time out unanswered messages
     for my $key ( keys %{$msg_unanswered} ) {
         my $span = ( $Tachikoma::Right_Now - $msg_unanswered->{$key} ) * 1000;
         if ( $span > $timeout ) {
             delete $msg_unanswered->{$key};
-            $restart = 'true';
+            $self->{cache} = undef;
         }
         else {
             $self->set_timer( $timeout - $span )
@@ -209,11 +208,11 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
     }
 
     # refill the run queue
-    my $dbh      = $self->dbh;
+    my $dbh      = $self->{dbh} // $self->dbh;
     my $is_empty = undef;
-    my $i        = 1;
-    while ( keys %{$msg_unanswered} < $max_unanswered ) {
-        my $key = $self->get_next_key($restart);
+    my $i        = keys %{$msg_unanswered};
+    while ( $i < $max_unanswered ) {
+        my $key = $self->get_next_key;
         if ( not defined $key ) {
 
             # buffer is empty (this is the easiest place to detect it)
@@ -222,9 +221,11 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
                 and $i == 1
                 and not $self->get_buffer_size )
             {
-                $dbh->disconnect;
-                unlink $self->filename or warn;
-                $self->dbh(undef);
+                if ($dbh) {
+                    $dbh->disconnect;
+                    unlink $self->filename or warn;
+                    $self->dbh(undef);
+                }
                 $self->{cache}           = undef;
                 $self->{last_clear_time} = $Tachikoma::Now;
                 $is_empty                = 'true';
@@ -233,10 +234,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         }
         $i++;
         $self->refill($key);
-        last if ( $i > $max_unanswered );
-        $restart = undef;
     }
-    $self->{is_active} = 1;
     $self->stop_timer
         if ($is_empty
         and not keys %{$times}
@@ -245,10 +243,8 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
 }
 
 sub get_next_key {
-    my $self    = shift;
-    my $restart = shift;
-    my $cache   = $self->{cache};
-    $cache = undef if ($restart);
+    my $self  = shift;
+    my $cache = $self->{cache};
     if ( not $cache ) {
         my %streams = ();
         my %keys    = ();
@@ -256,7 +252,7 @@ sub get_next_key {
               SELECT message_id, message_stream, message_key
                 FROM queue
             ORDER BY message_id
-               LIMIT 10000
+               LIMIT 1000
 EOF
         $sth->execute;
         $cache = [];
@@ -290,7 +286,7 @@ sub refill {
     my $timeout = $self->{timeout};
     my $to      = $self->{owner};
 
-    if ( $self->{is_active} and $span > 0 ) {
+    if ( $span > 0 ) {
         $self->set_timer($span) if ( $next_attempt < $self->{timer} );
         return 'wait';
     }
@@ -586,7 +582,6 @@ $C{kick} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $patron   = $self->patron;
-    $patron->is_active(undef);
     $patron->msg_unanswered( {} );
     $patron->cache(undef);
     $patron->fire;
@@ -619,7 +614,7 @@ sub dump_config {
     $settings = "  set_max_attempts $max_attempts\n"   if ($max_attempts);
     $settings .= "  set_last_buffer $last_buffer\n" if ($last_buffer);
     $settings .= "  set_mode $buffer_mode\n"
-        if ( $buffer_mode ne 'unordered' );
+        if ( $buffer_mode ne 'normal' );
     $settings .= "  set_delay $delay\n" if ($delay);
     $settings .= "  set_timeout $timeout\n"
         if ( $timeout ne $Default_Timeout );
