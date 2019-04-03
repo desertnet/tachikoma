@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 35959 2018-11-29 01:42:01Z chris $
+# $Id: HTTP_Auth.pm 37166 2019-04-03 02:35:53Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;
@@ -16,6 +16,7 @@ use Tachikoma::Message qw(
     TM_STORABLE TM_BYTESTREAM TM_EOF
 );
 use MIME::Base64;
+use Digest::MD5;
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -91,7 +92,9 @@ sub authenticate {
     my $user   = shift;
     my $passwd = shift;
     my $salt   = $self->{htpasswd}->{$user} or return;
-    my $hash   = crypt $passwd, $salt;
+
+    # my $hash   = crypt $passwd, $salt;
+    my $hash = apache_md5_crypt( $passwd, $salt );
     return $hash eq $salt;
 }
 
@@ -135,6 +138,124 @@ sub htpasswd {
         $self->{htpasswd} = shift;
     }
     return $self->{htpasswd};
+}
+
+# from https://metacpan.org/pod/Crypt::PasswdMD5
+# with tweaks for our perlcritic:
+
+my ($itoa64) =
+    './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+my $Magic = q($) . q(apr1$);
+my ($max_salt_length) = 8;
+
+sub apache_md5_crypt {
+    my ( $pw, $salt ) = @_;
+    my ($passwd);
+    if ( defined $salt ) {
+        $salt =~ s/^\Q$Magic//;    # Take care of the magic string if present.
+        $salt =~ s/^(.*)\$.*$/$1/; # Salt can have up to 8 chars...
+        $salt = substr $salt, 0, 8;
+    }
+    else {
+        $salt = random_md5_salt();    # In case no salt was proffered.
+    }
+    my ($ctx) = Digest::MD5->new;     # Here we start the calculation.
+    $ctx->add($pw);                   # Original password...
+    $ctx->add($Magic);                # ...our magic string...
+    $ctx->add($salt);                 # ...the salt...
+    my ($final) = Digest::MD5->new;
+    $final->add($pw);
+    $final->add($salt);
+    $final->add($pw);
+    $final = $final->digest;
+
+    ## no critic (ProhibitCStyleForLoops)
+    for ( my $pl = length $pw; $pl > 0; $pl -= 16 ) {
+        $ctx->add( substr $final, 0, $pl > 16 ? 16 : $pl );
+    }
+    for ( my $i = length $pw; $i; $i >>= 1 ) {
+        if ( $i & 1 ) {
+            $ctx->add( pack 'C', 0 );
+        }
+        else {
+            $ctx->add( substr $pw, 0, 1 );
+        }
+    }
+    $final = $ctx->digest;
+    for ( my $i = 0; $i < 1000; $i++ ) {
+        my ($ctx1) = Digest::MD5->new;
+        if ( $i & 1 ) {
+            $ctx1->add($pw);
+        }
+        else {
+            $ctx1->add( substr $final, 0, 16 );
+        }
+        if ( $i % 3 ) {
+            $ctx1->add($salt);
+        }
+        if ( $i % 7 ) {
+            $ctx1->add($pw);
+        }
+        if ( $i & 1 ) {
+            $ctx1->add( substr $final, 0, 16 );
+        }
+        else {
+            $ctx1->add($pw);
+        }
+        $final = $ctx1->digest;
+    }
+    $passwd = q();
+    $passwd .= to64(
+        int( unpack( 'C', substr $final, 0, 1 ) << 16 )
+            | int( unpack( 'C', substr $final, 6, 1 ) << 8 )
+            | int( unpack 'C', substr $final, 12, 1 ),
+        4
+    );
+    $passwd .= to64(
+        int( unpack( 'C', substr $final, 1, 1 ) << 16 )
+            | int( unpack( 'C', substr $final, 7, 1 ) << 8 )
+            | int( unpack 'C', substr $final, 13, 1 ),
+        4
+    );
+    $passwd .= to64(
+        int( unpack( 'C', substr $final, 2, 1 ) << 16 )
+            | int( unpack( 'C', substr $final, 8, 1 ) << 8 )
+            | int( unpack 'C', substr $final, 14, 1 ),
+        4
+    );
+    $passwd .= to64(
+        int( unpack( 'C', substr $final, 3, 1 ) << 16 )
+            | int( unpack( 'C', substr $final, 9, 1 ) << 8 )
+            | int( unpack 'C', substr $final, 15, 1 ),
+        4
+    );
+    $passwd .= to64(
+        int( unpack( 'C', substr $final, 4, 1 ) << 16 )
+            | int( unpack( 'C', substr $final, 10, 1 ) << 8 )
+            | int( unpack 'C', substr $final, 5, 1 ),
+        4
+    );
+    $passwd .= to64( int( unpack 'C', substr $final, 11, 1 ), 2 );
+    return $Magic . $salt . q/$/ . $passwd;
+}
+
+sub random_md5_salt {
+    my ($len)  = shift || $max_salt_length;
+    my ($salt) = q();
+    $len = $max_salt_length
+        if ( ( $len < 1 ) or ( $len > $max_salt_length ) );
+    $salt .= substr $itoa64, int( rand 64 ), 1 for ( 1 .. $len );
+    return $salt;
+}
+
+sub to64 {
+    my ( $v, $n ) = @_;
+    my ($ret) = q();
+    while ( --$n >= 0 ) {
+        $ret .= substr $itoa64, $v & 0x3f, 1;
+        $v >>= 6;
+    }
+    return $ret;
 }
 
 1;
