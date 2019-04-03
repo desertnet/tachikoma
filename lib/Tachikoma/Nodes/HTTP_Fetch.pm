@@ -38,8 +38,8 @@ my %Types = (
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{prefix} = q();
-    $self->{tables} = {};
+    $self->{prefix}  = q();
+    $self->{allowed} = {};
     bless $self, $class;
     return $self;
 }
@@ -75,24 +75,34 @@ sub fill {
     $path =~ s{^/+}{};
     my $type            = ( $path =~ m{[.]([^.]+)$} )[0] || 'json';
     my $accept_encoding = $headers->{'accept-encoding'}  || q();
-    my ( $table_name, $escaped ) = split m{/}, $path, 2;
+    my ( $node_name, $escaped ) = split m{/}, $path, 2;
     my $value = undef;
 
-    if ( not length $table_name ) {
+    if ( not length $node_name ) {
         $value = [];
         for my $name ( sort keys %Tachikoma::Nodes ) {
-            next if ( $name !~ m{$allowed} );
-            push @{$value}, $name;
+            my $node = $Tachikoma::Nodes{$name};
+            next if ( $name !~ m{$allowed} or not $node->can('lookup') );
+            if ( $node->can('buffer_size') ) {
+                push @{$value},
+                    {
+                    name => $name,
+                    size => $node->buffer_size // $node->get_buffer_size
+                    };
+            }
+            else {
+                push @{$value}, $name;
+            }
         }
     }
     else {
-        my $table = $Tachikoma::Nodes{$table_name};
+        my $node = $Tachikoma::Nodes{$node_name};
         return $self->send404($message)
-            if ( $table_name !~ m{$allowed}
-            or not $table
-            or not $table->can('lookup') );
+            if ( $node_name !~ m{$allowed}
+            or not $node
+            or not $node->can('lookup') );
         my $key = uri_unescape( $escaped // q() );
-        $value = $table->lookup($key);
+        $value = $node->lookup($key);
     }
     return $self->send404($message) if ( not defined $value );
 
@@ -156,12 +166,12 @@ sub prefix {
     return $self->{prefix};
 }
 
-sub tables {
+sub allowed {
     my $self = shift;
     if (@_) {
-        $self->{tables} = shift;
+        $self->{allowed} = shift;
     }
-    return $self->{tables};
+    return $self->{allowed};
 }
 
 sub json {

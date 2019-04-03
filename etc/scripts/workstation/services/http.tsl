@@ -6,25 +6,27 @@ var http_port = (<root_port> + 1);
 
 connect_hub
 
-make_node HTTP_Responder    responder /tmp/<name> <http_port>
-make_node HTTP_Timeout
-make_node Log               http:log  /var/log/tachikoma/<name>-access.log append 134217728
-make_node HTTP_Route        root
-make_node HTTP_Auth         root:auth <home>/Sites/.htpasswd tachikoma-tools
-make_node HTTP_File         root:dir  <home>/Sites
-make_node JobFarmer         CGI       4 CGI /usr/local/etc/tachikoma/CGI.conf /tmp/<name>
+make_node HTTP_Responder http:responder /tmp/<name> <http_port>
+make_node HTTP_Timeout   http:timeout
+make_node Log            http:log       /var/log/tachikoma/<name>-access.log append 134217728
+make_node Dumper         http:dumper
+make_node HTTP_Route     root
+make_node HTTP_Auth      root:auth      <home>/Sites/.htpasswd tachikoma-tools
+make_node HTTP_File      root:dir       <home>/Sites
+make_node JobFarmer      CGI            4 CGI /usr/local/etc/tachikoma/CGI.conf /tmp/<name>
 command CGI  autokill on
 command CGI  lazy on
 command root add_path /              root:dir
 command root add_path /cgi-bin       CGI
-command root add_path /debug/capture http:log
-connect_node root:auth    root
-connect_node responder    root:auth
+command root add_path /debug/capture http:dumper
+connect_node root:auth      root
+connect_node http:responder root:auth
+connect_node http:dumper    http:log
 
 listen_inet localhost:<root_port>
 insecure
 on CGI READY {
     listen_inet --io localhost:<http_port>;
-    connect_sink localhost:<http_port> responder;
+    connect_sink localhost:<http_port> http:responder;
     secure 3;
 }
