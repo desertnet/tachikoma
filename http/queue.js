@@ -1,5 +1,6 @@
 var parsed_url = new URL(window.location.href);
 var server_url = "http://" + window.location.hostname + ":" + window.location.port + "/fetch";
+var shell_path = window.location.pathname;
 var xhttp      = new XMLHttpRequest();
 var queue      = parsed_url.searchParams.get("queue");
 var timer      = null;
@@ -83,7 +84,7 @@ function display_queues(msg) {
         return b.size - a.size;
     });
     for (var i = 0; i < msg.length && i < 1000; i++) {
-        var key_href = "<a href=\"queue.html?queue="
+        var key_href = "<a href=\"" + shell_path + "?queue="
                      + msg[i].name + "\">"
                      + msg[i].name + "</a>";
         if (msg[i].size > 1000) {

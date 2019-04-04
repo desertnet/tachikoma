@@ -1,4 +1,4 @@
-var server_url = "http://" + window.location.hostname + ":2501/fetch/tasks:queue";
+var server_url = "http://" + window.location.hostname + ":" + window.location.port + "/fetch/tasks:queue";
 var xhttp      = new XMLHttpRequest();
 var timer      = null;
 
