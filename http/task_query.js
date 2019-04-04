@@ -1,7 +1,9 @@
 var parsed_url  = new URL(window.location.href);
 var topic       = "tasks";
 var field       = "tasks.ID:index";
-var server_url  = "http://" + window.location.hostname + ":" + window.location.port + "/cgi-bin/query.cgi/" + topic;
+var server_url  = "http://" + window.location.hostname
+                      + ":" + window.location.port
+                      + "/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
 var key         = parsed_url.searchParams.get("key");
 var timer       = null;

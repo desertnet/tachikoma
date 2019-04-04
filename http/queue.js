@@ -1,5 +1,7 @@
 var parsed_url = new URL(window.location.href);
-var server_url = "http://" + window.location.hostname + ":" + window.location.port + "/fetch";
+var server_url = "http://" + window.location.hostname
+                     + ":" + window.location.port
+                     + "/fetch";
 var shell_path = window.location.pathname;
 var xhttp      = new XMLHttpRequest();
 var queue      = parsed_url.searchParams.get("queue");
