@@ -36,9 +36,11 @@ function start_timer() {
                              + ":4242/task_query.html?key="
                              + msg[i].message_stream + "\">"
                              + msg[i].message_stream + "</a>";
+                var payload = msg[i].message_payload;
+                var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
                 var row = tr + "<td>" + date.toISOString()      + "</td>"
                              + "<td>" + key_href                + "</td>"
-                             + "<td>" + msg[i].message_payload  + "</td>"
+                             + "<td>" + escaped                 + "</td>"
                              + "<td>" + msg[i].attempts         + "</td>"
                              + "<td>" + next_date.toISOString() + "</td></tr>";
                 output.push(row);

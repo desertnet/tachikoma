@@ -57,9 +57,11 @@ function display_queue(msg) {
         else {
             tr = "<tr bgcolor=\"#DDDDDD\">";
         }
+        var payload = msg[i].message_payload || "";
+        var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
         var row = tr + "<td>" + date.toISOString()      + "</td>"
                      + "<td>" + msg[i].message_stream   + "</td>"
-                     + "<td>" + msg[i].message_payload  + "</td>"
+                     + "<td>" + escaped                 + "</td>"
                      + "<td>" + msg[i].attempts         + "</td>"
                      + "<td>" + next_date.toISOString() + "</td></tr>";
         output.push(row);
