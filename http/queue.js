@@ -1,5 +1,8 @@
 var parsed_url = new URL(window.location.href);
-var server_url = "http://" + window.location.hostname + ":" + window.location.port + "/fetch";
+var server_url = "http://" + window.location.hostname
+                     + ":" + window.location.port
+                     + "/fetch";
+var shell_path = window.location.pathname;
 var xhttp      = new XMLHttpRequest();
 var queue      = parsed_url.searchParams.get("queue");
 var timer      = null;
@@ -54,9 +57,11 @@ function display_queue(msg) {
         else {
             tr = "<tr bgcolor=\"#DDDDDD\">";
         }
+        var payload = msg[i].message_payload || "";
+        var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
         var row = tr + "<td>" + date.toISOString()      + "</td>"
                      + "<td>" + msg[i].message_stream   + "</td>"
-                     + "<td>" + msg[i].message_payload  + "</td>"
+                     + "<td>" + escaped                 + "</td>"
                      + "<td>" + msg[i].attempts         + "</td>"
                      + "<td>" + next_date.toISOString() + "</td></tr>";
         output.push(row);
@@ -83,7 +88,7 @@ function display_queues(msg) {
         return b.size - a.size;
     });
     for (var i = 0; i < msg.length && i < 1000; i++) {
-        var key_href = "<a href=\"queue.html?queue="
+        var key_href = "<a href=\"" + shell_path + "?queue="
                      + msg[i].name + "\">"
                      + msg[i].name + "</a>";
         if (msg[i].size > 1000) {

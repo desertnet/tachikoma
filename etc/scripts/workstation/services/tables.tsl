@@ -43,8 +43,9 @@ connect_edge topic1.ID:consumer topic1.ID:table
 
 topic_probe
 
+
 # listen for http connections
-make_node HTTP_Responder http:responder /tmp/http <tachikoma.tables.http.port>
+make_node HTTP_Responder http:responder /tmp/http <http_port>
 make_node HTTP_Timeout   http:timeout
 make_node Log            http:log       /var/log/tachikoma/<name>-access.log append 134217728
 make_node HTTP_Route     root
@@ -58,8 +59,9 @@ command root add /fetch fetch:dir
 command root add /store store:dir
 connect_node root:auth      root
 connect_node http:responder root:auth
-listen_inet --io <hostname>:<tachikoma.tables.http.port>
-connect_sink <hostname>:<tachikoma.tables.http.port> http:responder
+listen_inet --io <hostname>:<http_port>
+connect_sink <hostname>:<http_port> http:responder
+
 
 listen_inet localhost:<root_port>
 secure 3

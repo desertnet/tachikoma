@@ -1,6 +1,9 @@
-var server_url = "http://" + window.location.hostname + ":2501/fetch/tasks:queue";
-var xhttp      = new XMLHttpRequest();
-var timer      = null;
+var server_url  = "http://" + window.location.hostname
+                      + ":" + window.location.port
+                      + "/fetch/tasks:queue";
+var server_name = window.location.hostname;
+var xhttp       = new XMLHttpRequest();
+var timer       = null;
 
 function start_timer() {
     xhttp.onreadystatechange = function() {
@@ -29,12 +32,15 @@ function start_timer() {
                 else {
                     tr = "<tr bgcolor=\"#DDDDDD\">";
                 }
-                var key_href = "<a href=\"http://localhost:4242/task_query.html?key="
+                var key_href = "<a href=\"http://" + server_name
+                             + ":4242/task_query.html?key="
                              + msg[i].message_stream + "\">"
                              + msg[i].message_stream + "</a>";
+                var payload = msg[i].message_payload;
+                var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
                 var row = tr + "<td>" + date.toISOString()      + "</td>"
                              + "<td>" + key_href                + "</td>"
-                             + "<td>" + msg[i].message_payload  + "</td>"
+                             + "<td>" + escaped                 + "</td>"
                              + "<td>" + msg[i].attempts         + "</td>"
                              + "<td>" + next_date.toISOString() + "</td></tr>";
                 output.push(row);

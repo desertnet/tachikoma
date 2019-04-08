@@ -1,6 +1,6 @@
 var parsed_url  = new URL(window.location.href);
 var server_host = window.location.hostname;
-var server_port = 4242;
+var server_port = window.location.port;
 var server_path = "/cgi-bin/topic.cgi"
 var topic       = parsed_url.searchParams.get("topic") || "server_log";
 var partition   = 0;

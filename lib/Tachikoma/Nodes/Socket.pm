@@ -966,12 +966,10 @@ sub close_filehandle {
 }
 
 sub reconnect {    ## no critic (ProhibitExcessComplexity)
-    my $self = shift;
-    return
-        if ( not $self->{name}
-        or not exists $Tachikoma::Nodes{ $self->{name} } );
+    my $self   = shift;
     my $socket = $self->{fh};
     my $rv     = undef;
+    return if ( not $self->{sink} );
     if ( not $socket or not fileno $socket ) {
         if ( $self->{filename} ) {
             socket $socket, PF_UNIX, SOCK_STREAM, 0

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 37108 2019-03-30 23:48:35Z chris $
+# $Id: JobController.pm 37169 2019-04-04 14:55:17Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -450,6 +450,7 @@ sub restart_job {
         $new_job->spawn($options);
     }
     $new_job->{connector}->sink($self);
+    $new_job->{connector}->owner($owner);
     $self->{jobs}->{$name} = $new_job;
     return;
 }

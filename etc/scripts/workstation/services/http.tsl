@@ -2,8 +2,6 @@
 var name = http;
 include services/daemonize.tsl
 
-var http_port = (<root_port> + 1);
-
 connect_hub
 
 make_node HTTP_Responder http:responder /tmp/<name> <http_port>

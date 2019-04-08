@@ -33,8 +33,9 @@ make_node Topic          tasks.ID       <broker>
 buffer_probe
 topic_probe
 
+
 # listen for http connections
-make_node HTTP_Responder http:responder /tmp/http <tachikoma.tasks.http.port>
+make_node HTTP_Responder http:responder /tmp/http <http_port>
 make_node HTTP_Timeout   http:timeout
 make_node Log            http:log       /var/log/tachikoma/<name>-access.log append 134217728
 make_node HTTP_Route     root
@@ -48,6 +49,7 @@ command root add /store store:dir
 connect_node root:auth      root
 connect_node http:responder root:auth
 
+
 listen_inet localhost:<root_port>
 insecure
 on tasks READY {
@@ -55,7 +57,7 @@ on tasks.ID READY {
 on tasks:farm READY {
     connect_node tasks:queue    tasks:farm;
     connect_node tasks:consumer IndexByStream/tasks.ID;
-    listen_inet --io <hostname>:<tachikoma.tasks.http.port>;
-    connect_sink <hostname>:<tachikoma.tasks.http.port> http:responder;
+    listen_inet --io <hostname>:<http_port>;
+    connect_sink <hostname>:<http_port> http:responder;
     secure 3;
 }}}

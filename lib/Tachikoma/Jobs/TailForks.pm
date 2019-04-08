@@ -44,10 +44,9 @@ sub initialize_graph {
     my @destinations    = split q( ), $arguments;
     $self->connector->sink($interpreter);
     $interpreter->name('command_interpreter');
-    $interpreter->sink($self);
     $self->interpreter($interpreter);
     $job_controller->name('jobs');
-    $job_controller->sink($self);
+    $job_controller->sink($interpreter);
     $self->job_controller($job_controller);
     $load_controller->name('LoadController');
     $load_controller->sink($self);
@@ -63,6 +62,7 @@ sub initialize_graph {
     $self->files(   {} );
     $self->forking( {} );
     $self->sink( $self->router );
+    $interpreter->sink($self);
     $interpreter->commands->{'add_tail'} = sub {
         my $this     = shift;
         my $command  = shift;

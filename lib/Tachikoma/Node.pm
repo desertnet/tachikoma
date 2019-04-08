@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: Node.pm 37169 2019-04-04 14:55:17Z chris $
 #
 
 package Tachikoma::Node;
@@ -88,12 +88,6 @@ sub remove_node {
     }
     $self->sink(undef);
     $self->edge(undef);
-    if ( ref( $self->{owner} ) eq 'ARRAY' ) {
-        @{ $self->{owner} } = ();
-    }
-    else {
-        $self->{owner} = q();
-    }
     if ($name) {
         delete Tachikoma->nodes->{$name};
     }

@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 36781 2019-03-19 06:28:17Z chris $
+# $Id: Job.pm 37169 2019-04-04 14:55:17Z chris $
 #
 
 package Tachikoma::Job;
@@ -107,13 +107,14 @@ sub spawn {
 
         # connect parent filehandles
         $self->connect_parent( $filehandles, $options->{name} );
-        $self->{arguments}      = $options->{arguments};
         $self->{type}           = $options->{type};
         $self->{pid}            = $pid;
         $self->{last_restart}   = $Tachikoma::Now;
         $self->{username}       = $options->{username};
         $self->{config_file}    = $options->{config_file};
         $self->{original_name}  = $options->{name};
+        $self->{arguments}      = $options->{arguments};
+        $self->{owner}          = $options->{owner};
         $self->{should_restart} = $options->{should_restart};
         return;
     }

@@ -1,5 +1,5 @@
 var server_host      = window.location.hostname;
-var server_port      = 4242;
+var server_port      = window.location.port;
 var server_path      = "/cgi-bin/topic.cgi"
 var topic            = "tasks";
 var partition        = 0;
@@ -45,9 +45,9 @@ function start_timer() {
 
 function update_table() {
     for (var i = 0; i < cached_msg.payload.length; i++) {
-        var tr      = "";
-        var date    = new Date();
-        var type    = cached_msg.payload[i].type;
+        var tr   = "";
+        var date = new Date();
+        var type = cached_msg.payload[i].type;
         date.setTime(
             ( cached_msg.payload[i].timestamp - date.getTimezoneOffset() * 60 )
             * 1000
@@ -74,10 +74,11 @@ function update_table() {
                      + cached_msg.payload[i].key + "\">"
                      + cached_msg.payload[i].key + "</a>";
         var payload = cached_msg.payload[i].payload || "";
+        var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
         var row = tr + "<td>" + date.toISOString() + "</td>"
                      + "<td>" + type               + "</td>"
                      + "<td>" + key_href           + "</td>"
-                     + "<td>" + payload            + "</td></tr>";
+                     + "<td>" + escaped            + "</td></tr>";
         output.unshift(row);
     }
     while (output.length > count) {

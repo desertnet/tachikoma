@@ -135,6 +135,18 @@ sub collect {
     return;
 }
 
+sub get_keys {
+    my ($self) = @_;
+    my %unique = ();
+    for my $cache ( @{ $self->{caches} } ) {
+        for my $bucket ( @{$cache} ) {
+            next if ( not $bucket );
+            $unique{$_} += @{ $bucket->{$_} } for ( keys %{$bucket} );
+        }
+    }
+    return \%unique;
+}
+
 ########################
 # synchronous interface
 ########################

@@ -1,4 +1,6 @@
-var server_url  = "http://" + window.location.hostname + ":4242/cgi-bin/query.cgi/" + topic;
+var server_url  = "http://" + window.location.hostname
+                      + ":" + window.location.port
+                      + "/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
 var num_queries = 1;
 var is_storable = /TM_STORABLE/;
