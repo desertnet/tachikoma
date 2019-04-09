@@ -1926,7 +1926,10 @@ sub report_error {
     if (@_) {
         my $error = shift;
         $self->{errors}++;
-        $self->{validate} = 1 if ( not $self->{isa_tty} );
+
+        # check prefix for bot support
+        $self->{validate} = 1
+            if ( not $self->{isa_tty} and not $self->{prefix} );
         $self->stderr($error);
     }
     return;
