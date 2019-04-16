@@ -171,8 +171,6 @@ sub fill {
             $self->consumers->{$partition_id}->remove_node;
             delete $self->consumers->{$partition_id};
         }
-        $self->{edge}->on_save_callbacks( [] )
-            if ( $self->{edge} and $self->{edge}->can('on_save_callbacks') );
     }
     elsif ( not $message->[TYPE] & TM_EOF ) {
         $self->stderr( 'INFO: ', $message->type_as_string, ' from ',
@@ -215,6 +213,12 @@ sub update_graph {
         }
         $partitions = \%mapping;
     }
+    for my $partition_id ( keys %{ $self->consumers } ) {
+        if ( not $partitions->{$partition_id} ) {
+            $self->consumers->{$partition_id}->remove_node;
+            delete $self->consumers->{$partition_id};
+        }
+    }
     if ( defined $self->{partition_id} ) {
         my $partition_id = $self->{partition_id};
         my $broker_id    = $partitions->{$partition_id};
@@ -231,18 +235,6 @@ sub update_graph {
             }
         }
     }
-    my $should_reset = undef;
-    for my $partition_id ( keys %{ $self->consumers } ) {
-        if ( not $partitions->{$partition_id} ) {
-            $self->consumers->{$partition_id}->remove_node;
-            delete $self->consumers->{$partition_id};
-            $should_reset = 1;
-        }
-    }
-    $self->{edge}->on_save_callbacks( [] )
-        if ($should_reset
-        and $self->{edge}
-        and $self->{edge}->can('on_save_callbacks') );
     return;
 }
 
@@ -300,6 +292,7 @@ sub make_async_consumer {
         $consumer->timeout( $self->timeout );
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
+        $consumer->owner( $self->owner );
 
         for my $event ( keys %{ $self->{registrations} } ) {
             my $r = $self->{registrations}->{$event};
@@ -307,15 +300,6 @@ sub make_async_consumer {
                 { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
         }
         $self->consumers->{$partition_id} = $consumer;
-    }
-    if (   $consumer->{partition} ne $log
-        or $consumer->{broker_id} ne $broker_id )
-    {
-        $consumer->remove_node;
-        delete $self->consumers->{$partition_id};
-    }
-    else {
-        $consumer->{owner} = $self->{owner};
     }
     return;
 }
