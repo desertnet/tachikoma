@@ -485,12 +485,12 @@ sub load_cache {
             my $cache_type = $stored->{cache_type} // 'snapshot';
             if ( $cache_type eq 'snapshot' ) {
                 if ( $self->{edge}->can('on_load_snapshot') ) {
-                    $self->{edge}->on_load_snapshot( $i, $stored );
+                    $self->{cache} = $stored;
                 }
             }
             elsif ( $cache_type eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
-                    $self->{cache} = $stored;
+                    $self->{edge}->on_load_window( $i, $stored );
                 }
             }
         }
@@ -512,8 +512,8 @@ sub load_cache_complete {
                     return;
                 };
             }
-            if ( $self->{edge}->can('on_load_window') ) {
-                $self->{edge}->on_load_window( $i, $self->{cache} );
+            if ( $self->{edge}->can('on_load_snapshot') ) {
+                $self->{edge}->on_load_snapshot( $i, $self->{cache} );
                 $self->{cache} = undef;
             }
         }
