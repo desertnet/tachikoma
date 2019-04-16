@@ -212,6 +212,7 @@ sub new {
     $self->{type}             = 'socket';
     $self->{flags}            = $flags;
     $self->{on_EOF}           = 'close';
+    $self->{parent}           = undef;
     $self->{hostname}         = undef;
     $self->{address}          = undef;
     $self->{port}             = undef;
@@ -325,6 +326,7 @@ sub accept_connection {
         }
     }
     $node->name($name);
+    $node->{parent}         = $self->{name};
     $node->{owner}          = $self->{owner};
     $node->{sink}           = $self->{sink};
     $node->{edge}           = $self->{edge};
@@ -458,7 +460,7 @@ sub get_ssl_verify_callback {
             $self->print_less_often("WARNING: SSL verification: $error");
             return 1;
         }
-        $self->stderr("ERROR: SSL verification failed: $error");
+        $self->print_less_often("ERROR: SSL verification failed: $error");
         return 0;
     };
 }
@@ -494,8 +496,9 @@ sub init_SSL_connection {
     elsif ( $! != EAGAIN ) {
         my $ssl_error = IO::Socket::SSL::errstr();
         $ssl_error =~ s{(error)(error)}{$1: $2};
-        $self->print_less_often( join q(: ), "WARNING: $method failed",
-            grep $_, $!, $ssl_error );
+        Tachikoma->print_less_often( join q(: ), grep $_, $self->{parent},
+            "WARNING: $method failed",
+            $!, $ssl_error );
 
         # this keeps the event framework from constantly
         # complaining about missing entries in %Nodes_By_FD
@@ -1134,6 +1137,14 @@ sub set_drain_buffer {
     my $self = shift;
     $self->{drain_buffer} = \&drain_buffer_normal;
     return;
+}
+
+sub parent {
+    my $self = shift;
+    if (@_) {
+        $self->{parent} = shift;
+    }
+    return $self->{parent};
 }
 
 sub hostname {
