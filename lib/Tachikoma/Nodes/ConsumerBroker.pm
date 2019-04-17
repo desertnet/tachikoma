@@ -215,6 +215,7 @@ sub update_graph {
     }
     for my $partition_id ( keys %{ $self->consumers } ) {
         if ( not $partitions->{$partition_id} ) {
+            $self->stderr("WARNING: not assigned to partition $partition_id");
             $self->consumers->{$partition_id}->remove_node;
             delete $self->consumers->{$partition_id};
         }
