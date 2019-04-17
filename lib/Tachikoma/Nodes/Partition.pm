@@ -711,7 +711,8 @@ sub open_segments {
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
             $self->stderr(
-                'WARNING: truncating ' . ( $size - $new_size ) . ' bytes' );
+                'WARNING: truncating ' . ( $size - $new_size ) . ' bytes' )
+                if ( not $self->{leader} );
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
             sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
@@ -738,12 +739,10 @@ sub open_segments {
 
 sub close_segments {
     my $self = shift;
-    if ( @{ $self->{segments} } ) {
-        for my $segment ( @{ $self->{segments} } ) {
-            flock $segment->[LOG_FH], LOCK_UN
-                or die "ERROR: couldn't unlock: $!";
-            close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
-        }
+    for my $segment ( @{ $self->{segments} } ) {
+        flock $segment->[LOG_FH], LOCK_UN
+            or die "ERROR: couldn't unlock: $!";
+        close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
     }
     $self->{segments} = [];
     return;
