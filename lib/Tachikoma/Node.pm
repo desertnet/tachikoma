@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 37169 2019-04-04 14:55:17Z chris $
+# $Id: Node.pm 37373 2019-04-16 22:54:05Z chris $
 #
 
 package Tachikoma::Node;
@@ -303,11 +303,13 @@ sub drop_message {
         my $command = Tachikoma::Command->new( $message->payload );
         $payload = ' payload: ' . $command->name . q( ) . $command->arguments;
     }
-    $self->print_less_often( "WARNING: $error - "
-            . $message->type_as_string
-            . ( $message->from   ? ' from: ' . $message->from : q() )
-            . ( $message->to     ? ' to: ' . $message->to     : q() )
-            . ( defined $payload ? $payload                   : q() ) );
+    $self->print_less_often(
+        "WARNING: $error - ",
+        $message->type_as_string,
+        ( $message->from   ? ' from: ' . $message->from : q() ),
+        ( $message->to     ? ' to: ' . $message->to     : q() ),
+        ( defined $payload ? $payload                   : q() )
+    );
     return;
 }
 
