@@ -512,6 +512,8 @@ sub load_cache_complete {
                     return;
                 };
             }
+        }
+        else {
             if ( $self->{edge}->can('on_load_snapshot') ) {
                 $self->{edge}->on_load_snapshot( $i, $self->{cache} );
                 $self->{cache} = undef;
@@ -558,8 +560,9 @@ sub remove_node {
     $self->name(q());
     if ( $self->{edge} ) {
         my $edge = $self->{edge};
-        $edge->new_cache(undef)
-            if ( $edge and $edge->can('new_cache') );
+        my $i    = $self->{partition_id};
+        $edge->new_cache($i)
+            if ( $edge and defined $i and $edge->can('new_cache') );
     }
     return $self->SUPER::remove_node(@_);
 }
