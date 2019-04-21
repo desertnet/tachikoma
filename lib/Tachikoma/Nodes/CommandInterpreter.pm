@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: CommandInterpreter.pm 37490 2019-04-21 06:09:59Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -359,14 +359,10 @@ $C{list_nodes} = sub {
         's' => \$show_sink,
     );
     die qq(invalid option\n) if ( not $r );
-    my $glob = $argv->[0] // q();
 
     if ($show_etc) {
         $show_count = 'true';
         $show_owner = 'true';
-    }
-    if ( $glob and not $list_matches and not $Tachikoma::Nodes{$glob} ) {
-        return $self->error( $envelope, qq(can't find node "$glob"\n) );
     }
     my $response = [ ['left'] ];
     unshift @{ $response->[0] }, 'right' if ($show_count);
@@ -381,53 +377,34 @@ $C{list_nodes} = sub {
         push @{$header}, 'OWNER' if ($show_owner);
         push @{$response}, $header;
     }
-    for my $name ( sort keys %Tachikoma::Nodes ) {
-        next if ( $list_matches and length $glob and $name !~ m{$glob} );
-        my $node = $Tachikoma::Nodes{$name};
-        my $sink = (
-              $node->{sink}
-            ? $node->{sink}->{name} // '--UNKNOWN--'
-            : q()
-        );
-        my $edge = (
-              $node->{edge}
-            ? $node->{edge}->{name} // '--UNKNOWN--'
-            : q()
-        );
-        my $owner = q();
-        my @row   = ();
-        if ( not $list_matches ) {
-
-            if ($glob) {
-                next if ( $sink ne $glob );
+    if ( @{$argv} ) {
+        for my $glob ( @{$argv} ) {
+            if ( not $list_matches and not $Tachikoma::Nodes{$glob} ) {
+                return $self->error( $envelope,
+                    qq(can't find node "$glob"\n) );
             }
-            else {
-                next
-                    if (
-                    $sink ne $self->{name}
-                    or ( ref $node eq 'Tachikoma::Nodes::Socket'
-                        and $node->{type} eq 'accept' )
-                    );
-            }
+            $self->list_nodes(
+                {   glob         => $glob,
+                    list_matches => $list_matches,
+                    show_count   => $show_count,
+                    show_sink    => $show_sink,
+                    show_edge    => $show_edge,
+                    show_owner   => $show_owner,
+                    response     => $response,
+                }
+            );
         }
-        push @row, $node->{counter} if ($show_count);
-        push @row, $name;
-        push @row, $sink ? "> $sink"  : q(- ) if ($show_sink);
-        push @row, $edge ? ">> $edge" : q(- ) if ($show_edge);
-        if ($show_owner) {
-            my $rv = $node->owner;
-            if ( ref $rv eq 'ARRAY' ) {
-                $owner = join q(, ), @{$rv};
-            }
-            elsif ( length $rv ) {
-                $owner = $rv;
-            }
-        }
-        push @row, length $owner ? "-> $owner" : q(- ) if ($show_owner);
-        push @{$response}, \@row;
     }
-    if ( $list_matches and $glob and $response eq q() ) {
-        push @{$response}, ['no matches'];
+    else {
+        $self->list_nodes(
+            {   list_matches => $list_matches,
+                show_count   => $show_count,
+                show_sink    => $show_sink,
+                show_edge    => $show_edge,
+                show_owner   => $show_owner,
+                response     => $response,
+            }
+        );
     }
     return $self->response( $envelope, $self->tabulate($response) );
 };
@@ -440,8 +417,7 @@ $C{list_fds} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $options, $glob ) =
-        ( $command->{arguments} =~ m{(-[t]+)?\s*(\S*)} );
+    my ( $options, $glob ) = ( $command->arguments =~ m{^(-t)?\s*(.*?)$} );
     my $list_types = $options ? $options =~ m{t} : undef;
     my $nodes      = Tachikoma->nodes_by_fd;
     my $response   = [
@@ -695,7 +671,7 @@ $C{remove_node} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
-    my ( $options, $glob ) = ( $command->{arguments} =~ m{(-a)?\s*(\S*)} );
+    my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
     if ( not $glob ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -1693,7 +1669,7 @@ $C{stats} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $options, $glob ) = ( $command->arguments =~ m{(-[a]+)?\s*(\S*)} );
+    my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
     my $response     = [
         [   [ 'NAME'       => 'left' ],
@@ -2686,6 +2662,66 @@ sub pwd {
             . ( $command->arguments || q(/) ) . ' -> '
             . $envelope->from
             . "\n" );
+}
+
+sub list_nodes {
+    my $self         = shift;
+    my $options      = shift;
+    my $response     = $options->{response};
+    my $glob         = $options->{glob};
+    my $list_matches = $options->{list_matches};
+    my $show_count   = $options->{show_count};
+    my $show_sink    = $options->{show_sink};
+    my $show_edge    = $options->{show_edge};
+    my $show_owner   = $options->{show_owner};
+    for my $name ( sort keys %Tachikoma::Nodes ) {
+        next if ( $list_matches and length $glob and $name !~ m{$glob} );
+        my $node = $Tachikoma::Nodes{$name};
+        my $sink = (
+              $node->{sink}
+            ? $node->{sink}->{name} // '--UNKNOWN--'
+            : q()
+        );
+        my $edge = (
+              $node->{edge}
+            ? $node->{edge}->{name} // '--UNKNOWN--'
+            : q()
+        );
+        my $owner = q();
+        my @row   = ();
+        if ( not $list_matches ) {
+            if ($glob) {
+                next if ( $sink ne $glob );
+            }
+            else {
+                next
+                    if (
+                    $sink ne $self->{name}
+                    or ( ref $node eq 'Tachikoma::Nodes::Socket'
+                        and $node->{type} eq 'accept' )
+                    );
+            }
+        }
+        push @row, $node->{counter} if ($show_count);
+        push @row, $name;
+        push @row, $sink ? "> $sink"  : q(- ) if ($show_sink);
+        push @row, $edge ? ">> $edge" : q(- ) if ($show_edge);
+        if ($show_owner) {
+            my $rv = $node->owner;
+            if ( ref $rv eq 'ARRAY' ) {
+                $owner = join q(, ), @{$rv};
+            }
+            elsif ( length $rv ) {
+                $owner = $rv;
+            }
+        }
+        push @row, length $owner ? "-> $owner" : q(- ) if ($show_owner);
+        push @{$response}, \@row;
+    }
+    if ( $list_matches and $glob and $response eq q() ) {
+        push @{$response}, ['no matches'];
+    }
+    return;
 }
 
 sub tabulate {
