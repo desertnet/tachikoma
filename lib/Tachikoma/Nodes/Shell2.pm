@@ -406,7 +406,7 @@ sub dequote {
         ${$value} =~ s{\\(.)}{ $SPECIAL{$1} // &$normal($1) }ge;
     }
     elsif ( $type eq 'string2' ) {
-        ${$value} =~ s{\\([\\'])}{$1}g;
+        ${$value} =~ s{\\(')}{'}g;
     }
     elsif ( $type eq 'string4' ) {
         ${$value} =~ s{^\\}{};
