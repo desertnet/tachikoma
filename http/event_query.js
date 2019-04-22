@@ -1,6 +1,6 @@
 var parsed_url  = new URL(window.location.href);
-var topic       = "tasks";
-var field       = "tasks.ID:index";
+var topic       = "event_log";
+var field       = "event_log.ID:index";
 var server_url  = "http://" + window.location.hostname
                       + ":" + window.location.port
                       + "/cgi-bin/query.cgi/" + topic;
@@ -59,7 +59,7 @@ function _execute_query() {
                 var msg    = JSON.parse(this.responseText);
                 for (var k in msg[0]) {
                     output.push(
-                        "<a href=\"task_query.html?key=" + k + "\">"
+                        "<a href=\"event_query.html?key=" + k + "\">"
                         + k + "</a><br>"
                     );
                 }
@@ -89,7 +89,8 @@ function _execute_query() {
                             var tr    = "";
                             var ev    = msg[i].value;
                             var date  = new Date();
-                            var value = ev.value || ev.payload || "";
+                            var queue = ev.queue || "";
+                            var value = ev.value || "";
                             date.setTime(
                                 ( ev.timestamp - date.getTimezoneOffset() * 60 )
                                 * 1000
@@ -108,6 +109,7 @@ function _execute_query() {
                                 tr = "<tr>";
                             }
                             var row = tr + "<td>" + date_string(date) + "</td>"
+                                         + "<td>" + queue             + "</td>"
                                          + "<td>" + ev.type           + "</td>"
                                          + "<td>" + ev.key            + "</td>"
                                          + "<td>" + value             + "</td></tr>";
@@ -116,12 +118,13 @@ function _execute_query() {
                                 running = 0;
                             }
                         }
-                        while (output.length > 10000) {
+                        while (output.length > 1000) {
                             output.shift();
                         }
                         document.getElementById("output").innerHTML
                                     = "<table>"
                                     + "<tr><th>TIMESTAMP</th>"
+                                    + "<th>QUEUE</th>"
                                     + "<th>TYPE</th>"
                                     + "<th>KEY</th>"
                                     + "<th>VALUE</th></tr>"

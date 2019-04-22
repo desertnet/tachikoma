@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <title>event query</title>
+  <meta charset="utf-8">
+  <script type="text/javascript" src="event_query.js"></script>
+  <style>
+    div.a {
+      font-family: "Lucida Console", Monaco, monospace;
+      font-size: 80%;
+    }
+  </style>
+</head>
+<body onload="render_form()">
+  [<a href="event_log.html">log</a>]
+  [<em>search</em>]
+  <div id="query_form"></div>
+  <div class="a" id="output">
+    <table>
+      <tr>
+        <th>TIMESTAMP</th>
+        <th>QUEUE</th>
+        <th>TYPE</th>
+        <th>KEY</th>
+        <th>VALUE</th>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>
