@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-require 'config.pl';
+require './config.pl';
 
 sub workstation_header {
     print <<'EOF';

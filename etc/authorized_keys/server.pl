@@ -3,7 +3,7 @@ use strict;
 use warnings;
 our %server_keys;
 our %workstation_keys;
-require 'config.pl';
+require './config.pl';
 
 add_keys(\%server_keys);
 add_keys(\%workstation_keys);
