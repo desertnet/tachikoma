@@ -194,6 +194,10 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         }
         $self->{last_fire_time} = $Tachikoma::Now;
     }
+    if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
+        $self->{responders}       = {};
+        $self->{last_expire_time} = $Tachikoma::Now;
+    }
 
     my $max_unanswered = $self->{max_unanswered};
     my $msg_unanswered = $self->{msg_unanswered};

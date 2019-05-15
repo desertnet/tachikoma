@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 37493 2019-04-21 15:46:29Z chris $
+# $Id: Buffer.pm 37568 2019-05-15 07:01:47Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -34,28 +34,29 @@ my %C                    = ();
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{msg_sent}        = 0;
-    $self->{buffer_fills}    = 0;
-    $self->{rsp_sent}        = 0;
-    $self->{pmsg_sent}       = 0;
-    $self->{rsp_received}    = 0;
-    $self->{errors_passed}   = 0;
-    $self->{msg_unanswered}  = {};
-    $self->{max_unanswered}  = 1;
-    $self->{max_attempts}    = undef;
-    $self->{on_max_attempts} = 'dead_letter:buffer';
-    $self->{cache}           = undef;
-    $self->{buffer_size}     = undef;
-    $self->{responders}      = {};
-    $self->{trip_times}      = {};
-    $self->{buffer_mode}     = 'normal';
-    $self->{last_fire_time}  = 0;
-    $self->{last_clear_time} = 0;
-    $self->{last_buffer}     = undef;
-    $self->{delay}           = 0;
-    $self->{timeout}         = $Default_Timeout;
-    $self->{times_expire}    = $Default_Times_Expire;
-    $self->{is_active}       = undef;
+    $self->{msg_sent}         = 0;
+    $self->{buffer_fills}     = 0;
+    $self->{rsp_sent}         = 0;
+    $self->{pmsg_sent}        = 0;
+    $self->{rsp_received}     = 0;
+    $self->{errors_passed}    = 0;
+    $self->{msg_unanswered}   = {};
+    $self->{max_unanswered}   = 1;
+    $self->{max_attempts}     = undef;
+    $self->{on_max_attempts}  = 'dead_letter:buffer';
+    $self->{cache}            = undef;
+    $self->{buffer_size}      = undef;
+    $self->{responders}       = {};
+    $self->{trip_times}       = {};
+    $self->{buffer_mode}      = 'normal';
+    $self->{last_fire_time}   = 0;
+    $self->{last_clear_time}  = 0;
+    $self->{last_expire_time} = $Tachikoma::Now;
+    $self->{last_buffer}      = undef;
+    $self->{delay}            = 0;
+    $self->{timeout}          = $Default_Timeout;
+    $self->{times_expire}     = $Default_Times_Expire;
+    $self->{is_active}        = undef;
     $self->{interpreter}->commands( \%C );
     $self->{registrations}->{MSG_RECEIVED} = {};
     $self->{registrations}->{MSG_SENT}     = {};
@@ -198,6 +199,10 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
             }
         }
         $self->{last_fire_time} = $Tachikoma::Now;
+    }
+    if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
+        $self->{responders}       = {};
+        $self->{last_expire_time} = $Tachikoma::Now;
     }
 
     my $max_unanswered = $self->{max_unanswered};
@@ -957,6 +962,14 @@ sub last_clear_time {
         $self->{last_clear_time} = shift;
     }
     return $self->{last_clear_time};
+}
+
+sub last_expire_time {
+    my $self = shift;
+    if (@_) {
+        $self->{last_expire_time} = shift;
+    }
+    return $self->{last_expire_time};
 }
 
 sub delay {
