@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37490 2019-04-21 06:09:59Z chris $
+# $Id: CommandInterpreter.pm 37568 2019-05-15 07:01:47Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -2664,7 +2664,7 @@ sub pwd {
             . "\n" );
 }
 
-sub list_nodes {
+sub list_nodes {    ## no critic (ProhibitExcessComplexity)
     my $self         = shift;
     my $options      = shift;
     my $response     = $options->{response};
