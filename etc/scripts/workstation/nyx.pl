@@ -24,18 +24,4 @@ fsync_destination(
     mode    => 'validate',
 );
 
-fsync_source(
-    name       => 'fsync2',
-    path       => '/Volumes/Data',
-    count      => 4,
-    pedantic   => 1,
-    broadcasts => [],
-);
-fsync_destination(
-    name    => 'fsync2',
-    path    => '/Volumes/Data2',
-    sources => [ 'localhost' ],
-    count   => 4,
-);
-
 insecure();
