@@ -230,8 +230,9 @@ sub update_logs {
 sub expire_callbacks {
     my $self      = shift;
     my $responder = $Tachikoma::Nodes{_responder};
-    if ( $responder and $responder->shell->isa('Tachikoma::Nodes::Shell2') ) {
-        my $callbacks = $responder->shell->callbacks;
+    my $shell     = $responder ? $responder->shell : undef;
+    if ( $shell and $shell->isa('Tachikoma::Nodes::Shell2') ) {
+        my $callbacks = $shell->callbacks;
         for my $id ( sort keys %{$callbacks} ) {
             my $timestamp = ( split m{:}, $id, 2 )[0];
             last if ( $Tachikoma::Now - $timestamp < 900 );

@@ -2,14 +2,14 @@ var parsed_url  = new URL(window.location.href);
 var server_host = window.location.hostname;
 var server_port = window.location.port;
 var server_path = "/cgi-bin/topic.cgi"
-var topic       = parsed_url.searchParams.get("topic") || "server_log";
+var _topic      = parsed_url.searchParams.get("topic") || topic;
 var partition   = 0;
-var count       = parsed_url.searchParams.get("count") || 100;
+var _count      = parsed_url.searchParams.get("count") || count;
 var prefix_url  = "http://" + server_host + ":" + server_port
                 + server_path + "/"
-                + topic       + "/"
+                + _topic      + "/"
                 + partition   + "/";
-var server_url  = prefix_url  + "/recent/" + count;
+var server_url  = prefix_url  + "/" + offset + "/" + _count;
 var xhttp       = new XMLHttpRequest();
 var timer       = null;
 

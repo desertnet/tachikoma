@@ -38,11 +38,11 @@ function start_timer() {
                              + msg[i].message_stream + "</a>";
                 var payload = msg[i].message_payload;
                 var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
-                var row = tr + "<td>" + date.toISOString()      + "</td>"
+                var row = tr + "<td>" + date_string(date)       + "</td>"
                              + "<td>" + key_href                + "</td>"
                              + "<td>" + escaped                 + "</td>"
                              + "<td>" + msg[i].attempts         + "</td>"
-                             + "<td>" + next_date.toISOString() + "</td></tr>";
+                             + "<td>" + date_string(next_date)  + "</td></tr>";
                 output.push(row);
             }
             if (msg.length == 0) {
@@ -69,4 +69,8 @@ function start_timer() {
 function tick() {
     xhttp.open("GET", server_url, true);
     xhttp.send();
+}
+
+function date_string(date) {
+    return date.toISOString().replace(/T/, " ").replace(/Z/, " ");
 }

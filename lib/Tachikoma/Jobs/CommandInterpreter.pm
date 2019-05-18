@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 36854 2019-03-23 06:12:03Z chris $
+# $Id: CommandInterpreter.pm 37407 2019-04-20 21:25:35Z chris $
 #
 
 package Tachikoma::Jobs::CommandInterpreter;
@@ -21,14 +21,10 @@ use version; our $VERSION = qv('v2.0.280');
 
 sub initialize_graph {
     my $self        = shift;
+    my $shell       = undef;
     my $interpreter = Tachikoma::Nodes::CommandInterpreter->new;
-    $self->connector->sink($interpreter);
-    $interpreter->name('command_interpreter');
-    $interpreter->sink( $self->router );
-    $self->sink( $self->router );
-    my $shell     = undef;
-    my $responder = Tachikoma::Nodes::Responder->new;
-    my @lines     = split m{^}, $self->arguments || q();
+    my $responder   = Tachikoma::Nodes::Responder->new;
+    my @lines       = split m{^}, $self->arguments || q();
     if ( @lines and $lines[0] eq "v1\n" ) {
         shift @lines;
         $shell = Tachikoma::Nodes::Shell->new;
@@ -42,9 +38,15 @@ sub initialize_graph {
             $shell->{counter}++;
         }
     }
+    $shell->sink($interpreter);
+    $interpreter->name('command_interpreter');
+    $interpreter->sink( $self->router );
     $responder->name('_responder');
     $responder->shell($shell);
-    $shell->sink($interpreter);
+    $responder->sink( $self->router );
+    $self->connector->sink($interpreter);
+    $self->sink( $self->router );
+
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;

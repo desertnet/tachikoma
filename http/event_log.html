@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <title>event log</title>
+  <meta charset="utf-8">
+  <script type="text/javascript" src="event_log.js"></script>
+  <style>
+    div.a {
+      font-family: "Lucida Console", Monaco, monospace;
+      font-size: 80%;
+    }
+  </style>
+</head>
+<body onload="start_timer()">
+  [<em>log</em>]
+  [<a href="event_query.html">search</a>]
+  - [<a href="javascript:toggle_event_output();" id="toggle">hide output</a>]
+  <div class="a" id="output">
+    <table>
+      <tr>
+        <th>TIMESTAMP</th>
+        <th>QUEUE</th>
+        <th>TYPE</th>
+        <th>KEY</th>
+        <th>VALUE</th>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

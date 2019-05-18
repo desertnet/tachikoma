@@ -485,12 +485,12 @@ sub load_cache {
             my $cache_type = $stored->{cache_type} // 'snapshot';
             if ( $cache_type eq 'snapshot' ) {
                 if ( $self->{edge}->can('on_load_snapshot') ) {
-                    $self->{edge}->on_load_snapshot( $i, $stored );
+                    $self->{cache} = $stored;
                 }
             }
             elsif ( $cache_type eq 'window' ) {
                 if ( $self->{edge}->can('on_load_window') ) {
-                    $self->{cache} = $stored;
+                    $self->{edge}->on_load_window( $i, $stored );
                 }
             }
         }
@@ -512,8 +512,10 @@ sub load_cache_complete {
                     return;
                 };
             }
-            if ( $self->{edge}->can('on_load_window') ) {
-                $self->{edge}->on_load_window( $i, $self->{cache} );
+        }
+        else {
+            if ( $self->{edge}->can('on_load_snapshot') ) {
+                $self->{edge}->on_load_snapshot( $i, $self->{cache} );
                 $self->{cache} = undef;
             }
         }
@@ -558,8 +560,9 @@ sub remove_node {
     $self->name(q());
     if ( $self->{edge} ) {
         my $edge = $self->{edge};
-        $edge->new_cache(undef)
-            if ( $edge and $edge->can('new_cache') );
+        my $i    = $self->{partition_id};
+        $edge->new_cache($i)
+            if ( $edge and defined $i and $edge->can('new_cache') );
     }
     return $self->SUPER::remove_node(@_);
 }

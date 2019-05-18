@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 37123 2019-04-02 20:10:58Z chris $
+# $Id: Buffer.pm 37568 2019-05-15 07:01:47Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -34,27 +34,29 @@ my %C                    = ();
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{msg_sent}        = 0;
-    $self->{buffer_fills}    = 0;
-    $self->{rsp_sent}        = 0;
-    $self->{pmsg_sent}       = 0;
-    $self->{rsp_received}    = 0;
-    $self->{errors_passed}   = 0;
-    $self->{msg_unanswered}  = {};
-    $self->{max_unanswered}  = 1;
-    $self->{max_attempts}    = undef;
-    $self->{on_max_attempts} = 'dead_letter:buffer';
-    $self->{cache}           = undef;
-    $self->{buffer_size}     = undef;
-    $self->{responders}      = {};
-    $self->{trip_times}      = {};
-    $self->{buffer_mode}     = 'normal';
-    $self->{last_fire_time}  = 0;
-    $self->{last_clear_time} = 0;
-    $self->{last_buffer}     = undef;
-    $self->{delay}           = 0;
-    $self->{timeout}         = $Default_Timeout;
-    $self->{times_expire}    = $Default_Times_Expire;
+    $self->{msg_sent}         = 0;
+    $self->{buffer_fills}     = 0;
+    $self->{rsp_sent}         = 0;
+    $self->{pmsg_sent}        = 0;
+    $self->{rsp_received}     = 0;
+    $self->{errors_passed}    = 0;
+    $self->{msg_unanswered}   = {};
+    $self->{max_unanswered}   = 1;
+    $self->{max_attempts}     = undef;
+    $self->{on_max_attempts}  = 'dead_letter:buffer';
+    $self->{cache}            = undef;
+    $self->{buffer_size}      = undef;
+    $self->{responders}       = {};
+    $self->{trip_times}       = {};
+    $self->{buffer_mode}      = 'normal';
+    $self->{last_fire_time}   = 0;
+    $self->{last_clear_time}  = 0;
+    $self->{last_expire_time} = $Tachikoma::Now;
+    $self->{last_buffer}      = undef;
+    $self->{delay}            = 0;
+    $self->{timeout}          = $Default_Timeout;
+    $self->{times_expire}     = $Default_Times_Expire;
+    $self->{is_active}        = undef;
     $self->{interpreter}->commands( \%C );
     $self->{registrations}->{MSG_RECEIVED} = {};
     $self->{registrations}->{MSG_SENT}     = {};
@@ -76,6 +78,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $filename, $max_unanswered ) =
             split q( ), $self->{arguments}, 2;
+        $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->untie_hash;
         $self->cache(undef);
@@ -120,7 +123,12 @@ sub fill {
     $self->get_buffer_size if ( not defined $self->{buffer_size} );
     $self->{buffer_fills}++;
     $self->{buffer_size}++;
-    $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
+    $self->send_event(
+        {   'type'  => 'MSG_RECEIVED',
+            'key'   => $copy->[STREAM],
+            'value' => $copy->[TYPE] & TM_BYTESTREAM ? $copy->[PAYLOAD] : q(),
+        }
+    );
 
     if ( $type & TM_ERROR ) {
         $self->{errors_passed}++;
@@ -159,8 +167,12 @@ sub handle_response {
         $self->{buffer_size} = $buffer_size;
         delete $tiedhash->{$message_id};
         delete $msg_unanswered->{$message_id};
-        $self->send_event( $response->[STREAM],
-            { 'type' => 'MSG_CANCELED' } );
+        $self->send_event(
+            {   'type'  => 'MSG_CANCELED',
+                'key'   => $response->[STREAM],
+                'value' => q(),
+            }
+        );
     }
     else {
         delete $msg_unanswered->{$message_id};
@@ -187,6 +199,10 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
             }
         }
         $self->{last_fire_time} = $Tachikoma::Now;
+    }
+    if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
+        $self->{responders}       = {};
+        $self->{last_expire_time} = $Tachikoma::Now;
     }
 
     my $max_unanswered = $self->{max_unanswered};
@@ -242,6 +258,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         $i++;
         $self->refill($key);
     }
+    $self->{is_active} = 1;
     $self->stop_timer
         if ($is_empty
         and not keys %{$times}
@@ -267,20 +284,13 @@ sub refill {
     my $msg_unanswered = $self->{msg_unanswered};
     my $max_attempts   = $self->{max_attempts} || $Default_Max_Attempts;
     my $value          = $tiedhash->{$key};
-    if ( not defined $value ) {
-        return if ( not exists $tiedhash->{$key} );
-        $self->stderr("WARNING: removing $key - not defined");
-        $self->{buffer_size}-- if ( $self->{buffer_size} );
-        delete $msg_unanswered->{$key};
-        delete $tiedhash->{$key};
-        return 'fail';
-    }
-    return if ( $msg_unanswered->{$key} );
+    return if ( $msg_unanswered->{$key} or not defined $value );
     my ( $timestamp, $attempts, $packed ) = unpack 'F N a*', $value;
     my $span    = ( $timestamp - $Tachikoma::Right_Now ) * 1000;
     my $timeout = $self->{timeout};
     my $to      = $self->{owner};
-    if ( $span > 0 ) {
+
+    if ( $self->{is_active} and $span > 0 ) {
         $self->set_timer($span) if ( $timestamp < $self->{timer} );
         return 'wait';
     }
@@ -310,16 +320,25 @@ sub refill {
     }
     my $message = eval { Tachikoma::Message->new( \$packed ) };
     if ( $message and $message->[TYPE] ) {
-        $tiedhash->{$key} = pack 'F N a*',
-            $Tachikoma::Right_Now + $timeout,
-            $attempts + 1, $packed;
+        if ( $self->{is_active} ) {
+            $tiedhash->{$key} = pack 'F N a*',
+                $Tachikoma::Right_Now + $timeout,
+                $attempts + 1, $packed;
+        }
         $message->[FROM] = $self->{name};
         $message->[TO]   = $to;
         $message->[ID]   = $key;
         $self->{pmsg_sent}++;
         $msg_unanswered->{$key} = [ $Tachikoma::Right_Now, $message->[TYPE] ];
         $self->{sink}->fill($message);
-        $self->send_event( $message->[STREAM], { 'type' => 'MSG_SENT' } );
+        $self->send_event(
+            {   'type'  => 'MSG_SENT',
+                'key'   => $message->[STREAM],
+                'value' => $message->[TYPE] & TM_BYTESTREAM
+                ? $message->[PAYLOAD]
+                : q(),
+            }
+        );
     }
     else {
         $self->{buffer_size}-- if ( $self->{buffer_size} > 0 );
@@ -359,14 +378,13 @@ sub lookup {
 
 sub send_event {
     my $self          = shift;
-    my $stream        = shift;
     my $event         = shift;
     my $registrations = $self->{registrations}->{ $event->{type} };
     my $note          = Tachikoma::Message->new;
-    $event->{key}       = $stream;
+    $event->{queue}     = $self->{name};
     $event->{timestamp} = $Tachikoma::Right_Now;
     $note->[TYPE]       = TM_STORABLE;
-    $note->[STREAM]     = $stream;
+    $note->[STREAM]     = $event->{key};
     $note->[PAYLOAD]    = $event;
     for my $name ( keys %{$registrations} ) {
         my $node = $Tachikoma::Nodes{$name};
@@ -715,6 +733,7 @@ $C{kick} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $patron   = $self->patron;
+    $patron->is_active(undef);
     $patron->msg_unanswered( {} );
     $patron->untie_hash;
     $patron->cache(undef);
@@ -945,10 +964,19 @@ sub last_clear_time {
     return $self->{last_clear_time};
 }
 
+sub last_expire_time {
+    my $self = shift;
+    if (@_) {
+        $self->{last_expire_time} = shift;
+    }
+    return $self->{last_expire_time};
+}
+
 sub delay {
     my $self = shift;
     if (@_) {
-        $self->{delay} = shift;
+        $self->{delay}     = shift;
+        $self->{is_active} = 1;
     }
     return $self->{delay};
 }
@@ -981,6 +1009,14 @@ sub set_timer {
     my ( $self, $span, @args ) = @_;
     $self->{timer} = $Tachikoma::Right_Now + $span / 1000;
     return $self->SUPER::set_timer( $span, @args );
+}
+
+sub is_active {
+    my $self = shift;
+    if (@_) {
+        $self->{is_active} = shift;
+    }
+    return $self->{is_active};
 }
 
 sub owner {

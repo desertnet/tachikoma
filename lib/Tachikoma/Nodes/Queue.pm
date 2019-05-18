@@ -55,6 +55,7 @@ sub arguments {
         my ( $filename, $max_unanswered ) =
             split q( ), $self->{arguments}, 2;
         die "ERROR: no filename specified\n" if ( not $filename );
+        $self->is_active(undef);
         $self->msg_unanswered( {} );
         $self->close_db if ( $self->{dbh} );
         $self->filename($filename);
@@ -115,7 +116,12 @@ sub fill {
         0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
         $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
     $self->{buffer_fills}++;
-    $self->send_event( $copy->[STREAM], { 'type' => 'MSG_RECEIVED' } );
+    $self->send_event(
+        {   'type'  => 'MSG_RECEIVED',
+            'key'   => $copy->[STREAM],
+            'value' => $copy->[TYPE] & TM_BYTESTREAM ? $copy->[PAYLOAD] : q(),
+        }
+    );
     if ( $type & TM_ERROR ) {
         $self->{errors_passed}++;
         $self->answer($message) if ( $type & TM_PERSIST );
@@ -134,7 +140,7 @@ sub handle_response {
     return if ( not $message_id );
     my $msg_unanswered = $self->{msg_unanswered};
     if ( $msg_unanswered->{$message_id} ) {
-        my $times = $self->{times};
+        my $times = $self->{trip_times};
         $times->{$Tachikoma::Right_Now} ||= [];
         push @{ $times->{$Tachikoma::Right_Now} },
             $message_id,
@@ -154,8 +160,12 @@ sub handle_response {
         $sth = $dbh->prepare('DELETE FROM queue WHERE message_id=?');
         $sth->execute($message_id);
         delete $msg_unanswered->{$message_id};
-        $self->send_event( $response->[STREAM],
-            { 'type' => 'MSG_CANCELED' } );
+        $self->send_event(
+            {   'type'  => 'MSG_CANCELED',
+                'key'   => $response->[STREAM],
+                'value' => q(),
+            }
+        );
     }
     else {
         delete $msg_unanswered->{$message_id};
@@ -171,7 +181,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
     $self->set_timer( $Timer_Interval * 1000 );
 
     # maintain stats
-    my $times = $self->{times};
+    my $times = $self->{trip_times};
     if ( $Tachikoma::Now - $self->{last_fire_time} > $Timer_Interval ) {
         my $times_expire = $self->{times_expire};
         for my $timestamp ( sort { $a <=> $b } keys %{$times} ) {
@@ -183,6 +193,10 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
             }
         }
         $self->{last_fire_time} = $Tachikoma::Now;
+    }
+    if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
+        $self->{responders}       = {};
+        $self->{last_expire_time} = $Tachikoma::Now;
     }
 
     my $max_unanswered = $self->{max_unanswered};
@@ -235,6 +249,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         $i++;
         $self->refill($key);
     }
+    $self->{is_active} = 1;
     $self->stop_timer
         if ($is_empty
         and not keys %{$times}
@@ -279,14 +294,14 @@ sub refill {
     my $sth = $dbh->prepare('SELECT * FROM queue WHERE message_id=?');
     $sth->execute($key);
     my $value = $sth->fetchrow_arrayref;
-    return if ( not defined $value or $msg_unanswered->{$key} );
+    return if ( $msg_unanswered->{$key} or not defined $value );
     my ( $next_attempt, $attempts, $type, $id, $stream, $timestamp, $payload )
         = @{$value};
     my $span    = ( $next_attempt - $Tachikoma::Right_Now ) * 1000;
     my $timeout = $self->{timeout};
     my $to      = $self->{owner};
 
-    if ( $span > 0 ) {
+    if ( $self->{is_active} and $span > 0 ) {
         $self->set_timer($span) if ( $next_attempt < $self->{timer} );
         return 'wait';
     }
@@ -316,13 +331,15 @@ sub refill {
     }
     my $message = Tachikoma::Message->new;
     if ($type) {
-        $sth = $dbh->prepare(<<'EOF');
-            UPDATE queue SET next_attempt=?,
-                                 attempts=?
-                         WHERE message_id=?
+        if ( $self->{is_active} ) {
+            $sth = $dbh->prepare(<<'EOF');
+                UPDATE queue SET next_attempt=?,
+                                     attempts=?
+                             WHERE message_id=?
 EOF
-        $sth->execute( $Tachikoma::Right_Now + $timeout, $attempts + 1,
-            $key );
+            $sth->execute( $Tachikoma::Right_Now + $timeout,
+                $attempts + 1, $key );
+        }
         $message->[TYPE]      = $type;
         $message->[FROM]      = $self->{name};
         $message->[TO]        = $to;
@@ -333,7 +350,12 @@ EOF
         $self->{pmsg_sent}++;
         $msg_unanswered->{$key} = $Tachikoma::Right_Now;
         $self->{sink}->fill($message);
-        $self->send_event( $stream, { 'type' => 'MSG_SENT' } );
+        $self->send_event(
+            {   'type'  => 'MSG_SENT',
+                'key'   => $stream,
+                'value' => $type & TM_BYTESTREAM ? $payload : q(),
+            }
+        );
     }
     else {
         $self->{buffer_size}-- if ( $self->{buffer_size} > 0 );
@@ -582,8 +604,10 @@ $C{kick} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $patron   = $self->patron;
+    $patron->is_active(undef);
     $patron->msg_unanswered( {} );
     $patron->cache(undef);
+    $patron->buffer_size(undef);
     $patron->fire;
     return $self->okay($envelope);
 };

@@ -55,8 +55,11 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $payload = $message->[PAYLOAD];
     chomp $payload;
-    return $self->stderr( 'ERROR: empty log message from ', $message->from )
-        if ( not length $payload );
+    if ( not length $payload ) {
+        $self->stderr( 'ERROR: empty log message from ', $message->from );
+        $self->cancel($message);
+        return;
+    }
     if ( $payload =~ m{^\d+} ) {
         if ( $payload =~ m{COMMAND} ) {
             $payload = "\e[41m\e[2K$payload\e[0m";

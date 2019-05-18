@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw(
     TYPE FROM STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_STORABLE
 );
 use IPC::Open3;
 use Symbol qw( gensym );
@@ -26,42 +26,37 @@ use version; our $VERSION = qv('v2.0.280');
 
 my $Check_Proc_Interval = 15;
 
-sub initialize_graph {
-    my $self = shift;
-    my $json = JSON->new;
-    $json->canonical(1);
-    $json->pretty(1);
-    $json->allow_blessed(1);
-    $json->convert_blessed(0);
-    $self->json($json);
-    $self->connector->sink($self);
-    $self->sink( $self->router );
-    return;
-}
-
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $type    = $message->[TYPE];
-    my $from    = $message->[FROM];
-    return if ( not $type & TM_BYTESTREAM and not $type & TM_EOF );
-    if ( $from =~ m{^_parent} ) {
-        return if ( $type & TM_EOF );
-        $self->task($message);
-        $self->send_event( { type => 'TASK_BEGIN' } );
-        $self->execute;
-        $self->send_event( { type => 'TASK_COMPLETE' } );
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
+    if ( $message->[FROM] =~ m{^_parent} ) {
+        $self->send_event(
+            {   type  => 'TASK_BEGIN',
+                key   => $message->[STREAM],
+                value => $message->payload,
+            }
+        );
+        $self->execute($message);
+        $self->send_event(
+            {   type  => 'TASK_COMPLETE',
+                key   => $message->[STREAM],
+                value => $message->payload,
+            }
+        );
         $self->cancel($message);
-        $self->task(undef);
     }
     return;
 }
 
 sub execute {
-    my $self = shift;
+    my $self  = shift;
+    my $task  = shift;
+    my $key   = $task->stream;
+    my $value = $task->payload;
     local $SIG{PIPE}  = sub { die $! };
-    local $ENV{KEY}   = $self->task->stream;
-    local $ENV{VALUE} = $self->task->payload;
+    local $ENV{KEY}   = $key;
+    local $ENV{VALUE} = $value;
     my $args = $self->arguments;
     $args = ( $args =~ m{^(.*)$}s )[0];
     my ( $child_in, $child_out, $child_err );
@@ -81,7 +76,11 @@ sub execute {
                 if ( length $output ) {
                     $output =~ s{\e\[\d+m}{}g;
                     $self->send_event(
-                        { type => 'TASK_OUTPUT', payload => $output } );
+                        {   type  => 'TASK_OUTPUT',
+                            key   => $key,
+                            value => $output,
+                        }
+                    );
                     $sent = 1;
                 }
             }
@@ -90,7 +89,11 @@ sub execute {
                 if ( length $error ) {
                     $error =~ s{\e\[\d+m}{}g;
                     $self->send_event(
-                        { type => 'TASK_ERROR', payload => $error } );
+                        {   type  => 'TASK_ERROR',
+                            key   => $key,
+                            value => $error,
+                        }
+                    );
                     $sent = 1;
                 }
             }
@@ -105,40 +108,27 @@ sub execute {
         my $rv = $? >> 8;
         if ( $pid > 0 and $rv ) {
             my $error = "ERROR: shell exited with value: $rv";
-            $self->send_event( { type => 'TASK_ERROR', payload => $error } );
+            $self->send_event(
+                {   type  => 'TASK_ERROR',
+                    key   => $key,
+                    value => $error
+                }
+            );
         }
     } while ( $pid > 0 );
     return;
 }
 
 sub send_event {
-    my $self   = shift;
-    my $event  = shift;
-    my $stream = $self->{task}->[STREAM];
-    my $note   = Tachikoma::Message->new;
-    $event->{key}       = $stream;
+    my $self  = shift;
+    my $event = shift;
+    my $note  = Tachikoma::Message->new;
     $event->{timestamp} = Time::HiRes::time;
     $note->[TYPE]       = TM_STORABLE;
-    $note->[STREAM]     = $stream;
+    $note->[STREAM]     = $event->{key};
     $note->[PAYLOAD]    = $event;
     $self->SUPER::fill($note);
     return;
-}
-
-sub json {
-    my $self = shift;
-    if (@_) {
-        $self->{json} = shift;
-    }
-    return $self->{json};
-}
-
-sub task {
-    my $self = shift;
-    if (@_) {
-        $self->{task} = shift;
-    }
-    return $self->{task};
 }
 
 1;
