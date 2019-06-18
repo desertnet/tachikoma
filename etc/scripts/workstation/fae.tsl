@@ -71,24 +71,6 @@ func run_benchmarks_profiled {
 
 
 
-# partitions
-command jobs start_job CommandInterpreter partitions
-cd partitions
-  make_node Partition scratch:log     --filename=<home>/.tachikoma/logs/scratch.log \
-                                      --segment_size=(32 * 1024 * 1024)
-  make_node Partition follower:log    --filename=<home>/.tachikoma/logs/follower.log \
-                                      --segment_size=(32 * 1024 * 1024) \
-                                      --leader=scratch:log
-  make_node Partition offset:log      --filename=<home>/.tachikoma/logs/offset.log \
-                                      --segment_size=(256 * 1024)
-  make_node Consumer scratch:consumer --partition=scratch:log \
-                                      --offsetlog=offset:log
-  buffer_probe
-  insecure
-cd ..
-
-
-
 # services
 var services = "<home>/.tachikoma/services";
 func start_service {
@@ -111,33 +93,10 @@ for service (<tachikoma.services>) {
 # ingest server logs
 connect_node server_log:tee server_logs:service/server_log
 
-
-
-# sound effects
-var username=`whoami`;
-func get_sound { return "/System/Library/Sounds/<1>.aiff\n" }
-func afplay    { send AfPlay:sieve <1>; return }
-
-make_node MemorySieve AfPlay:sieve     1
-make_node JobFarmer   AfPlay           4 AfPlay
-make_node Function    server_log:sounds '{
-    local sound = "";
-    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
-    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
-    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi; ]
-    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
-    if (<sound>) { afplay { get_sound <sound> } };
-}'
-make_node Function silc:sounds '{
-    local sound = Pop;
-    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
-    afplay { get_sound <sound> };
-}'
-command AfPlay lazy on
-connect_node AfPlay:sieve      AfPlay:load_balancer
-connect_node server_log:sounds _responder
-connect_node server_log:tee    server_log:sounds
-connect_node silc:sounds       _responder
-connect_node silc_dn:tee       silc:sounds
-
+command tails add_tail /var/log/syslog local_system_log:ruleset
+cd tails
+  tail_probe
+  start_tail
+  insecure
+cd ..
 insecure

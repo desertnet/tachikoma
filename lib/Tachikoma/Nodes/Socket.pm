@@ -279,7 +279,7 @@ sub accept_connection {
     if ( $self->{use_SSL} ) {
         my $config = $self->{configuration};
         die "ERROR: SSL not configured\n"
-            if ( not $config->{ssl_server_ca_file} );
+            if ( not $config->{ssl_server_cert_file} );
         my $ssl_client = IO::Socket::SSL->start_SSL(
             $client,
             SSL_server         => 1,
@@ -394,7 +394,7 @@ sub start_SSL_connection {
     my $socket = $self->{fh};
     my $config = $self->{configuration};
     die "ERROR: SSL not configured\n"
-        if ( not $config->{ssl_client_ca_file} );
+        if ( not $config->{ssl_client_cert_file} );
     my $ssl_socket = IO::Socket::SSL->start_SSL(
         $socket,
         SSL_key_file       => $config->{ssl_client_key_file},
@@ -1200,7 +1200,7 @@ sub use_SSL {
     if (@_) {
         $self->{use_SSL} = shift;
         if ( $self->{use_SSL}
-            and not $self->configuration->ssl_server_ca_file )
+            and not $self->configuration->ssl_server_cert_file )
         {
             $self->stderr("ERROR: SSL not configured\n");
             $self->remove_node;

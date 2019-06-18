@@ -58,6 +58,8 @@ on tasks:farm READY {
     connect_node tasks:queue    tasks:farm;
     connect_node tasks:consumer IndexByStream/tasks.ID;
     listen_inet --io <hostname>:<http_port>;
+    listen_inet --io  localhost:<http_port>;
     connect_sink <hostname>:<http_port> http:responder;
+    connect_sink  localhost:<http_port> http:responder;
     secure 3;
 }}}

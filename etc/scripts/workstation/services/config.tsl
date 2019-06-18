@@ -2,7 +2,7 @@
 var hostname = `hostname -s`;
 var home     = `echo ~`;
 
-var topics_dir1 = /pool1;
+var topics_dir1 = <home>/.tachikoma/pool;
 var topics_dir2;
 
 var tachikoma.services = (
@@ -26,13 +26,13 @@ var tachikoma.tasks.http.port        = 2501;
 var tachikoma.http.port              = 4241;
 var tachikoma.http.http.port         = 4242;
 var tachikoma.topic_top.port         = 4390;
-var tachikoma.tail_top.hostname      = localhost;
+var tachikoma.tail_top.hostname      = <hostname>;
 var tachikoma.tail_top.input.port    = 4391;
 var tachikoma.tail_top.output.port   = 4392;
-var tachikoma.topic_top.hostname     = localhost;
+var tachikoma.topic_top.hostname     = <hostname>;
 var tachikoma.topic_top.input.port   = 4393;
 var tachikoma.topic_top.output.port  = 4394;
-var tachikoma.buffer_top.hostname    = localhost;
+var tachikoma.buffer_top.hostname    = <hostname>;
 var tachikoma.buffer_top.input.port  = 4395;
 var tachikoma.buffer_top.output.port = 4396;
 var tachikoma.benchmarks.port        = 4900;
@@ -42,7 +42,7 @@ var tachikoma.engines.port           = 5200;
 var tachikoma.server_logs.port       = 5300;
 var tachikoma.lookup.port            = 5400;
 var tachikoma.hubs.port              = 5500;
-var tachikoma.hubs.count             = 4;
+var tachikoma.hubs.count             = 2;
 
 var hub        = localhost:5501;
 var broker     = <hub>/broker;
@@ -91,7 +91,6 @@ func buffer_probe {
 }
 
 if (<hostname> eq "nyx") {
-    # var topics_dir2 = /pool2;
-} else {
-    var tachikoma.hubs.count = 2;
+    # var topics_dir2 = <home>/.tachikoma/pool2;
+    var tachikoma.hubs.count = 4;
 }

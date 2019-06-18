@@ -60,7 +60,9 @@ command root add /store store:dir
 connect_node root:auth      root
 connect_node http:responder root:auth
 listen_inet --io <hostname>:<http_port>
+listen_inet --io  localhost:<http_port>
 connect_sink <hostname>:<http_port> http:responder
+connect_sink  localhost:<http_port> http:responder
 
 
 listen_inet localhost:<root_port>

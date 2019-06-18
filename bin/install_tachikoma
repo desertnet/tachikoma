@@ -47,3 +47,6 @@ cp -v etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 
 etc/authorized_keys/regenerate.pl
 # cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+
+mkdir -p ~/.tachikoma/logs/
+mkdir -p ~/.tachikoma/pool/

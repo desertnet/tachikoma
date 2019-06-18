@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-require 'config.pl';
+require './config.pl';
 
 sub workstation_header {
     print <<'EOF';
@@ -91,14 +91,14 @@ sub workstation_partitions {
 # partitions
 command jobs start_job CommandInterpreter partitions
 cd partitions
-  make_node Partition scratch:log     --filename=/logs/scratch.log      \
+  make_node Partition scratch:log     --filename=<home>/.tachikoma/logs/scratch.log \
                                       --segment_size=(32 * 1024 * 1024)
-  make_node Partition follower:log    --filename=/logs/follower.log     \
+  make_node Partition follower:log    --filename=<home>/.tachikoma/logs/follower.log \
                                       --segment_size=(32 * 1024 * 1024) \
                                       --leader=scratch:log
-  make_node Partition offset:log      --filename=/logs/offset.log       \
+  make_node Partition offset:log      --filename=<home>/.tachikoma/logs/offset.log \
                                       --segment_size=(256 * 1024)
-  make_node Consumer scratch:consumer --partition=scratch:log           \
+  make_node Consumer scratch:consumer --partition=scratch:log \
                                       --offsetlog=offset:log
   buffer_probe
   insecure
