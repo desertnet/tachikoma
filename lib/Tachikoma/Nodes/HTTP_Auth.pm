@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 37166 2019-04-03 02:35:53Z chris $
+# $Id: HTTP_Auth.pm 37661 2019-06-19 00:33:01Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Auth;

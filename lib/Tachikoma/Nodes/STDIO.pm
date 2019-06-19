@@ -10,7 +10,7 @@
 #   - on_EOF: close, send, ignore, reconnect,
 #             wait_to_send, wait_to_close
 #
-# $Id: STDIO.pm 37112 2019-03-31 17:21:30Z chris $
+# $Id: STDIO.pm 37661 2019-06-19 00:33:01Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
