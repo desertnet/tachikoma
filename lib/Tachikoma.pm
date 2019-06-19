@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 36037 2018-12-06 13:55:27Z chris $
+# $Id: Tachikoma.pm 37604 2019-05-18 06:23:11Z chris $
 #
 
 package Tachikoma;
@@ -87,7 +87,7 @@ sub inet_client {
     if ($use_ssl) {
         my $config = Tachikoma->configuration;
         die "ERROR: SSL not configured\n"
-            if ( not $config->ssl_client_ca_file );
+            if ( not $config->ssl_client_cert_file );
         my $ssl_socket = IO::Socket::SSL->start_SSL(
             $socket,
             SSL_key_file       => $config->ssl_client_key_file,

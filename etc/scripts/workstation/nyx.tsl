@@ -111,10 +111,92 @@ for service (<tachikoma.services>) {
 # ingest server logs
 connect_node server_log:tee server_logs:service/server_log
 
-command tails add_tail /var/log/syslog local_system_log:ruleset
+
+
+# sound effects
+var username=`whoami`;
+func get_sound { return "/System/Library/Sounds/<1>.aiff\n" }
+func afplay    { send AfPlay:sieve <1>; return }
+
+make_node MemorySieve AfPlay:sieve     1
+make_node JobFarmer   AfPlay           4 AfPlay
+make_node Function    server_log:sounds '{
+    local sound = "";
+    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
+    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
+    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi; ]
+    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
+    if (<sound>) { afplay { get_sound <sound> } };
+}'
+make_node Function silc:sounds '{
+    local sound = Pop;
+    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
+    afplay { get_sound <sound> };
+}'
+command AfPlay lazy on
+connect_node AfPlay:sieve      AfPlay:load_balancer
+connect_node server_log:sounds _responder
+connect_node server_log:tee    server_log:sounds
+connect_node silc:sounds       _responder
+connect_node silc_dn:tee       silc:sounds
+
+cd hosts
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4232 server_logs
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4233 system_logs
+  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
+cd ..
+
+connect_node silc_dn     silc_dn:tee
+connect_node system_logs system_log:ruleset
+connect_node server_logs server_log:ruleset
+
+command tails add_tail /var/log/system.log local_system_log:ruleset
 cd tails
   tail_probe
   start_tail
   insecure
 cd ..
+
+
+#######################################################################
+# fsync source
+#######################################################################
+
+command jobs start_job CommandInterpreter fsync:source
+cd fsync:source
+  make_node JobController      jobs
+  make_node CommandInterpreter hosts
+  make_node Tee                DirStats:tee
+  make_node ClientConnector    DirStats:client_connector DirStats:tee
+  make_node Responder          FileSender:cap
+
+
+  # listen ports for incoming connections
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5600
+  listen_inet --scheme=rsa         127.0.0.1:5601
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5602
+  register 0.0.0.0:5602 DirStats:client_connector AUTHENTICATED
+
+  secure 2
+cd ..
+
+
+
+#######################################################################
+# fsync destination
+#######################################################################
+
+command jobs start_job CommandInterpreter fsync:destination
+cd fsync:destination
+  make_node JobController      jobs
+  make_node CommandInterpreter hosts
+  make_node Null               null
+  make_node JobFarmer          DirCheck 4 DirCheck <home>/Documents 60 validate
+
+  # misa.vpn.desert.net
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=misa.vpn.desert.net --port=5602 --name=dirstats1
+  secure 3
+cd ..
+
 insecure
