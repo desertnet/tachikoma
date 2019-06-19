@@ -23,7 +23,6 @@ test_construction($class);
 $class->event_framework(
     test_construction('Tachikoma::EventFrameworks::Select') );
 
-# test_construction('Tachikoma::EventFrameworks::Epoll');
 # test_construction('Tachikoma::EventFrameworks::KQueue');
 
 $class = 'Tachikoma::Message';

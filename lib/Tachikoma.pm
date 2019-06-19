@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: Tachikoma.pm 37668 2019-06-19 21:35:08Z chris $
 #
 
 package Tachikoma;
@@ -601,13 +601,6 @@ sub load_event_framework {
         load_module($module);
         return $module->new;
     };
-    if ( not $framework ) {
-        $framework = eval {
-            my $module = 'Tachikoma::EventFrameworks::Epoll';
-            load_module($module);
-            return $module->new;
-        };
-    }
     if ( not $framework ) {
         $framework = eval {
             my $module = 'Tachikoma::EventFrameworks::Select';

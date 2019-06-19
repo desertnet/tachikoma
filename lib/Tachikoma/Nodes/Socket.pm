@@ -46,7 +46,7 @@ BEGIN {
 }
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
-@EXPORT_OK = qw( TK_R TK_W TK_SYNC TK_EPOLLED setsockopts );
+@EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
 use version; our $VERSION = qv('v2.0.195');
 

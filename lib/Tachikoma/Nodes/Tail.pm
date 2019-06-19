@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: Tail.pm 37668 2019-06-19 21:35:08Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -183,7 +183,7 @@ sub drain_fh {
     &{ $self->{drain_buffer} }( $self, \$buffer, $self->{stream} )
         if ( $read and $self->{sink} );
     $self->handle_soft_EOF
-        if ( defined $read and $read < 1 );    # select and epoll
+        if ( defined $read and $read < 1 );    # select()
     $self->handle_EOF
         if (
         not defined $read

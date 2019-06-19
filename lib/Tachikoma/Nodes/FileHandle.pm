@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: FileHandle.pm 37668 2019-06-19 21:35:08Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -22,15 +22,14 @@ use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
 use POSIX qw( F_SETFL O_NONBLOCK EAGAIN );
 use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Node );
-@EXPORT_OK = qw( TK_R TK_W TK_SYNC TK_EPOLLED setsockopts );
+@EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
 use version; our $VERSION = qv('v2.0.195');
 
 # flags for new()
-use constant TK_R       => 000001;    #    1
-use constant TK_W       => 000002;    #    2
-use constant TK_SYNC    => 000004;    #    4
-use constant TK_EPOLLED => 010000;    # 4096
+use constant TK_R    => 000001;    #    1
+use constant TK_W    => 000002;    #    2
+use constant TK_SYNC => 000004;    #    4
 
 sub filehandle {
     my $class = shift;
