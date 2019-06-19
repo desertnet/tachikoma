@@ -85,7 +85,7 @@ sub set_timer {
     else {
         die "ERROR: can't oneshot without a time\n";
     }
-    $self->{timer_interval}  = $time;
+    $self->{timer_interval} = $time;
     $self->{timer_is_active} = $oneshot ? 'once' : 'forever';
     return;
 }

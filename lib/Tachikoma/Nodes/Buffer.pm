@@ -158,7 +158,7 @@ sub handle_response {
     }
     $payload = 'cancel' if ( $payload eq 'answer' and $type & TM_ERROR );
     if ( $payload eq 'cancel' ) {
-        my $tiedhash    = $self->{tiedhash}    // $self->tiedhash;
+        my $tiedhash    = $self->{tiedhash} // $self->tiedhash;
         my $buffer_size = $self->{buffer_size} // $self->get_buffer_size;
         if ( $buffer_size > 0 and $tiedhash->{$message_id} ) {
             $self->{rsp_received}++;

@@ -61,7 +61,7 @@ sub new {
     $self->set_timer( $Default_Output_Interval * 1000 );
     ## no critic (RequireLocalizedPunctuationVars)
     $SIG{WINCH} = sub { $Winch = 1 };
-    $SIG{INT}   = sub {
+    $SIG{INT} = sub {
         print "\e[0m\e[?25h";
         ## no critic (RequireCheckedSyscalls)
         system '/bin/stty', 'echo', '-cbreak';
@@ -166,7 +166,7 @@ OUTPUT:
             $consumer->{cache} = human( $consumer->{cache_size} );
             $consumer->{$_} = human( $consumer->{"_$_"} )
                 for (qw( distance recv_rate send_rate ));
-            $consumer->{msg_rate}  = sprintf '%.2f', $consumer->{_msg_rate};
+            $consumer->{msg_rate} = sprintf '%.2f', $consumer->{_msg_rate};
             $consumer->{direction} = (
                 ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q(=)
                 : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q(>)
@@ -298,7 +298,7 @@ sub calculate_row {
         $rate = $row->{last_rate};
     }
     if ( $rate > 0 ) {
-        my $eta   = $row->{_distance} / $rate;
+        my $eta = $row->{_distance} / $rate;
         my $hours = sprintf '%02d', $eta / 3600;
         $row->{eta} = strftime( "$hours:%M:%S", localtime $eta );
     }

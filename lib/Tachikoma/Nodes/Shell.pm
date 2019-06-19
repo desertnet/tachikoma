@@ -53,7 +53,7 @@ sub parse_line {
         if ( not $concatenation->{name} ) {
             $arguments ||= q();
             $arguments =~ s{\\$}{};
-            $concatenation->{name}      = $name;
+            $concatenation->{name} = $name;
             $concatenation->{arguments} = join q(), $arguments, "\n";
         }
         else {
@@ -65,7 +65,7 @@ sub parse_line {
     }
     elsif ( $self->mode eq 'concatenation' ) {
         $self->mode('command');
-        $name      = $self->concatenation->{name};
+        $name = $self->concatenation->{name};
         $arguments = join q(), $self->concatenation->{arguments}, $line;
         $self->concatenation(undef);
     }
@@ -81,7 +81,7 @@ sub parse_line {
         my ( $path, $new_name, $new_arguments ) =
             ( split q( ), $arguments // q(), 3 );
         $message->to( $self->prefix($path) );
-        $command->name( $new_name           // q() );
+        $command->name( $new_name // q() );
         $command->arguments( $new_arguments // q() );
     }
     else {
@@ -104,7 +104,7 @@ sub cd {
         $cwd = $path;
     }
     elsif ( $path =~ m{^[.][.]/?} ) {
-        $cwd  =~ s{/?[^/]+$}{};
+        $cwd =~ s{/?[^/]+$}{};
         $path =~ s{^[.][.]/?}{};
         $cwd = $self->cd( $cwd, $path );
     }

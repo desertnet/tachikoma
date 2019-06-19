@@ -150,7 +150,7 @@ sub handle_response {
     my $sth =
         $dbh->prepare('SELECT message_type FROM queue WHERE message_id=?');
     $sth->execute($message_id);
-    my $row  = $sth->fetchrow_arrayref;
+    my $row = $sth->fetchrow_arrayref;
     my $type = $row ? $row->[0] : 0;
     $payload = 'cancel' if ( $payload eq 'answer' and $type & TM_ERROR );
     if ( $payload eq 'cancel' ) {

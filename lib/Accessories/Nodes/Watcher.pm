@@ -95,7 +95,7 @@ sub arguments {
                 'rename' => NOTE_RENAME,
                 'revoke' => NOTE_REVOKE
             };
-            $self->{notes}    = [ map { $self->{mapping}->{$_} } @notes ];
+            $self->{notes} = [ map { $self->{mapping}->{$_} } @notes ];
             $self->{filename} = $id;
             if ( open $fh, '<', $id ) {
                 $self->fh($fh);

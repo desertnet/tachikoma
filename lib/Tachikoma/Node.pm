@@ -127,7 +127,7 @@ sub unregister {
     die "no such event: $event\n" if ( not $registrations->{$event} );
     if ( $registrations->{$event}->{$name} ) {
         my $responder = Tachikoma->nodes->{_responder};
-        my $shell     = $responder ? $responder->{shell} : undef;
+        my $shell = $responder ? $responder->{shell} : undef;
         if ($shell) {
             delete $shell->callbacks->{$name};
         }
@@ -316,7 +316,7 @@ sub drop_message {
 sub make_parent_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path      = q();
+    my $path = q();
     pop @path_list;
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
@@ -333,7 +333,7 @@ sub make_parent_dirs {
 sub make_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path      = q();
+    my $path = q();
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
         if (    not -d $path

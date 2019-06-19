@@ -16,7 +16,7 @@ use parent qw( Tachikoma::Node );
 use version; our $VERSION = qv('v2.0.280');
 
 sub fill {
-    my $self    = shift;
+    my $self = shift;
     my $message = shift or return;
     if ( $message->[TYPE] & TM_EOF ) {
         return if ( $message->[FROM] !~ m{_responder$|stdin$} );

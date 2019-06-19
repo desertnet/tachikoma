@@ -67,7 +67,7 @@ my $r = GetOptions(
 usage() if ( $help or not $r or not $ARGV[0] );
 require $config if ( -f $config );
 $prefix ||= $ARGV[0];
-$quiet  ||= isatty(*STDIN) ? undef : 1;
+$quiet ||= isatty(*STDIN) ? undef : 1;
 
 # connect
 my $tachikoma = Tachikoma->inet_client( $host, $port );

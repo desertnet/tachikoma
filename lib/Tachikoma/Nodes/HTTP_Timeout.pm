@@ -29,7 +29,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{timeout}   = $self->{arguments} || $Default_Request_Timeout;
+        $self->{timeout} = $self->{arguments} || $Default_Request_Timeout;
         $self->set_timer;
     }
     return $self->{arguments};

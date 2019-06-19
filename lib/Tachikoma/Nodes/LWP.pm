@@ -89,7 +89,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my $content = undef;
         if ( $request->{tmp} ) {
             my $tmp_path = join q(/), $self->{tmp_path}, 'post';
-            my $tmp      = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
+            my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             local $/ = undef;
             open my $fh, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
             $content = <$fh>;

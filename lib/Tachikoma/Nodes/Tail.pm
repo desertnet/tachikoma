@@ -177,7 +177,7 @@ sub drain_fh {
     my $fh   = $self->{fh} or return;
     $self->file_shrank if ( $kev and $kev->[4] < 0 );
     my $buffer = q();
-    my $read   = sysread $fh, $buffer, 65536;
+    my $read = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
     &{ $self->{drain_buffer} }( $self, \$buffer, $self->{stream} )

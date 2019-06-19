@@ -83,9 +83,9 @@ sub sign {
     my $config    = Tachikoma->configuration;
     my $plaintext = join q(:),
         $config->id, $timestamp,
-        ( $self->{name}      // q() ),
+        ( $self->{name} // q() ),
         ( $self->{arguments} // q() ),
-        ( $self->{payload}   // q() );
+        ( $self->{payload} // q() );
     return
         if ( defined $config->secure_level
         and $config->secure_level == 0 );
@@ -120,9 +120,9 @@ sub sign {
 sub packed {
     my $self = shift;
     return pack 'Z* Z* N/a* n/a*',
-        $self->{name}      // q(),
+        $self->{name} // q(),
         $self->{arguments} // q(),
-        $self->{payload}   // q(),
+        $self->{payload} // q(),
         $self->{signature} // q();
 }
 

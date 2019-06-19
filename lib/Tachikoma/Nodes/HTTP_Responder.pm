@@ -84,7 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $header_text, $body ) = split m{\r\n\r\n}, ${$payload}, 2;
         ${$payload} = $body;
         my @lines = split m{^}, $header_text;
-        my $line  = shift @lines;
+        my $line = shift @lines;
         if ( not $line ) {
             delete $requests->{$name};
             delete $payloads->{$name};

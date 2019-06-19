@@ -326,7 +326,7 @@ sub get_next_owner {
         my $pointer = $self->{pointer};
         $pointer = ( $pointer + 1 ) % $Tachikoma::Max_Int;
         $self->{pointer} = $pointer;
-        my $count      = ( sort { $a <=> $b } keys %by_count )[0];
+        my $count = ( sort { $a <=> $b } keys %by_count )[0];
         my $num_owners = scalar @{ $by_count{$count} };
         $owner = $by_count{$count}->[ $pointer % $num_owners ];
     }

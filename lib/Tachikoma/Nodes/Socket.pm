@@ -961,7 +961,7 @@ sub close_filehandle {
     }
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
+        my $exists = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
     }
     $self->{set_state} = {};

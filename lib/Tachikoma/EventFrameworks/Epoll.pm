@@ -106,7 +106,7 @@ sub drain {    ## no critic (ProhibitExcessComplexity)
     my $configuration = $this->configuration;
     while ( $connector ? $connector->{fh} : $this->{name} ) {
         my $check_select = $READS->count or $WRITES->count;
-        my $events       = epoll_wait( $EPOLL, 256, $check_select
+        my $events = epoll_wait( $EPOLL, 256, $check_select
             ? 0
             : 1000 / ( $configuration->{hz} || 10 ) );
         if ( not $events ) {
