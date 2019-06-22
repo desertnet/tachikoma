@@ -140,17 +140,6 @@ connect_node server_log:tee    server_log:sounds
 connect_node silc:sounds       _responder
 connect_node silc_dn:tee       silc:sounds
 
-cd hosts
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4232 server_logs
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4233 system_logs
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
-cd ..
-
-connect_node silc_dn     silc_dn:tee
-connect_node system_logs system_log:ruleset
-connect_node server_logs server_log:ruleset
-
 command tails add_tail /var/log/system.log local_system_log:ruleset
 cd tails
   tail_probe
