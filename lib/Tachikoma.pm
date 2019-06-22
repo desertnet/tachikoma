@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 37692 2019-06-22 01:57:06Z chris $
+# $Id: Tachikoma.pm 37694 2019-06-22 02:33:08Z chris $
 #
 
 package Tachikoma;
@@ -19,7 +19,7 @@ use Tachikoma::Config qw( load_module include_conf );
 use Tachikoma::Crypto;
 use Tachikoma::Nodes::Callback;
 use Digest::MD5 qw( md5 );
-use IO::Socket::SSL qw( SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT );
+use IO::Socket::SSL;
 use POSIX qw( setsid dup2 F_SETFL O_NONBLOCK EAGAIN );
 use Socket qw(
     PF_UNIX PF_INET SOCK_STREAM inet_aton pack_sockaddr_in pack_sockaddr_un
