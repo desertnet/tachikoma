@@ -117,4 +117,49 @@ cd tails
   start_tail
   insecure
 cd ..
+
+
+#######################################################################
+# fsync source
+#######################################################################
+
+command jobs start_job CommandInterpreter fsync:source
+cd fsync:source
+  make_node JobController      jobs
+  make_node CommandInterpreter hosts
+  make_node Tee                DirStats:tee
+  make_node ClientConnector    DirStats:client_connector DirStats:tee
+  make_node Responder          FileSender:cap
+
+
+  # listen ports for incoming connections
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5600
+  listen_inet --scheme=rsa         127.0.0.1:5601
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5602
+  register 0.0.0.0:5602 DirStats:client_connector AUTHENTICATED
+
+  secure 2
+cd ..
+
+
+
+#######################################################################
+# fsync destination
+#######################################################################
+
+command jobs start_job CommandInterpreter fsync:destination
+cd fsync:destination
+  make_node JobController      jobs
+  make_node CommandInterpreter hosts
+  make_node Null               null
+  make_node JobFarmer          DirCheck 4 DirCheck <home>/Documents 60 validate
+
+  # misa.local
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=misa.local --port=5602 --name=dirstats1
+
+  # nyx.local
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=nyx.local --port=5602 --name=dirstats2
+  secure 3
+cd ..
+
 insecure

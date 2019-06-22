@@ -18,11 +18,15 @@ fsync_source(
     pedantic   => 1,
     count      => 0,
     broadcasts => [],
+    probe      => 0
 );
 fsync_destination(
     path    => '<home>/Documents',
-    sources => [ 'misa.vpn.desert.net' ],
-    mode    => 'validate',
+    sources => [
+        'faye.local',
+        'misa.local',
+    ],
+    mode => 'validate',
 );
 
 insecure();

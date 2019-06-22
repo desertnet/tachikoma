@@ -194,8 +194,11 @@ cd fsync:destination
   make_node Null               null
   make_node JobFarmer          DirCheck 4 DirCheck <home>/Documents 60 validate
 
-  # nyx
-  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=nyx --port=5602 --name=dirstats1
+  # faye.local
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=faye.local --port=5602 --name=dirstats1
+
+  # nyx.local
+  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=nyx.local --port=5602 --name=dirstats2
   secure 3
 cd ..
 

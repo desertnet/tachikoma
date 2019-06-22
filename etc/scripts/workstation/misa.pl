@@ -21,8 +21,11 @@ fsync_source(
 );
 fsync_destination(
     path    => '<home>/Documents',
-    sources => [ 'nyx' ],
-    mode    => 'validate',
+    sources => [
+        'faye.local',
+        'nyx.local',
+    ],
+    mode => 'validate',
 );
 
 insecure();

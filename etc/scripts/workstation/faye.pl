@@ -12,16 +12,20 @@ workstation_services();
 print "command tails add_tail /var/log/syslog local_system_log:ruleset\n";
 workstation_footer();
 
-# fsync_source(
-#     path       => '<home>/Documents',
-#     pedantic   => 1,
-#     count      => 0,
-#     broadcasts => [],
-# );
-# fsync_destination(
-#     path    => '<home>/Documents',
-#     sources => [ 'nyx.vpn.desert.net' ],
-#     mode    => 'validate',
-# );
+fsync_source(
+    path       => '<home>/Documents',
+    pedantic   => 1,
+    count      => 0,
+    broadcasts => [],
+    probe      => 0
+);
+fsync_destination(
+    path    => '<home>/Documents',
+    sources => [
+        'misa.local',
+        'nyx.local',
+    ],
+    mode => 'validate',
+);
 
 insecure();
