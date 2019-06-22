@@ -126,7 +126,7 @@ sub inet_server {
     my $class    = shift;
     my $hostname = shift;
     my $port     = shift;
-    my $iaddr    = inet_aton($hostname) or die "FAILED: no host: $hostname";
+    my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $sockaddr = pack_sockaddr_in( $port, $iaddr );
     my $proto    = getprotobyname 'tcp';
     my $socket;
