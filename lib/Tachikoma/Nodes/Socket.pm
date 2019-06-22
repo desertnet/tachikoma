@@ -291,9 +291,9 @@ sub accept_connection {
             # SSL_cipher_list     => $config->{ssl_ciphers},
             SSL_version         => $config->{ssl_version},
             SSL_verify_callback => $self->get_ssl_verify_callback,
-            SSL_verify_mode     => $self->{use_SSL} eq 'noverify'
-            ? 0
-            : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+            SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+            ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+            : 0
         );
         if ( not $ssl_client or not ref $ssl_client ) {
             $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
@@ -390,11 +390,9 @@ sub init_socket {
 }
 
 sub start_SSL_connection {
-    my $self   = shift;
-    my $socket = $self->{fh};
-    my $config = $self->{configuration};
-    die "ERROR: SSL not configured\n"
-        if ( not $config->{ssl_client_cert_file} );
+    my $self       = shift;
+    my $socket     = $self->{fh};
+    my $config     = $self->{configuration};
     my $ssl_socket = IO::Socket::SSL->start_SSL(
         $socket,
         SSL_key_file       => $config->{ssl_client_key_file},
@@ -406,9 +404,6 @@ sub start_SSL_connection {
         # SSL_cipher_list     => $config->ssl_ciphers,
         SSL_version         => $config->ssl_version,
         SSL_verify_callback => $self->get_ssl_verify_callback,
-        SSL_verify_mode     => $self->{use_SSL} eq 'noverify'
-        ? 0
-        : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
     );
     if ( not $ssl_socket or not ref $ssl_socket ) {
         my $ssl_error = $IO::Socket::SSL::SSL_ERROR;

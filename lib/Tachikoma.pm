@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 37668 2019-06-19 21:35:08Z chris $
+# $Id: Tachikoma.pm 37692 2019-06-22 01:57:06Z chris $
 #
 
 package Tachikoma;
@@ -85,9 +85,7 @@ sub inet_client {
         or die "connect: $!\n";
 
     if ($use_ssl) {
-        my $config = Tachikoma->configuration;
-        die "ERROR: SSL not configured\n"
-            if ( not $config->ssl_client_cert_file );
+        my $config     = Tachikoma->configuration;
         my $ssl_socket = IO::Socket::SSL->start_SSL(
             $socket,
             SSL_key_file       => $config->ssl_client_key_file,
@@ -110,9 +108,6 @@ sub inet_client {
                 print {*STDERR} "ERROR: SSL verification failed: $error\n";
                 return 0;
             },
-            SSL_verify_mode => $use_ssl eq 'noverify'
-            ? 0
-            : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
         );
         if ( not $ssl_socket or not ref $ssl_socket ) {
             my $ssl_error = $IO::Socket::SSL::SSL_ERROR;

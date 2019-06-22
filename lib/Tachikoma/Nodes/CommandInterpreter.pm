@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: CommandInterpreter.pm 37692 2019-06-22 01:57:06Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -999,7 +999,7 @@ $C{listen_inet} = sub {
     my $io_mode        = undef;
     my $max_unanswered = undef;
     my $use_SSL        = undef;
-    my $ssl_noverify   = undef;
+    my $ssl_verify     = undef;
     my $ssl_delegate   = undef;
     my $delegate       = undef;
     my $scheme         = undef;
@@ -1044,7 +1044,7 @@ $C{listen_inet} = sub {
         'io'               => \$io_mode,
         'max_unanswered=i' => \$max_unanswered,
         'use-ssl'          => \$use_SSL,
-        'ssl-noverify'     => \$ssl_noverify,
+        'ssl-verify'       => \$ssl_verify,
         'ssl-delegate=s'   => \$ssl_delegate,
         'delegate=s'       => \$delegate,
         'scheme=s'         => \$scheme,
@@ -1079,7 +1079,7 @@ $C{listen_inet} = sub {
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
-    $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
+    $node->use_SSL( $ssl_verify ? 'verify' : 'noverify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
     $node->delegates->{tachikoma} = $delegate     if ($delegate);
     $node->scheme($scheme) if ($scheme);
@@ -1116,7 +1116,7 @@ $C{listen_unix} = sub {
     my $io_mode        = undef;
     my $max_unanswered = undef;
     my $use_SSL        = undef;
-    my $ssl_noverify   = undef;
+    my $ssl_verify     = undef;
     my $ssl_delegate   = undef;
     my $delegate       = undef;
     my $scheme         = undef;
@@ -1132,7 +1132,7 @@ $C{listen_unix} = sub {
         'io'               => \$io_mode,
         'max_unanswered=i' => \$max_unanswered,
         'use-ssl'          => \$use_SSL,
-        'ssl-noverify'     => \$ssl_noverify,
+        'ssl-verify'       => \$ssl_verify,
         'ssl-delegate=s'   => \$ssl_delegate,
         'delegate=s'       => \$delegate,
         'scheme=s'         => \$scheme,
@@ -1165,7 +1165,7 @@ $C{listen_unix} = sub {
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
-    $node->use_SSL( $ssl_noverify ? 'noverify' : 'verify' ) if ($use_SSL);
+    $node->use_SSL( $ssl_verify ? 'verify' : 'noverify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
     $node->delegates->{tachikoma} = $delegate     if ($delegate);
     $node->scheme($scheme) if ($scheme);
@@ -1186,20 +1186,19 @@ $H{connect_inet} = [
 ];
 
 $C{connect_inet} = sub {
-    my $self         = shift;
-    my $command      = shift;
-    my $envelope     = shift;
-    my $host         = undef;
-    my $port         = undef;
-    my $name         = undef;
-    my $io_mode      = undef;
-    my $use_SSL      = undef;
-    my $ssl_noverify = undef;
-    my $ssl_ca_file  = undef;
-    my $scheme       = undef;
-    my $reconnect    = undef;
-    my $owner        = undef;
-    my $id           = $self->configuration->id;
+    my $self        = shift;
+    my $command     = shift;
+    my $envelope    = shift;
+    my $host        = undef;
+    my $port        = undef;
+    my $name        = undef;
+    my $io_mode     = undef;
+    my $use_SSL     = undef;
+    my $ssl_ca_file = undef;
+    my $scheme      = undef;
+    my $reconnect   = undef;
+    my $owner       = undef;
+    my $id          = $self->configuration->id;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     die qq(inet sockets disabled for keyless servers\n)
@@ -1211,7 +1210,6 @@ $C{connect_inet} = sub {
         'name=s'        => \$name,
         'io'            => \$io_mode,
         'use-ssl'       => \$use_SSL,
-        'ssl-noverify'  => \$ssl_noverify,
         'ssl-ca-file=s' => \$ssl_ca_file,
         'scheme=s'      => \$scheme,
         'reconnect'     => \$reconnect,
@@ -1230,11 +1228,11 @@ $C{connect_inet} = sub {
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $self->connect_inet(
-        host    => $host,
-        port    => $port,
-        name    => $name,
-        mode    => $io_mode ? 'io' : 'message',
-        use_SSL => $use_SSL ? $ssl_noverify ? 'noverify' : 'verify' : undef,
+        host        => $host,
+        port        => $port,
+        name        => $name,
+        mode        => $io_mode ? 'io' : 'message',
+        use_SSL     => $use_SSL,
         SSL_ca_file => $ssl_ca_file,
         scheme      => $scheme,
         reconnect   => $reconnect,
@@ -1254,18 +1252,17 @@ $H{connect_unix} = [
 ];
 
 $C{connect_unix} = sub {
-    my $self         = shift;
-    my $command      = shift;
-    my $envelope     = shift;
-    my $filename     = undef;
-    my $name         = undef;
-    my $io_mode      = undef;
-    my $use_SSL      = undef;
-    my $ssl_ca_file  = undef;
-    my $ssl_noverify = undef;
-    my $scheme       = undef;
-    my $reconnect    = undef;
-    my $owner        = undef;
+    my $self        = shift;
+    my $command     = shift;
+    my $envelope    = shift;
+    my $filename    = undef;
+    my $name        = undef;
+    my $io_mode     = undef;
+    my $use_SSL     = undef;
+    my $ssl_ca_file = undef;
+    my $scheme      = undef;
+    my $reconnect   = undef;
+    my $owner       = undef;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $r, $argv ) = GetOptionsFromString(
@@ -1274,7 +1271,6 @@ $C{connect_unix} = sub {
         'name=s'        => \$name,
         'io'            => \$io_mode,
         'use-ssl'       => \$use_SSL,
-        'ssl-noverify'  => \$ssl_noverify,
         'ssl-ca-file=s' => \$ssl_ca_file,
         'scheme=s'      => \$scheme,
         'reconnect'     => \$reconnect,
@@ -1291,10 +1287,10 @@ $C{connect_unix} = sub {
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $self->connect_unix(
-        filename => $filename,
-        name     => $name,
-        mode     => $io_mode ? 'io' : 'message',
-        use_SSL  => $use_SSL ? $ssl_noverify ? 'noverify' : 'verify' : undef,
+        filename    => $filename,
+        name        => $name,
+        mode        => $io_mode ? 'io' : 'message',
+        use_SSL     => $use_SSL,
         SSL_ca_file => $ssl_ca_file,
         scheme      => $scheme,
         reconnect   => $reconnect,
@@ -2613,9 +2609,9 @@ sub connect_unix {
         $connection->configuration->ssl_client_ca_file(
             $options{SSL_ca_file} );
     }
-    $connection->use_SSL('noverify')        if ( $options{use_SSL} );
-    $connection->scheme( $options{scheme} ) if ( $options{scheme} );
-    $connection->owner($owner)              if ( length $owner );
+    $connection->use_SSL( $options{use_SSL} ) if ( $options{use_SSL} );
+    $connection->scheme( $options{scheme} )   if ( $options{scheme} );
+    $connection->owner($owner)                if ( length $owner );
     $connection->sink($self);
     return;
 }

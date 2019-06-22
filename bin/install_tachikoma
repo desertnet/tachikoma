@@ -58,8 +58,6 @@ if [ ! -d ~/.tachikoma/tls ] ; then
     openssl req -new -x509 -key ca.key -out ca.crt -config ../etc/tls/ca.conf
     openssl req -new -out server.csr -config ../etc/tls/csr.conf
     openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt
-    cp server.crt client.crt
-    cp server.key client.key
     cd ..
     mv tls ~/.tachikoma/
 fi
