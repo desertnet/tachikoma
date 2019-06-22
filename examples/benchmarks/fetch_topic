@@ -11,7 +11,12 @@ use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Nodes::Table;
 use Tachikoma::Message qw( PAYLOAD );
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my ( $topic, $field, $key ) = @ARGV;
 die "no topic\n" if ( not $topic );

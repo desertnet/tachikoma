@@ -2,7 +2,9 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
 
 my $topic   = $ARGV[0] or die "usage: reset_sum <topic> [ <group> ]\n";
 my $name    = $ARGV[1] // "sum";

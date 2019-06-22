@@ -10,8 +10,8 @@ use strict;
 use warnings;
 use Tachikoma;
 use Tachikoma::Message qw(
-  TYPE FROM TO ID STREAM PAYLOAD
-  TM_STORABLE TM_PERSIST TM_RESPONSE TM_EOF
+    TYPE FROM TO ID STREAM PAYLOAD
+    TM_STORABLE TM_PERSIST TM_RESPONSE TM_EOF
 );
 use Tachikoma::Command;
 use Tachikoma::Nodes::Dumper;
@@ -21,8 +21,13 @@ use OpenGL qw( :all );
 
 #use OpenGL::Shader;
 use Time::HiRes;
-use Getopt::Long;
-require '/usr/local/etc/tachikoma.conf';
+use Getopt::Long qw( GetOptions );
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $host              = 'localhost';
 my $port              = 4230;
@@ -46,15 +51,15 @@ my $Char_Height       = 13;
 my $Padding           = 5;
 my $Line_Padding      = 3;
 my $Line_Height       = $Char_Height + $Line_Padding;
-my $Top               = int( $Sub_Window_Height / $Line_Height ) * $Line_Height;
-my $X                 = $Line_Padding;
-my $Y                 = $Top - $Line_Height + $Line_Padding;
-my $Pi                = 3.1415926532;
-my $Zoom              = 1065;
-my $Parent_Window     = undef;
-my $Sub_Window        = undef;
-my $Graph_Window      = undef;
-my $Show_Sub_Window   = undef;
+my $Top             = int( $Sub_Window_Height / $Line_Height ) * $Line_Height;
+my $X               = $Line_Padding;
+my $Y               = $Top - $Line_Height + $Line_Padding;
+my $Pi              = 3.1415926532;
+my $Zoom            = 1065;
+my $Parent_Window   = undef;
+my $Sub_Window      = undef;
+my $Graph_Window    = undef;
+my $Show_Sub_Window = undef;
 my $Show_Graph_Window = undef;
 my $Shader            = undef;
 my $Show_Owners       = 2;
@@ -115,14 +120,13 @@ sub fill {
             %Sunk        = ();
             %Owners      = ();
             for my $item (@List) {
-                my (
-                    $received, $sent,  $name, $sink,
+                my ($received, $sent,  $name, $sink,
                     $owners,   $class, $type, @extra
                 ) = ( split( '\|', $item ) );
                 $name =~ s(^\s*\d+\s+)()g;
                 if ( $Counters{$name} ) {
                     $Counters{$name}->{old_received} =
-                      ( $Counters{$name}->{received} );
+                        ( $Counters{$name}->{received} );
                     $Counters{$name}->{old_sent} = $Counters{$name}->{sent};
                 }
                 else {
@@ -145,7 +149,8 @@ sub fill {
                     elsif ( $class eq 'Tachikoma::Nodes::Tail' ) {
                         $type = 'tail';
                     }
-                    elsif ( $class eq 'Tachikoma::Nodes::CommandInterpreter' ) {
+                    elsif ( $class eq 'Tachikoma::Nodes::CommandInterpreter' )
+                    {
                         $type = 'group';
                     }
                     elsif ( $class eq 'Tachikoma::Nodes::JobController' ) {
@@ -174,7 +179,7 @@ sub fill {
             }
             for my $name ( keys %Owners ) {
                 next
-                  if ( $Nodes{$name}->{class} eq
+                    if ( $Nodes{$name}->{class} eq
                     'Tachikoma::Nodes::JobController' );
                 my $keep = {};
                 for my $owner ( keys %{ $Owners{$name} } ) {
@@ -207,7 +212,7 @@ sub fill {
             }
             for my $timestamp ( sort keys %hash ) {
                 push( @Data, $timestamp, $_ )
-                  for ( keys %{ $hash{$timestamp} } );
+                    for ( keys %{ $hash{$timestamp} } );
             }
             $Wait_For_Response-- if ( $Wait_For_Response > 0 );
         }
@@ -229,11 +234,11 @@ sub fill {
         if ($Show_Sub_Window) {
             my $chunk = $message->payload;
             my $rows  = $Window_Height / $Line_Height;
-            my $cols  = ( $Window_Width - $Padding * 2 ) / ( $Char_Width * 2 );
+            my $cols = ( $Window_Width - $Padding * 2 ) / ( $Char_Width * 2 );
             my $chars = $rows * $cols;
             $Buffer .= $chunk;
             substr( $Buffer, 0, length($Buffer) - $chars ) = ''
-              if ( length($Buffer) > $chars );
+                if ( length($Buffer) > $chars );
         }
     }
     return 1;
@@ -290,8 +295,8 @@ sub build_model_contents {
             $cy + $cell_height,
             $z + $padding,
             $cell_width, $cell_height, $depth - $padding
-          )
-          if (  ref $branch->{$name}
+            )
+            if (ref $branch->{$name}
             and keys %{ $branch->{$name} }
             and $name ne '_parent' );
 
@@ -350,7 +355,7 @@ sub display_branch {
     for my $name (
         sort { $Distances{$b} <=> $Distances{$a} }
         keys %{ $Branches{$name} }
-      )
+        )
     {
         my $node    = $Nodes{$name}    or next;
         my $counter = $Counters{$name} or next;
@@ -362,10 +367,10 @@ sub display_branch {
         my $value = (
               $Selected
             ? $Candidates{$name}
-                  ? $Selected eq $name
-                      ? 1
-                      : 0.5
-                  : 0
+                    ? $Selected eq $name
+                        ? 1
+                        : 0.5
+                    : 0
             : ( $Show_Gauge and defined $node->{max} )
             ? $node->{level} / ( $node->{max} || 1 )
             : 0
@@ -606,7 +611,7 @@ sub display_branch {
             glCallList( $Char_List + ord($c) );
             $chx += $Char_Width;
             last
-              if (  $chx >= $cx + $cell_width - $Padding * 2
+                if ($chx >= $cx + $cell_width - $Padding * 2
                 and ( not $Selected or $Selected ne $name )
                 and $value < 1 );
         }
@@ -646,7 +651,8 @@ sub get_surface {
         $br = $bg = $bb = $sr + 0.25;
     }
     else {
-        ( $sr, $sg, $sb ) = HSVtoRGB( -360 * $a, $a > 0.5 ? 1 : $a / 0.5, $a );
+        ( $sr, $sg, $sb ) =
+            HSVtoRGB( -360 * $a, $a > 0.5 ? 1 : $a / 0.5, $a );
         $br = $sr + 0.5;
         $bg = $sg + 0.5;
         $bb = $sb + 0.5;
@@ -714,11 +720,11 @@ sub display_owners {
             my $show_lines = ( $num and $Show_Owners > 1 ) ? 1 : 0;
             $l = $show_lines * $counter->{apparency};
             $l = 0.2
-              if (
+                if (
                 $l < 0.2
                 and ( ( $num and $Show_Owners > 1 )
                     or $Show_Owners > 2 )
-              );
+                );
 
             my ( $ox, $oy, $bz2, $ow, $oh, $od, $oz ) = @{ $Cells{$owner} };
             $oz ||= $bz2;
@@ -739,7 +745,8 @@ sub display_owners {
 
             $num = 1000 if ( $num > 1000 );
             my $distance =
-              sqrt( ( $tx - $fx )**2 + ( $ty - $fy )**2 + ( $tz - $fz )**2 );
+                sqrt(
+                ( $tx - $fx )**2 + ( $ty - $fy )**2 + ( $tz - $fz )**2 );
             my $rise = $tz - $fz;
             my $run = sqrt( ( $tx - $fx )**2 + ( $ty - $fy )**2 );
             $run = 0.000000001 if ( not $run );
@@ -751,7 +758,7 @@ sub display_owners {
             my $step      = fmod(
                 $Animate * $distance / $Update_Interval + (
                     $type ne 'source'
-                      and $type ne 'filter'
+                        and $type ne 'filter'
                     ? $i / $num_streams * $segment
                     : 0
                 ),
@@ -798,7 +805,8 @@ sub display_sub_window {
         }
     }
     if ( $copy >= $Sub_Window_Height ) {
-        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) if ( not $Dirty );
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT )
+            if ( not $Dirty );
     }
     else {
         glRasterPos2d( 0, $copy );
@@ -872,13 +880,13 @@ sub display_graph_window {
     my $max_x        = 0;
     my $max_y        = 0;
     my %by_timestamp = ();
-    for ( my $i = 0 ; $i < $#Data - 1 ; $i += 2 ) {
+    for ( my $i = 0; $i < $#Data - 1; $i += 2 ) {
         my ( $timestamp, $datum ) = ( $Data[$i], $Data[ $i + 1 ] );
         next if ( not defined $datum );
         $min_x = $timestamp
-          if ( $timestamp and ( $timestamp < $min_x or not $min_x ) );
+            if ( $timestamp and ( $timestamp < $min_x or not $min_x ) );
         $max_x = $timestamp
-          if ( $timestamp and $timestamp > $max_x );
+            if ( $timestamp and $timestamp > $max_x );
         $max_y = $datum if ( $datum and $datum > $max_y );
         $by_timestamp{$timestamp} ||= [];
         push( @{ $by_timestamp{$timestamp} }, $datum );
@@ -890,17 +898,17 @@ sub display_graph_window {
             my @data = sort { $a <=> $b } @{ $by_timestamp{$timestamp} };
             while ( my $datum = shift(@data) ) {
                 glVertex2f(
-                    $Sub_Window_Width *
-                      ( $timestamp - $min_x ) /
-                      ( $max_x - $min_x ),
+                    $Sub_Window_Width
+                        * ( $timestamp - $min_x )
+                        / ( $max_x - $min_x ),
                     $Sub_Window_Height * $datum / $max_y
                 );
                 $datum = pop(@data);
                 last if ( not defined $datum );
                 glVertex2f(
-                    $Sub_Window_Width *
-                      ( $timestamp - $min_x ) /
-                      ( $max_x - $min_x ),
+                    $Sub_Window_Width
+                        * ( $timestamp - $min_x )
+                        / ( $max_x - $min_x ),
                     $Sub_Window_Height * $datum / $max_y
                 );
             }
@@ -912,7 +920,8 @@ sub display_graph_window {
     # label
     glDisable(GL_LIGHTING);
     glColor4f( 1, 1, 1, 0.85 );
-    glRasterPos2d( $Padding * 2, $Sub_Window_Height - $Line_Height - $Padding );
+    glRasterPos2d( $Padding * 2,
+        $Sub_Window_Height - $Line_Height - $Padding );
     for my $c ( split( '', "$max_y" ) ) {
         glCallList( $Graph_Char_List + ord($c) );
     }
@@ -1122,7 +1131,7 @@ sub keyboard_interactive {
         # tab
         if ( length($Chars) ) {
             $Selected =
-              ( sort keys %Candidates )[ ++$Pointer % keys %Candidates ];
+                ( sort keys %Candidates )[ ++$Pointer % keys %Candidates ];
         }
         else {
             $Selected = undef;
@@ -1133,7 +1142,7 @@ sub keyboard_interactive {
         # shift-tab
         if ( length($Chars) ) {
             $Selected =
-              ( sort keys %Candidates )[ --$Pointer % keys %Candidates ];
+                ( sort keys %Candidates )[ --$Pointer % keys %Candidates ];
         }
         else {
             $Selected = undef;
@@ -1276,7 +1285,7 @@ sub action {
             glLightfv_p( GL_LIGHT0, GL_SPECULAR, 1, 1, 1, 1 );
             glMaterialfv_p( GL_FRONT, GL_SHININESS, 1 );
             $Graph_Char_List = glGenLists(256)
-              if ( not $Graph_Char_List );
+                if ( not $Graph_Char_List );
 
             for my $i ( 0 .. 255 ) {
                 glNewList( $Graph_Char_List + $i, GL_COMPILE );
@@ -1336,7 +1345,8 @@ sub passive_motion {
 
 sub idle {
     my $now = Time::HiRes::time;
-    if ( not $Wait_For_Response and $now - $Last_Update >= $Update_Interval ) {
+    if ( not $Wait_For_Response and $now - $Last_Update >= $Update_Interval )
+    {
         my $message = $tachikoma->command('dump_metadata');
         $message->to($Path);
         $tachikoma->fill($message);
@@ -1401,8 +1411,7 @@ sub find_cell {
     for my $name ( keys %Cells ) {
         my ( $x, $y, $z, $w, $h ) = @{ $Cells{$name} };
         my $type = $Nodes{$name}->{type};
-        if (
-                $w < $min
+        if (    $w < $min
             and $ix >= $x
             and $iy >= $y
             and $ix <= $x + $w
@@ -1411,7 +1420,7 @@ sub find_cell {
                 or $type eq 'buffer'
                 or $type eq 'source'
                 or $type eq 'group' )
-          )
+            )
         {
             $cell_name = $name;
             $min       = $w;
@@ -1432,8 +1441,8 @@ sub by_sink {
     return (
           $s0 cmp $s1
         ? $s0 eq 'command_interpreter'
-              ? -1
-              : $s1 eq 'command_interpreter' ? 1
+                ? -1
+                : $s1 eq 'command_interpreter' ? 1
             : $s0 cmp $s1
         : $_[0] cmp $_[1]
     );

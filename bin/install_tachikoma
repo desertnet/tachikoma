@@ -17,40 +17,36 @@ sudo make install
 make clean
 rm -f Makefile.old
 
+# make dirs
+mkdir -p ~/.tachikoma/
+mkdir -p ~/.tachikoma/etc/
+mkdir -p ~/.tachikoma/http/
+mkdir -p ~/.tachikoma/log/
+mkdir -p ~/.tachikoma/partitions/
+mkdir -p ~/.tachikoma/pool/
+mkdir -p ~/.tachikoma/run/
+mkdir -p ~/.tachikoma/services/
+
 # server config
-sudo mkdir -p /usr/local/etc
-sudo cp -v etc/tachikoma.conf /usr/local/etc/
-sudo mkdir -p /var/run/tachikoma
-sudo mkdir -p /var/log/tachikoma
-sudo chown $USER /var/run/tachikoma
-sudo chown $USER /var/log/tachikoma
+cp -v etc/tachikoma.conf ~/.tachikoma/etc/
 
 # private key
-mkdir -p ~/.tachikoma
-bin/gen_server_key ~/.tachikoma/id 2048 ignore
+bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
 
+# HTTP
+cp -v etc/Devel/CGI.conf ~/.tachikoma/etc/
+cp -rv http/* ~/.tachikoma/http/
 
-###########
-# EXAMPLES
-###########
-
-sudo mkdir -p /usr/local/etc/tachikoma
-sudo cp -v etc/Devel/CGI.conf /usr/local/etc/tachikoma/
-cp -rv http/* ~/Sites/
-
-# cd /path/to/my/configs
-
+# init scripts
 etc/scripts/regenerate.pl
-mkdir -p ~/.tachikoma/services/
 cp -v etc/scripts/workstation/$config.tsl    ~/.tachikoma/startup.txt
 cp -v etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 
+# authorized keys
 etc/authorized_keys/regenerate.pl
-# cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+# cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/etc/authorized_keys
 
-mkdir -p ~/.tachikoma/logs/
-mkdir -p ~/.tachikoma/pool/
-
+# TLS
 if [ ! -d ~/.tachikoma/tls ] ; then
     mkdir -p tls
     cd tls

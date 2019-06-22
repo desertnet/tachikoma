@@ -5,7 +5,12 @@ use Tachikoma;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
 use Time::HiRes qw( time );
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $tachikoma = Tachikoma->inet_client( 'localhost', $ARGV[0] || 5001 );
 my $recv      = 0;
