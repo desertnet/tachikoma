@@ -10,7 +10,6 @@ workstation_services();
 workstation_sound_effects();
 # workstation_hosts();
 print "command tails add_tail /var/log/system.log local_system_log:ruleset\n";
-# print "command tails add_tail /var/log/syslog local_system_log:ruleset\n";
 workstation_footer();
 
 fsync_source(
