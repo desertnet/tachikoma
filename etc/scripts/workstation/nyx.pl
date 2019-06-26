@@ -8,7 +8,7 @@ workstation_benchmarks();
 workstation_partitions();
 workstation_services();
 workstation_sound_effects();
-# workstation_hosts();
+workstation_hosts();
 print "command tails add_tail /var/log/system.log local_system_log:ruleset\n";
 workstation_footer();
 
