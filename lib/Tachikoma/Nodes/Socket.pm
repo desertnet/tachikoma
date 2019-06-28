@@ -434,7 +434,7 @@ sub start_SSL_connection {
         #     $fh->get_cipher,
         #     qq("\n);
         # $self->stderr( 'connect_SSL() verified peer:', $peer );
-        $self->{fill} = \&fill_fh_sync_SSL;
+        $self->{fill} = $self->{fill_modes}->{fill};
         $self->init_connect;
     }
     else {
@@ -595,12 +595,12 @@ sub reply_to_client_challenge {
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
     return if ( not $message );
-    $self->{fill} = $self->{fill_modes}->{fill};
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
     $self->{auth_complete} = $Tachikoma::Now;
-    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    $self->{fill} = $self->{fill_modes}->{fill};
+    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
 
@@ -612,8 +612,8 @@ sub auth_server_response {
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
     $self->{auth_complete} = $Tachikoma::Now;
-    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
 
@@ -1194,11 +1194,14 @@ sub use_SSL {
     my $self = shift;
     if (@_) {
         $self->{use_SSL} = shift;
-        if ( $self->{use_SSL}
-            and not $self->configuration->ssl_server_cert_file )
-        {
-            $self->stderr("ERROR: SSL not configured\n");
-            $self->remove_node;
+        if ( $self->{use_SSL} ) {
+            if ( not $self->configuration->ssl_server_cert_file ) {
+                $self->stderr("ERROR: SSL not configured\n");
+                $self->remove_node;
+            }
+            if ( $self->{flags} & TK_SYNC ) {
+                $self->{fill_modes}->{fill} = \&fill_fh_sync_SSL;
+            }
         }
     }
     return $self->{use_SSL};
