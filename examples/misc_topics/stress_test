@@ -7,6 +7,9 @@ use Time::HiRes qw( time );
 
 my $home = ( getpwuid $< )[7];
 Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $topic                = $ARGV[0] or die "usage: stress_test <topic>\n";
 my $partition            = $ARGV[1] // -1;
