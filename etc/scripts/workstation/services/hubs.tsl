@@ -40,7 +40,7 @@ func add_hub {
             set_group table      --topic=topic1.ID
                                  --cache_size=(8 * 1024 * 1024);
 
-            set_topic topic2;
+            set_topic topic2     --num_partitions=8;
 
             set_topic tasks      --segment_size=(1024 * 1024)
                                  --max_lifespan=(7 * 86400);
