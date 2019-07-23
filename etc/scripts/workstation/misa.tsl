@@ -208,13 +208,6 @@ cd fsync:destination
   command fsync:destination3 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=faye.local --port=5631
   command fsync:destination4 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=faye.local --port=5641
   command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=faye.local --port=5602 --name=dirstats1
-
-  # nyx.local
-  command fsync:destination1 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=nyx.local --port=5611
-  command fsync:destination2 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=nyx.local --port=5621
-  command fsync:destination3 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=nyx.local --port=5631
-  command fsync:destination4 connect_inet --scheme=rsa --use-ssl --owner=FileReceiver --host=nyx.local --port=5641
-  command hosts connect_inet --scheme=rsa --use-ssl --owner=DirCheck --host=nyx.local --port=5602 --name=dirstats2
   command fsync:destination1 secure 3
   command fsync:destination2 secure 3
   command fsync:destination3 secure 3

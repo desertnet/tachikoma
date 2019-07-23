@@ -22,7 +22,6 @@ fsync_destination(
     path    => '<home>/Documents',
     sources => [
         'faye.local',
-        'misa.local',
     ],
 );
 
