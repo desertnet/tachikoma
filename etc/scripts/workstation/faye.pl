@@ -14,8 +14,6 @@ workstation_footer();
 
 fsync_source(
     path       => '<home>/Documents',
-    pedantic   => 1,
-    count      => 0,
     broadcasts => [],
     probe      => 0
 );

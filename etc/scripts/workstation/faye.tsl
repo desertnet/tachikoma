@@ -127,9 +127,95 @@ command jobs start_job CommandInterpreter fsync:source
 cd fsync:source
   make_node JobController      jobs
   make_node CommandInterpreter hosts
+  make_node Buffer             file:buffer         fsync.db 256
+  make_node Watchdog           file:watchdog       file:gate
+  make_node Gate               file:gate
+  make_node AgeSieve           file:sieve          120
+  make_node FileController     FileController
+  make_node LoadBalancer       FileSender:load_balancer
+  make_node Tee                output:tee
+  make_node Scheduler          scheduler
+  make_node Watchdog           DirStats:watchdog   DirStats:gate
+  make_node Gate               DirStats:gate
+  make_node SetStream          DirStats:set_stream
+  make_node Buffer             DirStats:buffer
+  make_node AgeSieve           DirStats:sieve      30
+  make_node JobFarmer          DirStats            4 DirStats  <home>/Documents localhost:5601 256
   make_node Tee                DirStats:tee
   make_node ClientConnector    DirStats:client_connector DirStats:tee
   make_node Responder          FileSender:cap
+  command DirStats:buffer set_count 4
+  command jobs start_job CommandInterpreter fsync:bridge1
+  cd fsync:bridge1
+    make_node FileSender      FileSender            <home>/Documents FileSender:tee
+    make_node Tee             FileSender:tee
+    make_node ClientConnector FileSender:client_connector FileSender:tee
+    connect_sink FileSender:tee FileSender # force responses through
+    connect_node FileSender     _parent/FileSender:cap
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5611
+    register 0.0.0.0:5611 FileSender:client_connector AUTHENTICATED
+    secure 3
+  cd ..
+  command jobs start_job CommandInterpreter fsync:bridge2
+  cd fsync:bridge2
+    make_node FileSender      FileSender            <home>/Documents FileSender:tee
+    make_node Tee             FileSender:tee
+    make_node ClientConnector FileSender:client_connector FileSender:tee
+    connect_sink FileSender:tee FileSender # force responses through
+    connect_node FileSender     _parent/FileSender:cap
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5621
+    register 0.0.0.0:5621 FileSender:client_connector AUTHENTICATED
+    secure 3
+  cd ..
+  command jobs start_job CommandInterpreter fsync:bridge3
+  cd fsync:bridge3
+    make_node FileSender      FileSender            <home>/Documents FileSender:tee
+    make_node Tee             FileSender:tee
+    make_node ClientConnector FileSender:client_connector FileSender:tee
+    connect_sink FileSender:tee FileSender # force responses through
+    connect_node FileSender     _parent/FileSender:cap
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5631
+    register 0.0.0.0:5631 FileSender:client_connector AUTHENTICATED
+    secure 3
+  cd ..
+  command jobs start_job CommandInterpreter fsync:bridge4
+  cd fsync:bridge4
+    make_node FileSender      FileSender            <home>/Documents FileSender:tee
+    make_node Tee             FileSender:tee
+    make_node ClientConnector FileSender:client_connector FileSender:tee
+    connect_sink FileSender:tee FileSender # force responses through
+    connect_node FileSender     _parent/FileSender:cap
+    listen_inet --scheme=rsa --use-ssl 0.0.0.0:5641
+    register 0.0.0.0:5641 FileSender:client_connector AUTHENTICATED
+    secure 3
+  cd ..
+
+
+  connect_node FileSender:load_balancer      fsync:bridge1/FileSender
+  connect_node FileSender:load_balancer      fsync:bridge2/FileSender
+  connect_node FileSender:load_balancer      fsync:bridge3/FileSender
+  connect_node FileSender:load_balancer      fsync:bridge4/FileSender
+  connect_node FileSender:cap                output:tee
+  connect_node DirStats:sieve                DirStats
+  connect_node DirStats:buffer               DirStats:sieve
+  connect_node DirStats:set_stream           DirStats:buffer
+  connect_node DirStats:gate                 DirStats:set_stream
+  connect_node FileController                FileSender:load_balancer
+  connect_node file:sieve                    FileController
+  connect_node file:gate                     file:sieve
+  connect_node file:buffer                   file:gate
+
+
+  # send dirstats
+
+
+  # heartbeat
+  make_node Timer           heartbeat 5000
+  make_node Tee             heartbeat:tee
+  make_node ClientConnector heartbeat:client_connector heartbeat:tee
+  connect_node heartbeat heartbeat:tee
+  listen_inet --scheme=rsa --use-ssl 0.0.0.0:5699
+  register 0.0.0.0:5699 heartbeat:client_connector AUTHENTICATED
 
 
   # listen ports for incoming connections
