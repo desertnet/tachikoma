@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37781 2019-07-23 03:37:38Z chris $
+# $Id: CommandInterpreter.pm 37787 2019-07-23 09:12:12Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -990,19 +990,19 @@ $H{listen_inet} = [
 ];
 
 $C{listen_inet} = sub {
-    my $self           = shift;
-    my $command        = shift;
-    my $envelope       = shift;
-    my $address        = undef;
-    my $port           = undef;
-    my $io_mode        = undef;
-    my $use_SSL        = undef;
-    my $ssl_verify     = undef;
-    my $ssl_delegate   = undef;
-    my $delegate       = undef;
-    my $scheme         = undef;
-    my $owner          = undef;
-    my $id             = $self->configuration->id;
+    my $self         = shift;
+    my $command      = shift;
+    my $envelope     = shift;
+    my $address      = undef;
+    my $port         = undef;
+    my $io_mode      = undef;
+    my $use_SSL      = undef;
+    my $ssl_verify   = undef;
+    my $ssl_delegate = undef;
+    my $delegate     = undef;
+    my $scheme       = undef;
+    my $owner        = undef;
+    my $id           = $self->configuration->id;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
 
@@ -1037,15 +1037,15 @@ $C{listen_inet} = sub {
 
     my ( $r, $argv ) = GetOptionsFromString(
         $command->arguments,
-        'address=s'        => \$address,
-        'port=i'           => \$port,
-        'io'               => \$io_mode,
-        'use-ssl'          => \$use_SSL,
-        'ssl-verify'       => \$ssl_verify,
-        'ssl-delegate=s'   => \$ssl_delegate,
-        'delegate=s'       => \$delegate,
-        'scheme=s'         => \$scheme,
-        'owner:s'          => \$owner
+        'address=s'      => \$address,
+        'port=i'         => \$port,
+        'io'             => \$io_mode,
+        'use-ssl'        => \$use_SSL,
+        'ssl-verify'     => \$ssl_verify,
+        'ssl-delegate=s' => \$ssl_delegate,
+        'delegate=s'     => \$delegate,
+        'scheme=s'       => \$scheme,
+        'owner:s'        => \$owner
     );
     die qq(invalid option\n) if ( not $r );
 
@@ -1098,35 +1098,35 @@ $H{listen_unix} = [
 ];
 
 $C{listen_unix} = sub {
-    my $self           = shift;
-    my $command        = shift;
-    my $envelope       = shift;
-    my $filename       = undef;
-    my $name           = undef;
-    my $perms          = undef;
-    my $gid            = undef;
-    my $io_mode        = undef;
-    my $use_SSL        = undef;
-    my $ssl_verify     = undef;
-    my $ssl_delegate   = undef;
-    my $delegate       = undef;
-    my $scheme         = undef;
-    my $owner          = undef;
+    my $self         = shift;
+    my $command      = shift;
+    my $envelope     = shift;
+    my $filename     = undef;
+    my $name         = undef;
+    my $perms        = undef;
+    my $gid          = undef;
+    my $io_mode      = undef;
+    my $use_SSL      = undef;
+    my $ssl_verify   = undef;
+    my $ssl_delegate = undef;
+    my $delegate     = undef;
+    my $scheme       = undef;
+    my $owner        = undef;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
     my ( $r, $argv ) = GetOptionsFromString(
         $command->arguments,
-        'filename=s'       => \$filename,
-        'name=s'           => \$name,
-        'perms=s'          => \$perms,
-        'gid=s'            => \$gid,
-        'io'               => \$io_mode,
-        'use-ssl'          => \$use_SSL,
-        'ssl-verify'       => \$ssl_verify,
-        'ssl-delegate=s'   => \$ssl_delegate,
-        'delegate=s'       => \$delegate,
-        'scheme=s'         => \$scheme,
-        'owner:s'          => \$owner
+        'filename=s'     => \$filename,
+        'name=s'         => \$name,
+        'perms=s'        => \$perms,
+        'gid=s'          => \$gid,
+        'io'             => \$io_mode,
+        'use-ssl'        => \$use_SSL,
+        'ssl-verify'     => \$ssl_verify,
+        'ssl-delegate=s' => \$ssl_delegate,
+        'delegate=s'     => \$delegate,
+        'scheme=s'       => \$scheme,
+        'owner:s'        => \$owner
     );
     die qq(invalid option\n) if ( not $r );
 

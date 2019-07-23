@@ -326,14 +326,14 @@ sub accept_connection {
         }
     }
     $node->name($name);
-    $node->{parent}         = $self->{name};
-    $node->{owner}          = $self->{owner};
-    $node->{sink}           = $self->{sink};
-    $node->{edge}           = $self->{edge};
-    $node->{on_EOF}         = $self->{on_EOF};
-    $node->{scheme}         = $self->{scheme};
-    $node->{delegates}      = $self->{delegates};
-    $node->{fill}           = $node->{fill_modes}->{unauthenticated};
+    $node->{parent}    = $self->{name};
+    $node->{owner}     = $self->{owner};
+    $node->{sink}      = $self->{sink};
+    $node->{edge}      = $self->{edge};
+    $node->{on_EOF}    = $self->{on_EOF};
+    $node->{scheme}    = $self->{scheme};
+    $node->{delegates} = $self->{delegates};
+    $node->{fill}      = $node->{fill_modes}->{unauthenticated};
     $node->set_drain_buffer;
 
     for my $event ( keys %{ $self->{registrations} } ) {
