@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37668 2019-06-19 21:35:08Z chris $
+# $Id: Tail.pm 37781 2019-07-23 03:37:38Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
