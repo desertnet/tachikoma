@@ -982,7 +982,6 @@ $H{listen_inet} = [
     "listen_inet --address=<address>               \\\n",
     "            --port=<port>                     \\\n",
     "            --io                              \\\n",
-    "            --max_unanswered=<num>            \\\n",
     "            --use-ssl                         \\\n",
     "            --ssl-delegate=<node>             \\\n",
     "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
@@ -997,7 +996,6 @@ $C{listen_inet} = sub {
     my $address        = undef;
     my $port           = undef;
     my $io_mode        = undef;
-    my $max_unanswered = undef;
     my $use_SSL        = undef;
     my $ssl_verify     = undef;
     my $ssl_delegate   = undef;
@@ -1042,7 +1040,6 @@ $C{listen_inet} = sub {
         'address=s'        => \$address,
         'port=i'           => \$port,
         'io'               => \$io_mode,
-        'max_unanswered=i' => \$max_unanswered,
         'use-ssl'          => \$use_SSL,
         'ssl-verify'       => \$ssl_verify,
         'ssl-delegate=s'   => \$ssl_delegate,
@@ -1072,10 +1069,6 @@ $C{listen_inet} = sub {
             if ( not length $id );
         $node = inet_server Tachikoma::Nodes::Socket( $address, $port );
     }
-    if ( $io_mode and $max_unanswered ) {
-        $node->max_unanswered($max_unanswered);
-        $node->on_EOF('wait_to_close');
-    }
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
@@ -1098,7 +1091,6 @@ $H{listen_unix} = [
     "            --perms=<perms>                   \\\n",
     "            --gid=<gid>                       \\\n",
     "            --io                              \\\n",
-    "            --max_unanswered=<num>            \\\n",
     "            --use-ssl                         \\\n",
     "            --ssl-delegate=<node>             \\\n",
     "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
@@ -1114,7 +1106,6 @@ $C{listen_unix} = sub {
     my $perms          = undef;
     my $gid            = undef;
     my $io_mode        = undef;
-    my $max_unanswered = undef;
     my $use_SSL        = undef;
     my $ssl_verify     = undef;
     my $ssl_delegate   = undef;
@@ -1130,7 +1121,6 @@ $C{listen_unix} = sub {
         'perms=s'          => \$perms,
         'gid=s'            => \$gid,
         'io'               => \$io_mode,
-        'max_unanswered=i' => \$max_unanswered,
         'use-ssl'          => \$use_SSL,
         'ssl-verify'       => \$ssl_verify,
         'ssl-delegate=s'   => \$ssl_delegate,
@@ -1157,10 +1147,6 @@ $C{listen_unix} = sub {
         $node =
             unix_server Tachikoma::Nodes::Socket( $filename, $name, $perms,
             $gid );
-    }
-    if ( $io_mode and $max_unanswered ) {
-        $node->max_unanswered($max_unanswered);
-        $node->on_EOF('wait_to_close');
     }
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );

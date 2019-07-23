@@ -15,9 +15,8 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::FileHandle;
-use Tachikoma::Nodes::STDIO;
 use Tachikoma::Message qw(
-    TYPE FROM ID STREAM PAYLOAD
+    TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Fcntl qw( SEEK_SET SEEK_CUR SEEK_END );
@@ -33,23 +32,24 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{type}            = 'regular_file';
-    $self->{on_EOF}          = 'reopen';
-    $self->{on_ENOENT}       = 'retry';
-    $self->{on_timeout}      = 'expire';
     $self->{drain_fh}        = \&drain_fh;
     $self->{note_fh}         = \&note_fh;
+    $self->{drain_buffer}    = \&drain_buffer_normal;
     $self->{line_buffer}     = q();
     $self->{buffer_mode}     = 'binary';
     $self->{msg_unanswered}  = 0;
     $self->{max_unanswered}  = 0;
     $self->{bytes_answered}  = 0;
+    $self->{on_EOF}          = 'reopen';
+    $self->{on_ENOENT}       = 'retry';
+    $self->{on_timeout}      = 'expire';
     $self->{timeout}         = $Default_Timeout;
+    $self->{sent_EOF}        = undef;
+    $self->{reattempt}       = undef;
     $self->{msg_timer}       = undef;
     $self->{poll_timer}      = undef;
     $self->{reattempt_timer} = undef;
     $self->{wait_timer}      = undef;
-    $self->{sent_EOF}        = undef;
-    $self->{reattempt}       = undef;
     bless $self, $class;
     return $self;
 }
@@ -199,6 +199,103 @@ sub drain_fh {
     return $read;
 }
 
+sub drain_buffer_normal {
+    my ( $self, $buffer, $stream ) = @_;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_BYTESTREAM;
+    $message->[FROM]    = $self->{name};
+    $message->[TO]      = $self->{owner};
+    $message->[STREAM]  = $stream if ( defined $stream );
+    $message->[PAYLOAD] = ${$buffer};
+    $self->{bytes_read} += length ${$buffer};
+    $message->[ID] = $self->{bytes_read};
+    my $max_unanswered = $self->{max_unanswered};
+
+    if ($max_unanswered) {
+        $message->[TYPE] |= TM_PERSIST;
+        $self->{msg_unanswered}++;
+        $self->unregister_reader_node
+            if ( $self->{msg_unanswered} >= $max_unanswered );
+    }
+    $self->{counter}++;
+    $self->{sink}->fill($message);
+    $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' )
+        if ( $self->{msg_unanswered} );
+    return;
+}
+
+sub drain_buffer_blocks {
+    my ( $self, $buffer, $stream ) = @_;
+    my $payload = $self->{line_buffer} . ${$buffer};
+    my $part    = q();
+    if ( substr( $payload, -1, 1 ) ne "\n" ) {
+        if ( $payload =~ s{\n(.+)$}{\n}i ) {
+            $part = $1;
+        }
+        else {
+            $self->{line_buffer} = $payload;
+            return;
+        }
+    }
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]     = TM_BYTESTREAM;
+    $message->[FROM]     = $self->{name};
+    $message->[TO]       = $self->{owner};
+    $message->[STREAM]   = $stream if ( defined $stream );
+    $message->[PAYLOAD]  = $payload;
+    $self->{line_buffer} = $part;
+    $self->{bytes_read} += length $payload;
+    $message->[ID] = $self->{bytes_read};
+    my $max_unanswered = $self->{max_unanswered};
+
+    if ($max_unanswered) {
+        $message->[TYPE] |= TM_PERSIST;
+        $self->{msg_unanswered}++;
+        $self->unregister_reader_node
+            if ( $self->{msg_unanswered} >= $max_unanswered );
+    }
+    $self->{counter}++;
+    $self->{sink}->fill($message);
+    $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' )
+        if ( $self->{msg_unanswered} );
+    return;
+}
+
+sub drain_buffer_lines {
+    my ( $self, $buffer, $stream ) = @_;
+    my $name           = $self->{name};
+    my $sink           = $self->{sink};
+    my $owner          = $self->{owner};
+    my $max_unanswered = $self->{max_unanswered};
+    for my $line ( split m{^}, ${$buffer} ) {
+        if ( substr( $line, -1, 1 ) ne "\n" ) {
+            $self->{line_buffer} .= $line;
+            next;    # also last
+        }
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE]     = TM_BYTESTREAM;
+        $message->[FROM]     = $name;
+        $message->[TO]       = $owner;
+        $message->[STREAM]   = $stream if ( defined $stream );
+        $message->[PAYLOAD]  = $self->{line_buffer} . $line;
+        $self->{line_buffer} = q();
+        $self->{bytes_read} += length $message->[PAYLOAD];
+        $message->[ID] = $self->{bytes_read};
+
+        if ($max_unanswered) {
+            $message->[TYPE] |= TM_PERSIST;
+            $self->{msg_unanswered}++;
+            $self->unregister_reader_node
+                if ( $self->{msg_unanswered} >= $max_unanswered );
+        }
+        $self->{counter}++;
+        $sink->fill($message);
+    }
+    $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' )
+        if ( $self->{msg_unanswered} );
+    return;
+}
+
 sub fill {
     my $self           = shift;
     my $message        = shift;
@@ -346,8 +443,10 @@ sub expire {
     else {
         $offset = sysseek $fh, 0, SEEK_SET;
     }
-    $self->{bytes_read} = $offset;
-    return Tachikoma::Nodes::STDIO::expire( $self, @args );
+    $self->{bytes_read}     = $offset;
+    $self->{msg_unanswered} = 0;
+    $self->register_reader_node;
+    return;
 }
 
 sub process_enoent {
@@ -365,6 +464,153 @@ sub process_enoent {
         die "ERROR: couldn't open $self->{filename}: $!\n";
     }
     return;
+}
+
+sub set_drain_buffer {
+    my $self = shift;
+    $self->{drain_buffer} =
+          $self->{buffer_mode} eq 'binary'         ? \&drain_buffer_normal
+        : $self->{buffer_mode} eq 'block-buffered' ? \&drain_buffer_blocks
+        :                                            \&drain_buffer_lines;
+    return;
+}
+
+sub owner {
+    my $self = shift;
+    if (@_) {
+        $self->{owner}          = shift;
+        $self->{msg_unanswered} = 0;
+        $self->register_reader_node if ( $self->{fh} );
+    }
+    return $self->{owner};
+}
+
+sub filename {
+    my $self = shift;
+    if (@_) {
+        $self->{filename} = shift;
+    }
+    return $self->{filename};
+}
+
+sub size {
+    my $self = shift;
+    if (@_) {
+        $self->{size} = shift;
+    }
+    return $self->{size};
+}
+
+sub stream {
+    my $self = shift;
+    if (@_) {
+        $self->{stream} = shift;
+    }
+    return $self->{stream};
+}
+
+sub line_buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{line_buffer} = shift;
+    }
+    return $self->{line_buffer};
+}
+
+sub buffer_mode {
+    my $self = shift;
+    if (@_) {
+        $self->{buffer_mode} = shift;
+        $self->set_drain_buffer;
+    }
+    return $self->{buffer_mode};
+}
+
+sub msg_unanswered {
+    my $self = shift;
+    if (@_) {
+        $self->{msg_unanswered} = shift;
+    }
+    return $self->{msg_unanswered};
+}
+
+sub max_unanswered {
+    my $self = shift;
+    if (@_) {
+        $self->{max_unanswered} = shift;
+    }
+    return $self->{max_unanswered};
+}
+
+sub bytes_answered {
+    my $self = shift;
+    if (@_) {
+        $self->{bytes_answered} = shift;
+    }
+    return $self->{bytes_answered};
+}
+
+sub on_EOF {
+    my $self = shift;
+    if (@_) {
+        my $on_eof = shift;
+        $self->{on_EOF} = $on_eof;
+        if ( $on_eof eq 'wait_for_delete' ) {
+            $self->register_watcher_node(qw( delete ));
+            $self->wait_timer->set_timer( 3600 * 1000, 'oneshot' );
+        }
+        elsif ( $on_eof eq 'wait_for_a_while' ) {
+            $self->wait_timer->set_timer( 900 * 1000, 'oneshot' );
+        }
+        $self->handle_EOF
+            if ($on_eof ne 'reopen'
+            and $on_eof ne 'ignore'
+            and $self->{sink}
+            and $self->finished );
+    }
+    return $self->{on_EOF};
+}
+
+sub on_ENOENT {
+    my $self = shift;
+    if (@_) {
+        $self->{on_ENOENT} = shift;
+    }
+    return $self->{on_ENOENT};
+}
+
+sub on_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{on_timeout} = shift;
+    }
+    return $self->{on_timeout};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
+}
+
+sub finished {
+    my $self = shift;
+    my $size = $self->{size};
+    my $bytes_finished =
+          $self->{max_unanswered}
+        ? $self->{bytes_answered}
+        : $self->{bytes_read};
+    my $pos = $bytes_finished + length $self->{line_buffer};
+    return 'true' if ( not defined $self->{fh} );
+    return if ( $self->{on_EOF} eq 'wait_for_delete' );
+    if ( not defined $size ) {
+        $size = ( stat $self->{fh} )[7];
+        return 'true' if ( not defined $size );
+        $self->{size} = $size;
+    }
+    return $pos >= $size;
 }
 
 sub handle_soft_EOF {
@@ -418,13 +664,20 @@ sub handle_EOF {
 }
 
 sub wait_to_send_EOF {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::wait_to_send_EOF(@args);
+    my $self = shift;
+    if ( not $self->{msg_unanswered} ) {
+        $self->send_EOF;
+    }
+    return;
 }
 
 sub wait_to_close_EOF {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::wait_to_close_EOF(@args);
+    my $self = shift;
+    if ( not $self->{msg_unanswered} ) {
+        $self->send_EOF;
+        $self->remove_node;
+    }
+    return;
 }
 
 sub wait_to_delete_EOF {
@@ -440,124 +693,30 @@ sub wait_to_delete_EOF {
 }
 
 sub send_EOF {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::send_EOF(@args);
+    my $self = shift;
+    $self->{sent_EOF} = 'true';
+    return $self->SUPER::send_EOF(@_);
 }
 
-sub set_drain_buffer {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::set_drain_buffer(@args);
-}
-
-sub filename {
+sub sent_EOF {
     my $self = shift;
     if (@_) {
-        $self->{filename} = shift;
+        $self->{sent_EOF} = shift;
     }
-    return $self->{filename};
-}
-
-sub size {
-    my $self = shift;
-    if (@_) {
-        $self->{size} = shift;
-    }
-    return $self->{size};
-}
-
-sub stream {
-    my $self = shift;
-    if (@_) {
-        $self->{stream} = shift;
-    }
-    return $self->{stream};
-}
-
-sub line_buffer {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::line_buffer(@args);
-}
-
-sub buffer_mode {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::buffer_mode(@args);
-}
-
-sub msg_unanswered {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::msg_unanswered(@args);
-}
-
-sub max_unanswered {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::max_unanswered(@args);
-}
-
-sub bytes_answered {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::bytes_answered(@args);
-}
-
-sub on_EOF {
-    my $self = shift;
-    if (@_) {
-        my $on_eof = shift;
-        $self->{on_EOF} = $on_eof;
-        if ( $on_eof eq 'wait_for_delete' ) {
-            $self->register_watcher_node(qw( delete ));
-            $self->wait_timer->set_timer( 3600 * 1000, 'oneshot' );
-        }
-        elsif ( $on_eof eq 'wait_for_a_while' ) {
-            $self->wait_timer->set_timer( 900 * 1000, 'oneshot' );
-        }
-        $self->handle_EOF
-            if ($on_eof ne 'reopen'
-            and $on_eof ne 'ignore'
-            and $self->{sink}
-            and $self->finished );
-    }
-    return $self->{on_EOF};
-}
-
-sub on_ENOENT {
-    my $self = shift;
-    if (@_) {
-        $self->{on_ENOENT} = shift;
-    }
-    return $self->{on_ENOENT};
-}
-
-sub on_timeout {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::on_timeout(@args);
-}
-
-sub timeout {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::timeout(@args);
-}
-
-sub finished {
-    my $self = shift;
-    my $size = $self->{size};
-    my $bytes_finished =
-          $self->{max_unanswered}
-        ? $self->{bytes_answered}
-        : $self->{bytes_read};
-    my $pos = $bytes_finished + length $self->{line_buffer};
-    return 'true' if ( not defined $self->{fh} );
-    return if ( $self->{on_EOF} eq 'wait_for_delete' );
-    if ( not defined $size ) {
-        $size = ( stat $self->{fh} )[7];
-        return 'true' if ( not defined $size );
-        $self->{size} = $size;
-    }
-    return $pos >= $size;
+    return $self->{sent_EOF};
 }
 
 sub msg_timer {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::msg_timer(@args);
+    my $self = shift;
+    if (@_) {
+        $self->{msg_timer} = shift;
+    }
+    if ( not defined $self->{msg_timer} ) {
+        $self->{msg_timer} = Tachikoma::Nodes::Timer->new;
+        $self->{msg_timer}->stream('msg_timer');
+        $self->{msg_timer}->sink($self);
+    }
+    return $self->{msg_timer};
 }
 
 sub poll_timer {
@@ -597,11 +756,6 @@ sub wait_timer {
         $self->{wait_timer}->sink($self);
     }
     return $self->{wait_timer};
-}
-
-sub sent_EOF {
-    my (@args) = @_;
-    return Tachikoma::Nodes::STDIO::sent_EOF(@args);
 }
 
 sub remove_node {

@@ -334,10 +334,6 @@ sub accept_connection {
     $node->{scheme}         = $self->{scheme};
     $node->{delegates}      = $self->{delegates};
     $node->{fill}           = $node->{fill_modes}->{unauthenticated};
-    $node->{max_unanswered} = $self->{max_unanswered}
-        if ( exists $self->{max_unanswered} );
-    $node->{buffer_mode} = $self->{buffer_mode}
-        if ( exists $self->{buffer_mode} );
     $node->set_drain_buffer;
 
     for my $event ( keys %{ $self->{registrations} } ) {
@@ -1080,8 +1076,6 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         if ( ref $self eq 'Tachikoma::Nodes::STDIO' ) {
             $response .= ' --io';
         }
-        $response .= ' --max_unanswered=' . $self->{max_unanswered}
-            if ( $self->{max_unanswered} );
         $response .= ' --use-ssl' if ( $self->{use_SSL} );
         $response .= ' --ssl-delegate=' . $self->{delegates}->{ssl}
             if ( $self->{delegates}->{ssl} );
