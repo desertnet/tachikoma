@@ -31,6 +31,7 @@ my $Separator = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
+    .git
 );
 my %SVN_Include = map { $_ => 1 } qw(
     entries
@@ -215,7 +216,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     my $withsums = shift;
     my $pedantic = shift;
     my $relative = undef;
-    my $is_svn   = ( $path =~ m{/.svn$} );
+    my $is_svn   = ( $path =~ m{/.(svn|git)$} );
     if ( $path eq $prefix ) {
         $relative = q();
     }

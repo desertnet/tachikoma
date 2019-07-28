@@ -25,6 +25,7 @@ my $Separator = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
+    .git
 );
 
 sub fill {    ## no critic (ProhibitExcessComplexity)
