@@ -345,7 +345,7 @@ sub get_keys {
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
-    my $timestamp   = $stored->{timestamp} // 0;
+    my $timestamp   = $stored->{timestamp}       // 0;
     $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
         my $cache = $self->{caches}->[$i];

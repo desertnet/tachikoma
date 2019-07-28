@@ -439,8 +439,8 @@ sub commit_offset_async {
     my $timestamp = shift;
     my $cache     = shift;
     my $stored    = {
-        timestamp  => $timestamp // $Tachikoma::Now,
-        offset     => $self->{lowest_offset},
+        timestamp => $timestamp // $Tachikoma::Now,
+        offset => $self->{lowest_offset},
         cache_type => $self->{cache_type},
         cache      => $cache,
     };
@@ -650,7 +650,7 @@ sub get_offset {
         $consumer->hub_timeout( $self->hub_timeout );
         while (1) {
             my $messages = $consumer->fetch;
-            my $error    = $consumer->sync_error // q();
+            my $error = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
             last if ( not @{$messages} );

@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: Shell.pm 37795 2019-07-28 17:10:13Z chris $
 #
 
 package Tachikoma::Nodes::Shell;
@@ -81,7 +81,7 @@ sub parse_line {
         my ( $path, $new_name, $new_arguments ) =
             ( split q( ), $arguments // q(), 3 );
         $message->to( $self->prefix($path) );
-        $command->name( $new_name // q() );
+        $command->name( $new_name           // q() );
         $command->arguments( $new_arguments // q() );
     }
     else {

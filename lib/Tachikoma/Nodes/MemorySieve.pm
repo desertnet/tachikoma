@@ -35,7 +35,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $max_size, $should_warn ) = split q( ), $self->{arguments}, 2;
-        $self->{max_size}    = $max_size // 1024;
+        $self->{max_size} = $max_size // 1024;
         $self->{should_warn} = $should_warn;
     }
     return $self->{arguments};

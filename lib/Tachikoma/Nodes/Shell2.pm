@@ -1543,7 +1543,7 @@ sub send_command {
         and ref $values->[$i]
         and $values->[$i]->{type} eq 'whitespace' );
     my $name_tree = $raw_tree->{value}->[ $i++ ] // q();
-    my $name      = join q(),
+    my $name = join q(),
         @{
         ref $name_tree
         ? $self->evaluate($name_tree)
