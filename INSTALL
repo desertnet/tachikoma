@@ -28,6 +28,8 @@ sudo apt install libcrypt-openssl-rsa-perl
 sudo apt install libberkeleydb-perl
 sudo apt install libdbi-perl
 sudo apt install libjson-perl
+sudo apt install libdbd-sqlite3-perl
+sudo apt install libperl-critic-perl
 
 
 ############################################################################

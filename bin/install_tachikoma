@@ -28,7 +28,7 @@ mkdir -p ~/.tachikoma/run/
 mkdir -p ~/.tachikoma/services/
 
 # server config
-cp -v etc/tachikoma.conf ~/.tachikoma/etc/
+cp -v etc/Devel/tachikoma.conf ~/.tachikoma/etc/
 
 # private key
 bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
@@ -44,7 +44,7 @@ cp -v etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 
 # authorized keys
 etc/authorized_keys/regenerate.pl
-# cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/etc/authorized_keys
+cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/etc/authorized_keys
 
 # TLS
 if [ ! -d ~/.tachikoma/tls ] ; then

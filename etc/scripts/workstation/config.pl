@@ -170,22 +170,6 @@ connect_node silc_dn:tee       silc:sounds
 EOF
 }
 
-sub workstation_hosts {
-    print <<'EOF';
-cd hosts
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4232 server_logs
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4233 system_logs
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
-cd ..
-
-connect_node silc_dn     silc_dn:tee
-connect_node system_logs system_log:ruleset
-connect_node server_logs server_log:ruleset
-
-EOF
-}
-
 sub workstation_footer {
     print <<'EOF';
 cd tails
