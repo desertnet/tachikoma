@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 36622 2019-03-11 05:23:51Z chris $
+# $Id: Shell.pm 37661 2019-06-19 00:33:01Z chris $
 #
 
 package Tachikoma::Jobs::Shell;
@@ -91,7 +91,7 @@ sub fill {
         if ( $type & TM_EOF ) {
             if ( kill 0, $self->{shell_pid} ) {
                 my $pid = waitpid -1, WNOHANG;
-                my $rv  = $? >> 8;
+                my $rv = $? >> 8;
                 $self->stderr("ERROR: shell exited with value: $rv")
                     if ( $pid > 0 and $rv );
             }

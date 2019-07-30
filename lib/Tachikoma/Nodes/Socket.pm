@@ -46,7 +46,7 @@ BEGIN {
 }
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
-@EXPORT_OK = qw( TK_R TK_W TK_SYNC TK_EPOLLED setsockopts );
+@EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
 use version; our $VERSION = qv('v2.0.195');
 
@@ -126,7 +126,7 @@ sub inet_server {
     my $class    = shift;
     my $hostname = shift;
     my $port     = shift;
-    my $iaddr    = inet_aton($hostname) or die "FAILED: no host: $hostname";
+    my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $sockaddr = pack_sockaddr_in( $port, $iaddr );
     my $proto    = getprotobyname 'tcp';
     my $socket;
@@ -279,7 +279,7 @@ sub accept_connection {
     if ( $self->{use_SSL} ) {
         my $config = $self->{configuration};
         die "ERROR: SSL not configured\n"
-            if ( not $config->{ssl_server_ca_file} );
+            if ( not $config->{ssl_server_cert_file} );
         my $ssl_client = IO::Socket::SSL->start_SSL(
             $client,
             SSL_server         => 1,
@@ -291,9 +291,9 @@ sub accept_connection {
             # SSL_cipher_list     => $config->{ssl_ciphers},
             SSL_version         => $config->{ssl_version},
             SSL_verify_callback => $self->get_ssl_verify_callback,
-            SSL_verify_mode     => $self->{use_SSL} eq 'noverify'
-            ? 0
-            : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+            SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+            ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+            : 0
         );
         if ( not $ssl_client or not ref $ssl_client ) {
             $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
@@ -326,18 +326,14 @@ sub accept_connection {
         }
     }
     $node->name($name);
-    $node->{parent}         = $self->{name};
-    $node->{owner}          = $self->{owner};
-    $node->{sink}           = $self->{sink};
-    $node->{edge}           = $self->{edge};
-    $node->{on_EOF}         = $self->{on_EOF};
-    $node->{scheme}         = $self->{scheme};
-    $node->{delegates}      = $self->{delegates};
-    $node->{fill}           = $node->{fill_modes}->{unauthenticated};
-    $node->{max_unanswered} = $self->{max_unanswered}
-        if ( exists $self->{max_unanswered} );
-    $node->{buffer_mode} = $self->{buffer_mode}
-        if ( exists $self->{buffer_mode} );
+    $node->{parent}    = $self->{name};
+    $node->{owner}     = $self->{owner};
+    $node->{sink}      = $self->{sink};
+    $node->{edge}      = $self->{edge};
+    $node->{on_EOF}    = $self->{on_EOF};
+    $node->{scheme}    = $self->{scheme};
+    $node->{delegates} = $self->{delegates};
+    $node->{fill}      = $node->{fill_modes}->{unauthenticated};
     $node->set_drain_buffer;
 
     for my $event ( keys %{ $self->{registrations} } ) {
@@ -390,11 +386,9 @@ sub init_socket {
 }
 
 sub start_SSL_connection {
-    my $self   = shift;
-    my $socket = $self->{fh};
-    my $config = $self->{configuration};
-    die "ERROR: SSL not configured\n"
-        if ( not $config->{ssl_client_ca_file} );
+    my $self       = shift;
+    my $socket     = $self->{fh};
+    my $config     = $self->{configuration};
     my $ssl_socket = IO::Socket::SSL->start_SSL(
         $socket,
         SSL_key_file       => $config->{ssl_client_key_file},
@@ -406,9 +400,6 @@ sub start_SSL_connection {
         # SSL_cipher_list     => $config->ssl_ciphers,
         SSL_version         => $config->ssl_version,
         SSL_verify_callback => $self->get_ssl_verify_callback,
-        SSL_verify_mode     => $self->{use_SSL} eq 'noverify'
-        ? 0
-        : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
     );
     if ( not $ssl_socket or not ref $ssl_socket ) {
         my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
@@ -439,7 +430,7 @@ sub start_SSL_connection {
         #     $fh->get_cipher,
         #     qq("\n);
         # $self->stderr( 'connect_SSL() verified peer:', $peer );
-        $self->{fill} = \&fill_fh_sync_SSL;
+        $self->{fill} = $self->{fill_modes}->{fill};
         $self->init_connect;
     }
     else {
@@ -600,12 +591,12 @@ sub reply_to_client_challenge {
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
     return if ( not $message );
-    $self->{fill} = $self->{fill_modes}->{fill};
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
     $self->{auth_complete} = $Tachikoma::Now;
-    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    $self->{fill} = $self->{fill_modes}->{fill};
+    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
 
@@ -617,8 +608,8 @@ sub auth_server_response {
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
     $self->{auth_complete} = $Tachikoma::Now;
-    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
 
@@ -961,7 +952,7 @@ sub close_filehandle {
     }
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
+        my $exists = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
     }
     $self->{set_state} = {};
@@ -1085,8 +1076,6 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         if ( ref $self eq 'Tachikoma::Nodes::STDIO' ) {
             $response .= ' --io';
         }
-        $response .= ' --max_unanswered=' . $self->{max_unanswered}
-            if ( $self->{max_unanswered} );
         $response .= ' --use-ssl' if ( $self->{use_SSL} );
         $response .= ' --ssl-delegate=' . $self->{delegates}->{ssl}
             if ( $self->{delegates}->{ssl} );
@@ -1199,11 +1188,14 @@ sub use_SSL {
     my $self = shift;
     if (@_) {
         $self->{use_SSL} = shift;
-        if ( $self->{use_SSL}
-            and not $self->configuration->ssl_server_ca_file )
-        {
-            $self->stderr("ERROR: SSL not configured\n");
-            $self->remove_node;
+        if ( $self->{use_SSL} ) {
+            if ( not $self->configuration->ssl_server_cert_file ) {
+                $self->stderr("ERROR: SSL not configured\n");
+                $self->remove_node;
+            }
+            if ( $self->{flags} & TK_SYNC ) {
+                $self->{fill_modes}->{fill} = \&fill_fh_sync_SSL;
+            }
         }
     }
     return $self->{use_SSL};

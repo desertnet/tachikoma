@@ -16,11 +16,16 @@ use Tachikoma::Config qw( load_module );
 
 use version; our $VERSION = qv('v2.0.192');
 
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 my ( $config_file, $class, $name, $arguments, $owner ) = @ARGV;
 usage() if ( not $class );
 srand;
 my $config = Tachikoma->configuration;
-$config->load_config_file($config_file);
+$config->load_config_file( $config_file ? $config_file : @default_configs );
 Tachikoma->load_event_framework;
 
 $Tachikoma::Now       = time;

@@ -9,9 +9,15 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::QueryEngine;
-require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
+
+my $home   = ( getpwuid $< )[7];
+my $config = Tachikoma->configuration;
+$config->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $host_ports = [ 'localhost:5201', 'localhost:5202' ];
 my $cgi        = CGI->new;

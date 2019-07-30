@@ -3,7 +3,13 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
 use Data::Dumper;
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;

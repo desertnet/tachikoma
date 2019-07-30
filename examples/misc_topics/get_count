@@ -2,7 +2,12 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $topic    = $ARGV[0] or die "usage: get_count <topic> [ <group> ]\n";
 my $group    = $ARGV[1] // "count";

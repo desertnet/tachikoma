@@ -10,8 +10,13 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Nodes::Table;
-require '/usr/local/etc/tachikoma.conf';
 use JSON -support_by_pp;
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my ( $topic, $field, $key, $verbose ) = @ARGV;
 die "no topic\n" if ( not $topic );

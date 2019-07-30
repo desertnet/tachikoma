@@ -2,9 +2,9 @@ var parsed_url  = new URL(window.location.href);
 var server_host = window.location.hostname;
 var server_port = window.location.port;
 var server_path = "/cgi-bin/topic.cgi"
-var _topic      = parsed_url.searchParams.get("topic") || topic;
-var partition   = 0;
-var _count      = parsed_url.searchParams.get("count") || count;
+var _topic      = parsed_url.searchParams.get("topic")     || topic;
+var partition   = parsed_url.searchParams.get("partition") || partition || 0;
+var _count      = parsed_url.searchParams.get("count")     || count;
 var prefix_url  = "http://" + server_host + ":" + server_port
                 + server_path + "/"
                 + _topic      + "/"

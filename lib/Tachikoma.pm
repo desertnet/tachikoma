@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 36037 2018-12-06 13:55:27Z chris $
+# $Id: Tachikoma.pm 37781 2019-07-23 03:37:38Z chris $
 #
 
 package Tachikoma;
@@ -19,7 +19,7 @@ use Tachikoma::Config qw( load_module include_conf );
 use Tachikoma::Crypto;
 use Tachikoma::Nodes::Callback;
 use Digest::MD5 qw( md5 );
-use IO::Socket::SSL qw( SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT );
+use IO::Socket::SSL;
 use POSIX qw( setsid dup2 F_SETFL O_NONBLOCK EAGAIN );
 use Socket qw(
     PF_UNIX PF_INET SOCK_STREAM inet_aton pack_sockaddr_in pack_sockaddr_un
@@ -85,9 +85,7 @@ sub inet_client {
         or die "connect: $!\n";
 
     if ($use_ssl) {
-        my $config = Tachikoma->configuration;
-        die "ERROR: SSL not configured\n"
-            if ( not $config->ssl_client_ca_file );
+        my $config     = Tachikoma->configuration;
         my $ssl_socket = IO::Socket::SSL->start_SSL(
             $socket,
             SSL_key_file       => $config->ssl_client_key_file,
@@ -110,9 +108,6 @@ sub inet_client {
                 print {*STDERR} "ERROR: SSL verification failed: $error\n";
                 return 0;
             },
-            SSL_verify_mode => $use_ssl eq 'noverify'
-            ? 0
-            : SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
         );
         if ( not $ssl_socket or not ref $ssl_socket ) {
             my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
@@ -572,7 +567,7 @@ sub reset_signal_handlers {
 
 sub open_log_file {
     my $self = shift;
-    my $log  = $self->log_file or die "ERROR: no log file specified\n";
+    my $log = $self->log_file or die "ERROR: no log file specified\n";
     chdir q(/) or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
         or die "ERROR: couldn't open log file $log: $!\n";
@@ -603,13 +598,6 @@ sub load_event_framework {
     };
     if ( not $framework ) {
         $framework = eval {
-            my $module = 'Tachikoma::EventFrameworks::Epoll';
-            load_module($module);
-            return $module->new;
-        };
-    }
-    if ( not $framework ) {
-        $framework = eval {
             my $module = 'Tachikoma::EventFrameworks::Select';
             load_module($module);
             return $module->new;
@@ -622,7 +610,7 @@ sub load_event_framework {
 
 sub touch_log_file {
     my $self = shift;
-    my $log  = $self->log_file or die "ERROR: no log file specified\n";
+    my $log = $self->log_file or die "ERROR: no log file specified\n";
     $self->close_log_file;
     $self->open_log_file;
     utime $Tachikoma::Now, $Tachikoma::Now, $log
@@ -946,4 +934,4 @@ Christopher Reaume C<< <chris@desert.net> >>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2018 DesertNet
+Copyright (c) 2019 DesertNet

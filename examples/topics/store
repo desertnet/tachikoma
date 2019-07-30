@@ -3,7 +3,12 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Topic;
 use Digest::MD5 qw( md5 );
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $name         = $ARGV[0];
 my $key          = $ARGV[1] or die "usage: store <topic> <key>\n";

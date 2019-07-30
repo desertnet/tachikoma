@@ -141,7 +141,7 @@ sub arguments {
                 $self->{auto_offset} = undef;
             }
         }
-        $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
+        $self->{hub_timeout} = $hub_timeout || $Hub_Timeout;
         $self->{default_offset} = $default_offset // 'end';
     }
     return $self->{arguments};
@@ -559,7 +559,7 @@ sub get_group_cache {
         $consumer->hub_timeout( $self->hub_timeout );
         while (1) {
             my $messages = $consumer->fetch;
-            my $error    = $consumer->sync_error // q();
+            my $error = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
             last if ( not @{$messages} );

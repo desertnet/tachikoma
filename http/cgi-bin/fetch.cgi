@@ -11,10 +11,16 @@ use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Nodes::Table;
 use Tachikoma::Message qw( TIMESTAMP );
-require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON;    # -support_by_pp;
 use URI::Escape;
+
+my $home   = ( getpwuid $< )[7];
+my $config = Tachikoma->configuration;
+$config->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
 my $host       = 'localhost';

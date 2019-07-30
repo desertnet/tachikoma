@@ -9,13 +9,16 @@ use strict;
 use warnings;
 use Tachikoma;
 
-my $config_file = '/usr/local/etc/tachikoma.conf';
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 my $config = Tachikoma->configuration;
-$config->load_config_file($config_file);
+$config->load_config_file(@default_configs);
 
 my $hz      = $ARGV[0];
-my $home    = $config->home || ( getpwuid $< )[7];
-my $hz_file = "$home/.tachikoma/hz";
+my $hz_file = "$home/.tachikoma/etc/hz";
 die 'invalid hz setting' if ( length $hz and $hz !~ m{^\d+$} );
 $hz //= 'undef';
 open my $fh, '>', $hz_file or die "couldn't open $hz_file: $!";

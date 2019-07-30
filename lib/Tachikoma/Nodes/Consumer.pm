@@ -439,8 +439,8 @@ sub commit_offset_async {
     my $timestamp = shift;
     my $cache     = shift;
     my $stored    = {
-        timestamp  => $timestamp // $Tachikoma::Now,
-        offset     => $self->{lowest_offset},
+        timestamp => $timestamp // $Tachikoma::Now,
+        offset => $self->{lowest_offset},
         cache_type => $self->{cache_type},
         cache      => $cache,
     };
@@ -524,7 +524,11 @@ sub load_cache_complete {
         $self->{lowest_offset} = $self->{saved_offset};
     }
     else {
-        $self->stderr( 'INFO: starting from ', $self->{default_offset} );
+        $self->stderr(
+            'INFO: beginning at ',
+            $self->{default_offset},
+            ' offset'
+        );
     }
     $self->{last_commit}        = $Tachikoma::Now;
     $self->{last_commit_offset} = $self->{lowest_offset};
@@ -633,7 +637,7 @@ sub get_offset {
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->group );
         my $name = join q(:), $self->partition, $self->group;
-        my $file = join q(),  $self->cache_dir, q(/), $name, q(.db);
+        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
         $stored = retrieve($file);
         $self->offset( $stored->{offset} );
         $self->cache( $stored->{cache} );
@@ -646,7 +650,7 @@ sub get_offset {
         $consumer->hub_timeout( $self->hub_timeout );
         while (1) {
             my $messages = $consumer->fetch;
-            my $error    = $consumer->sync_error // q();
+            my $error = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
             last if ( not @{$messages} );
@@ -731,7 +735,7 @@ sub get_messages {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID]   = join q(:), $offset, $offset + $size;
+        $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
 
@@ -754,7 +758,7 @@ sub commit_offset {
     if ( $self->cache_dir ) {
         die "ERROR: no group specified\n" if ( not $self->group );
         my $name = join q(:), $self->partition, $self->group;
-        my $file = join q(),  $self->cache_dir, q(/), $name, q(.db);
+        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
         my $tmp = join q(), $file, '.tmp';
         $self->make_parent_dirs($tmp);
         nstore(

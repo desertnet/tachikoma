@@ -198,7 +198,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $self->{counter}++;
         my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
-        my $parse_tree   = undef;
+        my $parse_tree = undef;
         $self->parse_buffer(q());
         local $SIG{INT} = sub { die "^C\n" }
             if ( $self->{isa_tty} );
@@ -855,7 +855,7 @@ $BUILTINS{'if'} = sub {
     if ( @{ $parse_tree->{value} } > 3 ) {
         my $i = 3;
         while ( $i <= $#{ $parse_tree->{value} } - 1 ) {
-            my $cane  = $parse_tree->{value}->[ $i++ ];
+            my $cane = $parse_tree->{value}->[ $i++ ];
             my $sugar = join q(), @{ $self->evaluate($cane) };
             if ( $sugar eq 'elsif' ) {
                 my $elsif = $parse_tree->{value}->[ $i++ ];
@@ -1173,8 +1173,8 @@ $BUILTINS{'on'} = sub {
     my $event_tree = shift @values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
     my $func_tree = $self->fake_tree( 'open_brace', \@values );
-    my $name      = join q(), @{ $self->evaluate($name_tree) };
-    my $event     = join q(), @{ $self->evaluate($event_tree) };
+    my $name  = join q(), @{ $self->evaluate($name_tree) };
+    my $event = join q(), @{ $self->evaluate($event_tree) };
     $self->_send_command( 'on', "$name $event", nfreeze($func_tree) )
         if ( not $self->{validate} );
     return [];
@@ -1273,7 +1273,7 @@ $BUILTINS{'send_node'} = sub {
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     $self->fatal_parse_error('bad arguments for send_node')
         if ( $i > $#{$values} );
-    my $path       = join q(), @{ $self->evaluate($path_tree) };
+    my $path = join q(), @{ $self->evaluate($path_tree) };
     my $payload_rv = [];
     $self->evaluate_splice( $values, $payload_rv, $i );
     my $payload = join q(), @{$payload_rv};
@@ -1473,7 +1473,7 @@ sub fake_tree {
     return {
         type  => $type,
         value => [
-            {   type  => ref $first ? $first->{type} : 'ident',
+            {   type => ref $first ? $first->{type} : 'ident',
                 value => [ @{$values}[ $i .. $#{$values} ] ]
             }
         ]
@@ -1543,7 +1543,7 @@ sub send_command {
         and ref $values->[$i]
         and $values->[$i]->{type} eq 'whitespace' );
     my $name_tree = $raw_tree->{value}->[ $i++ ] // q();
-    my $name      = join q(),
+    my $name = join q(),
         @{
         ref $name_tree
         ? $self->evaluate($name_tree)
@@ -1596,7 +1596,7 @@ sub assignment {
         if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-    my $op         = join q(), @{ $self->evaluate($op_tree) };
+    my $op = join q(), @{ $self->evaluate($op_tree) };
 
     if ( exists $LOCAL{$key} ) {
         $self->operate( $key, $op, $value_tree, \%LOCAL );
@@ -1615,7 +1615,7 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
     my ( $self, $key, $op, $value_tree, $hash ) = @_;
     my $rv = [];
     my $v  = $hash->{$key};
-    $v = []   if ( not defined $v or not length $v );
+    $v = [] if ( not defined $v or not length $v );
     $v = [$v] if ( not ref $v );
 
     if ($value_tree) {
@@ -1778,7 +1778,7 @@ sub cd {
         $cwd = $path;
     }
     elsif ( $path =~ m{^[.][.]/?} ) {
-        $cwd  =~ s{/?[^/]+$}{};
+        $cwd =~ s{/?[^/]+$}{};
         $path =~ s{^[.][.]/?}{};
         $cwd = $self->cd( $cwd, $path );
     }
@@ -2004,7 +2004,7 @@ sub parse_buffer {
 sub dirty {
     my $self = shift;
     if (@_) {
-        my $name  = shift;
+        my $name = shift;
         my %dirty = map { $_ => 1 } qw(
             listen_inet listen_unix
             connect_inet disconnect_inet

@@ -41,6 +41,7 @@ for i (1 .. 2) {
         make_node QueryEngine QueryEngine <indexes>;
         topic_probe;
         listen_inet <hostname>:<my_port>;
+        listen_inet  localhost:<my_port>;
         secure 3;
     cd ..;
     connect_node engines engine<i>;

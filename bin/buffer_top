@@ -15,8 +15,13 @@ use Tachikoma::Nodes::STDIO qw( TK_R TK_SYNC );
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Nodes::BufferTop;
 use Tachikoma::Message qw( PAYLOAD );
-use Getopt::Long;
-require '/usr/local/etc/tachikoma.conf';
+use Getopt::Long qw( GetOptions );
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $help          = undef;
 my $list_fields   = undef;
@@ -64,7 +69,7 @@ my $get_input = Tachikoma::Nodes::Callback->new;
 my $tachikoma =
     Tachikoma::Nodes::Socket->inet_client( $host, $port, undef, $use_SSL );
 my $shutdown = Tachikoma::Nodes::Shutdown->new;
-my $stdout   = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
+my $stdout = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
 
 $get_input->callback(
     sub {

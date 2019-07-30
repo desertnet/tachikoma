@@ -19,7 +19,7 @@ use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my %C          = ();
+my %C = ();
 my %Exclude_To = map { $_ => 1 } qw( copy redirect rewrite );
 
 sub new {
@@ -59,7 +59,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 and defined $to
                 and $message_to !~ m{$to} )
             );
-        my $copy    = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->new($packed);
         my @matches = $field ? $copy->[$field] =~ m{$re} : ();
         next if ( $field and not @matches );
         if ( $type eq 'deny' ) {

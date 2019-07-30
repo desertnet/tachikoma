@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 35881 2018-11-18 22:04:17Z chris $
+# $Id: Config.pm 37702 2019-06-22 19:06:04Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -96,11 +96,13 @@ sub new {
 }
 
 sub load_config_file {
-    my $self        = shift;
-    my $config_file = shift;
-    $self->include_config($config_file)
-        if ( $config_file and -f $config_file );
-    $self->{config_file} = $config_file;
+    my ( $self, @config_files ) = @_;
+    for my $config_file (@config_files) {
+        next if ( not -f $config_file );
+        $self->include_config($config_file);
+        $self->{config_file} = $config_file;
+        last;
+    }
     return $self;
 }
 

@@ -9,9 +9,15 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
-require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use JSON -support_by_pp;
+
+my $home   = ( getpwuid $< )[7];
+my $config = Tachikoma->configuration;
+$config->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
 my $cgi        = CGI->new;
@@ -20,7 +26,7 @@ $path =~ s(^/)();
 my ( $topic, $partition, $location, $count ) = split q(/), $path, 4;
 my $offset = undef;
 if ($location) {
-    if ($location eq 'last') {
+    if ( $location eq 'last' ) {
         $offset = 'recent';
     }
     else {
@@ -53,7 +59,7 @@ else {
 }
 my @messages = ();
 my $results  = undef;
-if ($location eq 'last') {
+if ( $location eq 'last' ) {
     do {
         push @messages, @{ $consumer->fetch };
         shift @messages while ( @messages > $count );

@@ -31,6 +31,7 @@ my $Separator = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
+    .git
 );
 my %SVN_Include = map { $_ => 1 } qw(
     entries
@@ -215,7 +216,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     my $withsums = shift;
     my $pedantic = shift;
     my $relative = undef;
-    my $is_svn   = ( $path =~ m{/.svn$} );
+    my $is_svn   = ( $path =~ m{/.(svn|git)$} );
     if ( $path eq $prefix ) {
         $relative = q();
     }
@@ -228,7 +229,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @entries = readdir $dh;
     closedir $dh or die "ERROR: couldn't closedir $path: $!";
-    my @out         = ( join q(), $relative, "\n" );
+    my @out = ( join q(), $relative, "\n" );
     my @directories = ();
     for my $entry (@entries) {
         next
@@ -241,9 +242,9 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             next;
         }
         my $path_entry = join q(/), $path, $entry;
-        my @lstat      = lstat $path_entry;
+        my @lstat = lstat $path_entry;
         next if ( not @lstat );
-        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
+        my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
         my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $last_modified = $lstat[9];

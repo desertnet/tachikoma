@@ -57,10 +57,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         else {
             return $self->stderr("ERROR: bad path: $tail->{filename}");
         }
-        $message->[TO]     = $self->{receiver};
+        $message->[TO] = $self->{receiver};
         $message->[STREAM] = join q(:), 'update', $filename;
         if ( $type & TM_EOF ) {
-            $message->[TYPE]    = TM_EOF | TM_PERSIST;
+            $message->[TYPE] = TM_EOF | TM_PERSIST;
             $message->[PAYLOAD] = join q(:), lstat $tail->{filename};
             $tail->{msg_unanswered}++;
             $tail->{on_EOF} = 'ignore';
@@ -136,7 +136,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         @paths = split $Separator, $path, 2 if ( @paths > 2 );
         my ( $from_path, $to_path ) = @paths;
         $from_path =~ s{(?:^|/)[.][.](?=/)}{}g if ($from_path);
-        $to_path   =~ s{(?:^|/)[.][.](?=/)}{}g if ($to_path);
+        $to_path =~ s{(?:^|/)[.][.](?=/)}{}g   if ($to_path);
         my $from_relative = undef;
         my $to_relative   = undef;
         if ( $from_path =~ m{^$prefix/(.*)$} ) {

@@ -9,10 +9,16 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::Topic;
-require '/usr/local/etc/tachikoma.conf';
 use CGI;
 use Digest::MD5 qw( md5 md5_hex );
 use URI::Escape;
+
+my $home   = ( getpwuid $< )[7];
+my $config = Tachikoma->configuration;
+$config->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
 
 my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
 my $cgi        = CGI->new;
@@ -22,7 +28,7 @@ my ( $topic, $escaped ) = split q(/), $path, 2;
 my $postdata = $cgi->param('POSTDATA');
 die "wrong method\n" if ( not length $postdata );
 die "no topic\n"     if ( not length $topic );
-my $key    = length $escaped ? uri_unescape($escaped) : md5_hex(rand);
+my $key = length $escaped ? uri_unescape($escaped) : md5_hex(rand);
 my $broker = Tachikoma::Nodes::Topic->new($topic);
 $broker->broker_ids($broker_ids);
 my $partitions   = $broker->get_partitions;

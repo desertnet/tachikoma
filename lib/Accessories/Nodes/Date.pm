@@ -31,7 +31,7 @@ sub fill {
     $self->{counter}++;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BYTESTREAM;
-    $response->[TO]   = $self->{owner} ? $self->{owner} : $message->[FROM];
+    $response->[TO] = $self->{owner} ? $self->{owner} : $message->[FROM];
     $response->[PAYLOAD] =
         strftime( "%F %T %Z\n", localtime $Tachikoma::Now );
     my $rv = $self->{sink}->fill($response);

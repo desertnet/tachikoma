@@ -17,7 +17,7 @@ v$version
 # Make nodes and jobs
 #######################################################################
 
-make_node Tail server_log /var/log/tachikoma/tachikoma-server.log
+make_node Tail server_log /var/log/.tachikoma/log/tachikoma-server.log
 make_node Tail system_log /var/log/messages
 make_node CommandInterpreter hosts
 make_node JobController      jobs

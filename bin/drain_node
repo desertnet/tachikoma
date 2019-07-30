@@ -5,14 +5,19 @@ use Tachikoma;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use Getopt::Long qw( GetOptions );
 
-my $config  = '/usr/local/etc/tachikoma.conf';
-my $host    = undef;
-my $port    = undef;
-my $use_SSL = undef;
-my $help    = undef;
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = undef;
+my $port        = undef;
+my $use_SSL     = undef;
+my $help        = undef;
 
 my $r = GetOptions(
-    'config=s' => \$config,
+    'config=s' => \$config_file,
     'host=s'   => \$host,
     'port=i'   => \$port,
     'use-ssl'  => \$use_SSL,
@@ -21,7 +26,8 @@ my $r = GetOptions(
 my $node_name = $ARGV[0];
 
 usage() if ( $help or not $r or ( not $port and not $node_name ) );
-require $config;
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
 
 my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
 $tachikoma->callback(

@@ -8,16 +8,21 @@ use Tachikoma::Message qw(
 );
 use Getopt::Long qw( GetOptions );
 
-my $config     = '/usr/local/etc/tachikoma.conf';
-my $host       = undef;
-my $port       = undef;
-my $use_SSL    = undef;
-my $batch_size = undef // 1;
-my $throttle   = undef;
-my $help       = undef;
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = undef;
+my $port        = undef;
+my $use_SSL     = undef;
+my $batch_size  = undef // 1;
+my $throttle    = undef;
+my $help        = undef;
 
 my $r = GetOptions(
-    'config=s'     => \$config,
+    'config=s'     => \$config_file,
     'host=s'       => \$host,
     'port=i'       => \$port,
     'use-ssl'      => \$use_SSL,
@@ -28,7 +33,8 @@ my $r = GetOptions(
 my $to = $ARGV[0];
 
 usage() if ( $help or not $r or not $to );
-require $config;
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
 
 my $tachikoma = Tachikoma->reconnect( $host, $port, $use_SSL );
 my @lines     = ();
@@ -59,7 +65,7 @@ sub send_messages {
         : TM_BYTESTREAM;
     $message->[TO] = $to;
     my $expecting = $throttle ? scalar @{$payloads} : 0;
-    my $rv        = eval {
+    my $rv = eval {
         for my $payload ( @{$payloads} ) {
             $message->[PAYLOAD] = $payload;
             $tachikoma->fill($message);

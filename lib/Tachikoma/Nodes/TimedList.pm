@@ -35,7 +35,7 @@ sub remove_item {
     my $self = shift;
     my $item = shift;
     $item .= "\n" if ( substr( $item, -1, 1 ) ne "\n" );
-    my $entry    = ( split q( ), $item, 2 )[1];
+    my $entry = ( split q( ), $item, 2 )[1];
     my @new_list = ();
     for my $old_item ( @{ $self->{list} } ) {
         next if ( $old_item =~ m{^\d+ $entry$} );

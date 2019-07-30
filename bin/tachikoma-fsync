@@ -37,23 +37,27 @@ my $Upper = 64;
 my $Lower = $Upper / 2;
 
 # my $Separator = chr(0);
-my $Separator = join q(), chr 30, ' -> ', chr 30;
-my $Home      = ( getpwuid $< )[7];
-my $config    = '/usr/local/etc/tachikoma.conf';
-my $host      = 'localhost';
-my $port      = 5601;
-my $prefix    = undef;
-my $quiet     = undef;
-my $timeout   = 180;
-my $withsums  = undef;
-my $pedantic  = undef;
-my $nosync    = undef;
-my $help      = undef;
+my $Separator       = join q(), chr 30, ' -> ', chr 30;
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = 'localhost';
+my $port        = 5601;
+my $prefix      = undef;
+my $quiet       = undef;
+my $timeout     = 180;
+my $withsums    = undef;
+my $pedantic    = undef;
+my $nosync      = undef;
+my $help        = undef;
 local $| = 1;    # autoflush
 
 # get arguments
 my $r = GetOptions(
-    'config=s'  => \$config,
+    'config=s'  => \$config_file,
     'host=s'    => \$host,
     'port=i'    => \$port,
     'prefix=s'  => \$prefix,
@@ -65,9 +69,10 @@ my $r = GetOptions(
     'help'      => \$help,
 );
 usage() if ( $help or not $r or not $ARGV[0] );
-require $config if ( -f $config );
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
 $prefix ||= $ARGV[0];
-$quiet  ||= isatty(*STDIN) ? undef : 1;
+$quiet ||= isatty(*STDIN) ? undef : 1;
 
 # connect
 my $tachikoma = Tachikoma->inet_client( $host, $port );
@@ -127,7 +132,7 @@ else {
 # roll call
 my $fh;
 my @missing   = ();
-my $roll_file = "$Home/.fsync-$port";
+my $roll_file = "$home/.fsync-$port";
 my %roll      = ();
 my %clients   = map { $_ => 1 } @hostnames;
 my %disabled  = ();

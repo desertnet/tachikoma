@@ -4,7 +4,9 @@ use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Nodes::Topic;
 use Digest::MD5 qw( md5 );
-require '/usr/local/etc/tachikoma.conf';
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
 
 my $from       = $ARGV[0];
 my $to         = $ARGV[1] or die "usage: word_count <from> <to>\n";

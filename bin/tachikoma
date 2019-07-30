@@ -24,7 +24,12 @@ use POSIX qw( isatty );
 
 use version; our $VERSION = qv('v2.0.192');
 
-my $config_file   = '/usr/local/etc/tachikoma.conf';
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file   = undef;
 my $host          = undef;
 my $port          = undef;
 my $socket        = undef;
@@ -59,7 +64,7 @@ my $filename = $ARGV[0];
 
 usage() if ( $help or not $r );
 my $config = Tachikoma->configuration;
-$config->load_config_file($config_file);
+$config->load_config_file( $config_file ? $config_file : @default_configs );
 Tachikoma->scheme($scheme) if ($scheme);
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 

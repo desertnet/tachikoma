@@ -47,10 +47,10 @@ cd ..
 
 command jobs start_job TailForks tails localhost:4230
 cd tails
-  add_tail /var/log/tachikoma/tachikoma-server.log server_log:ruleset
-  add_tail /var/log/tachikoma/http-access.log      http_log
-  add_tail /var/log/tachikoma/tasks-access.log     http_log
-  add_tail /var/log/tachikoma/tables-access.log    http_log
+  add_tail <home>/.tachikoma/log/tachikoma-server.log server_log:ruleset
+  add_tail <home>/.tachikoma/log/http-access.log      http_log
+  add_tail <home>/.tachikoma/log/tasks-access.log     http_log
+  add_tail <home>/.tachikoma/log/tables-access.log    http_log
 cd ..
 
 connect_node system_log               _responder
@@ -91,14 +91,14 @@ sub workstation_partitions {
 # partitions
 command jobs start_job CommandInterpreter partitions
 cd partitions
-  make_node Partition scratch:log     --filename=/logs/scratch.log      \
+  make_node Partition scratch:log     --filename=<home>/.tachikoma/partitions/scratch.log \
                                       --segment_size=(32 * 1024 * 1024)
-  make_node Partition follower:log    --filename=/logs/follower.log     \
+  make_node Partition follower:log    --filename=<home>/.tachikoma/partitions/follower.log \
                                       --segment_size=(32 * 1024 * 1024) \
                                       --leader=scratch:log
-  make_node Partition offset:log      --filename=/logs/offset.log       \
+  make_node Partition offset:log      --filename=<home>/.tachikoma/partitions/offset.log \
                                       --segment_size=(256 * 1024)
-  make_node Consumer scratch:consumer --partition=scratch:log           \
+  make_node Consumer scratch:consumer --partition=scratch:log \
                                       --offsetlog=offset:log
   buffer_probe
   insecure
@@ -117,7 +117,7 @@ func start_service {
     local service = <1>;
     command jobs  start_job Shell <service>:job <services>/<service>.tsl;
     command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
-    command tails add_tail /var/log/tachikoma/<service>.log server_log:ruleset;
+    command tails add_tail <home>/.tachikoma/log/<service>.log server_log:ruleset;
 }
 func stop_service {
     local service = <1>;
@@ -166,22 +166,6 @@ connect_node server_log:sounds _responder
 connect_node server_log:tee    server_log:sounds
 connect_node silc:sounds       _responder
 connect_node silc_dn:tee       silc:sounds
-
-EOF
-}
-
-sub workstation_hosts {
-    print <<'EOF';
-cd hosts
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4231
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4232 server_logs
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4233 system_logs
-  connect_inet --scheme=rsa-sha256 --use-ssl tachikoma:4234 silc_dn
-cd ..
-
-connect_node silc_dn     silc_dn:tee
-connect_node system_logs system_log:ruleset
-connect_node server_logs server_log:ruleset
 
 EOF
 }
