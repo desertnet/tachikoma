@@ -89,8 +89,3 @@ func buffer_probe {
     connect_node buffer_top:sieve buffer_top;
     connect_node buffer_probe     buffer_top:sieve;
 }
-
-if (<hostname> eq "nyx") {
-    # var topics_dir2 = <home>/.tachikoma/pool2;
-    var tachikoma.hubs.count = 4;
-}
