@@ -43,7 +43,7 @@ my @jobs = qw(
     Tachikoma::Jobs::TailFork
     Tachikoma::Jobs::TailForks
     Tachikoma::Jobs::Task
-    Accessories::Jobs::AfPlay
+    Accessories::Jobs::APlay
     Accessories::Jobs::Delay
     Accessories::Jobs::DNS
     Accessories::Jobs::ExecFork

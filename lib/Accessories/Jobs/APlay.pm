@@ -1,17 +1,26 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Accessories::Jobs::AfPlay
+# Accessories::Jobs::APlay
 # ----------------------------------------------------------------------
 #
-# $Id: AfPlay.pm 415 2008-12-24 21:08:33Z chris $
+# $Id: APlay.pm 415 2008-12-24 21:08:33Z chris $
 #
 
-package Accessories::Jobs::AfPlay;
+package Accessories::Jobs::APlay;
 use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
+
+my $PLAY_CMD = undef;
+
+if ( -f '/usr/bin/aplay' ) {
+    $PLAY_CMD = '/usr/bin/aplay';
+}
+elsif ( -f '/usr/bin/afplay' ) {
+    $PLAY_CMD = '/usr/bin/afplay';
+}
 
 sub initialize_graph {
     my $self = shift;
@@ -32,7 +41,8 @@ sub fill {
     return if ( not $message->type & TM_BYTESTREAM );
     if ( $Tachikoma::Now - $message->timestamp <= 1 ) {
         my $arguments = $message->payload;
-        $message->payload( $self->execute( '/usr/bin/afplay', $arguments ) );
+        $message->payload(
+            $self->execute( $PLAY_CMD, $arguments, '2>', '/dev/null' ) );
     }
     return $self->cancel($message);
 }

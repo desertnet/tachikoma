@@ -141,31 +141,35 @@ sub workstation_sound_effects {
 
 
 # sound effects
-var username=`whoami`;
-func get_sound { return "/System/Library/Sounds/<1>.aiff\n" }
-func afplay    { send AfPlay:sieve <1>; return }
+if ( `uname` eq "Darwin" ) {
+    func get_sound { return "/System/Library/Sounds/<1>.aiff\n" };
+    make_node Function server_log:sounds '{
+        local sound = "";
+        # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
+        if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
+        elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi; ]
+        elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
+        if (<sound>) { aplay { get_sound <sound> } };
+    }';
+} else {
+    func get_sound { return "/usr/share/sounds/sound-icons/<1>\n" };
+    make_node Function server_log:sounds '{
+        local sound = "";
+        # if (<1> =~ "\sWARNING:\s")    [ sound = cembalo-10.wav;  ]
+        if (<1> =~ "\sERROR:\s(.*)")  [ sound = cembalo-10.wav;  ]
+        elsif (<1> =~ "\sFAILURE:\s") [ sound = cembalo-3.wav;   ]
+        elsif (<1> =~ "\sCOMMAND:\s") [ sound = cembalo-11.wav;  ];
+        if (<sound>) { aplay { get_sound <sound> } };
+    }';
+}
+func aplay { send APlay:sieve <1>; return }
 
-make_node MemorySieve AfPlay:sieve     1
-make_node JobFarmer   AfPlay           4 AfPlay
-make_node Function    server_log:sounds '{
-    local sound = "";
-    # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
-    if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
-    elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi; ]
-    elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
-    if (<sound>) { afplay { get_sound <sound> } };
-}'
-make_node Function silc:sounds '{
-    local sound = Pop;
-    if (<1> =~ "\b<username>\b(?!>)") [ sound = Glass ];
-    afplay { get_sound <sound> };
-}'
-command AfPlay lazy on
-connect_node AfPlay:sieve      AfPlay:load_balancer
+make_node MemorySieve APlay:sieve 1
+make_node JobFarmer   APlay       4 APlay
+command APlay lazy on
+connect_node APlay:sieve       APlay:load_balancer
 connect_node server_log:sounds _responder
 connect_node server_log:tee    server_log:sounds
-connect_node silc:sounds       _responder
-connect_node silc_dn:tee       silc:sounds
 
 EOF
 }
