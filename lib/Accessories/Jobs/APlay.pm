@@ -13,13 +13,16 @@ use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
-my $PLAY_CMD = undef;
+my $PLAY_CMD  = undef;
+my $PLAY_ARGS = undef;
 
 if ( -f '/usr/bin/aplay' ) {
     $PLAY_CMD = '/usr/bin/aplay';
+    $PLAY_ARGS = '-q';
 }
 elsif ( -f '/usr/bin/afplay' ) {
-    $PLAY_CMD = '/usr/bin/afplay';
+    $PLAY_CMD  = '/usr/bin/afplay';
+    $PLAY_ARGS = q();
 }
 
 sub initialize_graph {
@@ -41,8 +44,7 @@ sub fill {
     return if ( not $message->type & TM_BYTESTREAM );
     if ( $Tachikoma::Now - $message->timestamp <= 1 ) {
         my $arguments = $message->payload;
-        $message->payload(
-            $self->execute( $PLAY_CMD, $arguments, '2>', '/dev/null' ) );
+        $self->execute( $PLAY_CMD, join q( ), $PLAY_ARGS, $arguments );
     }
     return $self->cancel($message);
 }
