@@ -17,7 +17,7 @@ my $PLAY_CMD  = undef;
 my $PLAY_ARGS = undef;
 
 if ( -f '/usr/bin/aplay' ) {
-    $PLAY_CMD = '/usr/bin/aplay';
+    $PLAY_CMD  = '/usr/bin/aplay';
     $PLAY_ARGS = '-q';
 }
 elsif ( -f '/usr/bin/afplay' ) {
