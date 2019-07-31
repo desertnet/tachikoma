@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2019 DesertNet
 #
-# $Id: Makefile.PL 37767 2019-07-09 23:07:03Z chris $
+# $Id: Makefile.PL 37862 2019-07-31 20:03:58Z chris $
 #
 
 use strict;
@@ -30,7 +30,6 @@ WriteMakefile(
     DISTNAME    => 'Tachikoma',
     VERSION     => $version,
     PREREQ_PM    => {
-        'Crypt::OpenSSL::Random'    => '0.01',
         'Crypt::OpenSSL::RSA'       => '0.10',
         'Digest::HMAC'              => '1.01',
         'Digest::HMAC_MD5'          => '1.01',
