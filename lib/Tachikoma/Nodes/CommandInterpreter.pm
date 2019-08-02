@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37787 2019-07-23 09:12:12Z chris $
+# $Id: CommandInterpreter.pm 37864 2019-08-02 00:19:09Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -983,6 +983,7 @@ $H{listen_inet} = [
     "            --port=<port>                     \\\n",
     "            --io                              \\\n",
     "            --use-ssl                         \\\n",
+    "            --ssl-verify                      \\\n",
     "            --ssl-delegate=<node>             \\\n",
     "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "            --delegate=<node>\n",

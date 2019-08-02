@@ -124,8 +124,7 @@ if ( `uname` eq "Darwin" ) {
         elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
         if (<sound>) { aplay { get_sound <sound> } };
     }';
-}
-else {
+} else {
     func get_sound { return "/usr/share/sounds/sound-icons/<1>\n" };
     make_node Function server_log:sounds '{
         local sound = "";
