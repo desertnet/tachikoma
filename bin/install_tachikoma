@@ -26,6 +26,7 @@ mkdir -p ~/.tachikoma/partitions/
 mkdir -p ~/.tachikoma/pool/
 mkdir -p ~/.tachikoma/run/
 mkdir -p ~/.tachikoma/services/
+mkdir -p ~/.tachikoma/pki/
 
 # server config
 cp -v etc/Devel/tachikoma.conf ~/.tachikoma/etc/
@@ -47,8 +48,8 @@ etc/authorized_keys/regenerate.pl
 cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/etc/authorized_keys
 
 # TLS
+cp -rv etc/pki ~/.tachikoma/
 if [ ! -d ~/.tachikoma/tls ] ; then
-    cp -rv etc/pki ~/.tachikoma/
     cd ~/.tachikoma/pki
     ./genkey $config server
     mv tls/$config ~/.tachikoma/tls
