@@ -2,8 +2,7 @@
 var hostname = `hostname -s`;
 var home     = `echo ~`;
 
-var topics_dir1 = <home>/.tachikoma/pool;
-var topics_dir2;
+var topics_dir = <home>/.tachikoma/pool;
 
 var tachikoma.services = (
     tasks
