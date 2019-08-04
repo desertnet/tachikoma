@@ -160,7 +160,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     if ( $requests->{$stream} ) {
         $self->stderr("WARNING: resetting $stream");
         my $tail = $Tachikoma::Nodes{ $requests->{$stream}->{name} };
-        $tail->remove_node if ($tail);
+        $tail->remove_node if ( $tail and $tail =~ m{^tail-\d+$} );
         $self->cancel( $requests->{$stream}->{message} );
         delete $requests->{$stream};
     }
@@ -265,7 +265,7 @@ sub fire {
             > $Request_Timeout )
         {
             my $tail = $Tachikoma::Nodes{ $requests->{$stream}->{name} };
-            $tail->remove_node if ($tail);
+            $tail->remove_node if ( $tail and $tail =~ m{^tail-\d+$} );
             delete $requests->{$stream};
             $self->stderr("WARNING: expired $stream from request cache");
         }
