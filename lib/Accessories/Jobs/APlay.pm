@@ -13,6 +13,8 @@ use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
 use parent qw( Tachikoma::Job );
 
+use version; our $VERSION = qv('v2.0.662');
+
 my $PLAY_CMD  = undef;
 my $PLAY_ARGS = undef;
 

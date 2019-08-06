@@ -122,6 +122,7 @@ lib/Tachikoma/Nodes/TopicProbe.pm
 lib/Tachikoma/Nodes/TopicTop.pm
 lib/Tachikoma/Nodes/Uniq.pm
 lib/Tachikoma/Nodes/Watchdog.pm
+lib/Accessories/Jobs/APlay.pm
 lib/Accessories/Jobs/DNS.pm
 lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/Fortune.pm
