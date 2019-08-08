@@ -114,7 +114,7 @@ connect_node server_log:tee server_logs:service/server_log
 
 
 # sound effects
-if ( `uname` eq "Darwin" ) {
+if ( `uname` eq "Darwin\n" ) {
     func get_sound { return "/System/Library/Sounds/<1>.aiff\n" };
     make_node Function server_log:sounds '{
         local sound = "";

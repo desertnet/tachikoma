@@ -141,7 +141,7 @@ sub workstation_sound_effects {
 
 
 # sound effects
-if ( `uname` eq "Darwin" ) {
+if ( `uname` eq "Darwin\n" ) {
     func get_sound { return "/System/Library/Sounds/<1>.aiff\n" };
     make_node Function server_log:sounds '{
         local sound = "";
