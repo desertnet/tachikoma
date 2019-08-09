@@ -2,8 +2,7 @@
 var hostname = `hostname -s`;
 var home     = `echo ~`;
 
-var topics_dir1 = <home>/.tachikoma/pool;
-var topics_dir2;
+var topics_dir = <home>/.tachikoma/pool;
 
 var tachikoma.services = (
     tasks
@@ -88,9 +87,4 @@ func buffer_probe {
     make_node BufferProbe buffer_probe     4 <prefix>;
     connect_node buffer_top:sieve buffer_top;
     connect_node buffer_probe     buffer_top:sieve;
-}
-
-if (<hostname> eq "nyx") {
-    # var topics_dir2 = <home>/.tachikoma/pool2;
-    var tachikoma.hubs.count = 4;
 }

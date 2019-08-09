@@ -11,13 +11,8 @@ var all_hubs
 for h (<hostname>) {
     for i ( 1 .. <num_hubs> ) {
         local j = <root_port> + <i>;
-        var "topics_dir.<h>:<j>" = <topics_dir1>;
+        var "topics_dir.<h>:<j>" = <topics_dir>;
         all_hubs .= "<h>:<j>";
-        if ( <topics_dir2> ) {
-            j = <root_port> + <i> + <num_hubs>;
-            var "topics_dir.<h>:<j>" = <topics_dir2>;
-            all_hubs .= "<h>:<j>";
-        };
     };
 }
 
@@ -87,10 +82,6 @@ func add_hub {
 for i ( 1 .. <num_hubs> ) {
     local j = <root_port> + <i>;
     add_hub "<hostname>:<j>";
-    if ( <topics_dir2> ) {
-        j = <root_port> + <i> + <num_hubs>;
-        add_hub "<hostname>:<j>";
-    };
 }
 
 listen_inet localhost:<root_port>

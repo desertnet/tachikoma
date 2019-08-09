@@ -26,6 +26,7 @@ mkdir -p ~/.tachikoma/partitions/
 mkdir -p ~/.tachikoma/pool/
 mkdir -p ~/.tachikoma/run/
 mkdir -p ~/.tachikoma/services/
+mkdir -p ~/.tachikoma/pki/
 
 # server config
 cp -v etc/Devel/tachikoma.conf ~/.tachikoma/etc/
@@ -47,13 +48,9 @@ etc/authorized_keys/regenerate.pl
 cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/etc/authorized_keys
 
 # TLS
+cp -rv etc/pki ~/.tachikoma/
 if [ ! -d ~/.tachikoma/tls ] ; then
-    mkdir -p tls.new
-    cd tls.new
-    openssl genrsa -out ca.key 2048
-    openssl req -new -x509 -days 3653 -key ca.key -out ca.crt -config ../etc/tls/ca.conf
-    openssl req -new -out server.csr -config ../etc/tls/csr.conf
-    openssl x509 -req -days 3653 -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -extfile ../etc/tls/v3.ext
-    cd ..
-    mv tls.new ~/.tachikoma/tls
+    cd ~/.tachikoma/pki
+    ./genkey $config server
+    mv tls/$config ~/.tachikoma/tls
 fi
