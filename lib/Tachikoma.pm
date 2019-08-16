@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 37781 2019-07-23 03:37:38Z chris $
+# $Id: Tachikoma.pm 37923 2019-08-15 21:45:55Z chris $
 #
 
 package Tachikoma;
@@ -101,10 +101,6 @@ sub inet_client {
                 my $error = $_[3];
                 return 1 if ($okay);
                 $error =~ s{^error:}{};
-                if ( $error eq '0000000A:lib(0):func(0):DSA lib' ) {
-                    print {*STDERR} "WARNING: SSL verification: $error\n";
-                    return 1;
-                }
                 print {*STDERR} "ERROR: SSL verification failed: $error\n";
                 return 0;
             },
