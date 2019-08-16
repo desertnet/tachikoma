@@ -60,7 +60,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $message->[TO] = $self->{receiver};
         $message->[STREAM] = join q(:), 'update', $filename;
         if ( $type & TM_EOF ) {
-            $message->[TYPE]    = TM_EOF | TM_PERSIST;
+            $message->[TYPE] = TM_EOF | TM_PERSIST;
             $message->[PAYLOAD] = join q(:), lstat $tail->{filename};
             $tail->{msg_unanswered}++;
             $tail->{on_EOF} = 'ignore';
