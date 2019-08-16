@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37864 2019-08-02 00:19:09Z chris $
+# $Id: CommandInterpreter.pm 37937 2019-08-16 01:03:10Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1408,7 +1408,7 @@ $C{slurp_file} = sub {
         $node->arguments( join q( ), $path, 0,
             length $sink_name ? 0
             : (         $buffer_mode
-                    and $buffer_mode eq 'line-buffered' ) ? 256
+                    and $buffer_mode eq 'line-buffered' ) ? 64
             : 8 );
         $node->buffer_mode($buffer_mode);
         $node->owner($owner) if ( length $owner );

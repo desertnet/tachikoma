@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3230;
+use Test::More tests => 3226;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 

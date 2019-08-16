@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Tail;
 use Tachikoma::Message qw(
-    TYPE FROM TO STREAM PAYLOAD
+    TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_COMMAND TM_PERSIST TM_RESPONSE TM_KILLME
 );
 use parent qw( Tachikoma::Nodes::Timer );
@@ -60,7 +60,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $message->[TO] = $self->{receiver};
         $message->[STREAM] = join q(:), 'update', $filename;
         if ( $type & TM_EOF ) {
-            $message->[TYPE] = TM_EOF | TM_PERSIST;
+            $message->[TYPE]    = TM_EOF | TM_PERSIST;
             $message->[PAYLOAD] = join q(:), lstat $tail->{filename};
             $tail->{msg_unanswered}++;
             $tail->{on_EOF} = 'ignore';
@@ -159,8 +159,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $requests = $self->{requests};
     if ( $requests->{$stream} ) {
         $self->stderr("WARNING: resetting $stream");
-        my $tail = $Tachikoma::Nodes{ $requests->{$stream}->{name} };
-        $tail->remove_node if ( $tail and $tail =~ m{^tail-\d+$} );
+        my $name = $requests->{$stream}->{name};
+        my $tail = $Tachikoma::Nodes{$name};
+        $tail->remove_node if ( $tail and $name =~ m{^tail-\d+$} );
         $self->cancel( $requests->{$stream}->{message} );
         delete $requests->{$stream};
     }
@@ -193,9 +194,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 $node->arguments(
                     {   filename       => $path,
                         offset         => 0,
-                        max_unanswered => 32,
+                        max_unanswered => 8,
                         on_EOF         => 'send',
-                        on_ENOENT      => 'die'
+                        on_ENOENT      => 'die',
+                        on_timeout     => 'die',
                     }
                 );
                 $node->{sink} = $self;
@@ -264,8 +266,9 @@ sub fire {
         if ( $Tachikoma::Now - $requests->{$stream}->{timestamp}
             > $Request_Timeout )
         {
-            my $tail = $Tachikoma::Nodes{ $requests->{$stream}->{name} };
-            $tail->remove_node if ( $tail and $tail =~ m{^tail-\d+$} );
+            my $name = $requests->{$stream}->{name};
+            my $tail = $Tachikoma::Nodes{$name};
+            $tail->remove_node if ( $tail and $name =~ m{^tail-\d+$} );
             delete $requests->{$stream};
             $self->stderr("WARNING: expired $stream from request cache");
         }

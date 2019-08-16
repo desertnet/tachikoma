@@ -206,27 +206,32 @@ sub fill {
 }
 
 sub handle_response {
-    my $self    = shift;
-    my $message = shift;
-    my $offset  = $message->[ID];
+    my $self           = shift;
+    my $message        = shift;
+    my $msg_unanswered = $self->{msg_unanswered};
+    my $offset         = $message->[ID];
     if ( $message->[PAYLOAD] eq 'answer' ) {
         $self->remove_node if ( defined $self->partition_id );
+        return;
     }
-    elsif ( $self->{timestamps}->{$offset} ) {
-        $self->{last_receive} = $Tachikoma::Now;
-        delete $self->{timestamps}->{$offset};
-        if ( $self->{msg_unanswered} > 0 ) {
-            $self->{msg_unanswered}--;
-        }
-        else {
-            $self->print_less_often(
-                'WARNING: unexpected response from ' . $message->[FROM] );
-            $self->{msg_unanswered} = 0;
-        }
-        $self->set_timer(0)
-            if ($self->{timer_interval}
-            and $self->{msg_unanswered} < $self->{max_unanswered} );
-    }
+    return $self->print_less_often( 'WARNING: unexpected payload from ',
+        $message->[FROM] )
+        if ( $message->[PAYLOAD] ne 'cancel' );
+    return $self->print_less_often( 'WARNING: unexpected response from ',
+        $message->[FROM] )
+        if ( $msg_unanswered < 1 );
+    return $self->print_less_often(
+        'WARNING: unexpected response offset ',
+        "$offset from ",
+        $message->[FROM]
+    ) if ( length $offset and not $self->{timestamps}->{$offset} );
+    delete $self->{timestamps}->{$offset};
+    $msg_unanswered--;
+    $self->{last_receive} = $Tachikoma::Now;
+    $self->set_timer(0)
+        if ($self->{timer_interval}
+        and $msg_unanswered < $self->{max_unanswered} );
+    $self->{msg_unanswered} = $msg_unanswered;
     return;
 }
 
@@ -266,7 +271,7 @@ sub fire {
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
-        $self->stderr('WARNING: timeout waiting for hub');
+        $self->stderr('WARNING: timeout waiting for partition, trying again');
         if ( defined $self->partition_id ) {
             $self->remove_node;
         }
@@ -338,6 +343,7 @@ sub drain_buffer {
             $message->[ID] = $offset;
             $self->{counter}++;
             if ($edge) {
+                $message->[TYPE] ^= TM_PERSIST;
                 $edge->fill($message);
             }
             else {
@@ -414,7 +420,7 @@ sub expire_timestamps {
     $lowest //= $self->{offset};
     $self->{lowest_offset} = $lowest if ( defined $lowest );
     if ( defined $retry ) {
-        $self->stderr("RETRY $retry");
+        $self->stderr('WARNING: timeout waiting for response, trying again');
         if ( defined $self->partition_id ) {
             $self->remove_node;
         }
