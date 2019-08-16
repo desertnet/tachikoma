@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 37946 2019-08-16 02:23:07Z chris $
+# $Id: RegexTee.pm 37951 2019-08-16 02:48:30Z chris $
 #
 
 package Tachikoma::Nodes::RegexTee;
@@ -38,6 +38,7 @@ sub fill {
     my $branches   = $self->{branches};
     my $message_id = undef;
     my $persist    = undef;
+    my $count      = 0;
     return $self->handle_response( $message, scalar keys %{$branches} )
         if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
         or $message->[TYPE] == TM_ERROR );
@@ -45,11 +46,12 @@ sub fill {
         if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF );
     return $self->SUPER::fill($message)
         if ( not $message->[TYPE] & TM_BYTESTREAM );
+
     if ( $message->[TYPE] & TM_PERSIST ) {
         $message_id = $self->msg_counter;
         $self->{messages}->{$message_id} = {
             original  => $message,
-            count     => scalar( keys %{$branches} ),
+            count     => undef,
             answer    => 0,
             cancel    => 0,
             timestamp => $Tachikoma::Now
@@ -69,6 +71,16 @@ sub fill {
                 $copy->[ID] = $message_id;
             }
             $self->{sink}->fill($copy);
+            $count++;
+        }
+    }
+    if ($persist) {
+        if ( $count > 0 ) {
+            $self->{messages}->{$message_id}->{count} = $count;
+        }
+        else {
+            delete $self->{messages}->{$message_id};
+            $self->cancel($message);
         }
     }
     $self->{counter}++;
