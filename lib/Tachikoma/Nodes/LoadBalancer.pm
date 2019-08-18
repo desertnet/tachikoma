@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: LoadBalancer.pm 37961 2019-08-18 21:31:35Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -101,12 +101,10 @@ sub handle_response {
     return if ( $self->{mode} eq 'none' );
     my $streams        = $self->{streams};
     my $msg_unanswered = $self->{msg_unanswered};
-    my $id =
-           $message->[STREAM]
-        || $message->[ID]
-        || ( split m{/}, $message->[FROM], 2 )[0];
-    my $stream = $id     ? $streams->{$id}  : undef;
-    my $owner  = $stream ? $stream->{owner} : undef;
+    my $id = length $message->[STREAM] ? $message->[STREAM] : $message->[ID];
+    $id = ( split m{/}, $message->[FROM], 2 )[0] if ( not length $id );
+    my $stream = length $id ? $streams->{$id}  : undef;
+    my $owner  = $stream    ? $stream->{owner} : undef;
     return if ( not $stream );
 
     if ( $owner and defined $msg_unanswered->{$owner} ) {
@@ -252,10 +250,10 @@ $C{kick} = sub {
 sub get_stream_owner {
     my $self    = shift;
     my $message = shift;
-    my $id      = $message->[STREAM] || $message->[ID];
-    my $owner   = undef;
-    my $mode    = $self->{mode};
-    if ( $mode eq 'none' or not $id ) {
+    my $id = length $message->[STREAM] ? $message->[STREAM] : $message->[ID];
+    my $owner = undef;
+    my $mode  = $self->{mode};
+    if ( $mode eq 'none' or not length $id ) {
         $owner = $self->get_next_owner( $message, $id );
         if ( defined $owner and $mode eq 'all' ) {
             $id = $owner;
@@ -304,14 +302,14 @@ sub get_next_owner {
     my $method         = $self->{method};
     my $mode           = $self->{mode};
     my $owner          = undef;
-    if ( $id and $method eq 'hash' ) {
+    if ( length $id and $method eq 'hash' ) {
         my $i = 0;
         $i += $_ for ( unpack 'C*', md5( join q(:), $self->{hash}, $id ) );
         $owner = $owners->[ $i % @{$owners} ];
     }
     elsif ($method eq 'round-robin'
         or $mode eq 'none'
-        or ( $method eq 'hash' and not $id ) )
+        or ( $method eq 'hash' and not length $id ) )
     {
         my %by_count = ();
         my $total    = 0;
