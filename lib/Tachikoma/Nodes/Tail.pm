@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37941 2019-08-16 01:24:17Z chris $
+# $Id: Tail.pm 37961 2019-08-18 21:31:35Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -37,7 +37,7 @@ sub new {
     $self->{drain_buffer}    = \&drain_buffer_normal;
     $self->{line_buffer}     = q();
     $self->{buffer_mode}     = 'binary';
-    $self->{timestamps}      = {};
+    $self->{inflight}        = [];
     $self->{msg_unanswered}  = 0;
     $self->{max_unanswered}  = 0;
     $self->{bytes_answered}  = 0;
@@ -122,7 +122,7 @@ sub arguments {
         $self->{stream}         = $stream;
         $self->{line_buffer}    = q();
         $self->{buffer_mode}    = $buffer_mode;
-        $self->{timestamps}     = {};
+        $self->{inflight}       = [];
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered || 0;
         $self->{on_ENOENT}      = $on_enoent if ($on_enoent);
@@ -215,7 +215,7 @@ sub drain_buffer_normal {
 
     if ($max_unanswered) {
         $message->[TYPE] |= TM_PERSIST;
-        $self->{timestamps}->{ $message->[ID] } = $Tachikoma::Now;
+        push @{ $self->{inflight} }, $message->[ID];
         $self->{msg_unanswered}++;
         $self->unregister_reader_node
             if ( $self->{msg_unanswered} >= $max_unanswered );
@@ -253,7 +253,7 @@ sub drain_buffer_blocks {
 
     if ($max_unanswered) {
         $message->[TYPE] |= TM_PERSIST;
-        $self->{timestamps}->{ $message->[ID] } = $Tachikoma::Now;
+        push @{ $self->{inflight} }, $message->[ID];
         $self->{msg_unanswered}++;
         $self->unregister_reader_node
             if ( $self->{msg_unanswered} >= $max_unanswered );
@@ -288,7 +288,7 @@ sub drain_buffer_lines {
 
         if ($max_unanswered) {
             $message->[TYPE] |= TM_PERSIST;
-            $self->{timestamps}->{ $message->[ID] } = $Tachikoma::Now;
+            push @{ $self->{inflight} }, $message->[ID];
             $self->{msg_unanswered}++;
             $self->unregister_reader_node
                 if ( $self->{msg_unanswered} >= $max_unanswered );
@@ -317,21 +317,25 @@ sub fill {
     return $self->print_less_often( 'WARNING: unexpected response from ',
         $message->[FROM] )
         if ( $msg_unanswered < 1 );
-    return $self->print_less_often(
-        'WARNING: unexpected response offset ',
-        "$offset from ",
-        $message->[FROM]
-    ) if ( length $offset and not $self->{timestamps}->{$offset} );
-    delete $self->{timestamps}->{$offset};
+
+    if ( length $offset ) {
+        if ( $self->{inflight}->[0] == $offset ) {
+            shift @{ $self->{inflight} };
+        }
+        elsif ( not $self->cancel_offset($offset) ) {
+            $self->print_less_often(
+                'WARNING: unexpected response offset ',
+                "$offset from ",
+                $message->[FROM]
+            );
+        }
+    }
     $msg_unanswered--;
     $self->register_reader_node
         if ( $msg_unanswered < $self->{max_unanswered} );
 
     if ($msg_unanswered) {
-        my $new_lowest_offset =
-            ( sort { $a <=> $b } keys %{ $self->{timestamps} } )[0];
-        $self->{bytes_answered} = $offset
-            if ( length $offset and $offset < $new_lowest_offset );
+        $self->{bytes_answered} = $self->{inflight}->[0];
         $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' );
     }
     else {
@@ -344,6 +348,21 @@ sub fill {
         and $self->{on_EOF} ne 'ignore'
         and $self->finished );
     return 1;
+}
+
+sub cancel_offset {
+    my $self   = shift;
+    my $offset = shift;
+    my $match  = undef;
+    ## no critic (ProhibitCStyleForLoops)
+    for ( my $i = 0; $i < @{ $self->{inflight} }; $i++ ) {
+        if ( $self->{inflight}->[$i] == $offset ) {
+            $match = $i;
+            last;
+        }
+    }
+    splice @{ $self->{inflight} }, $match, 1 if ( defined $match );
+    return $match;
 }
 
 sub note_fh {
@@ -456,7 +475,7 @@ sub expire {
         $offset = sysseek $fh, 0, SEEK_SET;
     }
     $self->{bytes_read}     = $offset;
-    $self->{timestamps}     = {};
+    $self->{inflight}       = [];
     $self->{msg_unanswered} = 0;
     $self->register_reader_node;
     return;
