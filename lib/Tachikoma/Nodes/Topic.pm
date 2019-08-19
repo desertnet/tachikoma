@@ -204,7 +204,9 @@ sub batch_message {
         if ( $message->[TYPE] & TM_PERSIST );
 
     if ( $self->{batch_size} > $Batch_Threshold ) {
-        $self->set_timer(0);
+        $self->set_timer(0)
+            if ( defined $self->{timer_interval}
+            and $self->{timer_interval} != 0 );
     }
     elsif ( not $self->{timer_interval} ) {
         $self->set_timer(1000);
