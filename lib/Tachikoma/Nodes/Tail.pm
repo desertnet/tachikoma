@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37963 2019-08-19 19:18:05Z chris $
+# $Id: Tail.pm 37970 2019-08-19 21:55:55Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -33,6 +33,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{type}            = 'regular_file';
+    $self->{stream}          = q();
     $self->{drain_fh}        = \&drain_fh;
     $self->{note_fh}         = \&note_fh;
     $self->{drain_buffer}    = \&drain_buffer_normal;
@@ -97,7 +98,7 @@ sub arguments {
                 'timeout=i'        => \$timeout
             );
             die "ERROR: bad arguments for Tail\n" if ( not $r );
-            $filename ||= $argv->[0];
+            $filename       //= $argv->[0];
             $offset         //= $argv->[1];
             $max_unanswered //= $argv->[2];
             $buffer_mode    //= 'line-buffered';
@@ -120,7 +121,7 @@ sub arguments {
         $self->{arguments}      = $arguments;
         $self->{filename}       = $path;
         $self->{size}           = undef;
-        $self->{stream}         = $stream;
+        $self->{stream}         = $stream // q();
         $self->{line_buffer}    = q();
         $self->{buffer_mode}    = $buffer_mode;
         $self->{inflight}       = [];
@@ -183,7 +184,7 @@ sub drain_fh {
     my $read = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
-    &{ $self->{drain_buffer} }( $self, \$buffer, $self->{stream} )
+    &{ $self->{drain_buffer} }( $self, \$buffer )
         if ( $read and $self->{sink} );
     $self->handle_soft_EOF
         if ( defined $read and $read < 1 );    # select()
@@ -203,12 +204,12 @@ sub drain_fh {
 }
 
 sub drain_buffer_normal {
-    my ( $self, $buffer, $stream ) = @_;
+    my ( $self, $buffer ) = @_;
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{owner};
-    $message->[STREAM]  = $stream if ( defined $stream );
+    $message->[STREAM]  = $self->{stream};
     $message->[PAYLOAD] = ${$buffer};
     $self->{bytes_read} += length ${$buffer};
     $message->[ID] = $self->{bytes_read};
@@ -229,7 +230,7 @@ sub drain_buffer_normal {
 }
 
 sub drain_buffer_blocks {
-    my ( $self, $buffer, $stream ) = @_;
+    my ( $self, $buffer ) = @_;
     my $payload = $self->{line_buffer} . ${$buffer};
     my $part    = q();
     if ( substr( $payload, -1, 1 ) ne "\n" ) {
@@ -245,7 +246,7 @@ sub drain_buffer_blocks {
     $message->[TYPE]     = TM_BYTESTREAM;
     $message->[FROM]     = $self->{name};
     $message->[TO]       = $self->{owner};
-    $message->[STREAM]   = $stream if ( defined $stream );
+    $message->[STREAM]   = $self->{stream};
     $message->[PAYLOAD]  = $payload;
     $self->{line_buffer} = $part;
     $self->{bytes_read} += length $payload;
@@ -267,10 +268,11 @@ sub drain_buffer_blocks {
 }
 
 sub drain_buffer_lines {
-    my ( $self, $buffer, $stream ) = @_;
+    my ( $self, $buffer ) = @_;
     my $name           = $self->{name};
     my $sink           = $self->{sink};
     my $owner          = $self->{owner};
+    my $stream         = $self->{stream};
     my $max_unanswered = $self->{max_unanswered};
     for my $line ( split m{^}, ${$buffer} ) {
         if ( substr( $line, -1, 1 ) ne "\n" ) {
@@ -281,7 +283,7 @@ sub drain_buffer_lines {
         $message->[TYPE]     = TM_BYTESTREAM;
         $message->[FROM]     = $name;
         $message->[TO]       = $owner;
-        $message->[STREAM]   = $stream if ( defined $stream );
+        $message->[STREAM]   = $stream;
         $message->[PAYLOAD]  = $self->{line_buffer} . $line;
         $self->{line_buffer} = q();
         $self->{bytes_read} += length $message->[PAYLOAD];
