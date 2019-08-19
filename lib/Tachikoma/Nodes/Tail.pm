@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37961 2019-08-18 21:31:35Z chris $
+# $Id: Tail.pm 37963 2019-08-19 19:18:05Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -27,6 +27,7 @@ use parent qw( Tachikoma::Nodes::FileHandle );
 use version; our $VERSION = qv('v2.0.280');
 
 my $Default_Timeout = 900;
+my $Expire_Interval = 15;    # check message timeouts
 
 sub new {
     my $class = shift;
@@ -215,7 +216,7 @@ sub drain_buffer_normal {
 
     if ($max_unanswered) {
         $message->[TYPE] |= TM_PERSIST;
-        push @{ $self->{inflight} }, $message->[ID];
+        push @{ $self->{inflight} }, [ $message->[ID] => $Tachikoma::Now ];
         $self->{msg_unanswered}++;
         $self->unregister_reader_node
             if ( $self->{msg_unanswered} >= $max_unanswered );
@@ -253,7 +254,7 @@ sub drain_buffer_blocks {
 
     if ($max_unanswered) {
         $message->[TYPE] |= TM_PERSIST;
-        push @{ $self->{inflight} }, $message->[ID];
+        push @{ $self->{inflight} }, [ $message->[ID] => $Tachikoma::Now ];
         $self->{msg_unanswered}++;
         $self->unregister_reader_node
             if ( $self->{msg_unanswered} >= $max_unanswered );
@@ -288,7 +289,8 @@ sub drain_buffer_lines {
 
         if ($max_unanswered) {
             $message->[TYPE] |= TM_PERSIST;
-            push @{ $self->{inflight} }, $message->[ID];
+            push @{ $self->{inflight} },
+                [ $message->[ID] => $Tachikoma::Now ];
             $self->{msg_unanswered}++;
             $self->unregister_reader_node
                 if ( $self->{msg_unanswered} >= $max_unanswered );
@@ -319,7 +321,8 @@ sub fill {
         if ( $msg_unanswered < 1 );
 
     if ( length $offset ) {
-        if ( $self->{inflight}->[0] == $offset ) {
+        my $lowest = $self->{inflight}->[0];
+        if ( $lowest and $lowest->[0] == $offset ) {
             shift @{ $self->{inflight} };
         }
         elsif ( not $self->cancel_offset($offset) ) {
@@ -335,8 +338,9 @@ sub fill {
         if ( $msg_unanswered < $self->{max_unanswered} );
 
     if ($msg_unanswered) {
-        $self->{bytes_answered} = $self->{inflight}->[0];
-        $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' );
+        my $lowest = $self->{inflight}->[0];
+        $self->{bytes_answered} = $lowest->[0] if ($lowest);
+        $self->msg_timer->set_timer( $Expire_Interval * 1000, 'oneshot' );
     }
     else {
         $self->{bytes_answered} = $self->{bytes_read};
@@ -429,10 +433,7 @@ sub check_timers {
     my $self    = shift;
     my $message = shift;
     if ( $message->[STREAM] eq 'msg_timer' ) {
-        die "WARNING: timeout waiting for response\n"
-            if ( $self->{on_timeout} eq 'die' );
-        $self->stderr('WARNING: timeout waiting for response, trying again');
-        $self->expire;
+        $self->expire_messages;
     }
     elsif ( $message->[STREAM] eq 'poll_timer' ) {
         $self->register_reader_node;
@@ -458,6 +459,30 @@ sub check_timers {
         $self->stderr( 'WARNING: unexpected ', $message->type_as_string );
     }
     return;
+}
+
+sub expire_messages {
+    my $self             = shift;
+    my $lowest_offset    = undef;
+    my $lowest_timestamp = undef;
+    my $retry            = undef;
+    if ( @{ $self->{inflight} } ) {
+        $lowest_offset    = $self->{inflight}->[0]->[0];
+        $lowest_timestamp = $self->{inflight}->[0]->[1];
+    }
+    $retry = $lowest_offset
+        if ( defined $lowest_offset
+        and $Tachikoma::Now - $lowest_timestamp > $self->{timeout} );
+    $lowest_offset //= $self->{offset};
+    $self->{lowest_offset} = $lowest_offset if ( defined $lowest_offset );
+    if ( defined $retry ) {
+        die "WARNING: timeout waiting for response\n"
+            if ( $self->{on_timeout} eq 'die' );
+        $self->stderr('WARNING: timeout waiting for response, trying again');
+        $self->expire;
+    }
+    $self->{last_expire} = $Tachikoma::Now;
+    return not $retry;
 }
 
 sub expire {

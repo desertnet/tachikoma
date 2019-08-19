@@ -67,7 +67,7 @@ sub new {
     $self->{expecting}               = undef;
     $self->{lowest_offset}           = 0;
     $self->{saved_offset}            = undef;
-    $self->{timestamps}              = {};
+    $self->{inflight}                = [];
     $self->{last_expire}             = $Tachikoma::Now;
     $self->{msg_unanswered}          = 0;
     $self->{max_unanswered}          = undef;
@@ -150,7 +150,7 @@ sub arguments {
         $self->{expecting}          = undef;
         $self->{lowest_offset}      = 0;
         $self->{saved_offset}       = undef;
-        $self->{timestamps}         = {};
+        $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
         $self->{msg_unanswered}     = 0;
         $self->{max_unanswered}     = $max_unanswered || 1;
@@ -220,12 +220,20 @@ sub handle_response {
     return $self->print_less_often( 'WARNING: unexpected response from ',
         $message->[FROM] )
         if ( $msg_unanswered < 1 );
-    return $self->print_less_often(
-        'WARNING: unexpected response offset ',
-        "$offset from ",
-        $message->[FROM]
-    ) if ( length $offset and not $self->{timestamps}->{$offset} );
-    delete $self->{timestamps}->{$offset};
+
+    if ( length $offset ) {
+        my $lowest = $self->{inflight}->[0];
+        if ( $lowest and $lowest->[0] == $offset ) {
+            shift @{ $self->{inflight} };
+        }
+        elsif ( not defined $self->cancel_offset($offset) ) {
+            $self->print_less_often(
+                'WARNING: unexpected response offset ',
+                "$offset from ",
+                $message->[FROM]
+            );
+        }
+    }
     $msg_unanswered--;
     $self->{last_receive} = $Tachikoma::Now;
     $self->set_timer(0)
@@ -233,6 +241,21 @@ sub handle_response {
         and $msg_unanswered < $self->{max_unanswered} );
     $self->{msg_unanswered} = $msg_unanswered;
     return;
+}
+
+sub cancel_offset {
+    my $self   = shift;
+    my $offset = shift;
+    my $match  = undef;
+    ## no critic (ProhibitCStyleForLoops)
+    for ( my $i = 0; $i < @{ $self->{inflight} }; $i++ ) {
+        if ( $self->{inflight}->[$i]->[0] == $offset ) {
+            $match = $i;
+            last;
+        }
+    }
+    splice @{ $self->{inflight} }, $match, 1 if ( defined $match );
+    return $match;
 }
 
 sub handle_error {
@@ -283,7 +306,7 @@ sub fire {
     if (    $self->{status} eq 'ACTIVE'
         and $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval )
     {
-        $self->expire_timestamps or return;
+        $self->expire_messages or return;
     }
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
@@ -349,7 +372,8 @@ sub drain_buffer {
             else {
                 $message->[TYPE] |= TM_PERSIST;
                 $message->[TO] = $self->{owner};
-                $self->{timestamps}->{$offset} = $Tachikoma::Now;
+                push @{ $self->{inflight} },
+                    [ $message->[ID] => $Tachikoma::Now ];
                 $self->{msg_unanswered}++;
                 $self->{sink}->fill($message);
                 $got = 0
@@ -409,16 +433,20 @@ sub get_batch_async {
     return;
 }
 
-sub expire_timestamps {
-    my $self       = shift;
-    my $timestamps = $self->{timestamps};
-    my $lowest     = ( sort { $a <=> $b } keys %{$timestamps} )[0];
-    my $retry      = undef;
-    $retry = $lowest
-        if ( defined $lowest
-        and $Tachikoma::Now - $timestamps->{$lowest} > $self->{timeout} );
-    $lowest //= $self->{offset};
-    $self->{lowest_offset} = $lowest if ( defined $lowest );
+sub expire_messages {
+    my $self             = shift;
+    my $lowest_offset    = undef;
+    my $lowest_timestamp = undef;
+    my $retry            = undef;
+    if ( @{ $self->{inflight} } ) {
+        $lowest_offset    = $self->{inflight}->[0]->[0];
+        $lowest_timestamp = $self->{inflight}->[0]->[1];
+    }
+    $retry = $lowest_offset
+        if ( defined $lowest_offset
+        and $Tachikoma::Now - $lowest_timestamp > $self->{timeout} );
+    $lowest_offset //= $self->{offset};
+    $self->{lowest_offset} = $lowest_offset if ( defined $lowest_offset );
     if ( defined $retry ) {
         $self->stderr('WARNING: timeout waiting for response, trying again');
         if ( defined $self->partition_id ) {
@@ -426,7 +454,7 @@ sub expire_timestamps {
         }
         else {
             $self->arguments( $self->arguments );
-            $self->next_offset($lowest);
+            $self->next_offset($lowest_offset) if ( not $self->{offsetlog} );
         }
     }
     elsif ( $self->{auto_commit}
@@ -1015,12 +1043,12 @@ sub saved_offset {
     return $self->{saved_offset};
 }
 
-sub timestamps {
+sub inflight {
     my $self = shift;
     if (@_) {
-        $self->{timestamps} = shift;
+        $self->{inflight} = shift;
     }
-    return $self->{timestamps};
+    return $self->{inflight};
 }
 
 sub last_expire {
