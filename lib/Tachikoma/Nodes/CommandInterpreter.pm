@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37937 2019-08-16 01:03:10Z chris $
+# $Id: CommandInterpreter.pm 37970 2019-08-19 21:55:55Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1405,12 +1405,16 @@ $C{slurp_file} = sub {
         require Tachikoma::Nodes::Tail;
         $node = Tachikoma::Nodes::Tail->new;
         $node->name($name);
-        $node->arguments( join q( ), $path, 0,
-            length $sink_name ? 0
-            : (         $buffer_mode
-                    and $buffer_mode eq 'line-buffered' ) ? 64
-            : 8 );
-        $node->buffer_mode($buffer_mode);
+        $node->arguments(
+            {   filename       => $path,
+                offset         => 0,
+                buffer_mode    => $buffer_mode,
+                max_unanswered => length $sink_name ? 0
+                : (         $buffer_mode
+                        and $buffer_mode eq 'line-buffered' ) ? 64
+                : 8,
+            }
+        );
         $node->owner($owner) if ( length $owner );
         $node->sink($sink);
         $node->on_EOF( length $sink_name ? 'close' : 'wait_to_close' );
