@@ -22,10 +22,10 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval    = 15;       # delay between polls
-my $Response_Timeout = 300;      # timeout before deleting async responses
-my $Hub_Timeout      = 60;       # timeout waiting for hub
-my $Batch_Threshold  = 64000;    # low water mark before sending batches
+my $Poll_Interval    = 15;      # delay between polls
+my $Response_Timeout = 300;     # timeout before deleting async responses
+my $Hub_Timeout      = 60;      # timeout waiting for hub
+my $Batch_Threshold  = 8192;    # low water mark before sending batches
 my $Offset = LAST_MSG_FIELD + 1;
 
 sub new {
@@ -194,23 +194,20 @@ sub batch_message {
         $self->{next_partition} = ( $i + 1 ) % @{$partitions};
     }
     my $broker_id = $partitions->[$i];
+    my $packed    = $message->packed;
     $self->{batch}->{$i} //= [];
-    push @{ $self->{batch}->{$i} }, ${ $message->packed };
+    push @{ $self->{batch}->{$i} }, ${$packed};
+    $self->{batch_size} += length ${$packed};
     $message->[$Offset] = $self->{counter}++;
     $message->[PAYLOAD] = q();
     push @{ $self->{responses}->{$broker_id} }, $message
         if ( $message->[TYPE] & TM_PERSIST );
-    $self->{batch_size} += length $message->[PAYLOAD];
 
-    if ( not defined $self->{timer_interval} ) {
-        if (   $self->{batch_size} > $Batch_Threshold
-            || $Tachikoma::Now - $message->[TIMESTAMP] > 1 )
-        {
-            $self->set_timer(0);
-        }
-        else {
-            $self->set_timer(1000);
-        }
+    if ( $self->{batch_size} > $Batch_Threshold ) {
+        $self->set_timer(0);
+    }
+    elsif ( not $self->{timer_interval} ) {
+        $self->set_timer(1000);
     }
     return;
 }
