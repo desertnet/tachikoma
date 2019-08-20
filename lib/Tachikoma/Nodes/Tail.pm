@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37970 2019-08-19 21:55:55Z chris $
+# $Id: Tail.pm 37974 2019-08-20 02:08:10Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -362,7 +362,7 @@ sub cancel_offset {
     my $match  = undef;
     ## no critic (ProhibitCStyleForLoops)
     for ( my $i = 0; $i < @{ $self->{inflight} }; $i++ ) {
-        if ( $self->{inflight}->[$i] == $offset ) {
+        if ( $self->{inflight}->[$i]->[0] == $offset ) {
             $match = $i;
             last;
         }
