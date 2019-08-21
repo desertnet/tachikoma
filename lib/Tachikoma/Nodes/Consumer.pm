@@ -17,7 +17,6 @@ use Tachikoma::Message qw(
 );
 use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
-use Storable qw( nstore retrieve );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -56,7 +55,6 @@ sub new {
     $self->{last_receive}   = Time::HiRes::time;
     $self->{cache}          = undef;
     $self->{cache_type}     = undef;
-    $self->{cache_dir}      = undef;
     $self->{cache_size}     = undef;
     $self->{auto_commit}    = $self->{offsetlog} ? $Commit_Interval : undef;
     $self->{last_commit}    = 0;
@@ -95,7 +93,6 @@ make_node Consumer <node name> --partition=<path>            \
                                --timeout=<seconds>           \
                                --poll_interval=<seconds>     \
                                --cache_type=<string>         \
-                               --cache_dir=<path>            \
                                --auto_commit=<seconds>       \
                                --hub_timeout=<seconds>       \
                                --default_offset=<int|string>
@@ -108,10 +105,9 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition, $offsetlog,     $max_unanswered,
-            $timeout,   $poll_interval, $cache_type,
-            $cache_dir, $auto_commit,   $hub_timeout,
-            $default_offset
+        my ($partition,   $offsetlog,     $max_unanswered,
+            $timeout,     $poll_interval, $cache_type,
+            $auto_commit, $hub_timeout,   $default_offset
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -120,7 +116,6 @@ sub arguments {
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
             'cache_type=s'     => \$cache_type,
-            'cache_dir=s'      => \$cache_dir,
             'poll_interval=i'  => \$poll_interval,
             'auto_commit=i'    => \$auto_commit,
             'hub_timeout=i'    => \$hub_timeout,
@@ -130,21 +125,20 @@ sub arguments {
         die "ERROR: bad arguments for Consumer\n"
             if ( not $r or not $partition );
         my $new_buffer = q();
-        $self->{arguments}      = $arguments;
-        $self->{partition}      = $partition;
-        $self->{offsetlog}      = $offsetlog;
-        $self->{offset}         = undef;
-        $self->{next_offset}    = undef;
-        $self->{default_offset} = $default_offset // 'end';
-        $self->{buffer}         = \$new_buffer;
-        $self->{poll_interval}  = $poll_interval || $Poll_Interval;
-        $self->{last_receive}   = $Tachikoma::Now;
-        $self->{cache_type}     = $cache_type // $Cache_Type;
-        $self->{cache_dir}      = $cache_dir;
-        $self->{cache_size}     = undef;
-        $self->{auto_commit}    = $auto_commit // $Commit_Interval;
-        $self->{auto_commit} = undef if ( not $offsetlog and not $cache_dir );
-        $self->{last_commit} = 0;
+        $self->{arguments}          = $arguments;
+        $self->{partition}          = $partition;
+        $self->{offsetlog}          = $offsetlog;
+        $self->{offset}             = undef;
+        $self->{next_offset}        = undef;
+        $self->{default_offset}     = $default_offset // 'end';
+        $self->{buffer}             = \$new_buffer;
+        $self->{poll_interval}      = $poll_interval || $Poll_Interval;
+        $self->{last_receive}       = $Tachikoma::Now;
+        $self->{cache_type}         = $cache_type // $Cache_Type;
+        $self->{cache_size}         = undef;
+        $self->{auto_commit}        = $auto_commit // $Commit_Interval;
+        $self->{auto_commit}        = undef if ( not $offsetlog );
+        $self->{last_commit}        = 0;
         $self->{last_commit_offset} = -1;
         $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{expecting}          = undef;
@@ -176,7 +170,10 @@ sub fill {
                 if ( not $message->[TYPE] & TM_EOF );
             return;
         }
-        $self->{offset} //= $offset;
+        if ( not defined $self->{offset} ) {
+            $self->{offset}        = $offset;
+            $self->{lowest_offset} = $offset;
+        }
         if (    $self->{next_offset} > 0
             and $offset != $self->{next_offset} )
         {
@@ -239,6 +236,8 @@ sub handle_response {
     $self->set_timer(0)
         if ($self->{timer_interval}
         and $msg_unanswered < $self->{max_unanswered} );
+    my $lowest = $self->{inflight}->[0];
+    $self->{lowest_offset} = $lowest ? $lowest->[0] : $self->{offset};
     $self->{msg_unanswered} = $msg_unanswered;
     return;
 }
@@ -399,13 +398,6 @@ sub get_batch_async {
     my $offset = $self->{next_offset};
     return if ( not $self->{sink} );
     if ( not defined $offset ) {
-        if ( $self->cache_dir ) {
-            my $file = join q(), $self->{cache_dir}, q(/), $self->{name},
-                q(.db);
-            $self->load_cache( retrieve($file) ) if ( -f $file );
-            $self->load_cache_complete;
-            $offset = $self->{saved_offset};
-        }
         if ( $self->status eq 'INIT' ) {
             $offset //= -2;
         }
@@ -434,28 +426,23 @@ sub get_batch_async {
 }
 
 sub expire_messages {
-    my $self             = shift;
-    my $lowest_offset    = undef;
-    my $lowest_timestamp = undef;
-    my $retry            = undef;
-    if ( @{ $self->{inflight} } ) {
-        $lowest_offset    = $self->{inflight}->[0]->[0];
-        $lowest_timestamp = $self->{inflight}->[0]->[1];
-    }
-    $retry = $lowest_offset
-        if ( defined $lowest_offset
-        and $Tachikoma::Now - $lowest_timestamp > $self->{timeout} );
-    $lowest_offset //= $self->{offset};
-    $self->{lowest_offset} = $lowest_offset if ( defined $lowest_offset );
-    if ( defined $retry ) {
+    my $self = shift;
+    my $timestamp =
+        @{ $self->{inflight} } ? $self->{inflight}->[0]->[1] : undef;
+    my $retry = undef;
+    if ( defined $timestamp
+        and $Tachikoma::Now - $timestamp > $self->{timeout} )
+    {
         $self->stderr('WARNING: timeout waiting for response, trying again');
         if ( defined $self->partition_id ) {
             $self->remove_node;
         }
         else {
+            my $lowest_offset = $self->{lowest_offset};
             $self->arguments( $self->arguments );
             $self->next_offset($lowest_offset) if ( not $self->{offsetlog} );
         }
+        $retry = 1;
     }
     elsif ( $self->{auto_commit}
         and $self->{last_commit}
@@ -486,24 +473,13 @@ sub commit_offset_async {
             and $self->{edge}
             and $self->{edge}->can('on_save_snapshot') );
     }
-    if ( $self->{cache_dir} ) {
-        my $file = join q(), $self->{cache_dir}, q(/), $self->{name}, q(.db);
-        my $tmp = join q(), $file, '.tmp';
-        $self->make_parent_dirs($tmp);
-        nstore( $stored, $tmp );
-        rename $tmp, $file
-            or $self->stderr("ERROR: couldn't rename cache file $tmp: $!");
-        $self->{cache_size} = ( stat $file )[7];
-    }
-    else {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_STORABLE;
-        $message->[FROM]    = $self->{name};
-        $message->[TO]      = $self->{offsetlog};
-        $message->[PAYLOAD] = $stored;
-        $self->{sink}->fill($message);
-        $self->{cache_size} = $message->size;
-    }
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_STORABLE;
+    $message->[FROM]    = $self->{name};
+    $message->[TO]      = $self->{offsetlog};
+    $message->[PAYLOAD] = $stored;
+    $self->{sink}->fill($message);
+    $self->{cache_size}         = $message->size;
     $self->{last_commit}        = $Tachikoma::Now;
     $self->{last_commit_offset} = $self->{lowest_offset};
     return;
@@ -668,15 +644,7 @@ sub get_offset {
     my $self   = shift;
     my $stored = undef;
     $self->cache(undef);
-    if ( $self->cache_dir ) {
-        die "ERROR: no group specified\n" if ( not $self->group );
-        my $name = join q(:), $self->partition, $self->group;
-        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
-        $stored = retrieve($file);
-        $self->offset( $stored->{offset} );
-        $self->cache( $stored->{cache} );
-    }
-    elsif ( $self->offsetlog ) {
+    if ( $self->offsetlog ) {
         my $consumer = Tachikoma::Nodes::Consumer->new( $self->offsetlog );
         $consumer->next_offset(-2);
         $consumer->broker_id( $self->broker_id );
@@ -789,47 +757,31 @@ sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
     my $rv = undef;
-    if ( $self->cache_dir ) {
-        die "ERROR: no group specified\n" if ( not $self->group );
-        my $name = join q(:), $self->partition, $self->group;
-        my $file = join q(), $self->cache_dir, q(/), $name, q(.db);
-        my $tmp = join q(), $file, '.tmp';
-        $self->make_parent_dirs($tmp);
-        nstore(
-            {   offset => $self->offset,
-                cache  => $self->cache
-            },
-            $tmp
-        );
-        rename $tmp, $file
-            or die "ERROR: couldn't rename cache file $tmp: $!\n";
-        $rv = 1;
-    }
-    else {
-        my $target = $self->target or return;
-        die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_STORABLE;
-        $message->[TO]   = $self->offsetlog;
-        $message->payload(
-            {   offset => $self->offset,
-                cache  => $self->cache
-            }
-        );
-        $rv = eval {
-            $target->fill($message);
-            return 1;
-        };
-        if ( not $rv ) {
-            if ( not $target->fh ) {
-                $self->sync_error("COMMIT_OFFSET: lost connection\n");
-            }
-            elsif ( not defined $self->sync_error ) {
-                $self->sync_error("COMMIT_OFFSET: send_messages failed\n");
-            }
-            $self->retry_offset;
-            $rv = undef;
+    my $target = $self->target or return;
+    die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE] = TM_STORABLE;
+    $message->[TO]   = $self->offsetlog;
+    $message->payload(
+        {   timestamp  => time,
+            offset     => $self->offset,
+            cache_type => 'snapshot',
+            cache      => $self->cache,
         }
+    );
+    $rv = eval {
+        $target->fill($message);
+        return 1;
+    };
+    if ( not $rv ) {
+        if ( not $target->fh ) {
+            $self->sync_error("COMMIT_OFFSET: lost connection\n");
+        }
+        elsif ( not defined $self->sync_error ) {
+            $self->sync_error("COMMIT_OFFSET: send_messages failed\n");
+        }
+        $self->retry_offset;
+        $rv = undef;
     }
     $self->last_commit( $self->last_receive );
     return $rv;
@@ -967,15 +919,6 @@ sub cache_type {
         $self->{cache_type} = shift;
     }
     return $self->{cache_type};
-}
-
-sub cache_dir {
-    my $self = shift;
-    if (@_) {
-        $self->{cache_dir}   = shift;
-        $self->{last_commit} = 0;
-    }
-    return $self->{cache_dir};
 }
 
 sub cache_size {

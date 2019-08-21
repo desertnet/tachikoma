@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37974 2019-08-20 02:08:10Z chris $
+# $Id: Tail.pm 37987 2019-08-20 18:56:45Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -338,16 +338,16 @@ sub fill {
     $msg_unanswered--;
     $self->register_reader_node
         if ( $msg_unanswered < $self->{max_unanswered} );
-
     if ($msg_unanswered) {
-        my $lowest = $self->{inflight}->[0];
-        $self->{bytes_answered} = $lowest->[0] if ($lowest);
-        $self->msg_timer->set_timer( $Expire_Interval * 1000, 'oneshot' );
+        $self->{msg_timer}->set_timer( $Expire_Interval * 1000, 'oneshot' )
+            if ( not $self->msg_timer->{timer_is_active} );
     }
     else {
-        $self->{bytes_answered} = $self->{bytes_read};
-        $self->msg_timer->stop_timer;
+        $self->{msg_timer}->stop_timer
+            if ( $self->msg_timer->{timer_is_active} );
     }
+    my $lowest = $self->{inflight}->[0];
+    $self->{bytes_answered} = $lowest ? $lowest->[0] : $self->{bytes_read};
     $self->{msg_unanswered} = $msg_unanswered;
     $self->handle_EOF
         if ($self->{on_EOF} ne 'reopen'
@@ -464,47 +464,34 @@ sub check_timers {
 }
 
 sub expire_messages {
-    my $self             = shift;
-    my $lowest_offset    = undef;
-    my $lowest_timestamp = undef;
-    my $retry            = undef;
-    if ( @{ $self->{inflight} } ) {
-        $lowest_offset    = $self->{inflight}->[0]->[0];
-        $lowest_timestamp = $self->{inflight}->[0]->[1];
-    }
-    $retry = $lowest_offset
-        if ( defined $lowest_offset
-        and $Tachikoma::Now - $lowest_timestamp > $self->{timeout} );
-    $lowest_offset //= $self->{offset};
-    $self->{lowest_offset} = $lowest_offset if ( defined $lowest_offset );
-    if ( defined $retry ) {
+    my $self = shift;
+    my $timestamp =
+        @{ $self->{inflight} } ? $self->{inflight}->[0]->[1] : undef;
+    if ( defined $timestamp
+        and $Tachikoma::Now - $timestamp > $self->{timeout} )
+    {
         die "WARNING: timeout waiting for response\n"
             if ( $self->{on_timeout} eq 'die' );
         $self->stderr('WARNING: timeout waiting for response, trying again');
-        $self->expire;
+        my $fh     = $self->{fh};
+        my $offset = $self->{bytes_answered};
+        my $size   = ( stat $fh )[7];
+        if ( not defined $offset or $offset < 0 ) {
+            $offset = sysseek $fh, 0, SEEK_END;
+        }
+        elsif ( $offset > 0 and $offset <= $size ) {
+            $offset = sysseek $fh, $offset, SEEK_SET;
+        }
+        else {
+            $offset = sysseek $fh, 0, SEEK_SET;
+        }
+        $self->{bytes_read}     = $offset;
+        $self->{bytes_answered} = $offset;
+        $self->{inflight}       = [];
+        $self->{msg_unanswered} = 0;
+        $self->register_reader_node;
     }
     $self->{last_expire} = $Tachikoma::Now;
-    return not $retry;
-}
-
-sub expire {
-    my ( $self, @args ) = @_;
-    my $fh     = $self->{fh};
-    my $offset = $self->{bytes_answered};
-    my $size   = ( stat $fh )[7];
-    if ( not defined $offset or $offset < 0 ) {
-        $offset = sysseek $fh, 0, SEEK_END;
-    }
-    elsif ( $offset > 0 and $offset <= $size ) {
-        $offset = sysseek $fh, $offset, SEEK_SET;
-    }
-    else {
-        $offset = sysseek $fh, 0, SEEK_SET;
-    }
-    $self->{bytes_read}     = $offset;
-    $self->{inflight}       = [];
-    $self->{msg_unanswered} = 0;
-    $self->register_reader_node;
     return;
 }
 
