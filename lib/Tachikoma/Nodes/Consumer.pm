@@ -63,7 +63,6 @@ sub new {
 
     # async support
     $self->{expecting}               = undef;
-    $self->{lowest_offset}           = 0;
     $self->{saved_offset}            = undef;
     $self->{inflight}                = [];
     $self->{last_expire}             = $Tachikoma::Now;
@@ -142,7 +141,6 @@ sub arguments {
         $self->{last_commit_offset} = -1;
         $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{expecting}          = undef;
-        $self->{lowest_offset}      = 0;
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
@@ -171,8 +169,7 @@ sub fill {
             return;
         }
         if ( not defined $self->{offset} ) {
-            $self->{offset}        = $offset;
-            $self->{lowest_offset} = $offset;
+            $self->{offset} = $offset;
         }
         if (    $self->{next_offset} > 0
             and $offset != $self->{next_offset} )
@@ -236,8 +233,6 @@ sub handle_response {
     $self->set_timer(0)
         if ($self->{timer_interval}
         and $msg_unanswered < $self->{max_unanswered} );
-    my $lowest = $self->{inflight}->[0];
-    $self->{lowest_offset} = $lowest ? $lowest->[0] : $self->{offset};
     $self->{msg_unanswered} = $msg_unanswered;
     return;
 }
@@ -426,10 +421,11 @@ sub get_batch_async {
 }
 
 sub expire_messages {
-    my $self = shift;
-    my $timestamp =
-        @{ $self->{inflight} } ? $self->{inflight}->[0]->[1] : undef;
-    my $retry = undef;
+    my $self      = shift;
+    my $lowest    = $self->{inflight}->[0];
+    my $timestamp = $lowest ? $lowest->[1] : undef;
+    my $offset    = $lowest ? $lowest->[0] : $self->{offset};
+    my $retry     = undef;
     if ( defined $timestamp
         and $Tachikoma::Now - $timestamp > $self->{timeout} )
     {
@@ -438,16 +434,15 @@ sub expire_messages {
             $self->remove_node;
         }
         else {
-            my $lowest_offset = $self->{lowest_offset};
             $self->arguments( $self->arguments );
-            $self->next_offset($lowest_offset) if ( not $self->{offsetlog} );
+            $self->next_offset($offset) if ( not $self->{offsetlog} );
         }
         $retry = 1;
     }
     elsif ( $self->{auto_commit}
         and $self->{last_commit}
         and $Tachikoma::Now - $self->{last_commit} >= $self->{auto_commit}
-        and $self->{lowest_offset} != $self->{last_commit_offset} )
+        and $offset != $self->{last_commit_offset} )
     {
         $self->commit_offset_async;
     }
@@ -459,9 +454,11 @@ sub commit_offset_async {
     my $self      = shift;
     my $timestamp = shift;
     my $cache     = shift;
+    my $lowest    = $self->{inflight}->[0];
+    my $offset    = $lowest ? $lowest->[0] : $self->{offset};
     my $stored    = {
         timestamp => $timestamp // $Tachikoma::Now,
-        offset => $self->{lowest_offset},
+        offset => $offset,
         cache_type => $self->{cache_type},
         cache      => $cache,
     };
@@ -481,7 +478,7 @@ sub commit_offset_async {
     $self->{sink}->fill($message);
     $self->{cache_size}         = $message->size;
     $self->{last_commit}        = $Tachikoma::Now;
-    $self->{last_commit_offset} = $self->{lowest_offset};
+    $self->{last_commit_offset} = $offset;
     return;
 }
 
@@ -531,7 +528,7 @@ sub load_cache_complete {
         }
     }
     if ( defined $self->{saved_offset} ) {
-        $self->{lowest_offset} = $self->{saved_offset};
+        $self->{last_commit_offset} = $self->{saved_offset};
     }
     else {
         $self->stderr(
@@ -540,8 +537,7 @@ sub load_cache_complete {
             ' offset'
         );
     }
-    $self->{last_commit}        = $Tachikoma::Now;
-    $self->{last_commit_offset} = $self->{lowest_offset};
+    $self->{last_commit} = $Tachikoma::Now;
     return;
 }
 
@@ -968,14 +964,6 @@ sub expecting {
         $self->{expecting} = shift;
     }
     return $self->{expecting};
-}
-
-sub lowest_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{lowest_offset} = shift;
-    }
-    return $self->{lowest_offset};
 }
 
 sub saved_offset {
