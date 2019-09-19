@@ -62,15 +62,16 @@ sub new {
     $self->{hub_timeout}        = $Hub_Timeout;
 
     # async support
-    $self->{expecting}              = undef;
-    $self->{saved_offset}           = undef;
-    $self->{inflight}               = [];
-    $self->{last_expire}            = $Tachikoma::Now;
-    $self->{msg_unanswered}         = 0;
-    $self->{max_unanswered}         = undef;
-    $self->{timeout}                = $Timeout;
-    $self->{status}                 = undef;
-    $self->{registrations}->{READY} = {};
+    $self->{expecting}               = undef;
+    $self->{saved_offset}            = undef;
+    $self->{inflight}                = [];
+    $self->{last_expire}             = $Tachikoma::Now;
+    $self->{msg_unanswered}          = 0;
+    $self->{max_unanswered}          = undef;
+    $self->{timeout}                 = $Timeout;
+    $self->{status}                  = undef;
+    $self->{registrations}->{ACTIVE} = {};
+    $self->{registrations}->{READY}  = {};
 
     # sync support
     $self->{host}       = 'localhost';
@@ -147,6 +148,8 @@ sub arguments {
         $self->{max_unanswered}     = $max_unanswered || 1;
         $self->{timeout}            = $timeout || $Timeout;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
+        $self->set_state( 'ACTIVE' => $self->{partition} )
+            if ( not $offsetlog );
     }
     return $self->{arguments};
 }
@@ -268,6 +271,8 @@ sub handle_EOF {
         $self->load_cache_complete;
         $self->next_offset( $self->{saved_offset} );
         $self->set_timer(0) if ( $self->{timer_interval} );
+        $self->set_state( 'ACTIVE' => $self->{partition_id} )
+            if ( not $self->{set_state}->{ACTIVE} );
     }
     else {
         $self->{next_offset} = $offset;
