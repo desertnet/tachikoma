@@ -462,7 +462,8 @@ sub process_get {
 
 sub process_ack {
     my ( $self, $offset, $broker_id ) = @_;
-    return if ( not $broker_id );
+    return $self->stderr("ERROR: broker id missing from ACK")
+        if ( not $broker_id );
     my $isr = $self->{replica_offsets};
     my $lco = $offset;
     $isr->{$broker_id} = $offset;
