@@ -3,7 +3,7 @@ var name = engines;
 include services/daemonize.tsl
 
 make_node Tee engines
-for i (1 .. 2) {
+for i (1 .. <tachikoma.engines.count>) {
     local my_port = <root_port> + <i>;
     command jobs start_job CommandInterpreter engine<i>;
     cd engine<i>;
