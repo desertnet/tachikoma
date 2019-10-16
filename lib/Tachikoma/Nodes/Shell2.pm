@@ -568,12 +568,17 @@ $EVALUATORS{'and'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
     my $rv       = [];
-    for my $branch ( @{ $raw_tree->{value} } ) {
-        next if ( ref $branch and $branch->{type} eq 'whitespace' );
-        $rv = $self->evaluate($branch);
-        my $test = join q(), @{$rv};
-        $test =~ s{\s+}{}g;
-        last if ( not $test );
+    if ( @{ $raw_tree->{value} } > 1 ) {
+        for my $branch ( @{ $raw_tree->{value} } ) {
+            $rv = $self->evaluate(
+                  $branch->{type} eq 'open_paren'
+                ? $branch
+                : $self->fake_tree( 'open_paren', $branch->{value} )
+            );
+            my $test = join q(), @{$rv};
+            $test =~ s{\s+}{}g;
+            last if ( not $test );
+        }
     }
     return $rv;
 };
@@ -583,8 +588,11 @@ $EVALUATORS{'or'} = sub {
     my $raw_tree = shift;
     my $rv       = [];
     for my $branch ( @{ $raw_tree->{value} } ) {
-        next if ( ref $branch and $branch->{type} eq 'whitespace' );
-        $rv = $self->evaluate($branch);
+        $rv = $self->evaluate(
+              $branch->{type} eq 'open_paren'
+            ? $branch
+            : $self->fake_tree( 'open_paren', $branch->{value} )
+        );
         my $test = join q(), @{$rv};
         $test =~ s{\s+}{}g;
         last if ($test);

@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 80;
+use Test::More tests => 83;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -295,6 +295,49 @@ $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n",
     'if statements evaluate math and logical operators correctly' );
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    if ( "foo" eq "bar" || 1 ) { one };
+    if ( "foo" eq "bar" || 0 ) { two };
+    if ( "foo" eq "bar" && 1 ) { three };
+    if ( "foo" eq "bar" && 0 ) { four };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[one][]\n",
+    'logical operators are evaluated correctly' );
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    if ( 1 || ) { one };
+    if ( 0 || ) { two };
+    if ( 1 && ) { three };
+    if ( 0 && ) { four };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[one][]\n",
+    'logical operators do what you expect when missing values' );
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    if (("foo" eq "bar") || 1) { date };
+    if (("foo" eq "bar") || 0) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly' );
 
 #####################################################################
 
