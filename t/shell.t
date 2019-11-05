@@ -775,7 +775,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer,
-    "{foo bar\n}\n",
+    "{foo bar\n\n}\n",
     'logical expressions expand without additional whitespace'
 );
 
