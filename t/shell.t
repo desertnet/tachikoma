@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 83;
+use Test::More tests => 84;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -765,6 +765,18 @@ $shell->send_command($parse_tree);
 is( $answer,
     "[foo1bar][]\n[foo2bar][]\n[foo3bar][]\n[foo4bar][]\n",
     'variables expand without additional whitespace'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+    echo ( 0 || foo "bar\n" )
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer,
+    "{foo bar\n}\n",
+    'logical expressions expand without additional whitespace'
 );
 
 #####################################################################
