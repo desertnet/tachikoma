@@ -48,12 +48,13 @@ sub new {
     $self->{last_check}     = 0;
 
     # async support
-    $self->{partition_id}           = undef;
-    $self->{broker_path}            = undef;
-    $self->{leader_path}            = undef;
-    $self->{max_unanswered}         = undef;
-    $self->{timeout}                = undef;
-    $self->{registrations}->{READY} = {};
+    $self->{partition_id}            = undef;
+    $self->{broker_path}             = undef;
+    $self->{leader_path}             = undef;
+    $self->{max_unanswered}          = undef;
+    $self->{timeout}                 = undef;
+    $self->{registrations}->{ACTIVE} = {};
+    $self->{registrations}->{READY}  = {};
 
     # sync support
     $self->{broker}      = undef;
