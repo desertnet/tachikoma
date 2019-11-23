@@ -25,7 +25,7 @@ my $consumer = Tachikoma::Nodes::ConsumerBroker->new($topic);
 my $table    = Tachikoma::Nodes::Table->new;
 $table->host('localhost');
 $table->port(5100);
-$table->field($field);
+$table->field("$topic.$field:table");
 my $json = JSON->new;
 $json->canonical(1);
 $json->pretty(1);
