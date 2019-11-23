@@ -236,6 +236,7 @@ sub rescan_files {
     for my $file ( keys %{$tiedhash} ) {
         delete $tiedhash->{$file} if ( not $files->{$file} );
     }
+    tied( %{$tiedhash} )->db_sync;
     $self->timer->set_timer( $Scan_Interval * 1000 );
     return;
 }
