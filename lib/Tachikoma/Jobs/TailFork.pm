@@ -41,18 +41,18 @@ sub initialize_graph {
     $self->use_SSL($use_SSL);
     $self->destination;
     $self->last_offset(-1);
-    $self->offset(0);
     $self->connector->sink($self);
-    $self->tail($tail);
     $tail->name('Tail');
     $tail->on_EOF('ignore');
     $tail->on_ENOENT('die');
     $tail->on_timeout('die');
     $tail->arguments($tail_settings);
     $tail->buffer_mode('line-buffered');
-    $tail->max_unanswered(256);
+    $tail->max_unanswered(64);
     $tail->timeout($Default_Timeout);
     $tail->sink($self);
+    $self->offset( $tail->bytes_answered );
+    $self->tail($tail);
     $timer->name('Timer');
     $timer->set_timer( $Update_Interval * 1000 );
     $timer->sink($self);
@@ -82,8 +82,13 @@ sub fill {
         $self->shutdown_all_nodes if ( $message->[TYPE] & TM_EOF );
     }
     elsif ( $message->[TYPE] & TM_RESPONSE ) {
-        $self->{offset} = $message->[ID];
-        $self->{tail}->fill($message);
+        if ( $message->payload eq 'answer' ) {
+            $self->shutdown_all_nodes;
+        }
+        else {
+            $self->{tail}->fill($message);
+            $self->{offset} = $self->{tail}->{bytes_answered};
+        }
     }
     elsif ( $message->[FROM] eq 'Timer' ) {
         $self->send_offset if ( $self->{offset} != $self->{last_offset} );
@@ -103,7 +108,7 @@ sub fill {
         $self->{tail}->on_EOF('wait_to_close');
         $self->{timer}->remove_node;
     }
-    elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\n$} ) {
+    elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\s*\n$} ) {
         my $name     = $1;
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_BYTESTREAM;

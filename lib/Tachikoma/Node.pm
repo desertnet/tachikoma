@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 37781 2019-07-23 03:37:38Z chris $
+# $Id: Node.pm 38176 2019-11-23 19:13:12Z chris $
 #
 
 package Tachikoma::Node;
@@ -549,9 +549,9 @@ Override this method to provide any additional commands needed to recreate it wi
 
 =head1 UTILITY METHODS
 
-register( $event, $path, $is_function )
+register( $event, $name, $is_function )
 
-unregister( $event, $path )
+unregister( $event, $name )
 
 connect_node( $name, $owner )
 

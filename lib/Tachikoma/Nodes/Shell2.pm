@@ -568,12 +568,19 @@ $EVALUATORS{'and'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
     my $rv       = [];
-    for my $branch ( @{ $raw_tree->{value} } ) {
-        next if ( ref $branch and $branch->{type} eq 'whitespace' );
-        $rv = $self->evaluate($branch);
-        my $test = join q(), @{$rv};
-        $test =~ s{\s+}{}g;
-        last if ( not $test );
+    if ( @{ $raw_tree->{value} } > 1 ) {
+        for my $branch ( @{ $raw_tree->{value} } ) {
+            $rv = $self->evaluate(
+                  $OPEN{ $branch->{type} }
+                ? $branch
+                : $self->fake_tree( 'open_paren', $branch->{value} )
+            );
+            shift @{$rv} while ( @{$rv} and $rv->[0] !~ m{\S} );
+            pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
+            my $test = join q(), @{$rv};
+            $test =~ s{\s+}{}g;
+            last if ( not $test );
+        }
     }
     return $rv;
 };
@@ -583,8 +590,13 @@ $EVALUATORS{'or'} = sub {
     my $raw_tree = shift;
     my $rv       = [];
     for my $branch ( @{ $raw_tree->{value} } ) {
-        next if ( ref $branch and $branch->{type} eq 'whitespace' );
-        $rv = $self->evaluate($branch);
+        $rv = $self->evaluate(
+              $OPEN{ $branch->{type} }
+            ? $branch
+            : $self->fake_tree( 'open_paren', $branch->{value} )
+        );
+        shift @{$rv} while ( @{$rv} and $rv->[0] !~ m{\S} );
+        pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
         my $test = join q(), @{$rv};
         $test =~ s{\s+}{}g;
         last if ($test);
@@ -852,6 +864,7 @@ $BUILTINS{'if'} = sub {
     my @elsif_tests = ();
     my @elsif_trees = ();
     my $else_tree   = undef;
+
     if ( @{ $parse_tree->{value} } > 3 ) {
         my $i = 3;
         while ( $i <= $#{ $parse_tree->{value} } - 1 ) {

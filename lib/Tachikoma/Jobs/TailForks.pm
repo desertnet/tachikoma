@@ -175,7 +175,7 @@ sub fill {
         my $file = $1;
         return $self->{sink}->fill($message) if ( length $message->[TO] );
         my $forking = $self->{forking};
-        $self->position( $file, $message->[ID] ) if ( $message->[ID] );
+        $self->position( $file, $message->[ID] ) if ( length $message->[ID] );
         $message->[STREAM] = $file;
         if ( $type & TM_EOF ) {
             delete $self->{tails}->{$file};
@@ -236,6 +236,7 @@ sub rescan_files {
     for my $file ( keys %{$tiedhash} ) {
         delete $tiedhash->{$file} if ( not $files->{$file} );
     }
+    tied( %{$tiedhash} )->db_sync;
     $self->timer->set_timer( $Scan_Interval * 1000 );
     return;
 }

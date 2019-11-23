@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37864 2019-08-02 00:19:09Z chris $
+# $Id: CommandInterpreter.pm 38120 2019-11-22 05:26:38Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -599,7 +599,7 @@ $L{reinit} = $H{reinitialize};
 
 $C{reinit} = $C{reinitialize};
 
-$H{register} = ["register <node name> <path> <event>\n"];
+$H{register} = ["register <source name> <target name> <event>\n"];
 
 $C{register} = sub {
     my $self     = shift;
@@ -607,16 +607,17 @@ $C{register} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $path, $event ) = split q( ), $command->arguments, 3;
-    die qq(no node specified\n) if ( not length $name );
-    my $node = $Tachikoma::Nodes{$name};
-    die qq(can't find node "$name"\n) if ( not $node );
-    die qq(no path specified\n)       if ( not $path );
-    $node->register( $event => $path );
+    my ( $source, $target, $event ) = split q( ), $command->arguments, 3;
+    die qq(no source specified\n) if ( not length $source );
+    my $node = $Tachikoma::Nodes{$source};
+    die qq(can't find node "$source"\n) if ( not $node );
+    die qq(no target specified\n)       if ( not $target );
+    die qq(can't find node "$target"\n) if ( not $Tachikoma::Nodes{$target} );
+    $node->register( $event => $target );
     return $self->okay($envelope);
 };
 
-$H{unregister} = ["unregister <node name> <path> <event>\n"];
+$H{unregister} = ["unregister <source name> <target name> <event>\n"];
 
 $C{unregister} = sub {
     my $self     = shift;
@@ -624,12 +625,12 @@ $C{unregister} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'connect_node' )
         or return $self->error("verification failed\n");
-    my ( $name, $path, $event ) = split q( ), $command->arguments, 3;
-    die qq(no node specified\n) if ( not length $name );
-    my $node = $Tachikoma::Nodes{$name};
-    die qq(can't find node "$name"\n) if ( not $node );
-    die qq(no path specified\n)       if ( not $path );
-    $node->unregister( $event => $path );
+    my ( $source, $target, $event ) = split q( ), $command->arguments, 3;
+    die qq(no node specified\n) if ( not length $source );
+    my $node = $Tachikoma::Nodes{$source};
+    die qq(can't find node "$source"\n) if ( not $node );
+    die qq(no target specified\n)       if ( not $target );
+    $node->unregister( $event => $target );
     return $self->okay($envelope);
 };
 
@@ -1405,12 +1406,16 @@ $C{slurp_file} = sub {
         require Tachikoma::Nodes::Tail;
         $node = Tachikoma::Nodes::Tail->new;
         $node->name($name);
-        $node->arguments( join q( ), $path, 0,
-            length $sink_name ? 0
-            : (         $buffer_mode
-                    and $buffer_mode eq 'line-buffered' ) ? 256
-            : 8 );
-        $node->buffer_mode($buffer_mode);
+        $node->arguments(
+            {   filename       => $path,
+                offset         => 0,
+                buffer_mode    => $buffer_mode,
+                max_unanswered => length $sink_name ? 0
+                : (         $buffer_mode
+                        and $buffer_mode eq 'line-buffered' ) ? 64
+                : 8,
+            }
+        );
         $node->owner($owner) if ( length $owner );
         $node->sink($sink);
         $node->on_EOF( length $sink_name ? 'close' : 'wait_to_close' );

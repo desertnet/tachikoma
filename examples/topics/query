@@ -36,7 +36,7 @@ my ( $r, $argv ) = GetOptions(
 $topic //= $ARGV[0];
 usage() if ( $help or not $r or not $topic );
 
-die "ERROR: no topic\n"    if ( not $topic );
+die "ERROR: no topic\n" if ( not $topic );
 my $engine = Tachikoma::Nodes::QueryEngine->new;
 $engine->host_ports( [ 'localhost:5201', 'localhost:5202' ] );
 $engine->topic($topic);
@@ -50,7 +50,7 @@ my $query = [];
 for my $op (@ops) {
     push @{$query},
         {
-        field => join( q(), $topic, '.', $_, ':index' ),
+        field => "$topic.$_:index",
         op    => $op,
         key   => $options{$op}->{$_}
         }
@@ -60,7 +60,7 @@ for my $op (@ops) {
 $query = $query->[0] if ( @{$query} == 1 );
 $query = {
     op    => 'keys',
-    field => join( q(), $topic, '.', $keys, ':index' ),
+    field => "$topic.$keys:index",
     }
     if ($keys);
 

@@ -22,10 +22,12 @@ make_node ConsumerBroker topic1:consumer2   --broker=<broker>      \
                                             --topic=topic1         \
                                             --group=cache          \
                                             --default_offset=start \
-                                            --auto_commit=60
+                                            --auto_commit=60       \
+                                            --max_unanswered=0
 make_node Table          topic1:table       --num_partitions=1     \
                                             --window_size=0        \
                                             --num_buckets=1
+connect_node topic1:consumer2 topic1:table
 connect_edge topic1:consumer2 topic1:table
 
 
@@ -34,10 +36,12 @@ make_node ConsumerBroker topic1.ID:consumer --broker=<broker>      \
                                             --topic=topic1.ID      \
                                             --group=table          \
                                             --default_offset=start \
-                                            --auto_commit=60
+                                            --auto_commit=60       \
+                                            --max_unanswered=0
 make_node Table          topic1.ID:table    --num_partitions=1     \
                                             --window_size=0        \
                                             --num_buckets=1
+connect_node topic1.ID:consumer topic1.ID:table
 connect_edge topic1.ID:consumer topic1.ID:table
 
 

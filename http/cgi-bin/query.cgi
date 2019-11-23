@@ -19,9 +19,13 @@ $config->load_config_file(
     '/usr/local/etc/tachikoma.conf',
 );
 
-my $host_ports = [ 'localhost:5201', 'localhost:5202' ];
-my $cgi        = CGI->new;
-my $topic      = $cgi->path_info;
+my $host_ports = undef;
+if ($Tachikoma::Nodes::CGI::Config) {
+    $host_ports = $Tachikoma::Nodes::CGI::Config->{engines_http};
+}
+$host_ports ||= ['localhost:5201'];
+my $cgi   = CGI->new;
+my $topic = $cgi->path_info;
 $topic =~ s(^/)();
 die "no topic\n" if ( not $topic );
 my $postdata = $cgi->param('POSTDATA') or die "ERROR: wrong method\n";

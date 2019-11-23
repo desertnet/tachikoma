@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: Tee.pm 37946 2019-08-16 02:23:07Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -49,17 +49,15 @@ sub fill {
     my $self       = shift;
     my $message    = shift;
     my $owners     = $self->{owner};
-    my $messages   = undef;
     my $message_id = undef;
     my $persist    = undef;
     my @keep       = ();
-    return $self->handle_response( $message, $owners )
+    return $self->handle_response( $message, scalar @{$owners} )
         if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
         or $message->[TYPE] == TM_ERROR );
 
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $messages                        = $self->{messages};
-        $message_id                      = $self->msg_counter;
+        $message_id = $self->msg_counter;
         $self->{messages}->{$message_id} = {
             original  => $message,
             count     => scalar( @{$owners} ),
@@ -96,13 +94,13 @@ sub fill {
 sub handle_response {
     my $self     = shift;
     my $message  = shift;
-    my $owners   = shift;
+    my $total    = shift;
     my $messages = $self->{messages};
     my $info     = $messages->{ $message->[ID] } or return;
     my $original = $info->{original};
     my $type     = $message->[PAYLOAD];
     my $count    = $info->{count};
-    $count = @{$owners} if ( @{$owners} < $count );
+    $count = $total if ( $total < $count );
 
     if ( $info->{$type}++ >= $count - 1 ) {
         delete $messages->{ $message->[ID] };

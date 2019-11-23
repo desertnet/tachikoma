@@ -121,7 +121,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             or $self->stderr("ERROR: couldn't write $path: $!");
     }
     elsif ( $op eq 'symlink' ) {
-        if ( -e $path ) {
+        if ( -e $path or -l $path ) {
             unlink $path
                 or $self->stderr("ERROR: couldn't unlink $path: $!");
         }

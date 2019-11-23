@@ -20,7 +20,7 @@ my $PLAY_ARGS = undef;
 
 if ( -f '/usr/bin/aplay' ) {
     $PLAY_CMD  = '/usr/bin/aplay';
-    $PLAY_ARGS = '-q';
+    $PLAY_ARGS = '-q -D pulse';
 }
 elsif ( -f '/usr/bin/afplay' ) {
     $PLAY_CMD  = '/usr/bin/afplay';

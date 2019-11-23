@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3230;
+use Test::More tests => 3318;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -34,6 +34,8 @@ my %nodes = (
     'Tachikoma::Nodes::STDIO'                 => undef,
     'Tachikoma::Nodes::TTY'                   => undef,
     'Tachikoma::Nodes::AgeSieve'              => q(),
+    'Tachikoma::Nodes::Aggregate'             => q(),
+    'Tachikoma::Nodes::AltKV'                 => q(),
     'Tachikoma::Nodes::Atom'                  => q(/tmp /tmp),
     'Tachikoma::Nodes::Buffer'                => qq($t/buffer.db),
     'Tachikoma::Nodes::Broker'                => q(localhost:5501),
@@ -101,6 +103,7 @@ my %nodes = (
     'Tachikoma::Nodes::StdErr'            => q(),
     'Tachikoma::Nodes::Substr'            => q((.*)),
     'Tachikoma::Nodes::SudoFarmer'        => undef,
+    'Tachikoma::Nodes::Sum'               => q(),
     'Tachikoma::Nodes::Table'             => q(),
     'Tachikoma::Nodes::Tail'              => q(/etc/hosts),
     'Tachikoma::Nodes::TailProbe'         => q(),
