@@ -48,18 +48,29 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $payload = $message->[PAYLOAD];
     my $pattern = $self->{pattern};
-    my $rewrite = $self->{rewrite};
-    my @matches = $payload =~ m{$pattern};
-    $rewrite =~ s{\$$_(?!\d)}{$matches[$_ - 1]}g for ( 1 .. @matches );
-    my $newline = substr( $payload, -1, 1 ) eq "\n" ? 1 : undef;
-    return $self->cancel($message)
-        if ( not $payload =~ s{$pattern}{$rewrite}s );
-    my $copy = bless [ @{$message} ], ref $message;
-    $payload .= "\n" if ( $newline and substr( $payload, -1, 1 ) ne "\n" );
-    $copy->[PAYLOAD] = $payload;
-    return $self->SUPER::fill($copy);
+    my @output  = ();
+    my $dirty   = undef;
+    for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        chomp $line;
+        my @matches = $line =~ m{$pattern};
+        if (@matches) {
+            my $rewrite = $self->{rewrite};
+            $rewrite =~ s{\$$_(?!\d)}{$matches[$_ - 1]}g
+                for ( 1 .. @matches );
+            $dirty = $line =~ s{$pattern}{$rewrite};
+        }
+        push @output, $line, "\n";
+    }
+    if ($dirty) {
+        my $copy = bless [ @{$message} ], ref $message;
+        $copy->[PAYLOAD] = join q(), @output;
+        $self->SUPER::fill($copy);
+    }
+    else {
+        $self->cancel($message);
+    }
+    return;
 }
 
 sub pattern {
