@@ -31,20 +31,25 @@ func add_hub {
             set_group cache      --topic=topic1
                                  --cache_size=(8 * 1024 * 1024);
             set_group index.ID   --topic=topic1;
+
             set_topic topic1.ID  --segment_size=(16 * 1024 * 1024);
             set_group table      --topic=topic1.ID
                                  --cache_size=(8 * 1024 * 1024);
 
+
             set_topic topic2     --num_partitions=8;
+
 
             set_topic tasks      --segment_size=(1024 * 1024)
                                  --max_lifespan=(7 * 86400);
             set_group index.ID   --topic=tasks;
+
             set_topic tasks.ID   --num_partitions=4
                                  --segment_size=(1024 * 1024)
                                  --max_lifespan=(7 * 86400);
             set_group engine     --topic=tasks.ID
                                  --cache_size=(8 * 1024 * 1024);
+
 
             set_topic server_log --num_partitions=4
                                  --segment_size=(64 * 1024 * 1024)
@@ -57,6 +62,7 @@ func add_hub {
                 set_group engine             --topic=server_log.<field>
                                              --cache_size=(8 * 1024 * 1024);
             };
+
 
             set_topic images.indb    --num_partitions=8
                                      --segment_size=(128 * 1024 * 1024)
