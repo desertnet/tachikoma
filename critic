@@ -29,6 +29,8 @@ lib/Tachikoma/Jobs/Task.pm
 lib/Tachikoma/Message.pm
 lib/Tachikoma/Node.pm
 lib/Tachikoma/Nodes/AgeSieve.pm
+lib/Tachikoma/Nodes/Aggregate.pm
+lib/Tachikoma/Nodes/AltKV.pm
 lib/Tachikoma/Nodes/Atom.pm
 lib/Tachikoma/Nodes/Broker.pm
 lib/Tachikoma/Nodes/Buffer.pm
@@ -107,6 +109,7 @@ lib/Tachikoma/Nodes/StdErr.pm
 lib/Tachikoma/Nodes/StorableToJSON.pm
 lib/Tachikoma/Nodes/Substr.pm
 lib/Tachikoma/Nodes/SudoFarmer.pm
+lib/Tachikoma/Nodes/Sum.pm
 lib/Tachikoma/Nodes/TTY.pm
 lib/Tachikoma/Nodes/Table.pm
 lib/Tachikoma/Nodes/Tail.pm
