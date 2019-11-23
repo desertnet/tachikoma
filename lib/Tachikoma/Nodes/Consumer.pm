@@ -145,7 +145,7 @@ sub arguments {
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
         $self->{msg_unanswered}     = 0;
-        $self->{max_unanswered}     = $max_unanswered || 1;
+        $self->{max_unanswered}     = $max_unanswered // 1;
         $self->{timeout}            = $timeout || $Timeout;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
         $self->set_state( 'ACTIVE' => $self->{partition} )
@@ -166,7 +166,7 @@ sub fill {
     }
     else {
         if ( not $self->{expecting} ) {
-            $self->stderr('WARNING: unexpected message')
+            $self->drop_message( $message, 'unexpected message' )
                 if ( not $message->[TYPE] & TM_EOF );
             return;
         }
@@ -187,8 +187,11 @@ sub fill {
             $self->{next_offset} = $offset + length $message->[PAYLOAD];
             ${ $self->{buffer} } .= $message->[PAYLOAD];
             $self->set_timer(0)
-                if ($self->{timer_interval}
-                and $self->{msg_unanswered} < $self->{max_unanswered} );
+                if (
+                $self->{timer_interval}
+                and ( not $self->{max_unanswered}
+                    or $self->{msg_unanswered} < $self->{max_unanswered} )
+                );
         }
         $self->{last_receive} = $Tachikoma::Now;
         $self->{expecting}    = undef;
@@ -205,10 +208,10 @@ sub handle_response {
         $self->remove_node if ( defined $self->partition_id );
         return;
     }
-    return $self->print_less_often( 'WARNING: unexpected payload from ',
+    return $self->drop_message( $message, 'unexpected payload from ',
         $message->[FROM] )
         if ( $message->[PAYLOAD] ne 'cancel' );
-    return $self->print_less_often( 'WARNING: unexpected response from ',
+    return $self->drop_message( $message, 'unexpected response from ',
         $message->[FROM] )
         if ( $msg_unanswered < 1 );
 
@@ -312,13 +315,19 @@ sub fire {
             $self->set_timer( $self->{poll_interval} * 1000 );
         }
     }
-    if ( $self->{msg_unanswered} < $self->{max_unanswered}
-        and length ${ $self->{buffer} } )
+    if ((   not $self->{max_unanswered}
+            or $self->{msg_unanswered} < $self->{max_unanswered}
+        )
+        and length ${ $self->{buffer} }
+        )
     {
         $self->drain_buffer;
     }
-    if ( $self->{msg_unanswered} < $self->{max_unanswered}
-        and not $self->{expecting} )
+    if ((   not $self->{max_unasnwered}
+            or $self->{msg_unanswered} < $self->{max_unanswered}
+        )
+        and not $self->{expecting}
+        )
     {
         $self->get_batch_async;
     }
@@ -329,7 +338,6 @@ sub drain_buffer {
     my $self   = shift;
     my $offset = $self->{offset};
     my $buffer = $self->{buffer};
-    my $edge   = $self->{edge};
     my $i      = $self->{partition_id};
     my $got    = length ${$buffer};
 
@@ -356,15 +364,16 @@ sub drain_buffer {
                 defined $i
                 ? join q(/), $self->{name}, $i
                 : $self->{name};
+            $message->[TO] = $self->{owner};
             $message->[ID] = $offset;
             $self->{counter}++;
-            if ($edge) {
-                $message->[TYPE] ^= TM_PERSIST;
-                $edge->fill($message);
+            if ( not $self->{max_unanswered} ) {
+                $message->[TYPE] ^= TM_PERSIST
+                    if ( $message->[TYPE] & TM_PERSIST );
+                $self->{sink}->fill($message);
             }
             else {
                 $message->[TYPE] |= TM_PERSIST;
-                $message->[TO] = $self->{owner};
                 push @{ $self->{inflight} },
                     [ $message->[ID] => $Tachikoma::Now ];
                 $self->{msg_unanswered}++;
