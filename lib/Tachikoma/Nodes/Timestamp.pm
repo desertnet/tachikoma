@@ -10,7 +10,7 @@ package Tachikoma::Nodes::Timestamp;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -53,13 +53,15 @@ sub fill {
     if ( $self->{position} eq 'prefix' ) {
         for my $line ( split m{^}, $message->[PAYLOAD] ) {
             chomp $line;
-            $out .= join q(), $Tachikoma::Now + $offset, q( ), $line, "\n";
+            $out .= join q(), $message->[TIMESTAMP] + $offset, q( ), $line,
+                "\n";
         }
     }
     else {
         for my $line ( split m{^}, $message->[PAYLOAD] ) {
             chomp $line;
-            $out .= join q(), $line, q( ), $Tachikoma::Now + $offset, "\n";
+            $out .= join q(), $line, q( ), $message->[TIMESTAMP] + $offset,
+                "\n";
         }
     }
     $copy->[PAYLOAD] = $out;
