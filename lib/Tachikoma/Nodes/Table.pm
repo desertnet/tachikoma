@@ -25,20 +25,9 @@ my $Default_Num_Partitions = 1;
 my $Default_Num_Buckets    = 2;
 my $Default_Window_Size    = 300;
 
-sub help {
-    my $self = shift;
-    return <<'EOF';
-make_node Table <node name> --num_partitions=<int> \
-                            --num_buckets=<int>    \
-                            --window_size=<int>    \
-                            --bucket_size=<int>
-EOF
-}
-
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{partitions}     = {};
     $self->{caches}         = [];
     $self->{on_save_window} = [];
     $self->{num_partitions} = $Default_Num_Partitions;
@@ -52,6 +41,16 @@ sub new {
     $self->{connector}      = undef;
     bless $self, $class;
     return $self;
+}
+
+sub help {
+    my $self = shift;
+    return <<'EOF';
+make_node Table <node name> --num_partitions=<int> \
+                            --num_buckets=<int>    \
+                            --window_size=<int>    \
+                            --bucket_size=<int>
+EOF
 }
 
 sub arguments {
@@ -79,7 +78,6 @@ sub arguments {
         die "ERROR: window_size and bucket_size can't be used together\n"
             if ( $window_size and $bucket_size );
         $self->{arguments}      = $arguments;
-        $self->{partitions}     = {};
         $self->{caches}         = [];
         $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
         $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
@@ -120,10 +118,9 @@ sub fill {
         }
     }
     elsif ( $message->[TYPE] & TM_INFO ) {
-        if ( $message->[STREAM] eq 'READY' ) {
-            $self->{partitions}->{ $message->[PAYLOAD] } = 1;
-            $self->set_timer if ( not $self->{timer_is_active} );
-        }
+        $self->set_timer
+            if ( $message->[STREAM] eq 'READY'
+            and not $self->{timer_is_active} );
     }
     elsif ( not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF )
@@ -138,7 +135,7 @@ sub fill {
 sub fire {
     my $self = shift;
     if ( $self->{window_size} ) {
-        for my $i ( 0 .. $self->{num_partitions} ) {
+        for my $i ( 0 .. $self->{num_partitions} - 1 ) {
             my $next_window = $self->{next_window}->[$i] // 0;
             $self->roll_window( $i, $Tachikoma::Now )
                 if ( $Tachikoma::Now >= $next_window );
@@ -207,8 +204,7 @@ sub store {
     $self->{caches}->[$i] ||= [];
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
-        $self->roll_window( $i, $timestamp )
-            if ( $timestamp >= $next_window );
+        $self->roll_window( $i, $timestamp ) if ( $timestamp >= $next_window );
     }
     elsif ( $self->{bucket_size} ) {
         my $cache = $self->{caches}->[$i];
@@ -217,12 +213,7 @@ sub store {
             and scalar keys %{ $cache->[0] } >= $self->{bucket_size} );
     }
     if ( $self->collect( $i, $timestamp, $key, $value ) ) {
-        $value = undef;
-        for my $bucket ( reverse @{ $self->{caches}->[$i] } ) {
-            next if ( not exists $bucket->{$key} );
-            $value = $bucket->{$key};
-            delete $bucket->{$key};
-        }
+        $value = $self->remove_entry( $i, $key );
         if ( defined $value and $self->{owner} ) {
             $self->send_entry( $self->{owner}, $key, $value );
         }
@@ -252,6 +243,8 @@ sub roll_count {
     my $save_cb = $self->{on_save_window}->[$i];
     if ($timestamp) {
         &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
+        $self->send_bucket( $i, $timestamp, $cache->[0] )
+            if ( $self->{edge} );
     }
     for ( 0 .. $count ) {
         unshift @{$cache}, {};
@@ -296,6 +289,17 @@ sub get_bucket {
     return $bucket;
 }
 
+sub remove_entry {
+    my ( $self, $i, $key ) = @_;
+    my $value = undef;
+    for my $bucket ( reverse @{ $self->{caches}->[$i] } ) {
+        next if ( not exists $bucket->{$key} );
+        $value = $bucket->{$key};
+        delete $bucket->{$key};
+    }
+    return $value;
+}
+
 sub send_entry {
     my ( $self, $to, $key, $value ) = @_;
     my $response = Tachikoma::Message->new;
@@ -308,24 +312,39 @@ sub send_entry {
     return;
 }
 
+sub send_bucket {
+    my ( $self, $i, $timestamp, $bucket ) = @_;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]      = TM_STORABLE;
+    $response->[FROM]      = $self->{name};
+    $response->[STREAM]    = $i;
+    $response->[TIMESTAMP] = $timestamp;
+    $response->[PAYLOAD]   = $bucket;
+    $self->{edge}->fill($response);
+    return;
+}
+
 sub send_stats {
     my ( $self, $to ) = @_;
     my @stats = ();
-    for my $i ( 1 .. $self->num_partitions ) {
-        my $cache       = $self->caches->[ $i - 1 ];
+    my $total = 0;
+    for my $i ( 0 .. $self->num_partitions - 1 ) {
+        my $cache       = $self->caches->[$i];
         my @cache_stats = ();
-        for my $b ( 1 .. $self->num_buckets ) {
-            my $bucket = $cache->[ $b - 1 ] // {};
-            push @cache_stats, sprintf '%6d',
-                $bucket ? scalar keys %{$bucket} : 0;
+        for my $b ( 0 .. $self->num_buckets - 1 ) {
+            my $bucket = $cache->[$b] // {};
+            my $count = $bucket ? scalar keys %{$bucket} : 0;
+            push @cache_stats, sprintf '%6d', $count;
+            $total += $count;
         }
-        push @stats, '[ ', ( join q(, ), @cache_stats ), " ]\n";
+        push @stats, sprintf( '%3d [ ', $i ), join( q(, ), @cache_stats ),
+            " ]\n";
     }
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[FROM]    = $self->name;
     $response->[TO]      = $to;
-    $response->[PAYLOAD] = join q(), @stats;
+    $response->[PAYLOAD] = join q(), @stats, "total: $total\n";
     $self->sink->fill($response);
     return;
 }
@@ -466,14 +485,6 @@ sub mget {
 }
 
 # async support
-sub partitions {
-    my $self = shift;
-    if (@_) {
-        $self->{partitions} = shift;
-    }
-    return $self->{partitions};
-}
-
 sub caches {
     my $self = shift;
     if (@_) {
