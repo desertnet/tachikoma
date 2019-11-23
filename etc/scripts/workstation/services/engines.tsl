@@ -16,10 +16,12 @@ for i (1 .. <tachikoma.engines.count>) {
                                                                  --topic=server_log.<field>
                                                                  --group=engine
                                                                  --default_offset=start
-                                                                 --cache_type=window;
+                                                                 --cache_type=window
+                                                                 --max_unanswered=0;
             make_node Index          server_log.<field>:index    --num_partitions=4
                                                                  --window_size=14400
                                                                  --num_buckets=12;
+            connect_node server_log.<field>:consumer server_log.<field>:index;
             connect_edge server_log.<field>:consumer server_log.<field>:index;
             register     server_log.<field>:consumer server_log.<field>:index READY;
             var indexes .= server_log.<field>:index;
@@ -30,10 +32,12 @@ for i (1 .. <tachikoma.engines.count>) {
                                                    --topic=tasks.ID
                                                    --group=engine
                                                    --default_offset=start
-                                                   --cache_type=window;
+                                                   --cache_type=window
+                                                   --max_unanswered=0;
         make_node Index          tasks.ID:index    --num_partitions=4
                                                    --window_size=86400
                                                    --num_buckets=7;
+        connect_node tasks.ID:consumer tasks.ID:index;
         connect_edge tasks.ID:consumer tasks.ID:index;
         # register     tasks.ID:consumer tasks.ID:index READY;
         var indexes .= tasks.ID:index;

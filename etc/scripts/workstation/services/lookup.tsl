@@ -18,10 +18,12 @@ for i ( <start> .. <end> ) {
         make_node ConsumerBroker images.indb:consumer   --broker=<broker>
                                                         --topic=images.indb
                                                         --partition_id=<i>
-                                                        --default_offset=start;
+                                                        --default_offset=start
+                                                        --max_unanswered=0;
         make_node Table          images.indb:table      --num_partitions=<count>
                                                         --window_size=86400
                                                         --num_buckets=2;
+        connect_node images.indb:consumer images.indb:table;
         connect_edge images.indb:consumer images.indb:table;
 
         # ondisk
