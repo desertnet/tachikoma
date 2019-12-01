@@ -677,7 +677,8 @@ sub purge_offsets {
             my $offset_file = "$offsets_dir/$old_offset";
             unlink $offset_file
                 or die "ERROR: couldn't unlink $offset_file: $!";
-            $self->stderr("DEBUG: $caller unlinking $offset_file");
+            $self->stderr("DEBUG: $caller unlinking $offset_file")
+                if ( $old_offset and not $self->{leader} );
         }
     }
     return \@offsets;
