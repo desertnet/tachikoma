@@ -17,6 +17,6 @@ else {
 open my $fh, q(>>), $file or die $!;
 while (1) {
     syswrite $fh, $number++ . "\n";
-    Time::HiRes::usleep(10000);
+    Time::HiRes::usleep(100_000);
 }
 close $fh or die $!;

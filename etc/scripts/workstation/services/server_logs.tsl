@@ -4,7 +4,9 @@ include services/daemonize.tsl
 
 connect_hub
 
-make_node Topic server_log <broker>
+make_node Responder server_log:responder
+make_node Topic     server_log <broker>
+connect_node server_log:responder server_log
 
 
 func start_indexer {

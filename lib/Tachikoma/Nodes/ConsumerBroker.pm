@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::ConsumerBroker
 # ----------------------------------------------------------------------
 #
+#   - Gets assignment from ConsumerGroup and creates Consumers
+#
 # $Id: ConsumerBroker.pm 29406 2017-04-29 11:18:09Z chris $
 #
 

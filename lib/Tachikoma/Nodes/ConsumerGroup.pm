@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::ConsumerGroup
 # ----------------------------------------------------------------------
 #
+#   - Assigns Partitions to ConsumerBrokers
+#
 # $Id: ConsumerGroup.pm 29406 2017-04-29 11:18:09Z chris $
 #
 
@@ -19,7 +21,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Rebalance_Timeout = 900;
+my $Consumer_Timeout = 900;    # wait before abandoning ConsumerBroker
 
 sub new {
     my $class = shift;
@@ -163,7 +165,7 @@ sub check_timestamps {
     my $timestamps = shift;
     my $rebalance  = undef;
     for my $consumer ( keys %{$timestamps} ) {
-        if ( $Tachikoma::Now - $timestamps->{$consumer} > $Rebalance_Timeout )
+        if ( $Tachikoma::Now - $timestamps->{$consumer} > $Consumer_Timeout )
         {
             delete $timestamps->{$consumer};
             $rebalance = 1;

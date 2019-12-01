@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::Topic
 # ----------------------------------------------------------------------
 #
+#   - Sends messages to Partitions
+#
 # $Id: Topic.pm 29406 2017-04-29 11:18:09Z chris $
 #
 
@@ -23,8 +25,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval    = 15;      # delay between polls
-my $Response_Timeout = 300;     # timeout before deleting async responses
-my $Hub_Timeout      = 60;      # timeout waiting for hub
+my $Response_Timeout = 300;     # wait before abandoning async responses
+my $Hub_Timeout      = 60;      # synchronous timeout waiting for hub
 my $Batch_Threshold  = 8192;    # low water mark before sending batches
 my $Offset = LAST_MSG_FIELD + 1;
 
@@ -209,7 +211,7 @@ sub batch_message {
             and $self->{timer_interval} != 0 );
     }
     elsif ( not $self->{timer_interval} ) {
-        $self->set_timer(1000);
+        $self->set_timer(100);
     }
     return;
 }
