@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 38270 2019-12-01 07:53:51Z chris $
+# $Id: Tail.pm 38297 2019-12-01 10:51:37Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -327,6 +327,7 @@ sub fill {
     if ( length $offset ) {
         my $lowest = $self->{inflight}->[0];
         if ( $lowest and $lowest->[0] == $offset ) {
+            $self->{bytes_answered} = $lowest->[0];
             shift @{ $self->{inflight} };
         }
         elsif ( not $self->cancel_offset($offset) ) {
@@ -348,8 +349,6 @@ sub fill {
         $self->{msg_timer}->stop_timer
             if ( $self->msg_timer->{timer_is_active} );
     }
-    my $lowest = $self->{inflight}->[0];
-    $self->{bytes_answered} = $lowest ? $lowest->[0] : $self->{bytes_read};
     $self->{msg_unanswered} = $msg_unanswered;
     $self->handle_EOF
         if ($self->{on_EOF} ne 'reopen'
