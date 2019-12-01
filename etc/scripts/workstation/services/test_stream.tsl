@@ -1,0 +1,36 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = test_stream;
+include services/daemonize.tsl
+
+connect_hub
+
+command jobs start_job TailForks test_stream:tails localhost:<root_port>
+cd test_stream:tails
+    add_tail  <home>/.tachikoma/log/iterator0.log topic2/0 0
+    add_tail  <home>/.tachikoma/log/iterator1.log topic2/1 1
+    add_tail  <home>/.tachikoma/log/iterator2.log topic2/2 2
+    add_tail  <home>/.tachikoma/log/iterator3.log topic2/3 3
+    add_tail  <home>/.tachikoma/log/iterator4.log topic2/4 4
+    add_tail  <home>/.tachikoma/log/iterator5.log topic2/5 5
+    add_tail  <home>/.tachikoma/log/iterator6.log topic2/6 6
+    add_tail  <home>/.tachikoma/log/iterator7.log topic2/7 7
+    start_tail
+    secure 3
+cd ..
+
+make_node Topic          topic2          <broker>
+make_node ConsumerBroker topic2:consumer --broker=<broker>      \
+                                         --topic=topic2         \
+                                         --group=test_stream    \
+                                         --default_offset=start \
+                                         --max_unanswered=0     \
+                                         --auto_commit=60
+make_node TestStream
+connect_node topic2:consumer TestStream
+connect_edge topic2:consumer TestStream
+register     topic2:consumer TestStream READY
+
+topic_probe
+
+listen_inet localhost:<root_port>
+secure 3

@@ -5,6 +5,7 @@ var home     = `echo ~`;
 var topics_dir = <home>/.tachikoma/pool;
 
 var tachikoma.services = (
+    test_stream
     tasks
     http
     topic_top
@@ -20,6 +21,7 @@ var server_log.fields = (
     process
 );
 
+var tachikoma.test_stream.port       = 2400;
 var tachikoma.tasks.port             = 2500;
 var tachikoma.tasks.http.port        = 2501;
 var tachikoma.http.port              = 4241;
