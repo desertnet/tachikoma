@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 38297 2019-12-01 10:51:37Z chris $
+# $Id: Tail.pm 38299 2019-12-01 11:21:21Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -208,10 +208,10 @@ sub drain_buffer_normal {
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{owner};
-    $message->[ID]      = $self->{bytes_read};
     $message->[STREAM]  = $self->{stream};
     $message->[PAYLOAD] = ${$buffer};
     $self->{bytes_read} += length ${$buffer};
+    $message->[ID] = $self->{bytes_read};
     my $max_unanswered = $self->{max_unanswered};
 
     if ($max_unanswered) {
@@ -246,11 +246,11 @@ sub drain_buffer_blocks {
     $message->[TYPE]     = TM_BYTESTREAM;
     $message->[FROM]     = $self->{name};
     $message->[TO]       = $self->{owner};
-    $message->[ID]       = $self->{bytes_read};
     $message->[STREAM]   = $self->{stream};
     $message->[PAYLOAD]  = $payload;
     $self->{line_buffer} = $part;
     $self->{bytes_read} += length $payload;
+    $message->[ID] = $self->{bytes_read};
     my $max_unanswered = $self->{max_unanswered};
 
     if ($max_unanswered) {
@@ -284,11 +284,11 @@ sub drain_buffer_lines {
         $message->[TYPE]     = TM_BYTESTREAM;
         $message->[FROM]     = $name;
         $message->[TO]       = $owner;
-        $message->[ID]       = $self->{bytes_read};
         $message->[STREAM]   = $stream;
         $message->[PAYLOAD]  = $self->{line_buffer} . $line;
         $self->{line_buffer} = q();
         $self->{bytes_read} += length $message->[PAYLOAD];
+        $message->[ID] = $self->{bytes_read};
 
         if ($max_unanswered) {
             $message->[TYPE] |= TM_PERSIST;
