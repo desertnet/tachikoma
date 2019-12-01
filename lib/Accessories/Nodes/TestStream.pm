@@ -22,7 +22,7 @@ sub collect {
     if ( not $bucket or not defined $bucket->{$key} ) {
         $self->SUPER::collect( $i, $timestamp, $key, $value );
     }
-    elsif ( $value == $bucket->{$key} + 1 ) {
+    elsif ( $value <= $bucket->{$key} + 1 ) {
         $bucket->{$key} = $value;
     }
     else {

@@ -7,11 +7,8 @@ while ( my $number = <> ) {
     chomp $number;
     next if ( not $number );
     $expecting ||= $number;
-    if ( $number == $expecting ) {
-        $expecting++;
-    }
-    else {
+    if ( $number > $expecting ) {
         print STDERR "WARNING: got [$number] expected [$expecting]\n";
-        $expecting = $number + 1;
     }
+    $expecting = $number + 1;
 }
