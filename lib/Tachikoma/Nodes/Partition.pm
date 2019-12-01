@@ -712,15 +712,9 @@ sub open_segments {
         $self->get_lock($fh);
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
-            if ( $self->{leader} ) {
-                $self->stderr( 'WARNING: truncating '
-                        . ( $size - $new_size )
-                        . ' bytes' );
-            }
-            else {
-                $self->stderr(
-                    'ERROR: truncating ' . ( $size - $new_size ) . ' bytes' );
-            }
+            $self->stderr(
+                'ERROR: truncating ' . ( $size - $new_size ) . ' bytes' )
+                if ( not $self->{leader} );
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
             sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
