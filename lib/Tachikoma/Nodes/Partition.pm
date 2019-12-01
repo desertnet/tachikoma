@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::Partition
 # ----------------------------------------------------------------------
 #
+#   - Persistent message storage
+#
 # $Id: Partition.pm 29406 2017-04-29 11:18:09Z chris $
 #
 
@@ -675,8 +677,7 @@ sub purge_offsets {
             my $offset_file = "$offsets_dir/$old_offset";
             unlink $offset_file
                 or die "ERROR: couldn't unlink $offset_file: $!";
-            $self->stderr("DEBUG: $caller unlinking $offset_file")
-                if ($old_offset);
+            $self->stderr("DEBUG: $caller unlinking $offset_file");
         }
     }
     return \@offsets;
@@ -711,9 +712,14 @@ sub open_segments {
         $self->get_lock($fh);
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
-            $self->stderr(
-                'WARNING: truncating ' . ( $size - $new_size ) . ' bytes' )
-                if ( not $self->{leader} );
+            if ( $self->{leader} ) {
+                $self->stderr(
+                    'WARNING: truncating ' . ( $size - $new_size ) . ' bytes' );
+            }
+            else {
+                $self->stderr(
+                    'ERROR: truncating ' . ( $size - $new_size ) . ' bytes' );
+            }
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
             sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
