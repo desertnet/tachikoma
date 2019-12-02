@@ -455,7 +455,7 @@ sub process_get {
         $node->fill($response);
         if ($broker_id) {
             $self->{in_sync_replicas}->{$broker_id} = $offset;
-            $self->{waiting}->{$to} //= $name;
+            $self->{waiting}->{$to}                 = $name;
             $self->commit_messages;
         }
     }
