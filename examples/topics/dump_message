@@ -19,8 +19,8 @@ my $partition = $ARGV[1];
 my $offset    = $ARGV[2] // 'recent';
 die "usage: dump_message <topic> <partition> [ <offset> ]\n"
     if ( not defined $partition );
-my $group    = Tachikoma::Nodes::ConsumerBroker->new($topic);
-my $consumer = $group->make_sync_consumer($partition);
+my $broker   = Tachikoma::Nodes::ConsumerBroker->new($topic);
+my $consumer = $broker->make_sync_consumer($partition);
 $consumer->next_offset($offset);
 my $message = $consumer->fetch->[0];
 $message->payload;
