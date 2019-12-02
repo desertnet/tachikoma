@@ -17,11 +17,12 @@ $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
 
-my ( $topic, $group, $offset, $batch, $help );
+my ( $topic, $partition, $group, $offset, $batch, $help );
 my $mode  = 'values';
 my $total = 0;
 my ( $r, $argv ) = GetOptions(
     'topic=s'  => \$topic,
+    'partition=i' => \$partition,
     'group=s'  => \$group,
     'offset=s' => \$offset,
     'batch'    => \$batch,
@@ -31,7 +32,14 @@ my ( $r, $argv ) = GetOptions(
 $topic //= $ARGV[0];
 usage() if ( $help or not $r or not $topic );
 
-my $consumer = Tachikoma::Nodes::ConsumerBroker->new( $topic, $group );
+my $consumer;
+if ( defined $partition ) {
+    my $broker = Tachikoma::Nodes::ConsumerBroker->new($topic);
+    $consumer = $broker->make_sync_consumer($partition);
+}
+else {
+    $consumer = Tachikoma::Nodes::ConsumerBroker->new( $topic, $group );
+}
 if ($offset) {
     $consumer->default_offset($offset);
 }
