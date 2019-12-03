@@ -204,7 +204,8 @@ sub store {
     $self->{caches}->[$i] ||= [];
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
-        $self->roll_window( $i, $timestamp ) if ( $timestamp >= $next_window );
+        $self->roll_window( $i, $timestamp )
+            if ( $timestamp >= $next_window );
     }
     elsif ( $self->{bucket_size} ) {
         my $cache = $self->{caches}->[$i];

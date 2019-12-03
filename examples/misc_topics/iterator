@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Time::HiRes;
+
+my $number = undef;
+my $file   = $ARGV[0];
+if ( -e $file ) {
+    open my $fh, q(<), $file or die $!;
+    $number = $_ while (<$fh>);
+    close $fh or die $!;
+    $number++;
+}
+else {
+    $number = 0;
+}
+open my $fh, q(>>), $file or die $!;
+while (1) {
+    syswrite $fh, $number++ . "\n";
+    Time::HiRes::usleep(100_000);
+}
+close $fh or die $!;

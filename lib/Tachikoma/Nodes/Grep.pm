@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Grep
 # ----------------------------------------------------------------------
 #
-# $Id: Grep.pm 35519 2018-10-22 10:28:36Z chris $
+# $Id: Grep.pm 38201 2019-11-28 03:48:21Z chris $
 #
 
 package Tachikoma::Nodes::Grep;
@@ -43,9 +43,13 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return $self->cancel($message)
-        if ( $message->[PAYLOAD] !~ m{$self->{pattern}} );
-    return $self->SUPER::fill($message);
+    if ( $message->[PAYLOAD] =~ m{$self->{pattern}} ) {
+        $self->SUPER::fill($message);
+    }
+    else {
+        $self->cancel($message);
+    }
+    return;
 }
 
 sub pattern {

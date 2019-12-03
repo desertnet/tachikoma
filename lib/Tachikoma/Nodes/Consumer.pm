@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::Consumer
 # ----------------------------------------------------------------------
 #
+#   - Fetches messages from Partitions
+#
 # $Id: Consumer.pm 29406 2017-04-29 11:18:09Z chris $
 #
 

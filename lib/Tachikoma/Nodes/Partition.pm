@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::Partition
 # ----------------------------------------------------------------------
 #
+#   - Persistent message storage
+#
 # $Id: Partition.pm 29406 2017-04-29 11:18:09Z chris $
 #
 
@@ -32,12 +34,12 @@ my $Default_Num_Segments     = 8;
 my $Default_Segment_Size     = 128 * 1024 * 1024;
 my $Default_Segment_Lifespan = 7 * 86400;
 my $Touch_Interval           = 3600;
-my $Num_Offsets              = 10;
+my $Num_Offsets              = 100;
 my $Get_Timeout              = 300;
 my $Offset                   = LAST_MSG_FIELD + 1;
 my %Leader_Commands = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK EMPTY );
 my %Follower_Commands =
-    map { $_ => 1 } qw( VALID_OFFSETS UPDATE COMMIT DELETE EMPTY );
+    map { $_ => 1 } qw( VALID_OFFSETS UPDATE DELETE EMPTY );
 
 sub help {
     my $self = shift;
@@ -75,16 +77,16 @@ sub arguments {
             $path = ( $filename =~ m{^(/.*)$} )[0];
             die "ERROR: invalid path: $filename\n" if ( not defined $path );
         }
-        $self->{arguments}        = $arguments;
-        $self->{filename}         = $path;
-        $self->{num_segments}     = $num_segments;
-        $self->{segment_size}     = $segment_size;
-        $self->{max_lifespan}     = $max_lifespan;
-        $self->{status}           = 'ACTIVE';
-        $self->{leader}           = undef;
-        $self->{followers}        = {};
-        $self->{in_sync_replicas} = {};
-        $self->{replica_offsets}  = {};
+        $self->{arguments}          = $arguments;
+        $self->{filename}           = $path;
+        $self->{num_segments}       = $num_segments;
+        $self->{segment_size}       = $segment_size;
+        $self->{max_lifespan}       = $max_lifespan;
+        $self->{status}             = 'ACTIVE';
+        $self->{leader}             = undef;
+        $self->{followers}          = {};
+        $self->{in_sync_replicas}   = {};
+        $self->{replication_factor} = 0;
         $self->{segments} //= [];
         $self->{last_commit_offset}   = undef;
         $self->{last_truncate_offset} = undef;
@@ -113,7 +115,7 @@ sub arguments {
 # follower sends GET to leader
 #   leader sends data
 # follower sends GET to leader
-#   leader sends EOF and COMMIT
+#   leader sends EOF
 # follower sends ACK
 #   leader acks write
 
@@ -152,10 +154,6 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         elsif ( $command eq 'UPDATE' ) {
             $self->get_batch if ( not $self->{expecting} );
         }
-        elsif ( $command eq 'COMMIT' ) {
-            $self->write_offset($offset);
-            $self->send_ack($offset);
-        }
         elsif ( $command eq 'GET_VALID_OFFSETS' ) {
             $self->process_get_valid_offsets( $message, $args );
         }
@@ -190,6 +188,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->create_segment
                 if ( $segment->[LOG_SIZE] >= $self->{segment_size} );
             $self->{expecting} = undef;
+            $self->write_offset( $message->[ID] );
+            $self->send_ack( $message->[ID] );
         }
         return;
     }
@@ -274,7 +274,7 @@ sub fire {
             }
         }
     }
-    elsif ( not keys %{ $self->{followers} } ) {
+    elsif ( not $self->{replication_factor} ) {
         $self->commit_messages;
     }
     return;
@@ -283,42 +283,10 @@ sub fire {
 sub commit_messages {
     my $self = shift;
     return if ( not defined $self->{offset} );
-    if ( keys %{ $self->{followers} } ) {
-
-        # find new LCO (the lowest ISR offset)
-        my $offset             = undef;
-        my $last_commit_offset = $self->{last_commit_offset};
-        my $isr                = $self->{in_sync_replicas};
-        for my $broker_id ( keys %{$isr} ) {
-            $offset = $isr->{$broker_id}
-                if ( not defined $offset or $offset > $isr->{$broker_id} );
-        }
-        if ( defined $offset and $offset != $last_commit_offset ) {
-            $self->send_offset($offset);
-            $self->write_offset($offset);
-        }
-    }
-    else {
-
-        # replication unavailable or disabled in config
-        $self->write_offset( $self->{offset} );
-        my $responses = $self->{responses};
-        $self->cancel($_) for ( @{$responses} );
-        @{$responses} = ();
-    }
-    return;
-}
-
-sub send_offset {
-    my $self   = shift;
-    my $offset = shift;
-    for my $broker_id ( keys %{ $self->{followers} } ) {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_REQUEST;
-        $message->[TO]      = $self->{followers}->{$broker_id};
-        $message->[PAYLOAD] = join q(), 'COMMIT ', $offset, "\n";
-        $self->{sink}->fill($message);
-    }
+    $self->write_offset( $self->{offset} );
+    my $responses = $self->{responses};
+    $self->cancel($_) for ( @{$responses} );
+    @{$responses} = ();
     return;
 }
 
@@ -363,8 +331,7 @@ sub process_get_valid_offsets {
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name} or return;
     return if ( not $node or not $broker_id );
-    $self->{followers}->{$broker_id}       = $to;
-    $self->{replica_offsets}->{$broker_id} = -1;
+    $self->{followers}->{$broker_id} = $to;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_REQUEST;
     $response->[FROM]    = $self->{name};
@@ -453,8 +420,7 @@ sub process_get {
         $node->fill($response);
         if ($broker_id) {
             $self->{in_sync_replicas}->{$broker_id} = $offset;
-            $self->{waiting}->{$to} //= $name;
-            $self->commit_messages;
+            $self->{waiting}->{$to}                 = $name;
         }
     }
     return;
@@ -464,18 +430,15 @@ sub process_ack {
     my ( $self, $offset, $broker_id ) = @_;
     return $self->stderr('ERROR: broker id missing from ACK')
         if ( not $broker_id );
-    my $isr = $self->{replica_offsets};
-    my $lco = $offset;
-    $isr->{$broker_id} = $offset;
 
     # cancel messages up to the LCO
-    for my $id ( keys %{$isr} ) {
-        $lco = $isr->{$id} if ( $lco > $isr->{$id} );
-    }
-    my $responses = $self->{responses};
-    while ( defined $offset and @{$responses} ) {
-        last if ( $responses->[0]->[$Offset] > $lco );
-        $self->cancel( shift @{$responses} );
+    if ( $offset > $self->{last_commit_offset} ) {
+        my $responses = $self->{responses};
+        $self->write_offset($offset);
+        while ( @{$responses} ) {
+            last if ( $responses->[0]->[$Offset] > $offset );
+            $self->cancel( shift @{$responses} );
+        }
     }
     return;
 }
@@ -676,7 +639,7 @@ sub purge_offsets {
             unlink $offset_file
                 or die "ERROR: couldn't unlink $offset_file: $!";
             $self->stderr("DEBUG: $caller unlinking $offset_file")
-                if ($old_offset);
+                if ( $old_offset and not $self->{leader} );
         }
     }
     return \@offsets;
@@ -712,7 +675,7 @@ sub open_segments {
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
             $self->stderr(
-                'WARNING: truncating ' . ( $size - $new_size ) . ' bytes' )
+                'ERROR: truncating ' . ( $size - $new_size ) . ' bytes' )
                 if ( not $self->{leader} );
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
@@ -1003,7 +966,6 @@ sub leader {
         $self->{leader}           = $leader;
         $self->{followers}        = {};
         $self->{in_sync_replicas} = {};
-        $self->{replica_offsets}  = {};
     }
     return $self->{leader};
 }
@@ -1021,17 +983,16 @@ sub in_sync_replicas {
     if (@_) {
         $self->{in_sync_replicas} = shift;
         $self->{leader}           = undef;
-        $self->{replica_offsets}  = {};
     }
     return $self->{in_sync_replicas};
 }
 
-sub replica_offsets {
+sub replication_factor {
     my $self = shift;
     if (@_) {
-        $self->{replica_offsets} = shift;
+        $self->{replication_factor} = shift;
     }
-    return $self->{replica_offsets};
+    return $self->{replication_factor};
 }
 
 sub segments {

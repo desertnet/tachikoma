@@ -3,6 +3,8 @@
 # Tachikoma::Nodes::Broker
 # ----------------------------------------------------------------------
 #
+#   - Manages Partitions and ConsumerGroups
+#
 # $Id: Broker.pm 29406 2017-04-29 11:18:09Z chris $
 #
 
@@ -35,9 +37,6 @@ my $Delete_Interval     = 60;             # delete old logs this often
 my $Check_Interval      = 900;            # look for better balance this often
 my $Save_Interval       = 3600;           # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
-my $Election_Short      = 0;              # wait if everyone is online
-my $Election_Long       = 10;             # wait if a broker is offline
-my $Startup_Delay       = 2;              # wait at least this long on startup
 my $Election_Timeout  = 90;     # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
 my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
@@ -288,10 +287,7 @@ sub fill {
         $self->handle_response($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
-        my $error = $message->[PAYLOAD];
-        chomp $error;
-        $self->stderr( "ERROR: got $error from ", $message->[FROM] )
-            if ( not $self->{starting_up} );
+        $self->handle_error($message);
     }
     else {
         $self->stderr( 'ERROR: unexpected message type: ',
@@ -312,7 +308,7 @@ sub fire {
     }
     my $total  = keys %{ $self->{brokers} };
     my $online = $self->check_heartbeats;
-    if ( not $total or $online < $total / 2 ) {
+    if ( not $total or $online <= $total / 2 ) {
         $self->print_less_often('ERROR: not enough servers')
             if ( not $self->{starting_up} );
         $self->rebalance_partitions('inform_brokers');
@@ -514,10 +510,7 @@ sub receive_heartbeat {
         delete $self->{votes}->{ $message->[STREAM] };
     }
     my $now         = time;
-    my $back_online = undef;
-    $back_online = 1
-        if ( not $broker->{online}
-        or $now - $broker->{online} >= $Heartbeat_Timeout );
+    my $back_online = not $broker->{online};
     $broker->{online} = $Tachikoma::Now;
     my $total  = 0;
     my $online = 0;
@@ -662,22 +655,17 @@ sub process_rebalance {
     my $total  = shift;
     my $online = shift;
     my $span   = $Tachikoma::Now - $self->{last_election};
-    my $wait   = $total == $online ? $Election_Short : $Election_Long;
-    if ( $span > $wait ) {
-        $self->{starting_up} = undef;
-        if ( $self->{is_controller} ) {
-
-            # $self->stderr("CONTROLLER $self->{stage} cycle");
-            $self->send_halt          if ( $self->{stage} eq 'INIT' );
-            $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
-            $self->send_reset         if ( $self->{stage} eq 'RESET' );
-            $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
-            $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
-            $self->send_mapping       if ( $self->{stage} eq 'SEND' );
-            $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
-            $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
-            $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
-        }
+    $self->{starting_up} = undef;
+    if ( $self->{is_controller} ) {
+        $self->send_halt          if ( $self->{stage} eq 'INIT' );
+        $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
+        $self->send_reset         if ( $self->{stage} eq 'RESET' );
+        $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
+        $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
+        $self->send_mapping       if ( $self->{stage} eq 'SEND' );
+        $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
+        $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
+        $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
     }
     $self->{last_check}  = $Tachikoma::Now;
     $self->{last_delete} = $Tachikoma::Now;
@@ -1193,6 +1181,7 @@ sub apply_mapping {
             $node->num_segments( $topic->{num_segments} );
             $node->segment_size( $topic->{segment_size} );
             $node->max_lifespan( $topic->{max_lifespan} );
+            $node->replication_factor( $topic->{replication_factor} );
             $node->sink( $self->sink );
 
             if ($leader) {
@@ -1216,6 +1205,7 @@ sub apply_mapping {
                 $node->num_segments($Num_Cache_Segments);
                 $node->segment_size( $caches->{$group_name} );
                 $node->max_lifespan( $topic->{max_lifespan} );
+                $node->replication_factor( $topic->{replication_factor} );
                 $node->sink( $self->sink );
 
                 if ($leader) {
@@ -1251,9 +1241,8 @@ sub wait_for_responses {
 }
 
 sub handle_response {
-    my $self    = shift;
-    my $message = shift;
-    my $stream  = $message->[STREAM]
+    my ( $self, $message ) = @_;
+    my $stream = $message->[STREAM]
         or return $self->stderr('ERROR: bad response');
     return $self->stderr("ERROR: $stream is controller")
         if ( $stream eq $self->{controller} );
@@ -1280,6 +1269,22 @@ sub handle_response {
     }
     else {
         $self->stderr( 'ERROR: unexpected response: ', $message->[PAYLOAD] );
+    }
+    return;
+}
+
+sub handle_error {
+    my ( $self, $message ) = @_;
+    return if ( $self->{starting_up} );
+    my $error = $message->[PAYLOAD];
+    chomp $error;
+    my $name = ( split m{/}, $message->[FROM], 2 )[0];
+    if ( $error eq 'NOT_AVAILABLE' and $self->{brokers}->{$name} ) {
+        $self->print_less_often( "ERROR: got $error from ",
+            $message->[FROM] );
+    }
+    else {
+        $self->stderr( "ERROR: got $error from ", $message->[FROM] );
     }
     return;
 }
@@ -1655,8 +1660,7 @@ sub empty_topics {
             }
         }
     }
-
-    # $self->rebalance_partitions;
+    $self->rebalance_partitions;
     return;
 }
 
@@ -1690,8 +1694,7 @@ sub empty_groups {
             }
         }
     }
-
-    # $self->rebalance_partitions;
+    $self->rebalance_partitions;
     return;
 }
 
@@ -2165,7 +2168,7 @@ $C{start_broker} = sub {
     $self->patron->last_delete($Tachikoma::Now);
     $self->patron->last_save($Tachikoma::Now);
     $self->patron->last_election($Tachikoma::Now);
-    $self->patron->set_timer( $Startup_Delay * 1000 );
+    $self->patron->set_timer( $Rebalance_Interval * 1000 );
     return $self->okay($envelope);
 };
 

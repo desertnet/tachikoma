@@ -1,0 +1,14 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+my $expecting = undef;
+while ( my $number = <> ) {
+    chomp $number;
+    next if ( not $number );
+    $expecting ||= $number;
+    if ( $number > $expecting ) {
+        print STDERR "WARNING: got [$number] expected [$expecting]\n";
+    }
+    $expecting = $number + 1;
+}

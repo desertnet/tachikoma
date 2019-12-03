@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 37987 2019-08-20 18:56:45Z chris $
+# $Id: Tail.pm 38299 2019-12-01 11:21:21Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -27,7 +27,6 @@ use parent qw( Tachikoma::Nodes::FileHandle );
 use version; our $VERSION = qv('v2.0.280');
 
 my $Default_Timeout = 900;
-my $Expire_Interval = 15;    # check message timeouts
 
 sub new {
     my $class = shift;
@@ -224,8 +223,9 @@ sub drain_buffer_normal {
     }
     $self->{counter}++;
     $self->{sink}->fill($message);
-    $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' )
-        if ( $self->{msg_unanswered} );
+    $self->{msg_timer}->set_timer( $self->{timeout} * 1000 )
+        if ( $self->{msg_unanswered}
+        and not $self->msg_timer->{timer_is_active} );
     return;
 }
 
@@ -262,8 +262,9 @@ sub drain_buffer_blocks {
     }
     $self->{counter}++;
     $self->{sink}->fill($message);
-    $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' )
-        if ( $self->{msg_unanswered} );
+    $self->{msg_timer}->set_timer( $self->{timeout} * 1000 )
+        if ( $self->{msg_unanswered}
+        and not $self->msg_timer->{timer_is_active} );
     return;
 }
 
@@ -300,8 +301,9 @@ sub drain_buffer_lines {
         $self->{counter}++;
         $sink->fill($message);
     }
-    $self->msg_timer->set_timer( $self->{timeout} * 1000, 'oneshot' )
-        if ( $self->{msg_unanswered} );
+    $self->{msg_timer}->set_timer( $self->{timeout} * 1000 )
+        if ( $self->{msg_unanswered}
+        and not $self->msg_timer->{timer_is_active} );
     return;
 }
 
@@ -325,6 +327,7 @@ sub fill {
     if ( length $offset ) {
         my $lowest = $self->{inflight}->[0];
         if ( $lowest and $lowest->[0] == $offset ) {
+            $self->{bytes_answered} = $lowest->[0];
             shift @{ $self->{inflight} };
         }
         elsif ( not $self->cancel_offset($offset) ) {
@@ -339,15 +342,13 @@ sub fill {
     $self->register_reader_node
         if ( $msg_unanswered < $self->{max_unanswered} );
     if ($msg_unanswered) {
-        $self->{msg_timer}->set_timer( $Expire_Interval * 1000, 'oneshot' )
+        $self->{msg_timer}->set_timer( $self->{timeout} * 1000 )
             if ( not $self->msg_timer->{timer_is_active} );
     }
     else {
         $self->{msg_timer}->stop_timer
             if ( $self->msg_timer->{timer_is_active} );
     }
-    my $lowest = $self->{inflight}->[0];
-    $self->{bytes_answered} = $lowest ? $lowest->[0] : $self->{bytes_read};
     $self->{msg_unanswered} = $msg_unanswered;
     $self->handle_EOF
         if ($self->{on_EOF} ne 'reopen'
@@ -468,7 +469,7 @@ sub expire_messages {
     my $timestamp =
         @{ $self->{inflight} } ? $self->{inflight}->[0]->[1] : undef;
     if ( defined $timestamp
-        and $Tachikoma::Now - $timestamp > $self->{timeout} )
+        and $Tachikoma::Now - $timestamp >= $self->{timeout} )
     {
         die "WARNING: timeout waiting for response\n"
             if ( $self->{on_timeout} eq 'die' );
@@ -490,6 +491,7 @@ sub expire_messages {
         $self->{inflight}       = [];
         $self->{msg_unanswered} = 0;
         $self->register_reader_node;
+        $self->msg_timer->stop_timer;
     }
     $self->{last_expire} = $Tachikoma::Now;
     return;
@@ -644,11 +646,10 @@ sub timeout {
 sub finished {
     my $self = shift;
     my $size = $self->{size};
-    my $bytes_finished =
+    my $pos =
           $self->{max_unanswered}
         ? $self->{bytes_answered}
         : $self->{bytes_read};
-    my $pos = $bytes_finished + length $self->{line_buffer};
     return 'true' if ( not defined $self->{fh} );
     return if ( $self->{on_EOF} eq 'wait_for_delete' );
     if ( not defined $size ) {
