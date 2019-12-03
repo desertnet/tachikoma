@@ -92,7 +92,7 @@ sub fill {
         my $broker_id          = ( split m{/}, $message->[FROM], 2 )[0];
         my $responses          = $self->{responses}->{$broker_id} // [];
         while ( $last_commit_offset and @{$responses} ) {
-            last if ( $responses->[0]->[$Offset] > $last_commit_offset );
+            last if ( $responses->[0]->[$Offset] >= $last_commit_offset );
             $self->cancel( shift @{$responses} );
         }
     }
@@ -163,7 +163,8 @@ sub fire {
         $self->{batch}      = {};
         $self->{batch_size} = 0;
     }
-    if ($Tachikoma::Right_Now - $self->{last_check} > $self->{poll_interval} )
+    if ( $Tachikoma::Right_Now - $self->{last_check}
+        >= $self->{poll_interval} )
     {
         $self->{valid_broker_paths} = undef;
         my $message = Tachikoma::Message->new;

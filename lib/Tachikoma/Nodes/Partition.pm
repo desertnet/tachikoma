@@ -77,15 +77,16 @@ sub arguments {
             $path = ( $filename =~ m{^(/.*)$} )[0];
             die "ERROR: invalid path: $filename\n" if ( not defined $path );
         }
-        $self->{arguments}        = $arguments;
-        $self->{filename}         = $path;
-        $self->{num_segments}     = $num_segments;
-        $self->{segment_size}     = $segment_size;
-        $self->{max_lifespan}     = $max_lifespan;
-        $self->{status}           = 'ACTIVE';
-        $self->{leader}           = undef;
-        $self->{followers}        = {};
-        $self->{in_sync_replicas} = {};
+        $self->{arguments}          = $arguments;
+        $self->{filename}           = $path;
+        $self->{num_segments}       = $num_segments;
+        $self->{segment_size}       = $segment_size;
+        $self->{max_lifespan}       = $max_lifespan;
+        $self->{status}             = 'ACTIVE';
+        $self->{leader}             = undef;
+        $self->{followers}          = {};
+        $self->{in_sync_replicas}   = {};
+        $self->{replication_factor} = 0;
         $self->{segments} //= [];
         $self->{last_commit_offset}   = undef;
         $self->{last_truncate_offset} = undef;
@@ -273,7 +274,7 @@ sub fire {
             }
         }
     }
-    elsif ( not keys %{ $self->{followers} } ) {
+    elsif ( not $self->{replication_factor} ) {
         $self->commit_messages;
     }
     return;
@@ -420,8 +421,6 @@ sub process_get {
         if ($broker_id) {
             $self->{in_sync_replicas}->{$broker_id} = $offset;
             $self->{waiting}->{$to}                 = $name;
-            $self->write_offset($offset)
-                if ( $offset > $self->{last_commit_offset} );
         }
     }
     return;
@@ -433,11 +432,13 @@ sub process_ack {
         if ( not $broker_id );
 
     # cancel messages up to the LCO
-    my $responses = $self->{responses};
-    my $lco       = $self->{last_commit_offset};
-    while ( defined $offset and @{$responses} ) {
-        last if ( $responses->[0]->[$Offset] > $lco );
-        $self->cancel( shift @{$responses} );
+    if ( $offset > $self->{last_commit_offset} ) {
+        my $responses = $self->{responses};
+        $self->write_offset($offset);
+        while ( @{$responses} ) {
+            last if ( $responses->[0]->[$Offset] > $offset );
+            $self->cancel( shift @{$responses} );
+        }
     }
     return;
 }
@@ -984,6 +985,14 @@ sub in_sync_replicas {
         $self->{leader}           = undef;
     }
     return $self->{in_sync_replicas};
+}
+
+sub replication_factor {
+    my $self = shift;
+    if (@_) {
+        $self->{replication_factor} = shift;
+    }
+    return $self->{replication_factor};
 }
 
 sub segments {

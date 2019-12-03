@@ -308,7 +308,7 @@ sub fire {
     }
     my $total  = keys %{ $self->{brokers} };
     my $online = $self->check_heartbeats;
-    if ( not $total or $online < $total / 2 ) {
+    if ( not $total or $online <= $total / 2 ) {
         $self->print_less_often('ERROR: not enough servers')
             if ( not $self->{starting_up} );
         $self->rebalance_partitions('inform_brokers');
@@ -1181,6 +1181,7 @@ sub apply_mapping {
             $node->num_segments( $topic->{num_segments} );
             $node->segment_size( $topic->{segment_size} );
             $node->max_lifespan( $topic->{max_lifespan} );
+            $node->replication_factor( $topic->{replication_factor} );
             $node->sink( $self->sink );
 
             if ($leader) {
@@ -1204,6 +1205,7 @@ sub apply_mapping {
                 $node->num_segments($Num_Cache_Segments);
                 $node->segment_size( $caches->{$group_name} );
                 $node->max_lifespan( $topic->{max_lifespan} );
+                $node->replication_factor( $topic->{replication_factor} );
                 $node->sink( $self->sink );
 
                 if ($leader) {
