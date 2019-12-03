@@ -46,6 +46,7 @@ sub new {
     $self->{batch}                  = undef;
     $self->{batch_size}             = 0;
     $self->{responses}              = {};
+    $self->{batch_responses}        = {};
     $self->{valid_broker_paths}     = undef;
     $self->{registrations}->{READY} = {};
 
@@ -90,22 +91,39 @@ sub fill {
     if ( $message->[TYPE] & TM_RESPONSE ) {
         my $last_commit_offset = $message->[ID];
         my $broker_id          = ( split m{/}, $message->[FROM], 2 )[0];
-        my $responses          = $self->{responses}->{$broker_id} // [];
-        while ( $last_commit_offset and @{$responses} ) {
-            last if ( $responses->[0]->[$Offset] >= $last_commit_offset );
-            $self->cancel( shift @{$responses} );
+        my $batch_responses    = $self->{batch_responses}->{$broker_id} // [];
+        my $responses          = $batch_responses->[0];
+        if (    $responses
+            and $responses->{last_commit_offset} == $last_commit_offset )
+        {
+            $self->cancel($_) for ( @{ $responses->{batch} } );
+            shift @{$batch_responses};
+        }
+        else {
+            $self->stderr( 'WARNING: unexpected response offset: ',
+                $last_commit_offset );
+            $self->{responses}       = {};
+            $self->{batch_responses} = {};
         }
     }
     elsif ( $self->is_broker_path( $message->[FROM] ) ) {
         if ( $message->[TYPE] & TM_ERROR ) {
             $self->set_timer if ( defined $self->{timer_interval} );
             my %senders = ();
+            for my $broker_id ( keys %{ $self->{batch_responses} } ) {
+                my $batch_responses = $self->{batch_responses}->{$broker_id};
+                for my $responses ( @{$batch_responses} ) {
+                    $senders{ $_->[FROM] } = 1
+                        for ( @{ $responses->{batch} } );
+                }
+            }
             for my $broker_id ( keys %{ $self->{responses} } ) {
                 for my $response ( @{ $self->{responses}->{$broker_id} } ) {
                     $senders{ $response->[FROM] } = 1;
                 }
-                $self->{responses}->{$broker_id} = [];
             }
+            $self->{responses}       = {};
+            $self->{batch_responses} = {};
             for my $sender ( keys %senders ) {
                 my $copy = bless [ @{$message} ], ref $message;
                 $copy->[TO]     = $sender;
@@ -146,8 +164,10 @@ sub fire {
     my $self       = shift;
     my $partitions = $self->{partitions};
     if ($partitions) {
-        my $topic = $self->{topic};
-        my $batch = $self->{batch};
+        my $topic           = $self->{topic};
+        my $batch           = $self->{batch};
+        my $responses       = $self->{responses};
+        my $batch_responses = $self->{batch_responses};
         for my $i ( keys %{$batch} ) {
             my $broker_id = $partitions->[$i];
             my $message   = Tachikoma::Message->new;
@@ -159,6 +179,13 @@ sub fire {
             $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
+            $batch_responses->{$broker_id} //= [];
+            push @{ $batch_responses->{$broker_id} },
+                {
+                last_commit_offset => $self->{counter},
+                batch              => $responses->{$broker_id},
+                };
+            $responses->{$broker_id} = [];
         }
         $self->{batch}      = {};
         $self->{batch_size} = 0;
@@ -641,6 +668,14 @@ sub responses {
         $self->{responses} = shift;
     }
     return $self->{responses};
+}
+
+sub batch_responses {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_responses} = shift;
+    }
+    return $self->{batch_responses};
 }
 
 sub valid_broker_paths {
