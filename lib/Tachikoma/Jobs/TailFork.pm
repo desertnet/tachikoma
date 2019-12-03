@@ -26,7 +26,7 @@ $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
 
-my $Default_Timeout = 90;
+my $Default_Timeout = 30;
 my $Update_Interval = 1;
 
 sub initialize_graph {
