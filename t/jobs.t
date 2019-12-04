@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 56;
+use Test::More tests => 52;
 
 sub test_construction {
     my $class = shift;
@@ -48,8 +48,6 @@ my @jobs = qw(
     Accessories::Jobs::DNS
     Accessories::Jobs::ExecFork
     Accessories::Jobs::Fortune
-    Accessories::Jobs::Lucky
-    Accessories::Jobs::Reactor
 );
 
 for my $class (@jobs) {
