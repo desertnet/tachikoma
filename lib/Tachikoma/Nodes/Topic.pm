@@ -28,7 +28,6 @@ my $Poll_Interval    = 15;      # delay between polls
 my $Response_Timeout = 300;     # wait before abandoning async responses
 my $Hub_Timeout      = 60;      # synchronous timeout waiting for hub
 my $Batch_Threshold  = 8192;    # low water mark before sending batches
-my $Offset = LAST_MSG_FIELD + 1;
 
 sub new {
     my $class = shift;
@@ -44,9 +43,10 @@ sub new {
     $self->{next_partition}         = undef;
     $self->{last_check}             = undef;
     $self->{batch}                  = undef;
-    $self->{batch_size}             = 0;
-    $self->{responses}              = {};
-    $self->{batch_responses}        = {};
+    $self->{batch_offset}           = undef;
+    $self->{batch_size}             = undef;
+    $self->{responses}              = undef;
+    $self->{batch_responses}        = undef;
     $self->{valid_broker_paths}     = undef;
     $self->{registrations}->{READY} = {};
 
@@ -74,64 +74,28 @@ sub arguments {
         $self->{arguments} = $arguments;
         my ( $broker, $topic ) = split q( ), $arguments, 2;
         die "ERROR: bad arguments for Topic\n" if ( not $broker );
-        $self->{broker_path}    = $broker;
-        $self->{topic}          = $topic // $self->{name};
-        $self->{next_partition} = 0;
-        $self->{last_check}     = 0;
-        $self->{batch}          = {};
-        $self->{batch_size}     = 0;
+        $self->{broker_path}     = $broker;
+        $self->{topic}           = $topic // $self->{name};
+        $self->{next_partition}  = 0;
+        $self->{last_check}      = 0;
+        $self->{batch}           = {};
+        $self->{batch_offset}    = {};
+        $self->{batch_size}      = {};
+        $self->{responses}       = {};
+        $self->{batch_responses} = {};
         $self->set_timer;
     }
     return $self->{arguments};
 }
 
 sub fill {
-    my $self    = shift;
-    my $message = shift;
+    my ( $self, $message ) = @_;
     if ( $message->[TYPE] & TM_RESPONSE ) {
-        my $last_commit_offset = $message->[ID];
-        my $broker_id          = ( split m{/}, $message->[FROM], 2 )[0];
-        my $batch_responses    = $self->{batch_responses}->{$broker_id} // [];
-        my $responses          = $batch_responses->[0];
-        if (    $responses
-            and $responses->{last_commit_offset} == $last_commit_offset )
-        {
-            $self->cancel($_) for ( @{ $responses->{batch} } );
-            shift @{$batch_responses};
-        }
-        else {
-            $self->stderr( 'WARNING: unexpected response offset: ',
-                $last_commit_offset );
-            $self->{responses}       = {};
-            $self->{batch_responses} = {};
-        }
+        $self->handle_response($message);
     }
     elsif ( $self->is_broker_path( $message->[FROM] ) ) {
         if ( $message->[TYPE] & TM_ERROR ) {
-            $self->set_timer if ( defined $self->{timer_interval} );
-            my %senders = ();
-            for my $broker_id ( keys %{ $self->{batch_responses} } ) {
-                my $batch_responses = $self->{batch_responses}->{$broker_id};
-                for my $responses ( @{$batch_responses} ) {
-                    $senders{ $_->[FROM] } = 1
-                        for ( @{ $responses->{batch} } );
-                }
-            }
-            for my $broker_id ( keys %{ $self->{responses} } ) {
-                for my $response ( @{ $self->{responses}->{$broker_id} } ) {
-                    $senders{ $response->[FROM] } = 1;
-                }
-            }
-            $self->{responses}       = {};
-            $self->{batch_responses} = {};
-            for my $sender ( keys %senders ) {
-                my $copy = bless [ @{$message} ], ref $message;
-                $copy->[TO]     = $sender;
-                $copy->[ID]     = q();
-                $copy->[STREAM] = q();
-                $self->{sink}->fill($copy);
-            }
-            $self->{partitions} = undef;
+            $self->handle_error($message);
         }
         elsif ( $message->[TYPE] & TM_STORABLE ) {
             $self->update_partitions($message);
@@ -166,29 +130,33 @@ sub fire {
     if ($partitions) {
         my $topic           = $self->{topic};
         my $batch           = $self->{batch};
+        my $batch_offset    = $self->{batch_offset};
         my $responses       = $self->{responses};
         my $batch_responses = $self->{batch_responses};
         for my $i ( keys %{$batch} ) {
             my $broker_id = $partitions->[$i];
+            my $persist   = $responses->{$i} ? TM_PERSIST : 0;
             my $message   = Tachikoma::Message->new;
-            $message->[TYPE]    = TM_BATCH | TM_PERSIST;
+            $message->[TYPE] = TM_BATCH;
+            $message->[TYPE] |= $persist if ($persist);
             $message->[FROM]    = $self->{name};
             $message->[TO]      = "$topic:partition:$i";
-            $message->[ID]      = $self->{counter};
+            $message->[ID]      = join q(:), $i, $batch_offset->{$i};
             $message->[STREAM]  = scalar @{ $batch->{$i} };
             $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
-            $batch_responses->{$broker_id} //= [];
-            push @{ $batch_responses->{$broker_id} },
+            $batch_responses->{$i} //= [];
+            push @{ $batch_responses->{$i} },
                 {
-                last_commit_offset => $self->{counter},
-                batch              => $responses->{$broker_id},
-                };
-            $responses->{$broker_id} = [];
+                last_commit_offset => $batch_offset->{$i},
+                batch              => $responses->{$i},
+                }
+                if ($persist);
+            delete $responses->{$i};
         }
         $self->{batch}      = {};
-        $self->{batch_size} = 0;
+        $self->{batch_size} = {};
     }
     if ( $Tachikoma::Right_Now - $self->{last_check}
         >= $self->{poll_interval} )
@@ -206,9 +174,59 @@ sub fire {
     return;
 }
 
+sub handle_response {
+    my ( $self, $message ) = @_;
+    my ( $i, $last_commit_offset ) = split m{:}, $message->[ID], 2;
+    my $batch_responses = $self->{batch_responses}->{$i} // [];
+    my $responses = $batch_responses->[0];
+    while ( $responses
+        and $responses->{last_commit_offset} < $last_commit_offset )
+    {
+        shift @{$batch_responses};
+        $responses = $batch_responses->[0];
+    }
+    if (    $responses
+        and $responses->{last_commit_offset} == $last_commit_offset )
+    {
+        $self->cancel($_) for ( @{ $responses->{batch} } );
+        shift @{$batch_responses};
+    }
+    else {
+        $self->print_less_often( 'WARNING: unexpected response offset: ',
+            $last_commit_offset );
+    }
+    return;
+}
+
+sub handle_error {
+    my ( $self, $message ) = @_;
+    my %senders = ();
+    for my $i ( keys %{ $self->{batch_responses} } ) {
+        my $batch_responses = $self->{batch_responses}->{$i};
+        for my $responses ( @{$batch_responses} ) {
+            $senders{ $_->[FROM] } = 1 for ( @{ $responses->{batch} } );
+        }
+    }
+    for my $i ( keys %{ $self->{responses} } ) {
+        for my $response ( @{ $self->{responses}->{$i} } ) {
+            $senders{ $response->[FROM] } = 1;
+        }
+    }
+    $self->{responses}       = {};
+    $self->{batch_responses} = {};
+    for my $sender ( keys %senders ) {
+        my $copy = bless [ @{$message} ], ref $message;
+        $copy->[TO]     = $sender;
+        $copy->[ID]     = q();
+        $copy->[STREAM] = q();
+        $self->{sink}->fill($copy);
+    }
+    $self->{partitions} = undef;
+    return;
+}
+
 sub batch_message {
-    my $self       = shift;
-    my $message    = shift;
+    my ( $self, $message ) = @_;
     my $partitions = $self->{partitions};
     my $i          = 0;
     if ( length $message->[TO] ) {
@@ -223,17 +241,20 @@ sub batch_message {
         $i = $self->{next_partition};
         $self->{next_partition} = ( $i + 1 ) % @{$partitions};
     }
-    my $broker_id = $partitions->[$i];
-    my $packed    = $message->packed;
-    $self->{batch}->{$i} //= [];
+    my $packed = $message->packed;
+    $self->{batch}->{$i}        //= [];
+    $self->{batch_offset}->{$i} //= 0;
+    $self->{batch_size}->{$i}   //= 0;
     push @{ $self->{batch}->{$i} }, ${$packed};
-    $self->{batch_size} += length ${$packed};
-    $message->[$Offset] = $self->{counter}++;
+    $self->{batch_offset}->{$i}++;
+    $self->{batch_size}->{$i} += length ${$packed};
     $message->[PAYLOAD] = q();
-    push @{ $self->{responses}->{$broker_id} }, $message
-        if ( $message->[TYPE] & TM_PERSIST );
 
-    if ( $self->{batch_size} > $Batch_Threshold ) {
+    if ( $message->[TYPE] & TM_PERSIST ) {
+        $self->{responses}->{$i} //= [];
+        push @{ $self->{responses}->{$i} }, $message;
+    }
+    if ( $self->{batch_size}->{$i} > $Batch_Threshold ) {
         $self->set_timer(0)
             if ( defined $self->{timer_interval}
             and $self->{timer_interval} != 0 );
@@ -245,8 +266,7 @@ sub batch_message {
 }
 
 sub update_partitions {
-    my $self       = shift;
-    my $message    = shift;
+    my ( $self, $message ) = @_;
     my $partitions = $message->payload;
     my $okay       = 1;
     for my $broker_id ( @{$partitions} ) {
@@ -262,7 +282,6 @@ sub update_partitions {
                 $broker_id );
             $node->on_EOF('reconnect');
             $node->sink( $self->sink );
-            $self->{responses}->{$broker_id} = [];
         }
     }
     $self->{partitions} = $partitions if ($okay);
@@ -652,6 +671,14 @@ sub batch {
         $self->{batch} = shift;
     }
     return $self->{batch};
+}
+
+sub batch_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_offset} = shift;
+    }
+    return $self->{batch_offset};
 }
 
 sub batch_size {
