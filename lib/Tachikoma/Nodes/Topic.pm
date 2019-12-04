@@ -142,7 +142,6 @@ sub fire {
             $message->[FROM]    = $self->{name};
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = join q(:), $i, $batch_offset->{$i};
-            $message->[STREAM]  = scalar @{ $batch->{$i} };
             $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
@@ -192,8 +191,8 @@ sub handle_response {
         shift @{$batch_responses};
     }
     else {
-        $self->print_less_often( 'WARNING: unexpected response offset: ',
-            $last_commit_offset );
+        $self->print_less_often( 'WARNING: unexpected response ID: ',
+            $message->[ID] );
     }
     return;
 }
@@ -248,10 +247,10 @@ sub batch_message {
     push @{ $self->{batch}->{$i} }, ${$packed};
     $self->{batch_offset}->{$i}++;
     $self->{batch_size}->{$i} += length ${$packed};
-    $message->[PAYLOAD] = q();
 
     if ( $message->[TYPE] & TM_PERSIST ) {
         $self->{responses}->{$i} //= [];
+        $message->[PAYLOAD] = q();
         push @{ $self->{responses}->{$i} }, $message;
     }
     if ( $self->{batch_size}->{$i} > $Batch_Threshold ) {
@@ -338,7 +337,6 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     $self->{sync_error} = undef;
     return if ( not @buffer );
     $message->[TYPE]    = ( $persist ? TM_BATCH | TM_PERSIST : TM_BATCH );
-    $message->[STREAM]  = scalar @{$payloads};
     $message->[TO]      = "$topic:partition:$i";
     $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
