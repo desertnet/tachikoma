@@ -16,6 +16,8 @@ use Tachikoma::Message qw(
 );
 use parent qw( Tachikoma::Node );
 
+use version; our $VERSION = qv('v2.0.700');
+
 sub fill {
     my $self    = shift;
     my $message = shift;
@@ -24,7 +26,7 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
     my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
-    my $process   = ( split q( ), $message->[PAYLOAD], 6 )[4] // '-';
+    my $process   = ( split q( ), $message->[PAYLOAD], 6 )[4] // q(-);
     $process =~ s{\[\d+\]:$}{};
     $process =~ s{--\d+--.*?:tail}{--XXX:tail}g;
     $process =~ s{\d}{X}g;

@@ -15,9 +15,11 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_ERROR TM_EOF );
 use Data::Dumper;
 
+use version; our $VERSION = qv('v2.0.700');
+
 sub new {
     my $class = shift;
-    my $self  = { ev => Tachikoma::EventFrameworks::Select->new };
+    my $self = { ev => Tachikoma::EventFrameworks::Select->new };
     bless $self, $class;
     Tachikoma->event_framework( $self->ev );
     return $self;
@@ -28,7 +30,7 @@ sub spawn {
     my $count    = shift;
     my $original = shift || [];
     my $callback = shift;
-    my $commands = [@$original];
+    my $commands = [ @{$original} ];
 
     my $job_controller = Tachikoma::Nodes::JobController->new;
     my $output         = Tachikoma::Nodes::Callback->new;
@@ -41,9 +43,9 @@ sub spawn {
     $output->name('_parent');
 
     my $new_shells = sub {
-        while ( keys %{ $job_controller->jobs } < $count and @$commands ) {
-            my $command = shift(@$commands) or return;
-            my $name    = join( '-', 'shell', Tachikoma->counter );
+        while ( keys %{ $job_controller->jobs } < $count and @{$commands} ) {
+            my $command = shift @{$commands} or return;
+            my $name = join q(-), 'shell', Tachikoma->counter;
             $job_controller->start_job(
                 {   type      => 'ExecFork',
                     name      => $name,
@@ -61,15 +63,15 @@ sub spawn {
             my $message = shift;
 
             # print Dumper($message);
-            # print "nodes: ", join(', ', sort keys %Tachikoma::Nodes), "\n";
-            &$callback( $message->stream, $message->payload )
+            # print "nodes: ", join(q(, ), sort keys %Tachikoma::Nodes), "\n";
+            &{$callback}( $message->stream, $message->payload )
                 if ( not $message->type & TM_EOF and $message->from );
-            &$new_shells;
+            &{$new_shells};
             return;
         }
     );
 
-    &$new_shells;
+    &{$new_shells};
 
     $self->ev->drain( $stdin, $stdin );
 
