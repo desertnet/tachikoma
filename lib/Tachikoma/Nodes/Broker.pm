@@ -355,7 +355,7 @@ sub process_info {
         return if ( not $self->validate( $message, 'INIT' ) );
         $self->generation( $message->[ID] );
         $self->stage('HALT');
-        $self->send_lco;
+        $self->send_lco( $message->[FROM] );
         $self->send_response( $message, "HALT_COMPLETE\n" );
     }
     elsif ( $message->[PAYLOAD] eq "RESET\n" ) {
@@ -533,7 +533,7 @@ sub receive_heartbeat {
 }
 
 sub send_lco {
-    my $self      = shift;
+    my ( $self, $from ) = @_;
     my $broker_id = $self->{broker_id};
     $self->{last_commit_offsets}->{$broker_id} //= {};
     $self->{broker_stats}->{$broker_id}        //= {};
@@ -562,14 +562,20 @@ sub send_lco {
         partitions => $broker_lco,
         stats      => $broker_stats
     };
-    for my $id ( keys %{ $self->{brokers} } ) {
-        my $broker = $self->{brokers}->{$id};
-        next
-            if ( $id eq $broker_id
-            or not $broker->{leader}
-            or not $broker->{online} );
-        $message->[TO] = $broker->{path};
+    if ($from) {
+        $message->[TO] = $from;
         $self->{sink}->fill($message);
+    }
+    else {
+        for my $id ( keys %{ $self->{brokers} } ) {
+            my $broker = $self->{brokers}->{$id};
+            next
+                if ( $id eq $broker_id
+                or not $broker->{leader}
+                or not $broker->{online} );
+            $message->[TO] = $broker->{path};
+            $self->{sink}->fill($message);
+        }
     }
     return;
 }

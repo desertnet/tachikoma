@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3318;
+use Test::More tests => 3028;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -116,21 +116,12 @@ my %nodes = (
     'Tachikoma::Nodes::TopicProbe'        => q(1),
     'Tachikoma::Nodes::Uniq'              => q(),
     'Tachikoma::Nodes::Watchdog'          => q(),
-    'Accessories::Nodes::Block'           => q(),
     'Accessories::Nodes::Bucket'          => qq($t/bucket),
-    'Accessories::Nodes::ByteSplit'       => q(),
-    'Accessories::Nodes::Counter'         => q(),
-    'Accessories::Nodes::Date'            => q(),
-    'Accessories::Nodes::HexDump'         => q(),
     'Accessories::Nodes::IndexByHostname' => q(),
     'Accessories::Nodes::IndexByProcess'  => q(),
     'Accessories::Nodes::LogColor'        => q(),
-    'Accessories::Nodes::Number'          => q(),
-    'Accessories::Nodes::Panel'           => undef,
-    'Accessories::Nodes::SFESerLCD'       => q(),
-    'Accessories::Nodes::SilentDeFlapper' => q(),
-    'Accessories::Nodes::Smooth'          => q(),
     'Accessories::Nodes::Spool'           => qq($t/spool),
+    'Accessories::Nodes::TestStream'      => qq(),
 );
 
 my %skip_owner_test = (
@@ -159,7 +150,6 @@ my %skip_all_tests = (
     'Tachikoma::Nodes::StorableToJSON' => 1,
     'Tachikoma::Nodes::TailTop'        => 1,
     'Tachikoma::Nodes::TopicTop'       => 1,
-    'Accessories::Nodes::SFE4DigitLED' => 1,
     'Accessories::Nodes::Watcher'      => 1,
 );
 
