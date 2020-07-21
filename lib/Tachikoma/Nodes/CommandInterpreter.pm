@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 38120 2019-11-22 05:26:38Z chris $
+# $Id: CommandInterpreter.pm 39072 2020-07-11 03:56:45Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -737,6 +737,7 @@ $C{dump_metadata} = sub {
         my $class    = ref $node;
         my $type     = q();
         my @extra    = ();
+
         if ( $node->isa('Tachikoma::Nodes::FileHandle') ) {
 
             if ( $node->{type} eq 'connect' ) {
@@ -797,7 +798,7 @@ $C{dump_node} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -819,7 +820,7 @@ $C{dump_node} = sub {
         $copy->{input_buffer} = length ${ $copy->{input_buffer} };
     }
     if ( exists $copy->{output_buffer} ) {
-        $copy->{output_buffer} = [];
+        $copy->{output_buffer} = scalar @{ $node->{output_buffer} };
     }
     delete $copy->{interpreter};
     for my $key (qw( jobs consumers )) {
@@ -853,7 +854,7 @@ $C{dump_hex} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -896,7 +897,7 @@ $C{dump_dec} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -1140,6 +1141,7 @@ $C{listen_unix} = sub {
     $perms    ||= $argv->[2];
     $gid      ||= $argv->[3];
     die qq(no node name specified\n) if ( not length $name );
+
     if ($io_mode) {
         $node =
             unix_server Tachikoma::Nodes::STDIO( $filename, $name, $perms,
@@ -1659,7 +1661,7 @@ $C{stats} = sub {
     my $envelope = shift;
     my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
-    my $response = [
+    my $response     = [
         [   [ 'NAME'       => 'left' ],
             [ 'COUNT'      => 'right' ],
             [ 'BUF_SIZE'   => 'right' ],
@@ -1870,20 +1872,14 @@ $C{config} = sub {
             return $self->response( $envelope, "$line\n" );
         }
         else {
-            return $self->response( $envelope, qq(undef\n) );
+            return $self->response( $envelope, "\n" );
         }
     }
     else {
         my @response = ();
         for my $key ( sort keys %{$var} ) {
             next if ( ref $var->{$key} );
-            my $line = "$key=";
-            if ( defined $var->{$key} ) {
-                $line .= $var->{$key};
-            }
-            else {
-                $line .= q(undef);
-            }
+            my $line = "$key=" . ( $var->{$key} // q() );
             chomp $line;
             push @response, $line, "\n";
         }
@@ -1905,7 +1901,7 @@ $C{remote_var} = sub {
     my $var = $self->configuration->var;
     if ( length $value ) {
         my $v = $var->{$key};
-        $v = [] if ( not defined $v or not length $v );
+        $v = []   if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
         if ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ); }
         if ( $op eq q(=) ) { $v = [$value]; }
@@ -1974,6 +1970,7 @@ $C{remote_func} = sub {
     my $payload   = $command->payload;
     my $func_tree = thaw( $payload ? $payload : undef );
     my $functions = $self->configuration->functions;
+
     if ( defined $func_tree ) {
         $functions->{$name} = $func_tree;
     }
@@ -1997,7 +1994,7 @@ $C{list_callbacks} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
-    my $response = join q(), map "$_\n", sort keys %{$callbacks};
+    my $response  = join q(), map "$_\n", sort keys %{$callbacks};
     return $self->response( $envelope, $response );
 };
 
@@ -2029,7 +2026,7 @@ $C{log} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->stderr( 'LOG: ', $command->arguments );
+    $self->stderr( $command->arguments );
     return $self->okay($envelope);
 };
 
@@ -2471,7 +2468,7 @@ sub log_command {
     if ( $cmd_name ne 'prompt'
         and not( $message->[TYPE] & TM_COMPLETION and $comp{$cmd_name} ) )
     {
-        my $node = $self->patron || $self;
+        my $node          = $self->patron || $self;
         my $cmd_arguments = $command->{arguments};
         $cmd_arguments =~ s{\n}{\\n}g;
         $node->stderr( join q( ), 'FROM:', $message->[FROM], 'ID:',
@@ -2506,7 +2503,7 @@ sub make_node {
         my $class_path = $class;
         $class_path =~ s{::}{/}g;
         $class_path .= '.pm';
-        $rv = eval { require $class_path };
+        $rv    = eval { require $class_path };
         $error = $@
             if ( not $rv
             and ( not $error or $error =~ m{^Can't locate \S*$path} ) );
@@ -2662,6 +2659,7 @@ sub list_nodes {    ## no critic (ProhibitExcessComplexity)
     my $show_sink    = $options->{show_sink};
     my $show_edge    = $options->{show_edge};
     my $show_owner   = $options->{show_owner};
+
     for my $name ( sort keys %Tachikoma::Nodes ) {
         next if ( $list_matches and length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};

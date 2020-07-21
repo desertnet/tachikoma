@@ -78,8 +78,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $buffers     = $self->{buffers};
     my $new_buffers = {};
 LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $buffer = { map { split m{:}, $_, 2 } split q( ), $line };
-        my $buffer_id = join q(:), $buffer->{hostname}, $buffer->{buff_name};
+        my $buffer     = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $buffer_id  = join q(:), $buffer->{hostname}, $buffer->{buff_name};
         my $old_buffer = $buffers->{$buffer_id};
         $new_buffers->{$buffer_id} = $buffer;
         $buffer->{id}              = $buffer_id;

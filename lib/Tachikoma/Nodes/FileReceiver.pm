@@ -103,7 +103,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error = $@ || 'unknown error';
+                my $error   = $@ || 'unknown error';
                 my $details = $!;
                 chomp $error;
                 $error =~ s{ at /\S+ line \d+[.]$}{};
@@ -121,15 +121,18 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             or $self->stderr("ERROR: couldn't write $path: $!");
     }
     elsif ( $op eq 'symlink' ) {
-        if ( -e $path or -l $path ) {
-            unlink $path
-                or $self->stderr("ERROR: couldn't unlink $path: $!");
-        }
         $self->make_parent_dirs($path);
         umask 0022
             or $self->stderr("ERROR: couldn't umask 0022: $!");
-        symlink $message->[PAYLOAD], $path
-            or $self->stderr("ERROR: couldn't symlink $path: $!");
+        if ( -e $path or -l $path ) {
+            system( '/bin/ln', '-fns', $message->[PAYLOAD], $path ) == 0
+                or $self->stderr( "ERROR: couldn't symlink $path: ",
+                $self->syserr );
+        }
+        else {
+            symlink $message->[PAYLOAD], $path
+                or $self->stderr("ERROR: couldn't symlink $path: $!");
+        }
     }
     elsif ( $op eq 'mkdir' ) {
         $self->make_dirs($path);
@@ -148,7 +151,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     elsif ( $op eq 'rename' ) {
         my $new_relative = undef;
         ( $relative, $new_relative ) = split $Separator, $relative, 2;
-        $relative =~ s{(?:^|/)[.][.](?=/)}{}g     if ($relative);
+        $relative     =~ s{(?:^|/)[.][.](?=/)}{}g if ($relative);
         $new_relative =~ s{(?:^|/)[.][.](?=/)}{}g if ($new_relative);
         $path = join q(/), $prefix, $relative;
         my $new_path = join q(/), $prefix, $new_relative;
@@ -229,6 +232,23 @@ sub set_metadata {
     utime $lstat[8], $lstat[9], $path
         or $self->stderr("ERROR: couldn't utime $path: $!");
     return;
+}
+
+sub syserr {
+    my $self  = shift;
+    my $error = undef;
+    if ( $? == -1 ) {
+        $error = "child failed to execute: $!";
+    }
+    elsif ( $? & 127 ) {
+        $error =
+            sprintf "child died with signal %d, %s coredump\n",
+            ( $? & 127 ), ( $? & 128 ) ? 'with' : 'without';
+    }
+    else {
+        $error = sprintf "child exited with value %d\n", $? >> 8;
+    }
+    return $error;
 }
 
 sub filehandles {

@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: Shell.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Tachikoma::Jobs::Shell;
@@ -52,7 +52,7 @@ sub initialize_shell_graph {
     my $shell_stderr =
         Tachikoma::Nodes::STDIO->filehandle( $child_err, TK_R );
     $shell_stdin->name('shell:stdin');
-    $shell_stdin->sink($self);
+    $shell_stdin->sink( $self->router );
     $shell_stdout->name('shell:stdout');
     $shell_stdout->sink($self);
     $shell_stderr->name('shell:stderr');
@@ -91,7 +91,7 @@ sub fill {
         if ( $type & TM_EOF ) {
             if ( kill 0, $self->{shell_pid} ) {
                 my $pid = waitpid -1, WNOHANG;
-                my $rv = $? >> 8;
+                my $rv  = $? >> 8;
                 $self->stderr("ERROR: shell exited with value: $rv")
                     if ( $pid > 0 and $rv );
             }

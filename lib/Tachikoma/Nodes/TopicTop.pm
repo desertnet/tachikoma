@@ -61,7 +61,7 @@ sub new {
     $self->set_timer( $Default_Output_Interval * 1000 );
     ## no critic (RequireLocalizedPunctuationVars)
     $SIG{WINCH} = sub { $Winch = 1 };
-    $SIG{INT} = sub {
+    $SIG{INT}   = sub {
         print "\e[0m\e[?25h";
         ## no critic (RequireCheckedSyscalls)
         system '/bin/stty', 'echo', '-cbreak';
@@ -105,6 +105,7 @@ sub fire {
     my $reverse    = $sort =~ s{^-}{}o;
     my $sorted     = {};
     my $totals     = {};
+
     for my $id ( keys %{$partitions} ) {
         $self->calculate_partition_row( $partitions->{$id} );
         $self->calculate_partition_totals( $partitions->{$id}, $totals );
@@ -166,7 +167,7 @@ OUTPUT:
             $consumer->{cache} = human( $consumer->{cache_size} );
             $consumer->{$_} = human( $consumer->{"_$_"} )
                 for (qw( distance recv_rate send_rate ));
-            $consumer->{msg_rate} = sprintf '%.2f', $consumer->{_msg_rate};
+            $consumer->{msg_rate}  = sprintf '%.2f', $consumer->{_msg_rate};
             $consumer->{direction} = (
                 ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q(=)
                 : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q(>)
@@ -200,7 +201,7 @@ sub human {
     my $value = shift // 0;
     return $value if ( $value !~ m{^-?[\d.]+$} );
     if ( abs($value) >= 1000 * 1024**4 ) {
-        $value = sprintf '%0.2fP', $value / 1024**4;
+        $value = sprintf '%0.2fP', $value / 1024**5;
     }
     elsif ( abs($value) >= 1000 * 1024**3 ) {
         $value = sprintf '%0.2fT', $value / 1024**4;
@@ -298,7 +299,7 @@ sub calculate_row {
         $rate = $row->{last_rate};
     }
     if ( $rate > 0 ) {
-        my $eta = $row->{_distance} / $rate;
+        my $eta   = $row->{_distance} / $rate;
         my $hours = sprintf '%02d', $eta / 3600;
         $row->{eta} = strftime( "$hours:%M:%S", localtime $eta );
     }

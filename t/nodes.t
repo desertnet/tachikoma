@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3028;
+use Test::More tests => 3060;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -50,6 +50,7 @@ my %nodes = (
     'Tachikoma::Nodes::Consumer'              => q(--partition=foo),
     'Tachikoma::Nodes::ConsumerBroker'        => q(--topic=foo),
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
+    'Tachikoma::Nodes::DirWatcher'            => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
     'Tachikoma::Nodes::FileController'        => q(),

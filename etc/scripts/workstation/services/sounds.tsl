@@ -1,0 +1,35 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+var name = sounds;
+include services/daemonize.tsl
+
+if ( `uname` eq "Darwin\n" ) {
+    func get_sound { return "/System/Library/Sounds/<1>.aiff\n" };
+    make_node Function server_log:sounds '{
+        local sound = "";
+        # if (<1> =~ "\sWARNING:\s")    [ sound = Tink;   ]
+        if (<1> =~ "\sERROR:\s(.*)")  [ sound = Tink;   ]
+        elsif (<1> =~ "\sFAILURE:\s") [ sound = Sosumi; ]
+        elsif (<1> =~ "\sCOMMAND:\s") [ sound = Hero;   ];
+        if (<sound>) { aplay { get_sound <sound> } };
+    }';
+} else {
+    func get_sound { return "/usr/share/sounds/sound-icons/<1>\n" };
+    make_node Function server_log:sounds '{
+        local sound = "";
+        # if (<1> =~ "\sWARNING:\s")    [ sound = cembalo-10.wav;  ]
+        if (<1> =~ "\sERROR:\s(.*)")  [ sound = cembalo-10.wav;  ]
+        elsif (<1> =~ "\sFAILURE:\s") [ sound = cembalo-3.wav;   ]
+        elsif (<1> =~ "\sCOMMAND:\s") [ sound = cembalo-11.wav;  ];
+        if (<sound>) { aplay { get_sound <sound> } };
+    }';
+}
+func aplay { send APlay:sieve <1>; return }
+
+make_node MemorySieve APlay:sieve 1
+make_node JobFarmer   APlay       4 APlay
+command APlay lazy on
+connect_node APlay:sieve         APlay:load_balancer
+connect_node server_log:sounds   _responder
+
+listen_inet localhost:<root_port>
+secure 3

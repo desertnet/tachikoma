@@ -172,16 +172,20 @@ sub fill {
                 if ( not $message->[TYPE] & TM_EOF );
             return;
         }
-        $self->{offset} //= $offset;
         if (    $self->{next_offset} > 0
             and $offset != $self->{next_offset} )
         {
             $self->stderr( 'WARNING: skipping from ',
                 $self->{next_offset}, ' to ', $offset );
-            my $new_buffer = q();
-            $self->{buffer} = \$new_buffer;
-            $self->{offset} = $offset;
+            if ( defined $self->partition_id ) {
+                $self->remove_node;
+            }
+            else {
+                $self->arguments( $self->arguments );
+            }
+            return;
         }
+        $self->{offset} //= $offset;
         if ( $message->[TYPE] & TM_EOF ) {
             $self->handle_EOF($offset);
         }
@@ -403,7 +407,7 @@ sub get_batch_async {
     my $offset = $self->{next_offset};
     return if ( not $self->{sink} );
     if ( not defined $offset ) {
-        if ( $self->status eq 'INIT' ) {
+        if ( $self->{status} eq 'INIT' ) {
             $offset //= -2;
         }
         elsif ( $self->default_offset eq 'start' ) {
@@ -416,6 +420,13 @@ sub get_batch_async {
             $offset //= -1;
         }
         $self->next_offset($offset);
+    }
+    elsif ( $self->{status} eq 'ACTIVE'
+        and $self->{saved_offset}
+        and $self->{next_offset} == $self->{saved_offset} )
+    {
+        $self->{next_offset}  = 0;
+        $self->{saved_offset} = undef;
     }
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_REQUEST;
@@ -467,8 +478,8 @@ sub commit_offset_async {
     my $lowest    = $self->{inflight}->[0];
     my $offset    = $lowest ? $lowest->[0] : $self->{offset};
     my $stored    = {
-        timestamp => $timestamp // $Tachikoma::Now,
-        offset => $offset,
+        timestamp  => $timestamp // $Tachikoma::Now,
+        offset     => $offset,
         cache_type => $self->{cache_type},
         cache      => $cache,
     };
@@ -658,7 +669,7 @@ sub get_offset {
         $consumer->hub_timeout( $self->hub_timeout );
         while (1) {
             my $messages = $consumer->fetch;
-            my $error = $consumer->sync_error // q();
+            my $error    = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
             last if ( not @{$messages} );
@@ -743,7 +754,7 @@ sub get_messages {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID] = join q(:), $offset, $offset + $size;
+        $message->[ID]   = join q(:), $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
 
@@ -762,7 +773,7 @@ sub get_messages {
 sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
-    my $rv = undef;
+    my $rv     = undef;
     my $target = $self->target or return;
     die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
     my $message = Tachikoma::Message->new;

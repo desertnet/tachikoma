@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 37795 2019-07-28 17:10:13Z chris $
+# $Id: Buffer.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -80,7 +80,8 @@ sub arguments {
             split q( ), $self->{arguments}, 2;
         $self->is_active(undef);
         $self->msg_unanswered( {} );
-        $self->untie_hash;
+        $self->untie_hash
+            if ( $self->{tiedhash} and tied %{ $self->{tiedhash} } );
         $self->cache(undef);
         $self->buffer_size(undef);
         $self->filename($filename);
@@ -114,15 +115,15 @@ sub fill {
     do {
         $message_id = $self->msg_counter;
     } while ( exists $tiedhash->{$message_id} );
-    $copy->[TYPE]            = $type | TM_PERSIST;
-    $copy->[FROM]            = $self->{name};
-    $copy->[TO]              = $self->{owner};
-    $copy->[ID]              = $message_id;
-    $tiedhash->{$message_id} = pack 'F N a*',
-        $Tachikoma::Right_Now + $self->{delay}, 0, ${ $copy->packed };
+    $copy->[TYPE] = $type | TM_PERSIST;
+    $copy->[FROM] = $self->{name};
+    $copy->[TO]   = $self->{owner};
+    $copy->[ID]   = $message_id;
     $self->get_buffer_size if ( not defined $self->{buffer_size} );
     $self->{buffer_fills}++;
     $self->{buffer_size}++;
+    $tiedhash->{$message_id} = pack 'F N a*',
+        $Tachikoma::Right_Now + $self->{delay}, 0, ${ $copy->packed };
     $self->send_event(
         {   'type'  => 'MSG_RECEIVED',
             'key'   => $copy->[STREAM],
@@ -170,7 +171,7 @@ sub handle_response {
         $self->send_event(
             {   'type'  => 'MSG_CANCELED',
                 'key'   => $response->[STREAM],
-                'value' => q(),
+                'value' => $buffer_size,
             }
         );
     }
@@ -386,6 +387,7 @@ sub send_event {
     $note->[TYPE]       = TM_STORABLE;
     $note->[STREAM]     = $event->{key};
     $note->[PAYLOAD]    = $event;
+
     for my $name ( keys %{$registrations} ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {
@@ -733,11 +735,7 @@ $C{kick} = sub {
     my $command  = shift;
     my $envelope = shift;
     my $patron   = $self->patron;
-    $patron->is_active(undef);
-    $patron->msg_unanswered( {} );
-    $patron->untie_hash;
-    $patron->cache(undef);
-    $patron->buffer_size(undef);
+    $patron->arguments( $patron->arguments );
     $patron->fire;
     return $self->okay($envelope);
 };

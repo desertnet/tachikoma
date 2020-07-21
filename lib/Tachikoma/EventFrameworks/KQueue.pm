@@ -3,7 +3,7 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: KQueue.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Tachikoma::EventFrameworks::KQueue;
@@ -26,7 +26,7 @@ my %TIMERS = ();
 
 sub new {
     my $class = shift;
-    my $self = { handle_signal => \&handle_signal, };
+    my $self  = { handle_signal => \&handle_signal, };
     $KQUEUE = IO::KQueue->new;
     bless $self, $class;
     return $self;

@@ -12,8 +12,7 @@ my $config = Tachikoma->configuration;
 # Set our ID
 $config->id('tachikoma@tachikoma');
 
-# Set your *unencrypted* private key here if desired.
-# Otherwise, remove this and put the *encrypted* key in ~/.tachikoma/rsa
+# Set your unencrypted private key here
 $config->private_key( q(-----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----

@@ -96,7 +96,7 @@ sub fill {
     }
     return if ( not $self->{owner} );
     return $self->cancel($message) if ( not @{$rv} );
-    my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
+    my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BYTESTREAM;
     $response->[TYPE] |= $persist if ($persist);

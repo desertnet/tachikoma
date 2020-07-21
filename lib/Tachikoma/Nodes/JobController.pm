@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 37795 2019-07-28 17:10:13Z chris $
+# $Id: JobController.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Tachikoma::Nodes::JobController;
@@ -68,7 +68,7 @@ sub fill {
     return if ( $self->{shutting_down} );
     if ( $type & TM_KILLME ) {
         my $name = ( split m{/}, $message->[FROM], 2 )[0];
-        my $job = $self->{jobs}->{$name};
+        my $job  = $self->{jobs}->{$name};
         return $self->stderr("ERROR: TM_KILLME from unknown $name")
             if ( not $job );
         $job->{connector}->fill($message);
@@ -540,7 +540,7 @@ sub dump_config {
             $response .= "$line\n";
         }
         for my $name ( sort keys %{$jobs} ) {
-            my $job = $jobs->{$name};
+            my $job   = $jobs->{$name};
             my $owner = $job->{connector}->{owner} or next;
             $response .= ("connect_node $name $owner\n");
         }

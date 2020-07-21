@@ -7,7 +7,7 @@
 # If Tachikoma had a single edge, this module would be it.
 #   - on_EOF: close, send, ignore, reconnect
 #
-# $Id: STDIO.pm 37781 2019-07-23 03:37:38Z chris $
+# $Id: STDIO.pm 39097 2020-07-14 22:40:30Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -19,6 +19,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
+use IO::Socket::SSL qw( SSL_WANT_WRITE );
 use POSIX qw( EAGAIN );
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
@@ -212,7 +213,7 @@ sub fill_fh {
         }
     }
     $self->{output_cursor} = $cursor;
-    $self->{last_fill} = @{$buffer} ? $Tachikoma::Now : 0
+    $self->{last_fill}     = @{$buffer} ? $Tachikoma::Now : 0
         if ( defined $self->{last_fill} );
     $self->unregister_writer_node if ( not @{$buffer} );
     $self->handle_EOF if ( $eof or ( not @{$buffer} and $self->{got_EOF} ) );

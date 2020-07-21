@@ -5,15 +5,17 @@ var home     = `echo ~`;
 var topics_dir = <home>/.tachikoma/pool;
 
 var tachikoma.services = (
-    test_stream
-    tasks
-    http
-    topic_top
-    tables
     engines
-    server_logs
     hubs
+    http
+    server_logs
+    topic_top
 );
+    # benchmarks
+    # sounds
+    # tables
+    # tasks
+    # test_stream
 
 var server_log.fields = (
     hostname
@@ -36,6 +38,7 @@ var tachikoma.topic_top.output.port  = 4394;
 var tachikoma.buffer_top.hostname    = <hostname>;
 var tachikoma.buffer_top.input.port  = 4395;
 var tachikoma.buffer_top.output.port = 4396;
+var tachikoma.sounds.port            = 4800;
 var tachikoma.benchmarks.port        = 4900;
 var tachikoma.tables.port            = 5100;
 var tachikoma.tables.http.port       = 5124;
@@ -90,4 +93,16 @@ func buffer_probe {
     make_node BufferProbe buffer_probe     4 <prefix>;
     connect_node buffer_top:sieve buffer_top;
     connect_node buffer_probe     buffer_top:sieve;
+}
+
+func run_benchmarks_profiled {
+    local time = <1>;
+    env NYTPROF=addpid=1:file=/tmp/nytprof.out;
+    env PERL5OPT=-d:NYTProf;
+    start_service benchmarks;
+    if (<time>) {
+        command scheduler in <time> command jobs stop_job benchmarks;
+    };
+    env NYTPROF=;
+    env PERL5OPT=;
 }

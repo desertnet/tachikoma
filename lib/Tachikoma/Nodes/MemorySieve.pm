@@ -35,7 +35,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $max_size, $should_warn ) = split q( ), $self->{arguments}, 2;
-        $self->{max_size} = $max_size // 1024;
+        $self->{max_size}    = $max_size // 1024;
         $self->{should_warn} = $should_warn;
     }
     return $self->{arguments};
@@ -53,9 +53,9 @@ sub fill {
         or $node->isa('Tachikoma::Nodes::LoadBalancer') )
     {
         for my $t_target ( @{ $node->owner } ) {
-            my $t_name = ( split m{/}, $t_target, 2 )[0];
+            my $t_name   = ( split m{/}, $t_target, 2 )[0];
             my $t_node   = $Tachikoma::Nodes{$t_name} or next;
-            my $t_buffer = $t_node->{output_buffer}   or next;
+            my $t_buffer = $t_node->{output_buffer} or next;
             if ( @{$t_buffer} >= $max_size ) {
                 $self->print_less_often(
                     "WARNING: $t_name bufsize > $max_size - dropping messages"

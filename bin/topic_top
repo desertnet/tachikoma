@@ -82,6 +82,21 @@ $get_input->callback(
             $router->shutdown_all_nodes;
             return;
         }
+        elsif ( $key eq 'c' ) {
+            $topic_top->sort_by('cache_size');
+        }
+        elsif ( $key eq 'd' ) {
+            $topic_top->sort_by('_distance');
+        }
+        elsif ( $key eq 'm' ) {
+            $topic_top->sort_by('_msg_rate');
+        }
+        elsif ( $key eq 'r' ) {
+            $topic_top->sort_by('_recv_rate');
+        }
+        elsif ( $key eq 's' ) {
+            $topic_top->sort_by('_send_rate');
+        }
         elsif ( $key =~ m(\d) ) {
             $topic_top->delay( $key || 10 );
             return;

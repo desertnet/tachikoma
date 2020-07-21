@@ -3,7 +3,7 @@
 # Accessories::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 37661 2019-06-19 00:33:01Z chris $
+# $Id: Watcher.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Accessories::Nodes::Watcher;
@@ -95,7 +95,7 @@ sub arguments {
                 'rename' => NOTE_RENAME,
                 'revoke' => NOTE_REVOKE
             };
-            $self->{notes} = [ map { $self->{mapping}->{$_} } @notes ];
+            $self->{notes}    = [ map { $self->{mapping}->{$_} } @notes ];
             $self->{filename} = $id;
             if ( open $fh, '<', $id ) {
                 $self->fh($fh);
@@ -164,6 +164,7 @@ sub note_fh {
     $message->[TYPE] = TM_BYTESTREAM;
     $message->[FROM] = $self->{name};
     $message->[TO]   = $self->{owner};
+
     if ( $self->{filter} == EVFILT_PROC ) {
 
         # wtf, kqueue? wtf?

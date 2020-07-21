@@ -114,7 +114,7 @@ sub fill {
         $response->[TYPE] = TM_BYTESTREAM;
         $response->[TO]   = $message->[FROM];
         if ($name) {
-            my $copy = bless { %{ $Tachikoma::Nodes{$name} } }, 'main';
+            my $copy   = bless { %{ $Tachikoma::Nodes{$name} } }, 'main';
             my %normal = map { $_ => 1 } qw( SCALAR ARRAY HASH );
             for my $key ( keys %{$copy} ) {
                 my $value    = $copy->{$key};

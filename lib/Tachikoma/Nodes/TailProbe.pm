@@ -67,10 +67,10 @@ sub fire {
         my $tiedhash = $node->tiedhash;
         my $files    = $node->files;
         for my $name ( sort keys %{$tiedhash} ) {
-            my $filename = $files->{$name}->[0];
+            my $filename  = $files->{$name}->[0];
             my $tail_name = join q(/), $self->{prefix}, $name;
             $tail_name =~ s{:}{_}g;
-            $filename =~ s{:}{_}g;
+            $filename  =~ s{:}{_}g;
             $out .= join q(),
                 'hostname:'        => $self->{my_hostname},
                 ' tail_name:'      => $tail_name,
