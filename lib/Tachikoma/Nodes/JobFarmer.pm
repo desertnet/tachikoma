@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 36781 2019-03-19 06:28:17Z chris $
+# $Id: JobFarmer.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -256,17 +256,18 @@ $C{restart_job} = sub {
     my $tee           = $self->patron->tee;
     my $jobc          = $self->patron->job_controller;
     my $jobs          = $jobc->jobs;
+
     if ( $name eq q(*) ) {
 
         for my $name ( keys %{$jobs} ) {
             $self->disconnect_node( $load_balancer->name, $name );
-            $self->disconnect_node( $tee->name, $name ) if ($tee);
+            $self->disconnect_node( $tee->name,           $name ) if ($tee);
             $jobc->stop_job($name);
         }
     }
     elsif ( $jobs->{$name} ) {
         $self->disconnect_node( $load_balancer->name, $name );
-        $self->disconnect_node( $tee->name, $name ) if ($tee);
+        $self->disconnect_node( $tee->name,           $name ) if ($tee);
         $jobc->stop_job($name);
     }
     else {
@@ -339,6 +340,7 @@ $C{set_count} = sub {
     my $jobc          = $self->patron->job_controller;
     my $jobs          = $jobc->jobs;
     my @names         = sort keys %{$jobs};
+
     if ( $command->arguments =~ m{\D} ) {
         return $self->error( $envelope, "count must be an integer\n" );
     }
@@ -423,7 +425,7 @@ sub start_job {
         }
     );
     push @{ $self->{load_balancer}->{owner} }, $job_name;
-    push @{ $self->{tee}->{owner} }, $job_name if ( $self->{tee} );
+    push @{ $self->{tee}->{owner} },           $job_name if ( $self->{tee} );
     return;
 }
 

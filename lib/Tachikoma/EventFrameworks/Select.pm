@@ -3,13 +3,12 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 35769 2018-11-02 08:37:19Z chris $
+# $Id: Select.pm 39072 2020-07-11 03:56:45Z chris $
 #
 
 package Tachikoma::EventFrameworks::Select;
 use strict;
 use warnings;
-use Tachikoma::Nodes::FileHandle qw( TK_W );
 use IO::Select;
 use POSIX qw( :sys_wait_h SIGUSR1 );
 use Time::HiRes;

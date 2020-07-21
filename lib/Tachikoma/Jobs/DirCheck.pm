@@ -21,7 +21,7 @@ use parent qw( Tachikoma::Job );
 use version; our $VERSION = qv('v2.0.368');
 
 # my $Separator   = chr 0;
-my $Separator = join q(), chr 30, q( -> ), chr 30;
+my $Separator   = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -89,7 +89,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             for my $entry ( keys %other ) {
                 my $their_path_entry = join q(/), $relative, $entry;
-                my $response = Tachikoma::Message->new;
+                my $response         = Tachikoma::Message->new;
                 $response->[TYPE]    = TM_BYTESTREAM;
                 $response->[TO]      = $message_to;
                 $response->[PAYLOAD] = join q(), 'update:',
@@ -108,7 +108,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my %checked = ();
     for my $entry (@entries) {
         my $my_path_entry = join q(/), $my_path, $entry;
-        my @lstat = lstat $my_path_entry;
+        my @lstat         = lstat $my_path_entry;
         next if ( not @lstat );
         my $last_modified = $lstat[9];
         if ( $entry =~ m{^[.]} and not $Dot_Include{$entry} ) {
@@ -123,7 +123,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             next;
         }
-        my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
         my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};

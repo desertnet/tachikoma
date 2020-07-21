@@ -2,8 +2,6 @@
 var name = http;
 include services/daemonize.tsl
 
-connect_hub
-
 make_node HTTP_Responder http:responder /tmp/<name> <http_port>
 make_node HTTP_Timeout   http:timeout
 make_node Log            http:log       <home>/.tachikoma/log/<name>-access.log append 134217728

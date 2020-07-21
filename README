@@ -1,6 +1,12 @@
 Welcome!
 
-This is the distribution for the Tachikoma distributed messaging system.
+This is the official distribution for Tachikoma.
+
+Tachikoma is a message based distributed computing platform.
+Written entirely in Perl, the performance is quite good, with
+the Apache Kafka-inspired hub able to handle millions of messages
+every second.  It is highly reliable and has been used in a
+production environment for over 10 years.
 
 To get started, follow the instructions in the file INSTALL.
 
@@ -9,9 +15,15 @@ Then:
   tachikoma-server
   tachikoma-client
 
-At the prompt, type "help" for a list of possible commands.  You might want
-to start with "connect server_log".
+At the prompt, type "help" for a list of possible commands.
+You might want to start with "connect server_log".
+
+Unfortunately there is not yet much documentation, but some additional
+information is available in the following manual pages:
+
+    perldoc Tachikoma::Node
+    perldoc Tachikoma
 
 Have fun with your new Tachikoma!
 
-Copyright (c) 2019 DesertNet
+Copyright (c) 2020 DesertNet

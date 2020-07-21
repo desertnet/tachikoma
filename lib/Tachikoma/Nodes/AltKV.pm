@@ -34,6 +34,7 @@ sub fill {
     $response->[TO]        = $message->[TO];
     $response->[ID]        = $message->[ID];
     $response->[TIMESTAMP] = $message->[TIMESTAMP];
+
     if ( $message->[TYPE] & TM_BYTESTREAM ) {
 
         if ( $self->{arguments} eq 'expand' ) {
@@ -79,7 +80,7 @@ sub flatten_bytestream {
     my $key   = $message->[STREAM];
     my $value = $message->[PAYLOAD];
     chomp $value;
-    $response->[STREAM] = q();
+    $response->[STREAM]  = q();
     $response->[PAYLOAD] = join q(), $key, q( ), $value, "\n";
     return;
 }

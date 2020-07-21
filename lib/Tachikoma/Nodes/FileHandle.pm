@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 37668 2019-06-19 21:35:08Z chris $
+# $Id: FileHandle.pm 38512 2020-02-17 18:56:39Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -15,7 +15,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
-    TM_BYTESTREAM TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_RESPONSE TM_ERROR TM_EOF
     VECTOR_SIZE
 );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
@@ -176,15 +176,17 @@ sub drain_buffer_normal {
             length $message->[FROM]
             ? join q(/), $name, $message->[FROM]
             : $name;
-        if ( length $message->[TO] and length $owner ) {
-            $self->print_less_often(
-                      "ERROR: message addressed to $message->[TO]"
-                    . " while owner is set to $owner"
-                    . " - dropping message from $message->[FROM]" )
-                if ( $message->[TYPE] != TM_ERROR );
-            next;
+        if ( not $message->[TYPE] & TM_RESPONSE ) {
+            if ( length $message->[TO] and length $owner ) {
+                $self->print_less_often(
+                          "ERROR: message addressed to $message->[TO]"
+                        . " while owner is set to $owner"
+                        . " - dropping message from $message->[FROM]" )
+                    if ( $message->[TYPE] != TM_ERROR );
+                next;
+            }
+            $message->[TO] = $owner if ( length $owner );
         }
-        $message->[TO] = $owner if ( length $owner );
         $sink->fill($message);
     }
     return $got;

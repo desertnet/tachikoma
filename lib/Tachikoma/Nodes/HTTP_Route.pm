@@ -74,7 +74,7 @@ sub fill {
     my @new_path    = ();
     while (@components) {
         my $test_path = q(/) . join q(/), @components;
-        my $test = $paths->{$test_path};
+        my $test      = $paths->{$test_path};
         ( $destination = $test ) and last if ($test);
         unshift @new_path, pop @components;
     }

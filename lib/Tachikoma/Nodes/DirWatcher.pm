@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::PidWatcher
+# Tachikoma::Nodes::DirWatcher
 # ----------------------------------------------------------------------
 #
-# $Id: PidWatcher.pm 20143 2014-07-29 23:15:57Z chris $
+# $Id: DirWatcher.pm 20143 2014-07-29 23:15:57Z chris $
 #
 
-package Tachikoma::Nodes::PidWatcher;
+package Tachikoma::Nodes::DirWatcher;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
@@ -16,12 +16,12 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.367');
 
 my $Check_Interval_Min = 0.02;
-my $Check_Interval_Max = 10;
+my $Check_Interval_Max = 1;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{pids}  = {};
+    $self->{dirs}  = {};
     $self->{queue} = [];
     bless $self, $class;
     return $self;
@@ -30,7 +30,7 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node PidWatcher <node name>
+make_node DirWatcher <node name>
 EOF
 }
 
@@ -46,34 +46,52 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    my $pid = ( $message->[PAYLOAD] =~ m{^(\d+)$} )[0];
-    return if ( not $pid );
-    $self->{pids}->{$pid} = 1;
+    my $dir = ( $message->[PAYLOAD] =~ m{^(/.*)$} )[0];
+    return if ( not $dir );
+    $self->{dirs}->{$dir} = -e $dir ? ( stat _ )[9] : undef;
     $self->queue if ( not $self->{timer_is_active} );
     return;
 }
 
 sub fire {
-    my $self = shift;
-    my $pid  = shift @{ $self->queue } or return;
-    return if ( kill 0, $pid or $! ne 'No such process' );
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE] = TM_BYTESTREAM;
-    $message->[FROM] = $self->{name};
-    $message->[TO]   = $self->{owner};
-    $message->payload("$self->{name}: process $pid exit\n");
-    $self->{counter}++;
-    $self->{sink}->fill($message);
-    delete $self->{pids}->{$pid};
+    my $self      = shift;
+    my $dir       = shift @{ $self->queue } or return;
+    my $old_mtime = $self->{dirs}->{$dir};
+    my $new_mtime = undef;
+    my $payload   = undef;
+    if ( -e $dir ) {
+        $new_mtime = ( stat _ )[9];
+        if ( defined $old_mtime ) {
+            if ( $new_mtime != $old_mtime ) {
+                $payload = "$self->{name}: dir $dir mtime changed\n";
+            }
+        }
+        else {
+            $payload = "$self->{name}: dir $dir created\n";
+        }
+    }
+    elsif ( defined $old_mtime ) {
+        $payload = "$self->{name}: dir $dir missing\n";
+    }
+    $self->{dirs}->{$dir} = $new_mtime;
+    if ($payload) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE] = TM_BYTESTREAM;
+        $message->[FROM] = $self->{name};
+        $message->[TO]   = $self->{owner};
+        $message->payload($payload);
+        $self->{counter}++;
+        $self->{sink}->fill($message);
+    }
     return;
 }
 
-sub pids {
+sub dirs {
     my $self = shift;
     if (@_) {
-        $self->{pids} = shift;
+        $self->{dirs} = shift;
     }
-    return $self->{pids};
+    return $self->{dirs};
 }
 
 sub queue {
@@ -82,7 +100,7 @@ sub queue {
         $self->{queue} = shift;
     }
     if ( not @{ $self->{queue} } ) {
-        my $queue = [ sort keys %{ $self->{pids} } ];
+        my $queue = [ sort keys %{ $self->{dirs} } ];
         $self->{queue} = $queue;
         my $count = @{$queue};
         if ($count) {

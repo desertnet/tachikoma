@@ -13,7 +13,11 @@ set -x
 perl Makefile.PL
 make
 make test
-sudo make install
+if [ -x /usr/bin/sudo ] ; then
+    sudo make install
+else
+    make install
+fi
 make clean
 rm -f Makefile.old
 

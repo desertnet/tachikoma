@@ -18,7 +18,7 @@ use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
 use Tachikoma::Message qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_HEARTBEAT TM_ERROR
+    TM_BYTESTREAM TM_HEARTBEAT TM_RESPONSE TM_ERROR
     VECTOR_SIZE
 );
 use Tachikoma::Crypto;
@@ -478,6 +478,8 @@ sub init_SSL_connection {
             }
             $self->init_accept;
         }
+        $self->unregister_writer_node
+            if ( ref $self eq 'Tachikoma::Nodes::STDIO' );
         $self->register_reader_node;
     }
     elsif ( $! != EAGAIN ) {
@@ -660,6 +662,7 @@ sub auth_response {
     my $version = $message->[ID];
     my $config  = $self->{configuration};
     my $command = eval { Tachikoma::Command->new( $message->[PAYLOAD] ) };
+
     if ( not $command ) {
         my $error = $@ || 'unknown error';
         $self->stderr("ERROR: $caller failed: $error");
@@ -813,15 +816,17 @@ sub drain_buffer_normal {
             length $message->[FROM]
             ? join q(/), $name, $message->[FROM]
             : $name;
-        if ( length $message->[TO] and length $owner ) {
-            $self->print_less_often(
-                      "ERROR: message addressed to $message->[TO]"
-                    . " while owner is set to $owner"
-                    . " - dropping message from $message->[FROM]" )
-                if ( $message->[TYPE] != TM_ERROR );
-            next;
+        if ( not $message->[TYPE] & TM_RESPONSE ) {
+            if ( length $message->[TO] and length $owner ) {
+                $self->print_less_often(
+                          "ERROR: message addressed to $message->[TO]"
+                        . " while owner is set to $owner"
+                        . " - dropping message from $message->[FROM]" )
+                    if ( $message->[TYPE] != TM_ERROR );
+                next;
+            }
+            $message->[TO] = $owner if ( length $owner );
         }
-        $message->[TO] = $owner if ( length $owner );
         $sink->fill($message);
     }
     return $got;
@@ -948,7 +953,7 @@ sub close_filehandle {
     }
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        my $exists = ( grep $_ eq $self, @{$reconnecting} )[0];
+        my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
     }
     $self->{set_state} = {};

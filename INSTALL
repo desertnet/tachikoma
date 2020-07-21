@@ -24,6 +24,7 @@ sudo apt install libterm-readline-gnu-perl
 # TO GET OTHER DEPENDENCIES ON Ubuntu, Pop!_OS, etc
 ############################################################################
 
+sudo apt install libcgi-pm-perl
 sudo apt install libcrypt-openssl-rsa-perl
 sudo apt install libberkeleydb-perl
 sudo apt install libdbi-perl

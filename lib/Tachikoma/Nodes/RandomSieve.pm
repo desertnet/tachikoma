@@ -33,7 +33,7 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        $self->{arguments} = shift;
+        $self->{arguments}   = shift;
         $self->{probability} = $self->{arguments} || 50;
     }
     return $self->{arguments};

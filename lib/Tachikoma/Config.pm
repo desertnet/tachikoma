@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 37702 2019-06-22 19:06:04Z chris $
+# $Id: Config.pm 39005 2020-06-04 17:01:12Z chris $
 # ----------------------------------------------------------------------
 
 package Tachikoma::Config;
@@ -88,7 +88,7 @@ sub new {
         ssl_server_ca_file   => undef,
         ssl_server_cert_file => undef,
         ssl_server_key_file  => undef,
-        ssl_version          => 'TLSv1',
+        ssl_version          => undef,
         forbidden            => \%FORBIDDEN,
     };
     bless $self, $class;

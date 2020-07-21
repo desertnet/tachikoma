@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 38176 2019-11-23 19:13:12Z chris $
+# $Id: Node.pm 38745 2020-04-19 06:09:13Z chris $
 #
 
 package Tachikoma::Node;
@@ -97,9 +97,9 @@ sub remove_node {
 
 sub dump_config {
     my ($self) = @_;
-    my $name = $self->{name};
-    my $type = ( ref($self) =~ m{^\w+::Nodes::(.*)} )[0] or return q();
-    my $line = "make_node $type $name";
+    my $name   = $self->{name};
+    my $type   = ( ref($self) =~ m{^\w+::Nodes::(.*)} )[0] or return q();
+    my $line   = "make_node $type $name";
     if ( $self->{arguments} ) {
         my $arguments = $self->{arguments};
         $arguments =~ s{'}{\\'}g;
@@ -127,7 +127,7 @@ sub unregister {
     die "no such event: $event\n" if ( not $registrations->{$event} );
     if ( $registrations->{$event}->{$name} ) {
         my $responder = Tachikoma->nodes->{_responder};
-        my $shell = $responder ? $responder->{shell} : undef;
+        my $shell     = $responder ? $responder->{shell} : undef;
         if ($shell) {
             delete $shell->callbacks->{$name};
         }
@@ -316,7 +316,7 @@ sub drop_message {
 sub make_parent_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q();
+    my $path      = q();
     pop @path_list;
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
@@ -333,7 +333,7 @@ sub make_parent_dirs {
 sub make_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q();
+    my $path      = q();
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
         if (    not -d $path
@@ -631,4 +631,4 @@ Christopher Reaume C<< <chris@desert.net> >>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2019 DesertNet
+Copyright (c) 2020 DesertNet

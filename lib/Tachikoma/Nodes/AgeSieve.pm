@@ -36,7 +36,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $max_age, $should_warn ) = split q( ), $self->{arguments}, 2;
-        $self->{max_age} = $max_age // 900;
+        $self->{max_age}     = $max_age // 900;
         $self->{should_warn} = $should_warn;
     }
     return $self->{arguments};

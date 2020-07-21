@@ -46,6 +46,7 @@ lib/Tachikoma/Nodes/CommandInterpreter.pm
 lib/Tachikoma/Nodes/Consumer.pm
 lib/Tachikoma/Nodes/ConsumerBroker.pm
 lib/Tachikoma/Nodes/ConsumerGroup.pm
+lib/Tachikoma/Nodes/DirWatcher.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
 lib/Tachikoma/Nodes/FileController.pm
