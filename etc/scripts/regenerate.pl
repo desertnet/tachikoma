@@ -3,4 +3,4 @@ use strict;
 use warnings;
 chdir('etc');
 chdir('scripts');
-system("./workstation/default.pl > workstation/default.tsl");
+system("./docker/default.pl > docker/default.tsl");

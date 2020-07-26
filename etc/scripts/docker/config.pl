@@ -3,7 +3,7 @@ use strict;
 use warnings;
 require './config.pl';
 
-sub workstation_header {
+sub docker_header {
     print <<'EOF';
 v2
 include services/config.tsl
@@ -64,7 +64,7 @@ connect_node server_log:link          server_log:ruleset
 EOF
 }
 
-sub workstation_services {
+sub docker_services {
     print <<'EOF';
 # services
 var services = "<home>/.tachikoma/services";
@@ -98,7 +98,7 @@ connect_node server_log:link     server_logs:service/server_log
 EOF
 }
 
-sub workstation_footer {
+sub docker_footer {
     print <<'EOF';
 cd tails
     tail_probe

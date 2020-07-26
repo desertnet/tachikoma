@@ -17,10 +17,9 @@ RUN apt-get update && \
         libterm-readline-gnu-perl \
     && rm -rf /var/lib/apt/lists/*
 
+COPY ./entrypoint.sh /usr/local/bin/startup
+
 WORKDIR /usr/src
 RUN git clone https://github.com/datapoke/tachikoma
 
-WORKDIR /usr/src/tachikoma
-RUN bin/install_tachikoma ${CONFIG}
-
-CMD [ "/usr/local/bin/tachikoma-server", "--daemon=no" ]
+ENTRYPOINT ["/usr/local/bin/startup"]
