@@ -74,7 +74,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return $self->interpreter->fill($message);
     }
     elsif ( $type & TM_PING ) {
-        my $id      = $message->[ID] or return;
+        my $id = $message->[ID] or return;
         my $offline = $self->{offline};
         if ( $offline->{$id} ) {
             my $load_balancers = $self->{load_balancers};

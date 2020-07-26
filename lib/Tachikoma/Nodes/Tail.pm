@@ -7,7 +7,7 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: Tail.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Nodes::Tail;
@@ -181,7 +181,7 @@ sub drain_fh {
     my $fh   = $self->{fh} or return;
     $self->file_shrank if ( $kev and $kev->[4] < 0 );
     my $buffer = q();
-    my $read   = sysread $fh, $buffer, 65536;
+    my $read = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
     &{ $self->{drain_buffer} }( $self, \$buffer )

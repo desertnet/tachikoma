@@ -334,7 +334,7 @@ sub send_stats {
         my @cache_stats = ();
         for my $b ( 0 .. $self->num_buckets - 1 ) {
             my $bucket = $cache->[$b] // {};
-            my $count  = $bucket ? scalar keys %{$bucket} : 0;
+            my $count = $bucket ? scalar keys %{$bucket} : 0;
             push @cache_stats, sprintf '%6d', $count;
             $total += $count;
         }
@@ -365,7 +365,7 @@ sub get_keys {
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
-    my $timestamp   = $stored->{timestamp}       // 0;
+    my $timestamp   = $stored->{timestamp} // 0;
     $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
         my $cache = $self->{caches}->[$i];

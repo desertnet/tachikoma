@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: Timer.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Nodes::Timer;
@@ -85,7 +85,7 @@ sub set_timer {
     else {
         die "ERROR: can't oneshot without a time\n";
     }
-    $self->{timer_interval}  = $time;
+    $self->{timer_interval} = $time;
     $self->{timer_is_active} = $oneshot ? 'once' : 'forever';
     return;
 }

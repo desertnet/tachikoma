@@ -37,7 +37,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $position, $offset ) = split q( ), $self->{arguments}, 2;
         $self->{position} = $position // 'prefix';
-        $self->{offset}   = $offset   // 0;
+        $self->{offset}   = $offset // 0;
     }
     return $self->{arguments};
 }

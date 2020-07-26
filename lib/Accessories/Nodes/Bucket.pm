@@ -41,7 +41,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $filename, $interval ) = split q( ), $self->{arguments}, 2;
         my $base = ( $filename =~ m{^(/.*)$} )[0];
-        $self->{base}     = $base;
+        $self->{base} = $base;
         $self->{interval} = $interval || $Default_Interval;
         $self->make_dirs($base);
         $self->set_timer;
@@ -73,7 +73,7 @@ sub fill {
 sub fire {
     my $self = shift;
     return if ( not $self->{owner} );
-    my $now  = strftime( '%F-%T', localtime $Tachikoma::Now );
+    my $now = strftime( '%F-%T', localtime $Tachikoma::Now );
     my $base = $self->{base};
     local $/ = undef;
     opendir my $dh, $base or die "ERROR: couldn't opendir $base: $!";
@@ -90,7 +90,7 @@ sub process_dir {
     my $dir  = shift;
     opendir my $dh, $dir or die "ERROR: couldn't opendir $dir: $!";
     for my $file ( grep m{^[^.]}, readdir $dh ) {
-        my $path    = join q(/), $dir, $file;
+        my $path = join q(/), $dir, $file;
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_BYTESTREAM;
         open my $fh, '<', $path or die "ERROR: couldn't open $path: $!";

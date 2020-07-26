@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Shutdown
 # ----------------------------------------------------------------------
 #
-# $Id: Shutdown.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: Shutdown.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Nodes::Shutdown;
@@ -16,7 +16,7 @@ use parent qw( Tachikoma::Node );
 use version; our $VERSION = qv('v2.0.280');
 
 sub fill {
-    my $self    = shift;
+    my $self = shift;
     my $message = shift or return;
     if ( $message->[TYPE] & TM_EOF ) {
         return if ( $message->[FROM] !~ m{_responder$|stdin$} );

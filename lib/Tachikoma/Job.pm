@@ -3,7 +3,7 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: Job.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Job;
@@ -119,7 +119,7 @@ sub spawn {
         return;
     }
     else {
-        my $location      = $self->configuration->prefix || '/usr/local/bin';
+        my $location = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         my $type          = ( $options->{type} =~ m{^([\w:]+)$} )[0];
         my $username      = ( $options->{username} =~ m{^(\S*)$} )[0];

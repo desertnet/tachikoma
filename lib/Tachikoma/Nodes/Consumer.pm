@@ -754,7 +754,7 @@ sub get_messages {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID]   = join q(:), $offset, $offset + $size;
+        $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
 
@@ -773,7 +773,7 @@ sub get_messages {
 sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
-    my $rv     = undef;
+    my $rv = undef;
     my $target = $self->target or return;
     die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
     my $message = Tachikoma::Message->new;

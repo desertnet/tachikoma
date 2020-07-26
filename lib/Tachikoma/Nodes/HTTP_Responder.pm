@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: HTTP_Responder.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -84,7 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $header_text, $body ) = split m{\r\n\r\n}, ${$payload}, 2;
         ${$payload} = $body;
         my @lines = split m{^}, $header_text;
-        my $line  = shift @lines;
+        my $line = shift @lines;
         if ( not $line ) {
             delete $requests->{$name};
             delete $payloads->{$name};
@@ -99,7 +99,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $uri =~ s{^http://[^/]+}{}i;
         my ( $script_url, $query_string ) = split m{[?]}, $uri, 2;
-        $headers                 = {};
+        $headers = {};
         $request->{server_port}  = $self->{port} || 80;
         $request->{remote_addr}  = $remote_addr;
         $request->{remote_port}  = $remote_port;

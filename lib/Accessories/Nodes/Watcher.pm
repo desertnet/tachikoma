@@ -3,7 +3,7 @@
 # Accessories::Nodes::Watcher
 # ----------------------------------------------------------------------
 #
-# $Id: Watcher.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: Watcher.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Accessories::Nodes::Watcher;
@@ -95,7 +95,7 @@ sub arguments {
                 'rename' => NOTE_RENAME,
                 'revoke' => NOTE_REVOKE
             };
-            $self->{notes}    = [ map { $self->{mapping}->{$_} } @notes ];
+            $self->{notes} = [ map { $self->{mapping}->{$_} } @notes ];
             $self->{filename} = $id;
             if ( open $fh, '<', $id ) {
                 $self->fh($fh);

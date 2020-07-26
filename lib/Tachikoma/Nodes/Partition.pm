@@ -314,7 +314,7 @@ sub write_offset {
             }
         }
         my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
-        my $fh       = undef;
+        my $fh = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!";
         close $fh or die "ERROR: couldn't close $new_file: $!";
@@ -355,7 +355,7 @@ sub process_valid_offsets {
     my $last_commit_offset = $self->get_last_commit_offset;
     my $old_offsets        = $self->{valid_offsets};
     $self->{valid_offsets} = [ split m{,}, $valid_offsets ];
-    my %valid        = map { $_ => 1 } @{ $self->{valid_offsets} };
+    my %valid = map { $_ => 1 } @{ $self->{valid_offsets} };
     my $should_purge = undef;
     while ( @{$old_offsets} ) {
         $last_commit_offset = $old_offsets->[-1];
@@ -401,7 +401,7 @@ sub process_get {
     my $buffer = undef;
     my $to     = $message->[FROM];
     my ( $name, $path ) = split m{/}, $to, 2;
-    my $node     = $Tachikoma::Nodes{$name} or return;
+    my $node = $Tachikoma::Nodes{$name} or return;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BATCH;
     $response->[FROM] = $self->{name};
@@ -566,7 +566,7 @@ sub update_offsets {
         # don't write offsets received from the leader until log catches up
         while ( @{$valid_offsets} and $valid_offsets->[0] < $self->{offset} )
         {
-            my $offset   = shift @{$valid_offsets};
+            my $offset = shift @{$valid_offsets};
             my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
             next if ( -e $new_file );
             my $fh = undef;
@@ -631,7 +631,7 @@ sub purge_offsets {
     my @offsets         = ();
     if ( -d $offsets_dir ) {
         my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
-        my $dh     = undef;
+        my $dh = undef;
         opendir $dh, $offsets_dir
             or die "ERROR: couldn't opendir $offsets_dir: $!";
         @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
@@ -799,7 +799,7 @@ sub get_last_commit_offset {
         $last_commit_offset = 0;
         $valid_offsets      = [0];
         my $new_file = join q(/), $offsets_dir, $last_commit_offset;
-        my $fh       = undef;
+        my $fh = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!\n";
         close $fh or die "ERROR: couldn't close $new_file: $!";

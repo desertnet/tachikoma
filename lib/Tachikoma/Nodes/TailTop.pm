@@ -62,12 +62,12 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $tails = $self->{tails};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $stats   = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $stats = { map { split m{:}, $_, 2 } split q( ), $line };
         my $tail_id = join q(:), $stats->{hostname}, $stats->{tail_name};
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];
         my $tail = $tails->{$tail_id} // {};
-        $tail->{$_}        = $stats->{$_} for ( keys %{$stats} );
+        $tail->{$_} = $stats->{$_} for ( keys %{$stats} );
         $tails->{$tail_id} = $tail;
     }
     return 1;
@@ -126,7 +126,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
             $rate = $tail->{last_rate};
         }
         if ( $rate > 0 ) {
-            my $eta   = $tail->{_distance} / $rate;
+            my $eta = $tail->{_distance} / $rate;
             my $hours = sprintf '%02d', $eta / 3600;
             $tail->{eta} = strftime( "$hours:%M:%S", localtime $eta );
         }

@@ -7,7 +7,7 @@
 # If Tachikoma had a single edge, this module would be it.
 #   - on_EOF: close, send, ignore, reconnect
 #
-# $Id: STDIO.pm 39097 2020-07-14 22:40:30Z chris $
+# $Id: STDIO.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Nodes::STDIO;
@@ -213,7 +213,7 @@ sub fill_fh {
         }
     }
     $self->{output_cursor} = $cursor;
-    $self->{last_fill}     = @{$buffer} ? $Tachikoma::Now : 0
+    $self->{last_fill} = @{$buffer} ? $Tachikoma::Now : 0
         if ( defined $self->{last_fill} );
     $self->unregister_writer_node if ( not @{$buffer} );
     $self->handle_EOF if ( $eof or ( not @{$buffer} and $self->{got_EOF} ) );
