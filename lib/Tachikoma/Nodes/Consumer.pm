@@ -447,6 +447,7 @@ sub expire_messages {
     my $timestamp = $lowest ? $lowest->[1] : undef;
     my $offset    = $lowest ? $lowest->[0] : $self->{offset};
     my $retry     = undef;
+    return if ( not defined $offset );
     if ( defined $timestamp
         and $Tachikoma::Now - $timestamp > $self->{timeout} )
     {

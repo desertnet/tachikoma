@@ -1342,9 +1342,11 @@ sub process_delete {
     my $now          = time;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
-        $node->process_delete
-            if ( $node->isa('Tachikoma::Nodes::Partition')
-            and not $node->{leader} );
+        next
+            if ( not $node->isa('Tachikoma::Nodes::Partition')
+            or $node->{leader} );
+        $node->process_delete;
+        $node->update_offsets;
     }
 
     # purge stale logs, except those for other processes on this pool

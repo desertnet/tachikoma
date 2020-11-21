@@ -161,7 +161,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->process_valid_offsets($offset);
         }
         elsif ( $command eq 'DELETE' ) {
-            $self->process_delete( $offset, $args );
+            $self->process_delete($offset);
+            $self->update_offsets($args);
         }
         elsif ( $command eq 'EMPTY' ) {
             $self->empty_partition;
@@ -447,7 +448,7 @@ sub process_ack {
 }
 
 sub process_delete {
-    my ( $self, $delete, $lco ) = @_;
+    my ( $self, $delete ) = @_;
     return if ( not $self->{filename} );
     my $segments = $self->{segments};
     my $i        = $#{$segments} - $self->{num_segments} + 1;
@@ -482,7 +483,6 @@ sub process_delete {
         $self->stderr('WARNING: process_delete removed all segments');
         $self->create_segment;
     }
-    $self->update_offsets($lco);
     return;
 }
 
@@ -510,15 +510,15 @@ sub should_delete {
     # two guarantees cache partitions will always have data
     if ( @{$segments} > 2 ) {
         my $segment = $segments->[0];
-        if ( $segment->[LOG_OFFSET] + $segment->[LOG_SIZE] <= $delete ) {
-            $rv = 1;
-        }
-        else {
+        $rv = 1;
+        if ( $self->{max_lifespan} ) {
             my $last_modified = ( stat $segment->[LOG_FH] )[9];
-            $rv = 1
-                if ($self->{max_lifespan}
-                and $Tachikoma::Now - $last_modified
-                > $self->{max_lifespan} );
+            $rv = undef
+                if (
+                $Tachikoma::Now - $last_modified <= $self->{max_lifespan} );
+        }
+        if ( $segment->[LOG_OFFSET] + $segment->[LOG_SIZE] > $delete ) {
+            $rv = undef;
         }
     }
     return $rv;
@@ -728,7 +728,11 @@ sub create_segment {
         or die "ERROR: couldn't open $path/$offset.log: $!";
     $self->get_lock($fh);
     push @{ $self->{segments} }, [ $offset, 0, $fh ];
-    $self->process_delete if ( $self->{arguments} );
+
+    if ( $self->{arguments} ) {
+        $self->process_delete;
+        $self->update_offsets;
+    }
     return;
 }
 
