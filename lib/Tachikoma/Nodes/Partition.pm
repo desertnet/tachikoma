@@ -30,7 +30,7 @@ use constant {
     BUFSIZ     => 131072,
 };
 
-my $Default_Num_Segments     = 8;
+my $Default_Num_Segments     = 2;
 my $Default_Segment_Size     = 128 * 1024 * 1024;
 my $Default_Segment_Lifespan = 7 * 86400;
 my $Touch_Interval           = 3600;

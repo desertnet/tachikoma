@@ -85,7 +85,7 @@ sub new {
     $self->{default_settings} = {
         num_partitions     => 1,
         replication_factor => 2,
-        num_segments       => 8,
+        num_segments       => 2,
         segment_size       => 128 * 1024 * 1024,
         max_lifespan       => 7 * 86400,
     };
