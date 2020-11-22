@@ -30,7 +30,7 @@ my $Startup_Delay   = 2;             # wait at least this long on startup
 my $Check_Interval  = 15;            # synchronous partition map check
 my $Commit_Interval = 60;            # commit offsets
 my $Timeout         = 900;           # default async message timeout
-my $Hub_Timeout     = 60;            # timeout waiting for hub
+my $Hub_Timeout     = 300;           # timeout waiting for hub
 my $Cache_Type      = 'snapshot';    # save complete state
 
 sub new {

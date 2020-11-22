@@ -28,7 +28,7 @@ my $Poll_Interval   = 1;             # poll for new messages this often
 my $Timeout         = 900;           # default async message timeout
 my $Expire_Interval = 15;            # check message timeouts
 my $Commit_Interval = 60;            # commit offsets
-my $Hub_Timeout     = 60;            # timeout waiting for hub
+my $Hub_Timeout     = 300;           # timeout waiting for hub
 my $Cache_Type      = 'snapshot';    # save complete state
 my %Targets         = ();
 
