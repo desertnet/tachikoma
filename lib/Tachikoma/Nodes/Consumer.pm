@@ -398,7 +398,10 @@ sub drain_buffer {
         #     : 0;
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     }
-    $self->{offset} = $offset;
+    if ( $self->{offset} != $offset ) {
+        $self->{last_receive} = $Tachikoma::Now;
+        $self->{offset}       = $offset;
+    }
     return;
 }
 
@@ -447,7 +450,7 @@ sub expire_messages {
     my $timestamp = $lowest ? $lowest->[1] : undef;
     my $offset    = $lowest ? $lowest->[0] : $self->{offset};
     my $retry     = undef;
-    return if ( not defined $offset );
+    return 1 if ( not defined $offset );
     if ( defined $timestamp
         and $Tachikoma::Now - $timestamp > $self->{timeout} )
     {
