@@ -43,7 +43,7 @@ cp etc/Devel/CGI.conf ~/.tachikoma/etc/
 cp -r http/* ~/.tachikoma/http/
 
 # init scripts
-cp -r etc/scripts/$config/ ~/.tachikoma
+cp -Tr etc/scripts/$config ~/.tachikoma
 
 # authorized keys
 etc/authorized_keys/regenerate.pl
