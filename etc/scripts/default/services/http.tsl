@@ -22,8 +22,8 @@ connect_node http:dumper    http:log
 listen_inet localhost:<root_port>
 insecure
 on CGI READY {
-    listen_inet --io <hostname>:<http_port>;
-    listen_inet --io  localhost:<http_port>;
+    listen_inet --io --use-ssl <hostname>:<http_port>;
+    listen_inet --io --use-ssl  localhost:<http_port>;
     connect_sink <hostname>:<http_port> http:responder;
     connect_sink  localhost:<http_port> http:responder;
     secure 3;
