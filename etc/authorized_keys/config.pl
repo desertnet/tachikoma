@@ -6,23 +6,21 @@ our %Ed25519_Keys;
 
 our %workstation_keys;
 our %server_keys;
-our %workstation_ed25519_keys;
 
 %server_keys = (
-);
-
-%workstation_keys = (
-    'tachikoma@nyx' =>
+    'tachikoma@server1' =>
 q(-----BEGIN RSA PUBLIC KEY-----
-MIGJAoGBAL7HdQeC2zQOm61S7u5toPgDWvhOiBb5YZD/vsLBywBTeU4o6JGDEuVk
-CcXCCedlZ4VQSfOMR0VCx0kuY+awzCac9WhQx88CWobAN2aoGuCJoNmD7mlbaG20
-Qs+3gn+llLLhyOuCKPAUwMZagjbAa/aocufOeMJ770J+YZPdimrlAgMBAAE=
+...
 -----END RSA PUBLIC KEY-----
 ),
 );
 
-%workstation_ed25519_keys = (
-    'tachikoma@nyx' => q(e7c36ace638140c88aec4bf295b10a35ece68a2b7f636e26de25f95b344e42d5),
+%workstation_keys = (
+    'tachikoma@workstation1' =>
+q(-----BEGIN RSA PUBLIC KEY-----
+...
+-----END RSA PUBLIC KEY-----
+),
 );
 
 my %authorized = ();

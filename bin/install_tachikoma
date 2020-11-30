@@ -33,26 +33,25 @@ mkdir -p ~/.tachikoma/services/
 mkdir -p ~/.tachikoma/pki/
 
 # server config
-cp -v etc/Devel/tachikoma.conf ~/.tachikoma/etc/
+cp etc/Devel/tachikoma.conf ~/.tachikoma/etc/
 
 # private key
 bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
 
 # HTTP
-cp -v etc/Devel/CGI.conf ~/.tachikoma/etc/
-cp -rv http/* ~/.tachikoma/http/
+cp etc/Devel/CGI.conf ~/.tachikoma/etc/
+cp -r http/* ~/.tachikoma/http/
 
 # init scripts
 etc/scripts/regenerate.pl
-cp -v etc/scripts/workstation/$config.tsl    ~/.tachikoma/startup.txt
-cp -v etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
+cp -r etc/scripts/$config/ ~/.tachikoma
 
 # authorized keys
 etc/authorized_keys/regenerate.pl
-cp -v etc/authorized_keys/workstation.keys ~/.tachikoma/etc/authorized_keys
+cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
 
 # TLS
-cp -rv etc/pki ~/.tachikoma/
+cp -r etc/pki ~/.tachikoma/
 if [ ! -d ~/.tachikoma/tls ] ; then
     cd ~/.tachikoma/pki
     ./genkey $config server
