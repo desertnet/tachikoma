@@ -1,7 +1,7 @@
 var parsed_url  = new URL(window.location.href);
 var topic       = "event_log";
 var field       = "event_log.ID:index";
-var server_url  = "http://" + window.location.hostname
+var server_url  = "https://" + window.location.hostname
                       + ":" + window.location.port
                       + "/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();

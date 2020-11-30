@@ -1,5 +1,5 @@
 var parsed_url = new URL(window.location.href);
-var server_url = "http://" + window.location.hostname
+var server_url = "https://" + window.location.hostname
                      + ":" + window.location.port
                      + "/fetch";
 var shell_path = window.location.pathname;

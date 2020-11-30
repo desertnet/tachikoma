@@ -1,4 +1,4 @@
-var server_url  = "http://" + window.location.hostname
+var server_url  = "https://" + window.location.hostname
                       + ":" + window.location.port
                       + "/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
