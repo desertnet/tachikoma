@@ -17,7 +17,6 @@ RUN apt-get update && \
         libterm-readline-gnu-perl \
     && rm -rf /var/lib/apt/lists/*
 
-
 WORKDIR /usr/src
 RUN git clone https://github.com/datapoke/tachikoma
 RUN cp ./tachikoma/entrypoint.sh /usr/local/bin/startup
