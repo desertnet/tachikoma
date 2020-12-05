@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: HTTP_Responder.pm 39601 2020-12-05 00:47:38Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -97,7 +97,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             delete $payloads->{$name};
             return;
         }
-        $uri =~ s{^http://[^/]+}{}i;
+        $uri =~ s{^https?://[^/]+}{}i;
         my ( $script_url, $query_string ) = split m{[?]}, $uri, 2;
         $headers = {};
         $request->{server_port}  = $self->{port} || 80;
@@ -172,9 +172,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     $request_message->[STREAM] =
         join q(),
         $headers->{host}
-        ? $request->{uri} =~ m{^http://$headers->{host}}
-            ? $request->{uri}
-            : join q(), 'http://', $headers->{host}, $request->{uri}
+        ? join q(), 'http://', $headers->{host}, $request->{uri}
         : join q(), 'http://default', $request->{uri};
     $request_message->[PAYLOAD] = $request;
     $self->{counter}++;

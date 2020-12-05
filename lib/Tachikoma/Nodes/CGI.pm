@@ -79,6 +79,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $found           = undef;
     my $script_name     = undef;
     my $script_path     = undef;
+    my $proto           = $server_config->{protocol} || 'https';
     my $document_root   = $server_config->{document_root};
     my $server_paths    = $server_config->{script_paths};
     my $test_path       = $script_url;
@@ -164,16 +165,16 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{PATH_TRANSLATED}   = q();
     $ENV{SCRIPT_FILENAME}   = $script_path;
     $ENV{SCRIPT_NAME}       = $script_name;
-    $ENV{SCRIPT_URI}        = join q(), 'http://', $server_name, $script_url;
-    $ENV{SCRIPT_URL}        = $script_url;
-    $ENV{QUERY_STRING}      = $query_string;
-    $ENV{REMOTE_ADDR}       = $request->{remote_addr};
-    $ENV{REMOTE_PORT}       = $request->{remote_port};
-    $ENV{AUTH_TYPE}         = $request->{auth_type} || q();
-    $ENV{REMOTE_USER}       = $request->{remote_user} || q();
-    $ENV{CONTENT_TYPE}      = $headers->{'content-type'} if ($is_post);
-    $ENV{CONTENT_LENGTH}    = $headers->{'content-length'} if ($is_post);
-    $ENV{UNIQUE_ID}         = md5_hex(rand);
+    $ENV{SCRIPT_URI}     = join q(), $proto, '://', $server_name, $script_url;
+    $ENV{SCRIPT_URL}     = $script_url;
+    $ENV{QUERY_STRING}   = $query_string;
+    $ENV{REMOTE_ADDR}    = $request->{remote_addr};
+    $ENV{REMOTE_PORT}    = $request->{remote_port};
+    $ENV{AUTH_TYPE}      = $request->{auth_type} || q();
+    $ENV{REMOTE_USER}    = $request->{remote_user} || q();
+    $ENV{CONTENT_TYPE}   = $headers->{'content-type'} if ($is_post);
+    $ENV{CONTENT_LENGTH} = $headers->{'content-length'} if ($is_post);
+    $ENV{UNIQUE_ID}      = md5_hex(rand);
 
     for my $key ( keys %ENV ) {
         $self->stderr("WARNING: \$ENV{$key} not defined\n")
