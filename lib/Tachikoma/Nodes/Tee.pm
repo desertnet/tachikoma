@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 37946 2019-08-16 02:23:07Z chris $
+# $Id: Tee.pm 39636 2020-12-07 13:59:21Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -46,16 +46,33 @@ sub arguments {
 }
 
 sub fill {
+    my $self    = shift;
+    my $message = shift;
+    my $total   = scalar @{ $self->{owner} };
+    return $self->handle_response( $message, $total )
+        if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
+        or $message->[TYPE] == TM_ERROR );
+    if ( $total > 1 ) {
+        $self->tee($message);
+    }
+    elsif ($total) {
+        $message->[TO] = join q(/), grep length, $self->{owner}->[0],
+            $message->[TO];
+        if ( $message->[TYPE] & TM_PERSIST ) {
+            $self->stamp_message( $message, $self->{name} ) or return;
+        }
+        $self->SUPER::fill($message);
+    }
+    return;
+}
+
+sub tee {
     my $self       = shift;
     my $message    = shift;
     my $owners     = $self->{owner};
     my $message_id = undef;
     my $persist    = undef;
     my @keep       = ();
-    return $self->handle_response( $message, scalar @{$owners} )
-        if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
-        or $message->[TYPE] == TM_ERROR );
-
     if ( $message->[TYPE] & TM_PERSIST ) {
         $message_id = $self->msg_counter;
         $self->{messages}->{$message_id} = {
@@ -92,28 +109,35 @@ sub fill {
 }
 
 sub handle_response {
-    my $self     = shift;
-    my $message  = shift;
-    my $total    = shift;
-    my $messages = $self->{messages};
-    my $info     = $messages->{ $message->[ID] } or return;
-    my $original = $info->{original};
-    my $type     = $message->[PAYLOAD];
-    my $count    = $info->{count};
-    $count = $total if ( $total < $count );
+    my $self    = shift;
+    my $message = shift;
+    my $total   = shift;
+    if ( $total > 1 ) {
+        my $messages = $self->{messages};
+        my $info     = $messages->{ $message->[ID] } or return;
+        my $original = $info->{original};
+        my $type     = $message->[PAYLOAD];
+        my $count    = $info->{count};
+        $count = $total if ( $total < $count );
 
-    if ( $info->{$type}++ >= $count - 1 ) {
-        delete $messages->{ $message->[ID] };
-        if ( $type eq 'cancel' ) {
-            $self->cancel($original);
+        if ( $info->{$type}++ >= $count - 1 ) {
+            delete $messages->{ $message->[ID] };
+            if ( $type eq 'cancel' ) {
+                $self->cancel($original);
+            }
+            else {
+                $self->answer($original);
+            }
         }
-        else {
+        elsif ( $info->{answer} + $info->{cancel} >= $count ) {
+            delete $messages->{ $message->[ID] };
             $self->answer($original);
         }
     }
-    elsif ( $info->{answer} + $info->{cancel} >= $count ) {
-        delete $messages->{ $message->[ID] };
-        $self->answer($original);
+    elsif ( $message->[TO] ) {
+        $message->[TYPE] = TM_PERSIST | TM_RESPONSE;
+        $message->[PAYLOAD] = 'answer' if ( $message->[PAYLOAD] ne 'cancel' );
+        $self->{sink}->fill($message);
     }
     return;
 }
