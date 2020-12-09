@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 39636 2020-12-07 13:59:21Z chris $
+# $Id: Tee.pm 39659 2020-12-09 16:38:02Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -56,8 +56,10 @@ sub fill {
         $self->tee($message);
     }
     elsif ($total) {
-        $message->[TO] = join q(/), grep length, $self->{owner}->[0],
-            $message->[TO];
+        my $owner = $self->{owner}->[0];
+        my $name = ( split m{/}, $owner, 2 )[0];
+        return if ( not $Tachikoma::Nodes{$name} );
+        $message->[TO] = join q(/), grep length, $owner, $message->[TO];
         if ( $message->[TYPE] & TM_PERSIST ) {
             $self->stamp_message( $message, $self->{name} ) or return;
         }
@@ -73,8 +75,11 @@ sub tee {
     my $message_id = undef;
     my $persist    = undef;
     my @keep       = ();
+    my $packed     = $message->packed;
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $message_id = $self->msg_counter;
+        my $copy = Tachikoma::Message->new($packed);
+        $copy->[PAYLOAD]                 = q();
+        $message_id                      = $self->msg_counter;
         $self->{messages}->{$message_id} = {
             original  => $message,
             count     => scalar( @{$owners} ),
@@ -87,7 +92,6 @@ sub tee {
             $self->set_timer;
         }
     }
-    my $packed = $message->packed;
     for my $owner ( @{$owners} ) {
         my $name = ( split m{/}, $owner, 2 )[0];
         next if ( not $Tachikoma::Nodes{$name} );

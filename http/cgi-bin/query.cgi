@@ -19,10 +19,13 @@ $config->load_config_file(
     '/usr/local/etc/tachikoma.conf',
 );
 
+my $broker_ids = undef;
 my $host_ports = undef;
 if ($Tachikoma::Nodes::CGI::Config) {
+    $broker_ids = $Tachikoma::Nodes::CGI::Config->{broker_ids};
     $host_ports = $Tachikoma::Nodes::CGI::Config->{engines_http};
 }
+$broker_ids ||= [ 'localhost:5501', 'localhost:5502' ];
 $host_ports ||= ['localhost:5201'];
 my $cgi   = CGI->new;
 my $topic = $cgi->path_info;
@@ -39,8 +42,9 @@ CORE::state %engine;
 
 if ( not defined $engine{$topic} ) {
     $engine{$topic} = Tachikoma::Nodes::QueryEngine->new;
-    $engine{$topic}->host_ports($host_ports);
     $engine{$topic}->topic($topic);
+    $engine{$topic}->broker_ids($broker_ids);
+    $engine{$topic}->host_ports($host_ports);
 }
 print $cgi->header(
     -type    => 'application/json',
