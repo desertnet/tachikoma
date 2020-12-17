@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: CommandInterpreter.pm 39723 2020-12-17 20:12:19Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -816,11 +816,8 @@ $C{dump_node} = sub {
         my $type  = ref $value;
         $copy->{$key} = $type if ( $type and not $normal{$type} );
     }
-    if ( exists $copy->{input_buffer} ) {
-        $copy->{input_buffer} = length ${ $copy->{input_buffer} };
-    }
-    if ( exists $copy->{output_buffer} ) {
-        $copy->{output_buffer} = scalar @{ $node->{output_buffer} };
+    for my $key (qw( buffer input_buffer output_buffer inflight messages )) {
+        $self->dump_flat( $copy, $key );
     }
     delete $copy->{interpreter};
     for my $key (qw( jobs consumers )) {
@@ -2706,6 +2703,38 @@ sub list_nodes {    ## no critic (ProhibitExcessComplexity)
     }
     if ( $list_matches and $glob and $response eq q() ) {
         push @{$response}, ['no matches'];
+    }
+    return;
+}
+
+sub dump_flat {
+    my $self = shift;
+    my $copy = shift;
+    my $key  = shift;
+    return if ( not exists $copy->{$key} );
+    if ( ref $copy->{$key} eq 'SCALAR' ) {
+        $copy->{$key} = length ${ $copy->{$key} };
+    }
+    elsif ( ref $copy->{$key} eq 'ARRAY' ) {
+        my $first = $copy->{$key}->[0];
+        my $count = scalar @{ $copy->{$key} };
+        if ($count) {
+            $copy->{$key} = [ $first, $count ];
+        }
+        else {
+            $copy->{$key} = [];
+        }
+    }
+    elsif ( ref $copy->{$key} eq 'HASH' ) {
+        my ( $first_key, $first_value ) = each %{ $copy->{$key} };
+        my $count = scalar keys %{ $copy->{$key} };
+        if ($count) {
+            $copy->{$key} = { '_COUNT' => $count };
+            $copy->{$key}->{$first_key} = $first_value;
+        }
+        else {
+            $copy->{$key} = {};
+        }
     }
     return;
 }
