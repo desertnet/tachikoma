@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 39659 2020-12-09 16:38:02Z chris $
+# $Id: Tee.pm 39713 2020-12-17 19:44:33Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -81,7 +81,7 @@ sub tee {
         $copy->[PAYLOAD]                 = q();
         $message_id                      = $self->msg_counter;
         $self->{messages}->{$message_id} = {
-            original  => $message,
+            original  => $copy,
             count     => scalar( @{$owners} ),
             answer    => 0,
             cancel    => 0,
