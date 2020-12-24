@@ -274,9 +274,8 @@ sub send_message {
     $self->verbose( sprintf "sending '%s'\n", $payload );
     my $msg = Tachikoma::Message->new;
     $msg->type(TM_BYTESTREAM);
-    $msg->to( $self->{owner} );
     $msg->payload($payload);
-    return $Tachikoma::Nodes{'_router'}->fill($msg);
+    return $self->SUPER::fill($msg);
 }
 
 sub brightness {
