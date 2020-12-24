@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3060;
+use Test::More tests => 3148;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -121,6 +121,8 @@ my %nodes = (
     'Accessories::Nodes::IndexByHostname' => q(),
     'Accessories::Nodes::IndexByProcess'  => q(),
     'Accessories::Nodes::LogColor'        => q(),
+    'Accessories::Nodes::SFE4DigitLED'    => q(),
+    'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::Spool'           => qq($t/spool),
     'Accessories::Nodes::TestStream'      => qq(),
 );
