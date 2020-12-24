@@ -5,10 +5,10 @@ var topic            = "tasks";
 var partition        = 0;
 var parsed_url       = new URL(window.location.href);
 var count            = parsed_url.searchParams.get("count") || 1000;
-var prefix_url       = "http://" + server_host + ":" + server_port
+var prefix_url       = "https://" + server_host + ":" + server_port
                      + server_path + "/"
                      + topic       + "/"
-                     + partition   + "/";
+                     + partition;
 var last_url         = prefix_url  + "/last/"   + count;
 var recent_url       = prefix_url  + "/recent/" + count;
 var server_url       = last_url;

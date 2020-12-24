@@ -75,7 +75,7 @@ sub fill {
             }
         }
         $self->{partitions} = {};
-        my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
+        my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_STORABLE;
         $response->[TYPE] |= $persist if ($persist);

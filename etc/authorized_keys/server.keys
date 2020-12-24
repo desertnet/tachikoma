@@ -10,7 +10,18 @@ use Tachikoma;
 # Set our authorized keys
 
 Tachikoma->configuration->public_keys( {
-    'tachikoma@nyx' => {
+    'tachikoma@server1' => {
+        allow => {map {$_=>1} qw(
+            client
+            server
+        )},
+        public_key =>
+q(-----BEGIN RSA PUBLIC KEY-----
+...
+-----END RSA PUBLIC KEY-----
+),
+    },
+    'tachikoma@workstation1' => {
         allow => {map {$_=>1} qw(
             client
             command
@@ -18,9 +29,7 @@ Tachikoma->configuration->public_keys( {
         )},
         public_key =>
 q(-----BEGIN RSA PUBLIC KEY-----
-MIGJAoGBAL7HdQeC2zQOm61S7u5toPgDWvhOiBb5YZD/vsLBywBTeU4o6JGDEuVk
-CcXCCedlZ4VQSfOMR0VCx0kuY+awzCac9WhQx88CWobAN2aoGuCJoNmD7mlbaG20
-Qs+3gn+llLLhyOuCKPAUwMZagjbAa/aocufOeMJ770J+YZPdimrlAgMBAAE=
+...
 -----END RSA PUBLIC KEY-----
 ),
     },

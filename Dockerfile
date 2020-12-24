@@ -19,8 +19,6 @@ RUN apt-get update && \
 
 WORKDIR /usr/src
 RUN git clone https://github.com/datapoke/tachikoma
+RUN cp ./tachikoma/entrypoint.sh /usr/local/bin/startup
 
-WORKDIR /usr/src/tachikoma
-RUN bin/install_tachikoma ${CONFIG}
-
-CMD [ "/usr/local/bin/tachikoma-server", "--daemon=no" ]
+ENTRYPOINT ["/usr/local/bin/startup"]

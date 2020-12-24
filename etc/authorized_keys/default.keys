@@ -10,16 +10,6 @@ use Tachikoma;
 # Set our authorized keys
 
 Tachikoma->configuration->public_keys( {
-    'tachikoma@server1' => {
-        allow => {map {$_=>1} qw(
-            server
-        )},
-        public_key =>
-q(-----BEGIN RSA PUBLIC KEY-----
-...
------END RSA PUBLIC KEY-----
-),
-    },
 } );
 
 1;

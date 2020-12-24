@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: HTTP_Responder.pm 39601 2020-12-05 00:47:38Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -84,7 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $header_text, $body ) = split m{\r\n\r\n}, ${$payload}, 2;
         ${$payload} = $body;
         my @lines = split m{^}, $header_text;
-        my $line  = shift @lines;
+        my $line = shift @lines;
         if ( not $line ) {
             delete $requests->{$name};
             delete $payloads->{$name};
@@ -97,9 +97,9 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             delete $payloads->{$name};
             return;
         }
-        $uri =~ s{^http://[^/]+}{}i;
+        $uri =~ s{^https?://[^/]+}{}i;
         my ( $script_url, $query_string ) = split m{[?]}, $uri, 2;
-        $headers                 = {};
+        $headers = {};
         $request->{server_port}  = $self->{port} || 80;
         $request->{remote_addr}  = $remote_addr;
         $request->{remote_port}  = $remote_port;
@@ -172,9 +172,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     $request_message->[STREAM] =
         join q(),
         $headers->{host}
-        ? $request->{uri} =~ m{^http://$headers->{host}}
-            ? $request->{uri}
-            : join q(), 'http://', $headers->{host}, $request->{uri}
+        ? join q(), 'http://', $headers->{host}, $request->{uri}
         : join q(), 'http://default', $request->{uri};
     $request_message->[PAYLOAD] = $request;
     $self->{counter}++;

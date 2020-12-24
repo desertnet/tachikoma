@@ -27,7 +27,7 @@ my $Default_Max_Files = 64;
 my $Default_Port      = 5600;
 
 # my $Separator         = chr 0;
-my $Separator   = join q(), chr 30, q( -> ), chr 30;
+my $Separator = join q(), chr 30, q( -> ), chr 30;
 my %Dot_Include = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -153,7 +153,8 @@ sub send_stats {
         $target->drain if ( $count >= $upper );
     }
     $target->drain if ($count);
-    $self->stderr( sprintf "$total broadcasts under $path in %.2f seconds",
+    $self->stderr(
+        sprintf "INFO: $total broadcasts under $path in %.2f seconds",
         Time::HiRes::time - $start );
     return;
 }
@@ -229,7 +230,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     opendir my $dh, $path or die "ERROR: couldn't opendir $path: $!";
     my @entries = readdir $dh;
     closedir $dh or die "ERROR: couldn't closedir $path: $!";
-    my @out         = ( join q(), $relative, "\n" );
+    my @out = ( join q(), $relative, "\n" );
     my @directories = ();
     for my $entry (@entries) {
         next
@@ -242,9 +243,9 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             next;
         }
         my $path_entry = join q(/), $path, $entry;
-        my @lstat      = lstat $path_entry;
+        my @lstat = lstat $path_entry;
         next if ( not @lstat );
-        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
+        my $stat = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
         my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $last_modified = $lstat[9];

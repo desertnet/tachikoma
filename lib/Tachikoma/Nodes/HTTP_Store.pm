@@ -36,9 +36,9 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $tmp_path, $prefix, @topics ) = split q( ), $self->{arguments};
-        $self->{topics}   = { map { $_ => 1 } @topics };
+        $self->{topics} = { map { $_ => 1 } @topics };
         $self->{tmp_path} = $tmp_path if ( defined $tmp_path );
-        $self->{prefix}   = $prefix if ( defined $prefix );
+        $self->{prefix}   = $prefix   if ( defined $prefix );
     }
     return $self->{arguments};
 }
@@ -59,7 +59,7 @@ sub fill {
 
     if ( $request->{tmp} ) {
         my $tmp_path = join q(/), $self->{tmp_path}, 'post';
-        my $tmp      = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
+        my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
         local $/ = undef;
         my $fh = undef;
         if ( not open $fh, '<', $tmp ) {

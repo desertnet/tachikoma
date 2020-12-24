@@ -17,4 +17,4 @@ curl --netrc --data-binary '[
     }
 ]' \
 -H "Content-Type: application/json" \
--X POST http://localhost:4242/cgi-bin/query.cgi/server_log
+-X POST https://localhost:4242/cgi-bin/query.cgi/server_log

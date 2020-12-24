@@ -28,7 +28,7 @@ my $Poll_Interval   = 1;             # poll for new messages this often
 my $Timeout         = 900;           # default async message timeout
 my $Expire_Interval = 15;            # check message timeouts
 my $Commit_Interval = 60;            # commit offsets
-my $Hub_Timeout     = 60;            # timeout waiting for hub
+my $Hub_Timeout     = 300;           # timeout waiting for hub
 my $Cache_Type      = 'snapshot';    # save complete state
 my %Targets         = ();
 
@@ -177,12 +177,7 @@ sub fill {
         {
             $self->stderr( 'WARNING: skipping from ',
                 $self->{next_offset}, ' to ', $offset );
-            if ( defined $self->partition_id ) {
-                $self->remove_node;
-            }
-            else {
-                $self->arguments( $self->arguments );
-            }
+            $self->reset_node;
             return;
         }
         $self->{offset} //= $offset;
@@ -398,7 +393,10 @@ sub drain_buffer {
         #     : 0;
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     }
-    $self->{offset} = $offset;
+    if ( $self->{offset} != $offset ) {
+        $self->{last_receive} = $Tachikoma::Now;
+        $self->{offset}       = $offset;
+    }
     return;
 }
 
@@ -447,6 +445,7 @@ sub expire_messages {
     my $timestamp = $lowest ? $lowest->[1] : undef;
     my $offset    = $lowest ? $lowest->[0] : $self->{offset};
     my $retry     = undef;
+    return 1 if ( not defined $offset );
     if ( defined $timestamp
         and $Tachikoma::Now - $timestamp > $self->{timeout} )
     {
@@ -576,25 +575,29 @@ sub edge {
     my $self = shift;
     if (@_) {
         my $edge = shift;
-        my $i    = $self->{partition_id};
         $self->{edge} = $edge;
-        $edge->new_cache($i)
-            if ( $edge and defined $i and $edge->can('new_cache') );
-        $self->last_receive($Tachikoma::Now);
-        $self->set_timer(0);
+        if ($edge) {
+            my $i = $self->{partition_id};
+            $edge->new_cache($i)
+                if ( $edge and defined $i and $edge->can('new_cache') );
+            $self->last_receive($Tachikoma::Now);
+            $self->set_timer(0);
+        }
     }
     return $self->{edge};
+}
+
+sub reset_node {
+    my $self = shift;
+    $self->next_offset(undef);
+    $self->edge( $self->{edge} );
+    return;
 }
 
 sub remove_node {
     my $self = shift;
     $self->name(q());
-    if ( $self->{edge} ) {
-        my $edge = $self->{edge};
-        my $i    = $self->{partition_id};
-        $edge->new_cache($i)
-            if ( $edge and defined $i and $edge->can('new_cache') );
-    }
+    $self->reset_node;
     return $self->SUPER::remove_node(@_);
 }
 
@@ -754,7 +757,7 @@ sub get_messages {
         my $message =
             Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID]   = join q(:), $offset, $offset + $size;
+        $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;
         $got -= $size;
 
@@ -773,7 +776,7 @@ sub get_messages {
 sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
-    my $rv     = undef;
+    my $rv = undef;
     my $target = $self->target or return;
     die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
     my $message = Tachikoma::Message->new;

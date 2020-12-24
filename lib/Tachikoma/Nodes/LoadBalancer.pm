@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 38745 2020-04-19 06:09:13Z chris $
+# $Id: LoadBalancer.pm 39257 2020-07-26 09:33:43Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -325,7 +325,7 @@ sub get_next_owner {
         my $pointer = $self->{pointer};
         $pointer = ( $pointer + 1 ) % $Tachikoma::Max_Int;
         $self->{pointer} = $pointer;
-        my $count      = ( sort { $a <=> $b } keys %by_count )[0];
+        my $count = ( sort { $a <=> $b } keys %by_count )[0];
         my $num_owners = scalar @{ $by_count{$count} };
         $owner = $by_count{$count}->[ $pointer % $num_owners ];
     }

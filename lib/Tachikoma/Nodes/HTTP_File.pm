@@ -49,7 +49,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $path, $prefix ) = split q( ), $self->{arguments}, 2;
-        $self->{path}   = $path;
+        $self->{path} = $path;
         $self->{prefix} = $prefix if ( defined $prefix );
     }
     return $self->{arguments};

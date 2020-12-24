@@ -30,7 +30,7 @@ use constant {
     BUFSIZ     => 131072,
 };
 
-my $Default_Num_Segments     = 8;
+my $Default_Num_Segments     = 2;
 my $Default_Segment_Size     = 128 * 1024 * 1024;
 my $Default_Segment_Lifespan = 7 * 86400;
 my $Touch_Interval           = 3600;
@@ -161,7 +161,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->process_valid_offsets($offset);
         }
         elsif ( $command eq 'DELETE' ) {
-            $self->process_delete( $offset, $args );
+            $self->process_delete($offset);
+            $self->update_offsets($args);
         }
         elsif ( $command eq 'EMPTY' ) {
             $self->empty_partition;
@@ -314,7 +315,7 @@ sub write_offset {
             }
         }
         my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
-        my $fh       = undef;
+        my $fh = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!";
         close $fh or die "ERROR: couldn't close $new_file: $!";
@@ -355,7 +356,7 @@ sub process_valid_offsets {
     my $last_commit_offset = $self->get_last_commit_offset;
     my $old_offsets        = $self->{valid_offsets};
     $self->{valid_offsets} = [ split m{,}, $valid_offsets ];
-    my %valid        = map { $_ => 1 } @{ $self->{valid_offsets} };
+    my %valid = map { $_ => 1 } @{ $self->{valid_offsets} };
     my $should_purge = undef;
     while ( @{$old_offsets} ) {
         $last_commit_offset = $old_offsets->[-1];
@@ -401,7 +402,7 @@ sub process_get {
     my $buffer = undef;
     my $to     = $message->[FROM];
     my ( $name, $path ) = split m{/}, $to, 2;
-    my $node     = $Tachikoma::Nodes{$name} or return;
+    my $node = $Tachikoma::Nodes{$name} or return;
     my $response = Tachikoma::Message->new;
     $response->[TYPE] = TM_BATCH;
     $response->[FROM] = $self->{name};
@@ -447,7 +448,7 @@ sub process_ack {
 }
 
 sub process_delete {
-    my ( $self, $delete, $lco ) = @_;
+    my ( $self, $delete ) = @_;
     return if ( not $self->{filename} );
     my $segments = $self->{segments};
     my $i        = $#{$segments} - $self->{num_segments} + 1;
@@ -482,7 +483,6 @@ sub process_delete {
         $self->stderr('WARNING: process_delete removed all segments');
         $self->create_segment;
     }
-    $self->update_offsets($lco);
     return;
 }
 
@@ -510,15 +510,15 @@ sub should_delete {
     # two guarantees cache partitions will always have data
     if ( @{$segments} > 2 ) {
         my $segment = $segments->[0];
-        if ( $segment->[LOG_OFFSET] + $segment->[LOG_SIZE] <= $delete ) {
-            $rv = 1;
-        }
-        else {
+        $rv = 1;
+        if ( $self->{max_lifespan} ) {
             my $last_modified = ( stat $segment->[LOG_FH] )[9];
-            $rv = 1
-                if ($self->{max_lifespan}
-                and $Tachikoma::Now - $last_modified
-                > $self->{max_lifespan} );
+            $rv = undef
+                if (
+                $Tachikoma::Now - $last_modified <= $self->{max_lifespan} );
+        }
+        if ( $segment->[LOG_OFFSET] + $segment->[LOG_SIZE] > $delete ) {
+            $rv = undef;
         }
     }
     return $rv;
@@ -566,7 +566,7 @@ sub update_offsets {
         # don't write offsets received from the leader until log catches up
         while ( @{$valid_offsets} and $valid_offsets->[0] < $self->{offset} )
         {
-            my $offset   = shift @{$valid_offsets};
+            my $offset = shift @{$valid_offsets};
             my $new_file = join q(/), $self->{filename}, 'offsets', $offset;
             next if ( -e $new_file );
             my $fh = undef;
@@ -631,7 +631,7 @@ sub purge_offsets {
     my @offsets         = ();
     if ( -d $offsets_dir ) {
         my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
-        my $dh     = undef;
+        my $dh = undef;
         opendir $dh, $offsets_dir
             or die "ERROR: couldn't opendir $offsets_dir: $!";
         @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
@@ -728,7 +728,11 @@ sub create_segment {
         or die "ERROR: couldn't open $path/$offset.log: $!";
     $self->get_lock($fh);
     push @{ $self->{segments} }, [ $offset, 0, $fh ];
-    $self->process_delete if ( $self->{arguments} );
+
+    if ( $self->{arguments} ) {
+        $self->process_delete;
+        $self->update_offsets;
+    }
     return;
 }
 
@@ -799,7 +803,7 @@ sub get_last_commit_offset {
         $last_commit_offset = 0;
         $valid_offsets      = [0];
         my $new_file = join q(/), $offsets_dir, $last_commit_offset;
-        my $fh       = undef;
+        my $fh = undef;
         open $fh, '>', $new_file
             or die "ERROR: couldn't open $new_file: $!\n";
         close $fh or die "ERROR: couldn't close $new_file: $!";

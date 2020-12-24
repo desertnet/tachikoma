@@ -22,11 +22,15 @@ $config->load_config_file(
     '/usr/local/etc/tachikoma.conf',
 );
 
-my $broker_ids = [ 'localhost:5501', 'localhost:5502' ];
-my $host       = 'localhost';
-my $port       = 5100;
-my $cgi        = CGI->new;
-my $path       = $cgi->path_info;
+my $broker_ids = undef;
+if ($Tachikoma::Nodes::CGI::Config) {
+    $broker_ids = $Tachikoma::Nodes::CGI::Config->{broker_ids};
+}
+$broker_ids ||= [ 'localhost:5501', 'localhost:5502' ];
+my $host = 'localhost';
+my $port = 5100;
+my $cgi  = CGI->new;
+my $path = $cgi->path_info;
 $path =~ s(^/)();
 my ( $topic, $field, $escaped ) = split q(/), $path, 3;
 $escaped = $cgi->param('key') if ( not length $escaped );

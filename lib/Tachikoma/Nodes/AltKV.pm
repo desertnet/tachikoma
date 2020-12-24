@@ -80,7 +80,7 @@ sub flatten_bytestream {
     my $key   = $message->[STREAM];
     my $value = $message->[PAYLOAD];
     chomp $value;
-    $response->[STREAM]  = q();
+    $response->[STREAM] = q();
     $response->[PAYLOAD] = join q(), $key, q( ), $value, "\n";
     return;
 }

@@ -192,16 +192,9 @@ sub fetch {
 sub fetch_offset {
     my ( $self, $partition, $offset, $offsets ) = @_;
     my $value = undef;
-    my $topic = $self->{topic} or die 'ERROR: no topic';
-    my $group = $self->{consumer_broker};
+    my $group = $self->consumer_broker;
     chomp $offset;
-    if ( not $group ) {
-        $group = Tachikoma::Nodes::ConsumerBroker->new($topic);
-        $self->{consumer_broker} = $group;
-    }
-    else {
-        $group->get_partitions;
-    }
+    $group->get_partitions;
     my $consumer = $group->{consumers}->{$partition}
         || $group->make_sync_consumer($partition);
     if ($consumer) {
@@ -252,10 +245,20 @@ sub topic {
     return $self->{topic};
 }
 
+sub broker_ids {
+    my ( $self, @args ) = @_;
+    return $self->consumer_broker->broker_ids(@args);
+}
+
 sub consumer_broker {
     my $self = shift;
     if (@_) {
         $self->{consumer_broker} = shift;
+    }
+    if ( not $self->{consumer_broker} ) {
+        my $topic = $self->{topic} or die 'ERROR: no topic';
+        my $group = Tachikoma::Nodes::ConsumerBroker->new($topic);
+        $self->{consumer_broker} = $group;
     }
     return $self->{consumer_broker};
 }
