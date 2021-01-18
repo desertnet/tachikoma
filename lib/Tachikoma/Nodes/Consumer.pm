@@ -350,7 +350,7 @@ sub drain_buffer {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         if ( $self->{status} eq 'INIT' ) {
             if ( $message->[TYPE] & TM_STORABLE ) {
                 $self->load_cache( $message->payload );
@@ -755,7 +755,7 @@ sub get_messages {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
         $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;

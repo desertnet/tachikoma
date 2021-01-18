@@ -60,7 +60,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 and defined $to
                 and $message_to !~ m{$to} )
             );
-        my $copy = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->unpacked($packed);
         my @matches = $field ? $copy->[$field] =~ m{$re} : ();
         next if ( $field and not @matches );
         if ( $type eq 'deny' ) {

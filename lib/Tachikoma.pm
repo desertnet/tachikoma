@@ -3,7 +3,7 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: Tachikoma.pm 39768 2021-01-18 21:19:30Z chris $
 #
 
 package Tachikoma;
@@ -235,7 +235,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         return ( $got, $message );
     }
@@ -276,8 +276,8 @@ sub drain {
         #     : 0;
         my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
         while ( $got >= $size and $size > 0 ) {
-            my $message =
-                Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            my $message = Tachikoma::Message->unpacked( \substr ${$buffer},
+                0, $size, q() );
             $got -= $size;
 
             # XXX:M
@@ -307,7 +307,7 @@ sub drain_cycle {
     my $rv = 1;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
 
         # XXX:M

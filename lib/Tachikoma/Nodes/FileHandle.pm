@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 38512 2020-02-17 18:56:39Z chris $
+# $Id: FileHandle.pm 39768 2021-01-18 21:19:30Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -161,7 +161,7 @@ sub drain_buffer_normal {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;

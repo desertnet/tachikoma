@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 39713 2020-12-17 19:44:33Z chris $
+# $Id: Tee.pm 39768 2021-01-18 21:19:30Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -77,7 +77,7 @@ sub tee {
     my @keep       = ();
     my $packed     = $message->packed;
     if ( $message->[TYPE] & TM_PERSIST ) {
-        my $copy = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->unpacked($packed);
         $copy->[PAYLOAD]                 = q();
         $message_id                      = $self->msg_counter;
         $self->{messages}->{$message_id} = {
@@ -95,7 +95,7 @@ sub tee {
     for my $owner ( @{$owners} ) {
         my $name = ( split m{/}, $owner, 2 )[0];
         next if ( not $Tachikoma::Nodes{$name} );
-        my $copy = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->unpacked($packed);
         $copy->[TO] = join q(/), grep length, $owner, $copy->[TO];
         if ($persist) {
             $self->stamp_message( $copy, $self->{name} ) or return;

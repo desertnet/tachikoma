@@ -58,12 +58,11 @@ use constant {
 
 # XXX:M
 sub new {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
-    bless(    ## no critic (ProhibitParensWithBuiltins)
-        $_[1]
-        ? [ unpack 'xxxx N n/a n/a n/a n/a N a*', ${ $_[1] } ]
-        : [ 0, q(), q(), q(), q(), $Tachikoma::Now || time, q(), 1 ],
-        $_[0]
-    );
+    bless [ 0, q(), q(), q(), q(), $Tachikoma::Now || time, q(), 1 ], $_[0];
+}
+
+sub unpacked {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
+    bless [ unpack 'xxxx N n/a n/a n/a n/a N a*', ${ $_[1] } ], $_[0];
 }
 
 sub size {

@@ -50,7 +50,7 @@ sub check_unpack {
     my $count  = 0;
     my $then   = time;
     while (1) {
-        Tachikoma::Message->new($packed);
+        Tachikoma::Message->unpacked($packed);
         my $span = time - $then;
         $count++;
         if ( $check++ >= $Total ) {

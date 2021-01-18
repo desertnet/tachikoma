@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Buffer
 # ----------------------------------------------------------------------
 #
-# $Id: Buffer.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: Buffer.pm 39768 2021-01-18 21:19:30Z chris $
 #
 
 package Tachikoma::Nodes::Buffer;
@@ -304,7 +304,7 @@ sub refill {
             $to = $path;
         }
         elsif ( $path eq 'drop' ) {
-            my $message = eval { Tachikoma::Message->new( \$packed ) };
+            my $message = eval { Tachikoma::Message->unpacked( \$packed ) };
             $self->stderr(
                 "ERROR: $key has failed $attempts attempts - dropping",
                 ' - type: ' . $message->type_as_string );
@@ -319,7 +319,7 @@ sub refill {
             return;
         }
     }
-    my $message = eval { Tachikoma::Message->new( \$packed ) };
+    my $message = eval { Tachikoma::Message->unpacked( \$packed ) };
     if ( $message and $message->[TYPE] ) {
         if ( $self->{is_active} ) {
             $tiedhash->{$key} = pack 'F N a*',
@@ -357,7 +357,7 @@ sub lookup {
         my $key = shift @args;
         my ( $timestamp, $attempts, $packed ) = unpack 'F N a*',
             $tiedhash->{$key};
-        my $message = eval { Tachikoma::Message->new( \$packed ) };
+        my $message = eval { Tachikoma::Message->unpacked( \$packed ) };
         $value = {
             next_attempt      => $timestamp,
             attempts          => $attempts,
@@ -444,7 +444,7 @@ $C{list_messages} = sub {
         for my $key ( sort keys %{$hash} ) {
             my ( $timestamp, $attempts, $packed ) =
                 ( unpack 'F N a*', $tiedhash->{$key} );
-            my $message = Tachikoma::Message->new( \$packed );
+            my $message = Tachikoma::Message->unpacked( \$packed );
             $response .=
                 sprintf "%-31s %8d %8d %25s\n", $key, $attempts,
                 $Tachikoma::Now - $message->[TIMESTAMP],
@@ -508,7 +508,7 @@ $C{dump_message} = sub {
     if ( exists $tiedhash->{$key} ) {
         my ( $timestamp, $attempts, $packed ) =
             ( unpack 'F N a*', $tiedhash->{$key} );
-        my $message = Tachikoma::Message->new( \$packed );
+        my $message = Tachikoma::Message->unpacked( \$packed );
         $message->[FROM] = $self->patron->name;
         $message->[TO]   = $self->patron->owner;
         $message->[ID]   = $key;

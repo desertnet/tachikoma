@@ -737,7 +737,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message = eval {
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         };
         if ( not $message ) {
             my $trap = $@ || 'unknown error';
@@ -797,7 +797,7 @@ sub drain_buffer_normal {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;

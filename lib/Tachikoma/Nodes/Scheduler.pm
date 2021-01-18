@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: Scheduler.pm 39768 2021-01-18 21:19:30Z chris $
 #
 
 package Tachikoma::Nodes::Scheduler;
@@ -90,7 +90,7 @@ sub fire {
         my $when = $time - $Tachikoma::Now;
         $next_when = $when if ( $when < $next_when );
         next if ( $when > 0 or not $enabled );
-        my $message = eval { Tachikoma::Message->new( \$packed ) };
+        my $message = eval { Tachikoma::Message->unpacked( \$packed ) };
         if ($message) {
             my $name = ( split m{/}, $message->[FROM], 2 )[0] || q();
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
@@ -367,7 +367,7 @@ $C{dump_event} = sub {
         return $self->error( $envelope, qq(can't find event "$key"\n) );
     }
     my $packed  = ( unpack 'N N N Z* a*', $event )[4];
-    my $message = Tachikoma::Message->new( \$packed );
+    my $message = Tachikoma::Message->unpacked( \$packed );
     my $payload = Tachikoma::Command->new( $message->payload );
     $payload->{signature} = q();
     $message->payload($payload);
