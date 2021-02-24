@@ -53,6 +53,6 @@ cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
 cp -r etc/pki ~/.tachikoma/
 if [ ! -d ~/.tachikoma/tls ] ; then
     cd ~/.tachikoma/pki
-    ./genkey $config server
+    ./genkey net.desert $config server
     mv tls/$config ~/.tachikoma/tls
 fi
