@@ -1,4 +1,4 @@
-v2
+#!/usr/bin/env /usr/local/bin/tachikoma
 include services/config.tsl
 
 make_node CommandInterpreter hosts
@@ -55,18 +55,6 @@ connect_node local_system_log:ruleset system_log:ruleset
 connect_node server_log:link          server_log:ruleset
 
 # services
-var services = "<home>/.tachikoma/services";
-func start_service {
-    local service = <1>;
-    command jobs  start_job Shell <service>:job <services>/<service>.tsl;
-    command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
-    command tails add_tail <home>/.tachikoma/log/<service>.log server_log:link;
-}
-func stop_service {
-    local service = <1>;
-    command jobs stop_job <service>:job;
-    # rm <service>:service;
-}
 for service (<tachikoma.services>) {
     start_service <service>;
 }
