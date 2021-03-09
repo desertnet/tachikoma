@@ -5,6 +5,7 @@ var server_url = "https://" + window.location.hostname
 var shell_path = window.location.pathname;
 var xhttp      = new XMLHttpRequest();
 var queue      = parsed_url.searchParams.get("queue");
+var interval   = parsed_url.searchParams.get("interval") || 33;
 var timer      = null;
 if (queue) {
     server_url += "/" + queue;
@@ -22,7 +23,7 @@ function start_timer() {
             }
         }
         if (this.readyState == 4) {
-            timer = setTimeout(tick, 2000);
+            timer = setTimeout(tick, interval);
         }
     };
     timer = setTimeout(tick, 0);
