@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 39723 2020-12-17 20:12:19Z chris $
+# $Id: CommandInterpreter.pm 39955 2021-03-09 05:17:57Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1794,13 +1794,13 @@ $L{reload} = $H{reload_config};
 
 $C{reload} = $C{reload_config};
 
-$H{env} = ["env [ <name> [ = <value> ] ]\n"];
+$H{remote_env} = ["env [ <name> [ = <value> ] ]\n"];
 
-$C{env} = sub {
+$C{remote_env} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'env' )
+    $self->verify_key( $envelope, ['meta'], 'remote_env' )
         or return $self->error("verification failed\n");
     my ( $key, $op, $value ) =
         split m{\s*(=)\s*}, $command->arguments, 2;
