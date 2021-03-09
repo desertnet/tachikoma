@@ -4,6 +4,7 @@ ARG CONFIG=default
 
 RUN apt-get update && \
     apt-get install -y \
+        vim less procps \
         git build-essential \
         libberkeleydb-perl \
         libcgi-pm-perl \
