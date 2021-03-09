@@ -830,11 +830,12 @@ sub get_segment {
     my $offset  = shift;
     my $segment = undef;
     if ( $offset < 0 ) {
-        if ( $offset < -1 and @{ $self->{segments} } > 1 ) {
+        $segment = $self->{segments}->[-1];
+        if (    not $segment->[LOG_SIZE]
+            and $offset < -1
+            and @{ $self->{segments} } > 1 )
+        {
             $segment = $self->{segments}->[-2];
-        }
-        else {
-            $segment = $self->{segments}->[-1];
         }
     }
     else {
