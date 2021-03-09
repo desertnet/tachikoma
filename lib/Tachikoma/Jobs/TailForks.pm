@@ -14,7 +14,6 @@ use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::JobController;
 use Tachikoma::Nodes::LoadController;
 use Tachikoma::Nodes::FileWatcher;
-use Tachikoma::Nodes::Tee;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
@@ -39,7 +38,6 @@ sub initialize_graph {
     my $job_controller  = Tachikoma::Nodes::JobController->new;
     my $load_controller = Tachikoma::Nodes::LoadController->new;
     my $file_watcher    = Tachikoma::Nodes::FileWatcher->new;
-    my $collector       = Tachikoma::Nodes::Tee->new;
     my $arguments       = $self->arguments;
     my @destinations    = split q( ), $arguments;
     $self->connector->sink($interpreter);
@@ -54,9 +52,6 @@ sub initialize_graph {
     $file_watcher->name('FileWatcher');
     $file_watcher->sink($self);
     $self->file_watcher($file_watcher);
-    $collector->name('collector');
-    $collector->sink($interpreter);
-    $self->collector($collector);
     $self->connect_list( \@destinations );
     $self->tails(   {} );
     $self->files(   {} );
@@ -169,7 +164,7 @@ sub fill {
                 $message->from, ': ', $message->payload );
         }
         $self->rescan_files if ( $event and $event ne 'missing' );
-        return $self->{collector}->fill($message);
+        return;
     }
     elsif ( $message->[FROM] =~ m{^(.*):tail$} ) {
         my $file = $1;
@@ -185,13 +180,13 @@ sub fill {
             $self->timer->set_timer(10);
         }
         delete $forking->{$file};
-        return $self->{collector}->fill($message);
+        return;
     }
     elsif ( $message->[FROM] =~ m{^(.*):tail-\d+$} ) {
         my $file = $1;
         $message->[STREAM] = $file;
         return if ( $type & TM_EOF );
-        return $self->{collector}->fill($message);
+        return;
     }
     return $self->{sink}->fill($message);
 }
@@ -425,14 +420,6 @@ sub filename {
         $self->{filename} = $self->{name} . '.db';
     }
     return $self->{filename};
-}
-
-sub collector {
-    my $self = shift;
-    if (@_) {
-        $self->{collector} = shift;
-    }
-    return $self->{collector};
 }
 
 sub timer {
