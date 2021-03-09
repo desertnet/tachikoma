@@ -25,9 +25,9 @@ function start_timer() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
-                fetch_timer = setTimeout(tick, 2000);
-                if (dirty) {
-                    display_table();
+                fetch_timer = setTimeout(tick, 1000);
+                if (msg.next_url == server_url) {
+                    update_table(msg);
                 }
             }
             else {
@@ -37,7 +37,7 @@ function start_timer() {
             }
         }
         else if (this.readyState == 4) {
-            fetch_timer = setTimeout(tick, 2000);
+            fetch_timer = setTimeout(tick, 1000);
         }
     };
     fetch_timer   = setTimeout(tick, 0);

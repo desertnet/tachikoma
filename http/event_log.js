@@ -34,12 +34,15 @@ function start_partition(partition) {
             var msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
                 fetch_timers[partition] = setTimeout(tick,
-                                                     2000,
+                                                     1000,
                                                      partition,
                                                      server_url);
+                if (msg.next_url == server_url) {
+                    update_table(msg);
+                }
             }
             else {
-                server_url  = msg.next_url;
+                server_url = msg.next_url;
                 fetch_timers[partition] = setTimeout(tick,
                                                      0,
                                                      partition,
@@ -49,13 +52,13 @@ function start_partition(partition) {
         }
         else if (this.readyState == 4) {
             fetch_timers[partition] = setTimeout(tick,
-                                                 2000,
+                                                 1000,
                                                  partition,
                                                  server_url);
         }
     };
     fetch_timers[partition] = setTimeout(tick,
-                                         0,
+                                         100,
                                          partition,
                                          server_url);
 }
@@ -120,6 +123,7 @@ function display_table() {
                     + "<th>VALUE</th></tr>"
                     + output.join("")
                     + "</table>";
+        dirty = 0;
     }
 }
 

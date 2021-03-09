@@ -66,7 +66,7 @@ function _execute_query() {
                 document.getElementById("output").innerHTML = output.join("");
             }
             else if (this.readyState == 4) {
-                timer = setTimeout(tick, 2000);
+                timer = setTimeout(tick, 1000);
             }
         };
     }
@@ -132,7 +132,7 @@ function _execute_query() {
                                     + "</table>";
                     }
                     if (running) {
-                        timer = setTimeout(tick, 2000);
+                        timer = setTimeout(tick, 1000);
                     }
                 }
                 else {
@@ -140,7 +140,7 @@ function _execute_query() {
                 }
             }
             else if (this.readyState == 4) {
-                timer = setTimeout(tick, 2000);
+                timer = setTimeout(tick, 1000);
             }
         };
     }
