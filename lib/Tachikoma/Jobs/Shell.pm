@@ -3,7 +3,7 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: Shell.pm 39959 2021-03-09 05:43:22Z chris $
 #
 
 package Tachikoma::Jobs::Shell;
@@ -13,7 +13,7 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::STDIO qw( TK_R );
 use Tachikoma::Message qw(
-    TYPE FROM ID STREAM
+    TYPE FROM TO ID STREAM
     TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use IPC::Open3;
@@ -82,6 +82,7 @@ sub fill {
         if ( not $type & TM_PERSIST ) {
             my $response = Tachikoma::Message->new;
             $response->[TYPE]   = TM_RESPONSE;
+            $response->[TO]     = '_parent';
             $response->[STREAM] = $message->[STREAM];
             $response->[ID]     = $message->[ID];
             $self->{sink}->fill($response);
