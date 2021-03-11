@@ -159,7 +159,6 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $offset  = $message->[ID];
     if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         $self->handle_response($message);
     }
@@ -167,7 +166,8 @@ sub fill {
         $self->handle_error($message);
     }
     else {
-        if ( not $self->{expecting} ) {
+        my $offset = $message->[ID];
+        if ( not $self->{expecting} or not defined $offset ) {
             $self->drop_message( $message, 'unexpected message' )
                 if ( not $message->[TYPE] & TM_EOF );
             return;
