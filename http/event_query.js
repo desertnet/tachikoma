@@ -14,15 +14,8 @@ if (key) {
         "op":    "eq",
         "key":   key
     };
+    _execute_query();
 }
-else {
-    data = {
-        "field": field,
-        "op":    "keys",
-        "key":   ""
-    };
-}
-_execute_query();
 
 function render_form() {
     var form_html = '<form onsubmit="execute_query(); return false;" id="query_params">'
