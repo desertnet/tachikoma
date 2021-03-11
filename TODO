@@ -1,15 +1,2 @@
-<pre>
-
-  - Write more and better tests and documentation.
-  - Docker (for easier experimentation, etc).
-  - Service discovery.
-  - Advanced stream processing.
-  - The language should handle TM_STORABLE messages better.
-  - Keep worrying about security.
-  - Add $message->[PARTITION]?
-  - Add $message->[SUBJECT]?
-  - Machine learning and artificial intelligence.
-  - Frontend UI (web, application, VR/AR).
-  - Find more collaborators and build a community.
-
-</pre>
+documention
+web ui
