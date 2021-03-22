@@ -21,6 +21,6 @@ RUN apt-get update && \
 
 WORKDIR /usr/src
 RUN git clone https://github.com/datapoke/tachikoma
-RUN cp ./tachikoma/entrypoint.sh /usr/local/bin/startup
+RUN cp ./tachikoma/docker-entrypoint.sh /usr/local/bin/
 
-ENTRYPOINT ["/usr/local/bin/startup"]
+ENTRYPOINT ["docker-entrypoint.sh"]
