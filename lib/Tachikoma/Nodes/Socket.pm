@@ -483,11 +483,7 @@ sub init_SSL_connection {
         $self->register_reader_node;
     }
     elsif ( $! != EAGAIN ) {
-        my $ssl_error = IO::Socket::SSL::errstr();
-        $ssl_error =~ s{(error)(error)}{$1: $2};
-        Tachikoma->print_less_often( join q(: ), grep $_, $self->{parent},
-            "WARNING: $method failed",
-            $!, $ssl_error );
+        $self->log_SSL_error($method);
 
         # this keeps the event framework from constantly
         # complaining about missing entries in %Nodes_By_FD
@@ -509,6 +505,25 @@ sub init_SSL_connection {
     else {
         $self->unregister_writer_node;
     }
+    return;
+}
+
+sub log_SSL_error {
+    my $self      = shift;
+    my $method    = shift;
+    my $ssl_error = IO::Socket::SSL::errstr();
+    $ssl_error =~ s{(error)(error)}{$1: $2};
+    my $names = undef;
+    if ( $method eq 'connect_SSL' ) {
+        $names = $self->{name};
+    }
+    else {
+        $names = join q( -> ), $self->{parent},
+            ( split m{:}, $self->{name}, 2 )[0];
+    }
+    Tachikoma->print_less_often( join q(: ), grep $_,
+        $names, "WARNING: $method failed",
+        $!, $ssl_error );
     return;
 }
 
