@@ -60,7 +60,6 @@ func add_hub {
                                   --segment_size=(1 * 1024 * 1024)
                                   --max_lifespan=(7 * 86400)
                                   --replication_factor=1;
-            set_group console     --topic=server_log;
             for field (<server_log.fields>) {
                 set_topic server_log.<field> --num_partitions=4
                                              --segment_size=(1 * 1024 * 1024)

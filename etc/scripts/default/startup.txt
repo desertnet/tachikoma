@@ -3,7 +3,7 @@ include services/config.tsl
 
 make_node CommandInterpreter hosts
 make_node JobController      jobs
-make_node Echo               server_log:link
+make_node Tee                server_log:link
 make_node Ruleset            server_log:ruleset
 make_node LogColor           server_log:color
 make_node Tee                server_log
@@ -60,16 +60,8 @@ for service (<tachikoma.services>) {
 }
 
 # ingest server logs
-connect_hub
-make_node ConsumerBroker server_log:consumer --broker=<broker>    \
-                                             --topic=server_log   \
-                                             --group=console      \
-                                             --default_offset=end \
-                                             --poll_interval=0.1  \
-                                             --max_unanswered=64
-connect_node server_log          sounds:service/server_log:sounds
-connect_node server_log:consumer server_log:ruleset
-connect_node server_log:link     server_logs:service/server_log
+# connect_node server_log:link sounds:service/server_log:sounds
+connect_node server_log:link server_logs:service/server_log
 
 cd tails
     tail_probe
