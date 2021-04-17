@@ -678,7 +678,7 @@ sub open_segments {
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
             $self->stderr(
-                'ERROR: truncating ' . ( $size - $new_size ) . ' bytes' )
+                'INFO: truncating ' . ( $size - $new_size ) . ' bytes' )
                 if ( not $self->{leader} );
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
