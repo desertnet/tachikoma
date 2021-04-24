@@ -393,7 +393,7 @@ sub drain_buffer {
         #     : 0;
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     }
-    if ( $self->{offset} != $offset ) {
+    if ( defined $self->{offset} and $self->{offset} != $offset ) {
         $self->{last_receive} = $Tachikoma::Now;
         $self->{offset}       = $offset;
     }
