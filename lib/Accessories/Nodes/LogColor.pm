@@ -62,16 +62,16 @@ sub fill {
     }
     if ( $payload =~ m{^\d+} ) {
         if ( $payload =~ m{COMMAND} ) {
-            $payload = "\e[41m\e[2K$payload\e[0m";
+            $payload = "\e[30;101m\e[2K$payload\e[0m";
         }
         elsif ( $payload =~ m{TRAP} ) {
-            $payload = "\e[41m\e[2K$payload\e[0m";
+            $payload = "\e[30;101m\e[2K$payload\e[0m";
         }
         elsif ( $payload =~ m{ERROR} ) {
-            $payload = "\e[41m\e[2K$payload\e[0m";
+            $payload = "\e[30;101m\e[2K$payload\e[0m";
         }
         elsif ( $payload =~ m{WARNING} ) {
-            $payload = "\e[43m\e[2K$payload\e[0m";
+            $payload = "\e[30;103m\e[2K$payload\e[0m";
         }
         elsif ( $payload =~ m{INFO} ) {
             $payload = "\e[90m$payload\e[0m";
@@ -86,7 +86,7 @@ sub fill {
     else {
         $payload = $self->cleanup_syslog( $message, $payload );
         if ( $payload =~ m{ su\b| sudo\b} ) {
-            $payload = "\e[42m\e[2K$payload\e[0m";
+            $payload = "\e[30;102m\e[2K$payload\e[0m";
         }
         elsif ( $payload =~ m{ svnagent} ) {
             $payload = "\e[92m$payload\e[0m";
@@ -106,7 +106,7 @@ sub fill {
             $payload = "\e[90m$payload\e[0m";
         }
     }
-    $message->[PAYLOAD] = "$payload\n";
+    $message->[PAYLOAD] = "\r$payload\n";
     $self->SUPER::fill($message);
     return;
 }
