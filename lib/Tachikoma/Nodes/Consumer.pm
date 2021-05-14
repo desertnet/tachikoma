@@ -348,7 +348,7 @@ sub drain_buffer {
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-    while ( $got >= $size and $size > 0 ) {
+    while ( defined $self->{offset} and $got >= $size and $size > 0 ) {
         my $message =
             Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         if ( $self->{status} eq 'INIT' ) {
