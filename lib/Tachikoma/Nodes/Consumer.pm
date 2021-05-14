@@ -291,7 +291,8 @@ sub fire {
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
-        $self->stderr('WARNING: timeout waiting for partition, trying again');
+        $self->print_less_often(
+            'WARNING: timeout waiting for partition, trying again');
         if ( defined $self->partition_id ) {
             $self->remove_node;
         }
