@@ -3,13 +3,14 @@ include services/config.tsl
 
 make_node CommandInterpreter hosts
 make_node JobController      jobs
+make_node Tee                system_log:link
 make_node Tee                server_log:link
-make_node Ruleset            server_log:ruleset
-make_node LogColor           server_log:color
-make_node Tee                server_log
 make_node Ruleset            local_system_log:ruleset
+make_node Ruleset            server_log:ruleset
 make_node Ruleset            system_log:ruleset
+make_node LogColor           server_log:color
 make_node LogColor           system_log:color
+make_node Tee                server_log
 make_node Tee                system_log
 make_node Tee                http_log
 make_node Null               null
@@ -36,11 +37,11 @@ cd tails
     add_tail <home>/.tachikoma/log/tasks-access.log     http_log
     add_tail <home>/.tachikoma/log/tables-access.log    http_log
     if ( `uname` eq "Darwin\n" ) {
-        add_tail /var/log/system.log       local_system_log:ruleset;
-        add_tail /var/log/local/system.log local_system_log:ruleset;
+        add_tail /var/log/system.log       system_log:link;
+        add_tail /var/log/local/system.log system_log:link;
     } else {
-        add_tail /var/log/syslog       local_system_log:ruleset;
-        add_tail /var/log/local/syslog local_system_log:ruleset;
+        add_tail /var/log/syslog       system_log:link;
+        add_tail /var/log/local/syslog system_log:link;
     }
 cd ..
 
@@ -53,9 +54,13 @@ connect_node system_log:ruleset       system_log:color
 connect_node server_log:ruleset       server_log:color
 connect_node local_system_log:ruleset system_log:ruleset
 connect_node server_log:link          server_log:ruleset
+connect_node system_log:link          local_system_log:ruleset
 
 # services
 for service (<tachikoma.services>) {
+    start_service <service>;
+}
+for service ([var "tachikoma.services.<hostname>"]) {
     start_service <service>;
 }
 
