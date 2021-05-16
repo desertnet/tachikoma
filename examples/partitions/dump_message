@@ -2,17 +2,12 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::Consumer;
-use Data::Dumper;
 
 my $home = ( getpwuid $< )[7];
 Tachikoma->configuration->load_config_file(
     "$home/.tachikoma/etc/tachikoma.conf",
     '/usr/local/etc/tachikoma.conf',
 );
-
-$Data::Dumper::Indent   = 1;
-$Data::Dumper::Sortkeys = 1;
-$Data::Dumper::Useperl  = 1;
 
 my $partition = $ARGV[0];
 my $offset    = $ARGV[1] // '-2';
@@ -21,6 +16,5 @@ die "usage: dump_message <partition> [ <offset> ]\n"
 my $consumer = Tachikoma::Nodes::Consumer->new($partition);
 $consumer->next_offset($offset);
 my $message = $consumer->fetch->[0];
-$message->payload if ($message);
-print Dumper($message);
+print $message->as_string if ( $message );
 die $consumer->sync_error if ( $consumer->sync_error );

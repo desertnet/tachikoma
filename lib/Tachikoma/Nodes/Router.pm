@@ -12,7 +12,7 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_HEARTBEAT TM_PING TM_COMPLETION TM_ERROR TM_EOF
+    TM_HEARTBEAT TM_COMPLETION TM_ERROR
 );
 use parent qw( Tachikoma::Nodes::Timer );
 

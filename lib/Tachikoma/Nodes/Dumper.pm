@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 39953 2021-03-09 04:47:33Z chris $
+# $Id: Dumper.pm 40348 2021-05-15 22:12:24Z chris $
 #
 
 package Tachikoma::Nodes::Dumper;
@@ -17,7 +17,6 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Data::Dumper;
-use POSIX qw( strftime );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -88,7 +87,7 @@ sub dump_storable {
         $message->payload;
     }
     else {
-        my $dumped = Dumper $message->payload;
+        my $dumped = Dumper( $message->payload );
         $message->payload($dumped);
     }
     return TM_BYTESTREAM;
@@ -153,7 +152,7 @@ sub dump_command {
         $message->[PAYLOAD] = $command;
     }
     else {
-        $message->[PAYLOAD] = Dumper $command;
+        $message->[PAYLOAD] = Dumper($command);
     }
     return TM_BYTESTREAM;
 }
@@ -162,18 +161,7 @@ sub dump_message {
     my $self    = shift;
     my $message = shift;
     if ( $self->{debug} > 1 ) {
-        $message->[PAYLOAD] = join q(),
-            Dumper(
-            {   type   => $message->type_as_string,
-                from   => $message->[FROM],
-                to     => $message->[TO],
-                id     => $message->[ID],
-                stream => $message->[STREAM],
-                timestamp =>
-                    strftime( '%F %T %Z', localtime $message->[TIMESTAMP] ),
-                payload => $message->[PAYLOAD],
-            }
-            );
+        $message->[PAYLOAD] = $message->as_string;
     }
     else {
         $message->[PAYLOAD] = join q(),

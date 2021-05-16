@@ -10,7 +10,9 @@ package Tachikoma::Message;
 use strict;
 use warnings;
 no warnings qw( uninitialized );    ## no critic (ProhibitNoWarnings)
+use Data::Dumper;
 use Storable qw( nfreeze thaw );
+use POSIX qw( strftime );
 use vars qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
@@ -25,6 +27,10 @@ use parent qw( Exporter );
 );
 
 use version; our $VERSION = qv('v2.0.27');
+
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+$Data::Dumper::Useperl  = 1;
 
 use constant {
     TYPE           => 0,
@@ -164,6 +170,20 @@ sub packed {    ## no critic (RequireArgUnpacking)
     my $packed = pack 'xxxx N n/a* n/a* n/a* n/a* N a*', @{ $_[0] };
     substr $packed, 0, VECTOR_SIZE, pack 'N', length $packed;
     return \$packed;
+}
+
+sub as_string {
+    my $self = shift;
+    return Dumper(
+        {   type      => $self->type_as_string,
+            from      => $self->[FROM],
+            to        => $self->[TO],
+            id        => $self->[ID],
+            stream    => $self->[STREAM],
+            timestamp => strftime( '%F %T %Z', localtime $self->[TIMESTAMP] ),
+            payload   => $self->payload,
+        }
+    );
 }
 
 sub type_as_string {
