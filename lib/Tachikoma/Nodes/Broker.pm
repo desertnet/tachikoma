@@ -31,15 +31,17 @@ my $Path                = '/tmp/topics';
 my $Rebalance_Interval  = 0.2;            # timer during rebalance
 my $Heartbeat_Interval  = 1;              # ping timer
 my $Heartbeat_Timeout   = 60;             # keep this less than LCO timeout
-my $Halt_Time           = 0;              # wait to catch up
-my $Reset_Time          = 0;              # wait after tear down
+my $Halt_Time           = 5;              # wait to catch up
+my $Reset_Time          = 5;              # wait after tear down
 my $Delete_Interval     = 60;             # delete old logs this often
 my $Check_Interval      = 900;            # look for better balance this often
 my $Save_Interval       = 3600;           # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
-my $Election_Timeout  = 90;     # how long to wait before starting over
+my $Election_Short      = 10;             # wait if everyone is online
+my $Election_Long       = 120;            # wait if a broker is offline
+my $Election_Timeout  = 300;    # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
-my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
+my $LCO_Timeout       = 600;    # how long to wait before expiring cached LCO
 my $Last_LCO_Send     = 0;      # time we last sent LCO
 my $Default_Cache_Size = 128 * 1024;    # config for cache partitions
 my $Num_Cache_Segments = 2;
@@ -661,17 +663,20 @@ sub process_rebalance {
     my $total  = shift;
     my $online = shift;
     my $span   = $Tachikoma::Now - $self->{last_election};
-    $self->{starting_up} = undef;
-    if ( $self->{is_controller} ) {
-        $self->send_halt          if ( $self->{stage} eq 'INIT' );
-        $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
-        $self->send_reset         if ( $self->{stage} eq 'RESET' );
-        $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
-        $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
-        $self->send_mapping       if ( $self->{stage} eq 'SEND' );
-        $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
-        $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
-        $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
+    my $wait   = $total == $online ? $Election_Short : $Election_Long;
+    if ( $span > $wait ) {
+        $self->{starting_up} = undef;
+        if ( $self->{is_controller} ) {
+            $self->send_halt          if ( $self->{stage} eq 'INIT' );
+            $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
+            $self->send_reset         if ( $self->{stage} eq 'RESET' );
+            $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
+            $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
+            $self->send_mapping       if ( $self->{stage} eq 'SEND' );
+            $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
+            $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
+            $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
+        }
     }
     $self->{last_check}  = $Tachikoma::Now;
     $self->{last_delete} = $Tachikoma::Now;
