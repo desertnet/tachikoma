@@ -98,8 +98,7 @@ sub fill {
     return $self->cancel($message) if ( not @{$rv} );
     my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
     my $response = Tachikoma::Message->new;
-    $response->[TYPE] = TM_BYTESTREAM;
-    $response->[TYPE] |= $persist if ($persist);
+    $response->[TYPE]      = TM_BYTESTREAM | $persist;
     $response->[FROM]      = $message->[FROM];
     $response->[ID]        = $message->[ID];
     $response->[STREAM]    = $message->[STREAM];

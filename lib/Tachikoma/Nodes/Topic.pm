@@ -137,8 +137,7 @@ sub fire {
             my $broker_id = $partitions->[$i];
             my $persist   = $responses->{$i} ? TM_PERSIST : 0;
             my $message   = Tachikoma::Message->new;
-            $message->[TYPE] = TM_BATCH;
-            $message->[TYPE] |= $persist if ($persist);
+            $message->[TYPE]    = TM_BATCH | $persist;
             $message->[FROM]    = $self->{name};
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = join q(:), $i, $batch_offset->{$i};
