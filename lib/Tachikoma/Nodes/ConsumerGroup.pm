@@ -119,7 +119,8 @@ sub get_partitions {
             or return $self->stderr('ERROR: no partitions');
         return $self->send_error( $message, "TOO_MANY_CONSUMERS\n" )
             if ( keys %{$timestamps} >= @{$partitions} );
-        $self->stderr("INFO: GET_PARTITIONS $topic - from $from");
+        $self->print_less_often( "INFO: GET_PARTITIONS $topic",
+            " - from $from" );
         $self->rebalance_consumers($topic);
     }
     $timestamps->{$from} = $Tachikoma::Now;
