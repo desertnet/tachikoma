@@ -24,10 +24,11 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval    = 15;      # delay between polls
-my $Response_Timeout = 300;     # wait before abandoning async responses
-my $Hub_Timeout      = 60;      # synchronous timeout waiting for hub
-my $Batch_Threshold  = 8192;    # low water mark before sending batches
+my $Poll_Interval    = 15;       # delay between polls
+my $Response_Timeout = 300;      # wait before abandoning async responses
+my $Hub_Timeout      = 60;       # synchronous timeout waiting for hub
+my $Batch_Threshold  = 65536;    # low water mark before sending batches
+my $Batch_Interval   = 0.25;     # how long to wait if below threshold
 
 sub new {
     my $class = shift;
@@ -45,6 +46,7 @@ sub new {
     $self->{batch}                  = undef;
     $self->{batch_offset}           = undef;
     $self->{batch_size}             = undef;
+    $self->{batch_timestamp}        = undef;
     $self->{responses}              = undef;
     $self->{batch_responses}        = undef;
     $self->{valid_broker_paths}     = undef;
@@ -82,6 +84,7 @@ sub arguments {
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
         $self->{batch_size}      = {};
+        $self->{batch_timestamp} = {};
         $self->{responses}       = {};
         $self->{batch_responses} = {};
         $self->set_timer;
@@ -129,13 +132,19 @@ sub fill {
 sub fire {
     my $self       = shift;
     my $partitions = $self->{partitions};
+    my $batch      = $self->{batch};
     if ($partitions) {
         my $topic           = $self->{topic};
-        my $batch           = $self->{batch};
         my $batch_offset    = $self->{batch_offset};
+        my $batch_size      = $self->{batch_size};
+        my $batch_timestamp = $self->{batch_timestamp};
         my $responses       = $self->{responses};
         my $batch_responses = $self->{batch_responses};
         for my $i ( keys %{$batch} ) {
+            next
+                if ($batch_size->{$i} < $Batch_Threshold
+                and $Tachikoma::Right_Now - $batch_timestamp->{$i}
+                < $Batch_Interval );
             my $broker_id = $partitions->[$i];
             my $persist   = $responses->{$i} ? TM_PERSIST : 0;
             my $message   = Tachikoma::Message->new;
@@ -153,10 +162,11 @@ sub fire {
                 batch              => $responses->{$i},
                 }
                 if ($persist);
+            delete $batch->{$i};
+            delete $batch_size->{$i};
+            delete $batch_timestamp->{$i};
             delete $responses->{$i};
         }
-        $self->{batch}      = {};
-        $self->{batch_size} = {};
     }
     if ( $Tachikoma::Right_Now - $self->{last_check}
         >= $self->{poll_interval} )
@@ -170,7 +180,13 @@ sub fire {
         $self->{sink}->fill($message);
         $self->{last_check} = $Tachikoma::Right_Now;
     }
-    $self->set_timer if ( defined $self->{timer_interval} );
+    if ( keys %{$batch} ) {
+        $self->set_timer( $Batch_Interval * 1000 )
+            if ( not $self->{timer_interval} );
+    }
+    elsif ( defined $self->{timer_interval} ) {
+        $self->set_timer;
+    }
     return;
 }
 
@@ -218,7 +234,8 @@ sub handle_error {
         }
     }
     my $error = $message->[PAYLOAD];
-    $self->stderr("INFO: reset_topic - got $error");
+
+    # $self->stderr("INFO: reset_topic - got $error");
     $self->reset_topic;
     for my $sender ( keys %senders ) {
         my $copy = bless [ @{$message} ], ref $message;
@@ -247,9 +264,10 @@ sub batch_message {
         $self->{next_partition} = ( $i + 1 ) % @{$partitions};
     }
     my $packed = $message->packed;
-    $self->{batch}->{$i}        //= [];
-    $self->{batch_offset}->{$i} //= 0;
-    $self->{batch_size}->{$i}   //= 0;
+    $self->{batch}->{$i}           //= [];
+    $self->{batch_offset}->{$i}    //= 0;
+    $self->{batch_size}->{$i}      //= 0;
+    $self->{batch_timestamp}->{$i} //= $Tachikoma::Right_Now;
     push @{ $self->{batch}->{$i} }, ${$packed};
     $self->{batch_offset}->{$i}++;
     $self->{batch_size}->{$i} += length ${$packed};
@@ -268,7 +286,7 @@ sub batch_message {
             );
     }
     elsif ( not defined $self->{timer_interval} ) {
-        $self->set_timer(100);
+        $self->set_timer( $Batch_Interval * 1000 );
     }
     return;
 }
@@ -302,8 +320,9 @@ sub update_partitions {
         $self->reset_topic;
     }
     elsif ( $old_partitions ne $new_partitions ) {
-        $self->stderr(
-            "INFO: partition remap: $old_partitions -> $new_partitions");
+
+        # $self->stderr(
+        #     "INFO: partition remap: $old_partitions -> $new_partitions");
         $self->reset_topic;
     }
     $self->{partitions} = $partitions if ($okay);
@@ -317,6 +336,7 @@ sub reset_topic {
     $self->{batch}           = {};
     $self->{batch_offset}    = {};
     $self->{batch_size}      = {};
+    $self->{batch_timestamp} = {};
     $self->{responses}       = {};
     $self->{batch_responses} = {};
     return;
@@ -720,6 +740,14 @@ sub batch_size {
         $self->{batch_size} = shift;
     }
     return $self->{batch_size};
+}
+
+sub batch_timestamp {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_timestamp} = shift;
+    }
+    return $self->{batch_timestamp};
 }
 
 sub responses {
