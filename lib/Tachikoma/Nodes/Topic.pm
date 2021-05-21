@@ -180,6 +180,11 @@ sub handle_response {
     while ( $responses
         and $responses->{last_commit_offset} < $last_commit_offset )
     {
+        $self->print_less_often(
+            'WARNING: skipping responses from: ',
+            $responses->{last_commit_offset},
+            ' to: ', $last_commit_offset
+        );
         shift @{$batch_responses};
         $responses = $batch_responses->[0];
     }
