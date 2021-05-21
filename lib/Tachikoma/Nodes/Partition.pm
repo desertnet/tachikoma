@@ -229,7 +229,7 @@ sub fire {
                 syswrite $fh,
                 $message->[TYPE] & TM_BATCH
                 ? $message->[PAYLOAD]
-                : ${ $message->packed };
+                : ${ $message->packed } // die "ERROR: couldn't write: $!";
         }
         $segment->[LOG_SIZE] += $wrote;
         $self->{offset}      += $wrote;
