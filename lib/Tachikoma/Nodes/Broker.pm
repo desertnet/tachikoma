@@ -37,7 +37,7 @@ my $Delete_Interval     = 60;             # delete old logs this often
 my $Check_Interval      = 900;            # look for better balance this often
 my $Save_Interval       = 3600;           # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
-my $Election_Short      = 10;             # wait if everyone is online
+my $Election_Short      = 30;             # wait if everyone is online
 my $Election_Long       = 120;            # wait if a broker is offline
 my $Election_Timeout  = 300;    # how long to wait before starting over
 my $LCO_Send_Interval = 10;     # how often to send last commit offsets
@@ -1018,12 +1018,11 @@ sub determine_followers {
     die "ERROR: no replication factor specified\n" if ( not defined $count );
     $skip{$leader_pool} = 1 if ($leader_pool);
 
-    # find existing followers
+    # find candidate pools
     for my $broker_id ( keys %{ $query->{online_brokers} } ) {
         my $broker_pool = $brokers->{$broker_id}->{pool};
         next if ( $skip{$broker_pool} );
-        my $broker_lco = $self->{last_commit_offsets}->{$broker_id};
-        $candidates{$broker_pool} = 1 if ( $broker_lco->{$log_name} );
+        $candidates{$broker_pool} = 1;
     }
 
     # find best followers
