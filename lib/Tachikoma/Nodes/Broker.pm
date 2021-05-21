@@ -2168,6 +2168,22 @@ $C{purge_groups} = sub {
     return $self->okay($envelope);
 };
 
+$C{check_mapping} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_mapping;
+    return $self->okay($envelope);
+};
+
+$C{rebalance} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->rebalance_partitions('inform_brokers');
+    return $self->okay($envelope);
+};
+
 $C{start_broker} = sub {
     my $self     = shift;
     my $command  = shift;
