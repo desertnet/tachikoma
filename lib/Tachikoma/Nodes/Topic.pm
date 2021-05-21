@@ -76,6 +76,7 @@ sub arguments {
         die "ERROR: bad arguments for Topic\n" if ( not $broker );
         $self->{broker_path}     = $broker;
         $self->{topic}           = $topic // $self->{name};
+        $self->{partitions}      = undef;
         $self->{next_partition}  = 0;
         $self->{last_check}      = 0;
         $self->{batch}           = {};
@@ -98,8 +99,9 @@ sub fill {
             $self->handle_error($message);
         }
         elsif ( $message->[TYPE] & TM_STORABLE ) {
-            $self->update_partitions($message);
-            $self->set_state('READY') if ( not $self->{set_state}->{READY} );
+            my $okay = $self->update_partitions($message);
+            $self->set_state('READY')
+                if ( $okay and not $self->{set_state}->{READY} );
         }
         else {
             $self->stderr( $message->type_as_string, ' from ',
@@ -215,8 +217,9 @@ sub handle_error {
             $senders{ $response->[FROM] } = 1;
         }
     }
-    $self->{responses}       = {};
-    $self->{batch_responses} = {};
+    my $error = $message->[PAYLOAD];
+    $self->stderr("INFO: reset_topic - got $error");
+    $self->reset_topic;
     for my $sender ( keys %senders ) {
         my $copy = bless [ @{$message} ], ref $message;
         $copy->[TO]     = $sender;
@@ -224,7 +227,6 @@ sub handle_error {
         $copy->[STREAM] = q();
         $self->{sink}->fill($copy);
     }
-    $self->{partitions} = undef;
     return;
 }
 
@@ -259,10 +261,13 @@ sub batch_message {
     }
     if ( $self->{batch_size}->{$i} > $Batch_Threshold ) {
         $self->set_timer(0)
-            if ( defined $self->{timer_interval}
-            and $self->{timer_interval} != 0 );
+            if (
+            not defined $self->{timer_interval}
+            or ( defined $self->{timer_interval}
+                and $self->{timer_interval} != 0 )
+            );
     }
-    elsif ( not $self->{timer_interval} ) {
+    elsif ( not defined $self->{timer_interval} ) {
         $self->set_timer(100);
     }
     return;
@@ -287,8 +292,34 @@ sub update_partitions {
             $node->sink( $self->sink );
         }
     }
+    my $old_partitions =
+        $self->{partitions}
+        ? join q(|), @{ $self->{partitions} }
+        : q();
+    my $new_partitions = $partitions ? join q(|), @{$partitions} : q();
+    if ( not $okay ) {
+        $self->stderr("WARNING: got partial partition map: $new_partitions");
+        $self->reset_topic;
+    }
+    elsif ( $old_partitions ne $new_partitions ) {
+        $self->stderr(
+            "INFO: partition remap: $old_partitions -> $new_partitions");
+        $self->reset_topic;
+    }
     $self->{partitions} = $partitions if ($okay);
     return $okay;
+}
+
+sub reset_topic {
+    my $self = shift;
+    $self->{partitions}      = undef;
+    $self->{next_partition}  = 0;
+    $self->{batch}           = {};
+    $self->{batch_offset}    = {};
+    $self->{batch_size}      = {};
+    $self->{responses}       = {};
+    $self->{batch_responses} = {};
+    return;
 }
 
 sub is_broker_path {
