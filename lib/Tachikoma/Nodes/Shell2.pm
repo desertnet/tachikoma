@@ -1013,7 +1013,7 @@ $BUILTINS{'for'} = sub {
         for ( grep exists $LOCAL{$_}, qw( index total ), $var );
     my $result = $self->evaluate($each_tree);
     $LOCAL{index} = [1];
-    $LOCAL{total} = [ scalar @{$result} ];
+    $LOCAL{total} = [ scalar grep m{\S}, @{$result} ];
     my $rv = [];
 
     for my $i ( @{$result} ) {
