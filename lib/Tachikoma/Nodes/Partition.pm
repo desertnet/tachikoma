@@ -333,9 +333,6 @@ sub process_get_valid_offsets {
     my $node = $Tachikoma::Nodes{$name} or return;
     return if ( not $node or not $broker_id );
     $self->{followers}->{$broker_id} = $to;
-    my $replication_factor = keys( %{ $self->{followers} } ) + 1;
-    $self->{replication_factor} = $replication_factor
-        if ( $self->{replication_factor} < $replication_factor );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_REQUEST;
     $response->[FROM]    = $self->{name};
