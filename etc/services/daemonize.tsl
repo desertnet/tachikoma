@@ -1,5 +1,5 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
-include services/config.tsl
+include config.tsl
 
 var root_port   = [var "tachikoma.<name>.port"]
 var http_port   = [var "tachikoma.<name>.http.port"]

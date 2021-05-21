@@ -1,5 +1,5 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
-include services/config.tsl
+include config.tsl
 
 make_node CommandInterpreter hosts
 make_node JobController      jobs
