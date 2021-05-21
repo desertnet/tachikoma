@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 37101 2019-03-30 23:08:39Z chris $
+# $Id: Log.pm 40369 2021-05-16 17:28:16Z chris $
 #
 
 package Tachikoma::Nodes::Log;
@@ -24,6 +24,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new(TK_SYNC);
     $self->{type} = 'regular_file';
+    $self->{mode} = 'append';
     $self->{fill} = \&Tachikoma::Nodes::STDIO::fill_fh_sync;
     bless $self, $class;
     return $self;
