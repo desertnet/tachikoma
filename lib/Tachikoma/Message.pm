@@ -142,11 +142,6 @@ sub payload {
     return $self->[PAYLOAD];
 }
 
-sub submit {
-    my $self = shift;
-    return $Tachikoma::Nodes{_router}->fill($self);
-}
-
 # XXX:M
 # sub packed {    ## no critic (RequireArgUnpacking)
 #     if ( $_[0]->[TYPE] & TM_STORABLE and $_[0]->[IS_UNTHAWED] ) {
