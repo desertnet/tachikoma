@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:buster-slim
 
 ARG CONFIG=default
 
