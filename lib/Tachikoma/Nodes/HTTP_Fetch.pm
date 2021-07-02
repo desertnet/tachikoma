@@ -39,7 +39,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{prefix}  = q();
-    $self->{allowed} = {};
+    $self->{allowed} = qr{};
     bless $self, $class;
     return $self;
 }
