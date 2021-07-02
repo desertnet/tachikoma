@@ -18,9 +18,12 @@ $Data::Dumper::Useperl  = 1;
 my $cgi = CGI->new;
 
 print( $cgi->header,
-    '<html><head></head><body><pre>',
+    '<pre>',
     Dumper( \%ENV ),
-    '</pre></body></html>', "\n"
+    "</pre><hr>\n",
+    '<pre>',
+    $cgi->param('POSTDATA'),
+    "</pre><hr>\n",
 );
 
 1;

@@ -1,9 +1,9 @@
 #!/bin/sh
-curl --netrc --data-binary '[
+curl --netrc --tls-max 1.2 --data-binary '[
     {
         "field" : "server_log.timestamp:index",
         "op" : "ge",
-        "key" : '$(date -v-1H +'%s')'
+        "key" : '$(date --date '1 hour ago' +'%s')'
     },
     {
         "field" : "server_log.hostname:index",
@@ -17,4 +17,4 @@ curl --netrc --data-binary '[
     }
 ]' \
 -H "Content-Type: application/json" \
--X POST https://localhost:4242/cgi-bin/query.cgi/server_log
+-X POST https://localhost:4242/cgi-bin/env.cgi/server_log
