@@ -131,6 +131,7 @@ sub get_color {
     }
     return $color;
 }
+
 sub months {
     my $self = shift;
     if (@_) {
