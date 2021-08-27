@@ -109,10 +109,14 @@ sub get_color {
     my $payload = shift;
     my $color   = undef;
     if ( $payload =~ m{ERROR:} ) {
-        $color = "\e[30;101m";
+
+        # $color = "\e[30;101m";
+        $color = "\e[91m";
     }
     elsif ( $payload =~ m{WARNING:} ) {
-        $color = "\e[30;103m";
+
+        # $color = "\e[30;103m";
+        $color = "\e[93m";
     }
     elsif ( $payload =~ m{INFO:|DEBUG:|systemd[[]} ) {
         $color = "\e[90m";
