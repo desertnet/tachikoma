@@ -177,7 +177,7 @@ sub fill {
         {
             $self->stderr( 'WARNING: skipping from ',
                 $self->{next_offset}, ' to ', $offset );
-            $self->reset_node;
+            $self->next_offset(undef);
             return;
         }
         $self->{offset} //= $offset;
@@ -580,7 +580,7 @@ sub edge {
         if ($edge) {
             my $i = $self->{partition_id};
             $edge->new_cache($i)
-                if ( $edge and defined $i and $edge->can('new_cache') );
+                if ( defined $i and $edge->can('new_cache') );
             $self->last_receive($Tachikoma::Now);
             $self->set_timer(0);
         }
@@ -588,17 +588,18 @@ sub edge {
     return $self->{edge};
 }
 
-sub reset_node {
-    my $self = shift;
-    $self->next_offset(undef);
-    $self->edge( $self->{edge} );
-    return;
-}
-
 sub remove_node {
     my $self = shift;
     $self->name(q());
-    $self->reset_node;
+    $self->next_offset(undef);
+    if ( $self->{edge} ) {
+        if ( defined $self->{partition_id} ) {
+            $self->{edge}->new_cache( $self->{partition_id} );
+        }
+        else {
+            $self->{edge}->new_cache;
+        }
+    }
     return $self->SUPER::remove_node(@_);
 }
 
