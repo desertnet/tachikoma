@@ -313,6 +313,9 @@ sub owner {
     if (@_) {
         $self->{owner}      = shift;
         $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        for my $partition_id ( keys %{ $self->consumers } ) {
+            $self->consumers->{$partition_id}->owner( $self->{owner} );
+        }
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{owner};
@@ -323,6 +326,9 @@ sub edge {
     if (@_) {
         $self->{edge}       = shift;
         $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        for my $partition_id ( keys %{ $self->consumers } ) {
+            $self->consumers->{$partition_id}->edge( $self->{owner} );
+        }
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{edge};
