@@ -53,9 +53,12 @@ sub fill {
         $messages->{$payload} = 1;
         $timestamps->{$Tachikoma::Now} ||= [];
         push @{ $timestamps->{$Tachikoma::Now} }, $payload;
-        return $self->SUPER::fill($message);
+        $self->SUPER::fill($message);
     }
-    return $self->cancel($message);
+    else {
+        $self->cancel($message);
+    }
+    return;
 }
 
 sub fire {
