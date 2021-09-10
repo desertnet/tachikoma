@@ -13,11 +13,17 @@ var output          = [];
 var dirty           = 1;
 
 function start_timer() {
-    for (var i = 0; i < _num_partitions; i++) {
-        start_partition(i);
+    if (_topic) {
+        for (var i = 0; i < _num_partitions; i++) {
+            start_partition(i);
+        }
+        display_timer = setInterval(display_table, _interval);
+        document.getElementById("toggle").innerHTML = "pause";
     }
-    display_timer = setInterval(display_table, _interval);
-    document.getElementById("toggle").innerHTML = "pause";
+    else {
+        document.getElementById("toggle").innerHTML = "error";
+        document.getElementById("output").innerHTML = "<pre>no topic</pre>";
+    }
 }
 
 function start_partition(partition) {
@@ -63,7 +69,7 @@ function start_partition(partition) {
 
 function update_table(msg) {
     if (msg.payload.length) {
-        output.unshift(msg.payload);
+        output.unshift(msg.payload.join(''));
     }
     while (output.length > count) {
         output.pop();
