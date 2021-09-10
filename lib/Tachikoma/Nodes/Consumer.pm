@@ -325,7 +325,7 @@ sub fire {
     {
         $self->drain_buffer;
     }
-    if ((   not $self->{max_unasnwered}
+    if ((   not $self->{max_unanswered}
             or $self->{msg_unanswered} < $self->{max_unanswered}
         )
         and not $self->{expecting}
