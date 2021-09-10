@@ -29,10 +29,9 @@ sub new {
     $self->{type}                   = 'router';
     $self->{fire_cb}                = \&fire_cb;
     $self->{handling_error}         = undef;
-    $self->{last_fire}              = $Tachikoma::Now || time;
     $self->{registrations}->{TIMER} = {};
     bless $self, $class;
-    $self->set_timer(1000);
+    $self->set_timer( $HEARTBEAT_INTERVAL * 1000 );
     return $self;
 }
 
@@ -131,6 +130,7 @@ sub send_error {
 
 sub fire_cb {
     my $self         = shift;
+    my $config       = $self->configuration;
     my @again        = ();
     my $reconnecting = Tachikoma->nodes_to_reconnect;
     while ( my $node = shift @{$reconnecting} ) {
@@ -145,22 +145,18 @@ sub fire_cb {
         }
     }
     @{$reconnecting} = @again;
-    if ( $Tachikoma::Now - $self->{last_fire} >= $HEARTBEAT_INTERVAL ) {
-        my $config = $self->configuration;
-        $self->heartbeat( $config->var );
-        $self->update_logs;
-        $self->expire_callbacks;
-        $self->notify_timer;
-        if (    defined $config->secure_level
-            and $config->secure_level == 0
-            and $self->type ne 'router' )
-        {
-            $self->print_less_often('WARNING: process is insecure');
-        }
-        if ( defined $PROFILES ) {
-            $self->trim_profiles;
-        }
-        $self->{last_fire} = $Tachikoma::Now;
+    $self->heartbeat( $config->var );
+    $self->update_logs;
+    $self->expire_callbacks;
+    $self->notify_timer;
+    if (    defined $config->secure_level
+        and $config->secure_level == 0
+        and $self->type ne 'router' )
+    {
+        $self->print_less_often('WARNING: process is insecure');
+    }
+    if ( defined $PROFILES ) {
+        $self->trim_profiles;
     }
     return;
 }
@@ -306,14 +302,6 @@ sub handling_error {
         $self->{handling_error} = shift;
     }
     return $self->{handling_error};
-}
-
-sub last_fire {
-    my $self = shift;
-    if (@_) {
-        $self->{last_fire} = shift;
-    }
-    return $self->{last_fire};
 }
 
 sub profiles {

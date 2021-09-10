@@ -25,6 +25,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval    = 15;       # delay between polls
+my $Startup_Delay    = 30;       # wait at least this long on startup
 my $Response_Timeout = 300;      # wait before abandoning async responses
 my $Hub_Timeout      = 60;       # synchronous timeout waiting for hub
 my $Batch_Threshold  = 65536;    # low water mark before sending batches
@@ -80,7 +81,7 @@ sub arguments {
         $self->{topic}           = $topic // $self->{name};
         $self->{partitions}      = undef;
         $self->{next_partition}  = 0;
-        $self->{last_check}      = 0;
+        $self->{last_check}      = $Tachikoma::Now + $Startup_Delay;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
         $self->{batch_size}      = {};
@@ -195,17 +196,6 @@ sub handle_response {
     my ( $i, $last_commit_offset ) = split m{:}, $message->[ID], 2;
     my $batch_responses = $self->{batch_responses}->{$i} // [];
     my $responses = $batch_responses->[0];
-    while ( $responses
-        and $responses->{last_commit_offset} < $last_commit_offset )
-    {
-        $self->print_less_often(
-            'WARNING: skipping responses from: ',
-            $responses->{last_commit_offset},
-            ' to: ', $last_commit_offset
-        );
-        shift @{$batch_responses};
-        $responses = $batch_responses->[0];
-    }
     if (    $responses
         and $responses->{last_commit_offset} == $last_commit_offset )
     {
@@ -213,8 +203,16 @@ sub handle_response {
         shift @{$batch_responses};
     }
     else {
-        $self->print_less_often( 'WARNING: unexpected response ID: ',
-            $message->[ID] );
+        $self->print_less_often(
+            'WARNING: missing responses from: ',
+            $responses->{last_commit_offset},
+            ' to: ', $last_commit_offset
+        );
+        my $error = Tachikoma::Message->new;
+        $error->[TYPE]    = TM_ERROR;
+        $error->[FROM]    = $self->{name};
+        $error->[PAYLOAD] = "NOT_AVAILABLE\n";
+        $self->handle_error($error);
     }
     return;
 }
@@ -333,6 +331,7 @@ sub reset_topic {
     my $self = shift;
     $self->{partitions}      = undef;
     $self->{next_partition}  = 0;
+    $self->{last_check}      = $Tachikoma::Now + $Startup_Delay;
     $self->{batch}           = {};
     $self->{batch_offset}    = {};
     $self->{batch_size}      = {};
