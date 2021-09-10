@@ -55,27 +55,29 @@ $groups{$topic}->broker_ids($broker_ids);
 my $group    = $groups{$topic};
 my $consumer = $group->consumers->{$partition}
     || $group->make_sync_consumer($partition);
-
-if ( $offset =~ m(^\d+$) ) {
-    $consumer->next_offset($offset);
-}
-else {
-    $consumer->default_offset($offset);
-}
 my @messages = ();
 my $results  = undef;
-if ( $location eq 'last' ) {
-    do {
-        push @messages, @{ $consumer->fetch };
-        shift @messages while ( @messages > $count );
-    } while ( not $consumer->eos );
+
+if ($consumer) {
+    if ( $offset =~ m(^\d+$) ) {
+        $consumer->next_offset($offset);
+    }
+    else {
+        $consumer->default_offset($offset);
+    }
+    if ( $location eq 'last' ) {
+        do {
+            push @messages, @{ $consumer->fetch };
+            shift @messages while ( @messages > $count );
+        } while ( not $consumer->eos );
+    }
+    else {
+        do { push @messages, @{ $consumer->fetch } }
+            while ( @messages < $count and not $consumer->eos );
+    }
 }
-else {
-    do { push @messages, @{ $consumer->fetch } }
-        while ( @messages < $count and not $consumer->eos );
-}
-if ( $consumer->sync_error ) {
-    print STDERR $consumer->sync_error;
+if ( not $consumer or $consumer->sync_error ) {
+    print STDERR $consumer->sync_error if ($consumer);
     my $next_url = $cgi->url( -path_info => 1, -query => 1 );
     $next_url =~ s{^http://}{https://};
     $results = {
