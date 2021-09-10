@@ -49,24 +49,28 @@ sub fill {
     my $name     = ( split m{/}, $target, 2 )[0];
     my $node     = $Tachikoma::Nodes{$name}
         or return $self->print_less_often(q(ERROR: couldn't find node));
+    my $size = 0;
     if (   $node->isa('Tachikoma::Nodes::Tee')
         or $node->isa('Tachikoma::Nodes::LoadBalancer') )
     {
+
         for my $t_target ( @{ $node->owner } ) {
             my $t_name = ( split m{/}, $t_target, 2 )[0];
             my $t_node   = $Tachikoma::Nodes{$t_name} or next;
             my $t_buffer = $t_node->{output_buffer}   or next;
-            if ( @{$t_buffer} >= $max_size ) {
-                $self->print_less_often(
-                    "WARNING: $t_name bufsize > $max_size - dropping messages"
-                ) if ( $self->{should_warn} );
-                return $self->cancel($message);
-            }
+            $size = scalar @{$t_buffer} if ( scalar @{$t_buffer} > $size );
         }
-        return $self->SUPER::fill($message);
     }
-    my $buffer = $node->{output_buffer};
-    if ( $buffer and @{$buffer} >= $max_size ) {
+    elsif ( $node->isa('Tachikoma::Nodes::Topic') ) {
+        for my $i ( keys %{ $node->{batch} } ) {
+            my $batch = $node->{batch}->{$i} or next;
+            $size = scalar @{$batch} if ( scalar @{$batch} > $size );
+        }
+    }
+    elsif ( $node->{output_buffer} ) {
+        $size = scalar @{ $node->{output_buffer} };
+    }
+    if ( $size >= $max_size ) {
         $self->print_less_often(
             "WARNING: $name bufsize > $max_size - dropping messages")
             if ( $self->{should_warn} );
