@@ -209,6 +209,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $self->send_error( $message, "NOT_AVAILABLE\n" );
         return;
     }
+    elsif ( $self->{replication_factor} > 1
+        and not keys %{ $self->{in_sync_replicas} } )
+    {
+        $self->send_error( $message, "NOT_AVAILABLE\n" );
+        return;
+    }
     push @{ $self->{batch} }, $message;
     $self->set_timer( 0, 'oneshot' );
     return;
