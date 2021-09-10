@@ -87,7 +87,7 @@ function update_table(msg) {
     while (output.length > count) {
         output.pop();
     }
-    dirty = 1;
+    dirty = msg.payload.length;
 }
 
 function display_table() {
