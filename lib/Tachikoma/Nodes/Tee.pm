@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 40181 2021-04-17 03:33:44Z chris $
+# $Id: Tee.pm 40969 2021-09-02 05:06:07Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -99,7 +99,7 @@ sub handle_response {
     my $messages = $self->{messages};
     my $info     = $messages->{ $message->[ID] } or return;
     my $original = $info->{original};
-    my $type     = $message->[PAYLOAD];
+    my $type     = $message->[PAYLOAD] eq 'cancel' ? 'cancel' : 'answer';
     my $count    = $info->{count};
     $count = $total if ( $total < $count );
 
@@ -114,7 +114,6 @@ sub handle_response {
     }
     elsif ( $info->{answer} + $info->{cancel} >= $count ) {
         delete $messages->{ $message->[ID] };
-        $self->answer($original);
     }
     return;
 }
