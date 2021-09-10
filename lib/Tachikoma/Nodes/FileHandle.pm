@@ -244,7 +244,6 @@ sub fill_fh {
             shift @{$buffer};
             $cursor = 0;
             $size   = 0;
-            next;
         }
         elsif ( $! and $! != EAGAIN ) {
             $self->print_less_often("WARNING: couldn't write: $!");

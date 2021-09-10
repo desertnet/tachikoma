@@ -188,6 +188,7 @@ sub fill_fh {
     my $buffer = $self->{output_buffer};
     my $cursor = $self->{output_cursor} || 0;
     my $eof    = undef;
+    my @cancel = ();
     while ( @{$buffer} ) {
         my $message = $buffer->[0];
         my $size    = length $message->[PAYLOAD];
@@ -197,10 +198,9 @@ sub fill_fh {
             $cursor += $wrote;
             $self->{bytes_written} += $wrote;
             last if ( $cursor < $size );
-            $self->cancel($message) if ( $message->[TYPE] & TM_PERSIST );
             shift @{$buffer};
+            push @cancel, $message if ( $message->[TYPE] & TM_PERSIST );
             $cursor = 0;
-            next;
         }
         elsif ( $! and $! != EAGAIN ) {
             $self->print_less_often("WARNING: couldn't write: $!");
@@ -215,6 +215,7 @@ sub fill_fh {
     $self->{output_cursor} = $cursor;
     $self->{last_fill} = @{$buffer} ? $Tachikoma::Now : 0
         if ( defined $self->{last_fill} );
+    $self->cancel($_) for (@cancel);
     $self->unregister_writer_node if ( not @{$buffer} );
     $self->handle_EOF if ( $eof or ( not @{$buffer} and $self->{got_EOF} ) );
     return;
