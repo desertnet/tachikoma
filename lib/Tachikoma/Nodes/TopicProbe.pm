@@ -91,7 +91,7 @@ sub fire {
                 ' partition:'      => $partition_name,
                 ' consumer:'       => $consumer_name,
                 ' c_offset:'       => $node->{offset} // 0,
-                ' cache_size:'     => $node->{cache_size} // 0,
+                ' cache_size:'     => $node->{last_cache_size} // 0,
                 ' msg_sent:'       => $node->{counter} // 0,
                 ' msg_unanswered:' => $node->{msg_unanswered} // 0,
                 ' max_unanswered:' => $node->{max_unanswered} // 0,
