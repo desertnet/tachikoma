@@ -2,7 +2,7 @@ var server_host       = window.location.hostname;
 var server_port       = window.location.port;
 var server_path       = "/cgi-bin/topic.cgi"
 var topic             = "event_log";
-var num_partitions    = 16;
+var _num_partitions   = num_partitions || 1;
 var parsed_url        = new URL(window.location.href);
 var count             = parsed_url.searchParams.get("count")    || 100;
 var interval          = parsed_url.searchParams.get("interval") || 33;
@@ -14,7 +14,7 @@ var dirty             = 1;
 var show_event_output = 1;
 
 function start_timer() {
-    for (var i = 0; i < num_partitions; i++) {
+    for (var i = 0; i < _num_partitions; i++) {
         start_partition(i);
     }
     display_timer = setInterval(display_table, interval);
