@@ -15,7 +15,7 @@ use Tachikoma::Nodes::Tail;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF TM_KILLME
 );
 use Data::Dumper;
 use parent qw( Tachikoma::Job );
@@ -28,6 +28,7 @@ $Data::Dumper::Useperl  = 1;
 
 my $Default_Timeout = 300;
 my $Update_Interval = 1;
+my $Shutting_Down   = undef;
 
 sub initialize_graph {
     my $self = shift;
@@ -65,7 +66,10 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    if ( not $self->{destination}->{fh} ) {
+    if ( $message->[TYPE] & TM_KILLME ) {
+        Tachikoma::Job->shutdown_all_nodes;
+    }
+    elsif ( not $self->{destination}->{fh} ) {
         $self->stderr(
             'WARNING: lost connection to ',
             $self->{destination}->{hostname},
@@ -76,29 +80,28 @@ sub fill {
         );
         $self->shutdown_all_nodes;
     }
-    elsif ( $message->[FROM] eq 'Tail' ) {
-        $message->[FROM] = $self->{name};
-        $self->{destination}->fill($message);
-        $self->shutdown_all_nodes if ( $message->[TYPE] & TM_EOF );
-    }
     elsif ( $message->[TYPE] & TM_RESPONSE ) {
         if ( $message->payload eq 'answer' ) {
-            $self->shutdown_all_nodes;
+            $self->request_shutdown;
         }
         else {
             $self->{tail}->fill($message);
             $self->{offset} = $self->{tail}->{bytes_answered};
         }
     }
-    elsif ( $message->[FROM] eq 'Timer' ) {
-        $self->send_offset if ( $self->{offset} != $self->{last_offset} );
-    }
     elsif ( $message->[TYPE] & TM_ERROR ) {
-        $self->shutdown_all_nodes;
+        $self->request_shutdown;
     }
     elsif ( $message->[TYPE] & TM_EOF ) {
         $self->stderr( 'WARNING: unexpected TM_EOF from ', $message->[FROM] );
         $self->shutdown_all_nodes;
+    }
+    elsif ( $message->[FROM] eq 'Tail' ) {
+        $message->[FROM] = $self->{name};
+        $self->{destination}->fill($message);
+    }
+    elsif ( $message->[FROM] eq 'Timer' ) {
+        $self->send_offset if ( $self->{offset} != $self->{last_offset} );
     }
     elsif ( $message->[PAYLOAD] eq "rename\n" ) {
         $self->{tail}->on_EOF('wait_for_a_while');
@@ -144,13 +147,25 @@ sub send_offset {
     $message->[ID]       = $self->{offset};
     $message->[PAYLOAD]  = join q(), $self->{offset}, "\n";
     $self->{last_offset} = $self->{offset};
-    return $self->SUPER::fill($message);
+    $self->SUPER::fill($message);
+    return;
 }
 
 sub shutdown_all_nodes {
     my $self = shift;
     $self->send_offset if ( $self->{offset} != $self->{last_offset} );
     $self->SUPER::shutdown_all_nodes;
+    return;
+}
+
+sub request_shutdown {
+    my $self = shift;
+    if ( not $Shutting_Down ) {
+        $Shutting_Down = 1;
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE] = TM_KILLME;
+        $self->SUPER::fill($message);
+    }
     return;
 }
 
