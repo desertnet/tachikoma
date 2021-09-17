@@ -30,7 +30,7 @@ use version; our $VERSION = qv('v2.0.165');
 my $Path                = '/tmp/topics';
 my $Rebalance_Interval  = 0.2;            # timer during rebalance
 my $Heartbeat_Interval  = 1;              # ping timer
-my $Heartbeat_Timeout   = 60;             # keep this less than LCO timeout
+my $Heartbeat_Timeout   = 900;            # keep this less than LCO timeout
 my $Halt_Time           = 5;              # wait to catch up
 my $Reset_Time          = 5;              # wait after tear down
 my $Delete_Interval     = 60;             # delete old logs this often
@@ -39,11 +39,11 @@ my $Save_Interval       = 3600;           # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
 my $Election_Short      = 30;             # wait if everyone is online
 my $Election_Long       = 120;            # wait if a broker is offline
-my $Election_Timeout  = 300;    # how long to wait before starting over
-my $LCO_Send_Interval = 15;     # how often to send last commit offsets
-my $LCO_Timeout       = 900;    # how long to wait before expiring cached LCO
-my $Last_LCO_Send     = 0;      # time we last sent LCO
-my $Default_Cache_Size = 128 * 1024;    # config for cache partitions
+my $Election_Timeout   = 300;    # how long to wait before starting over
+my $LCO_Send_Interval  = 15;     # how often to send last commit offsets
+my $LCO_Timeout        = 3600;   # how long to wait before expiring cached LCO
+my $Last_LCO_Send      = 0;      # time we last sent LCO
+my $Default_Cache_Size = 1;      # config for cache partitions
 my $Num_Cache_Segments = 2;
 my %C                  = ();
 
@@ -1204,6 +1204,7 @@ sub apply_mapping {
             }
             for my $group_name ( keys %{$caches} ) {
                 next if ( not $caches->{$group_name} );
+                my $cache     = $caches->{$group_name};
                 my $group_log = "$log_name:$group_name";
                 $node = $Tachikoma::Nodes{$group_log};
                 if ( not $node ) {
@@ -1213,8 +1214,8 @@ sub apply_mapping {
                 $node->arguments(q());
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
                 $node->num_segments($Num_Cache_Segments);
-                $node->segment_size( $caches->{$group_name} );
-                $node->max_lifespan( $topic->{max_lifespan} );
+                $node->segment_size( $cache->{segment_size} );
+                $node->max_lifespan( $cache->{max_lifespan} );
                 $node->replication_factor( $topic->{replication_factor} );
                 $node->sink( $self->sink );
 
@@ -1546,44 +1547,31 @@ sub save_topic_state {
 }
 
 sub add_consumer_group {
-    my $self       = shift;
-    my $arguments  = shift;
-    my $message    = shift;
-    my $cache_size = $Default_Cache_Size;
-    my ( $group_name, $topic_name );
+    my $self      = shift;
+    my $arguments = shift;
+    my ( $group_name, $topic_name, $segment_size, $max_lifespan );
     my ( $r, $argv ) = GetOptionsFromString(
         $arguments,
-        'group=s'      => \$group_name,
-        'topic=s'      => \$topic_name,
-        'cache_size=s' => \$cache_size,
+        'group=s'        => \$group_name,
+        'topic=s'        => \$topic_name,
+        'segment_size=s' => \$segment_size,
+        'max_lifespan=i' => \$max_lifespan,
     );
     $group_name //= shift @{$argv};
+    $segment_size ||= $Default_Cache_Size;
+    $max_lifespan //= 0;
     return $self->stderr(
         "ERROR: bad arguments: ADD_CONSUMER_GROUP $arguments")
         if ( not $r or not $topic_name );
-
-    if ($message) {
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE] = TM_RESPONSE;
-        $response->[FROM] = $self->{name};
-        $response->[ID]   = $self->{generation};
-        $response->[TO]   = $message->[FROM];
-        my $this = $self->consumer_groups->{$group_name};
-        if ( $this and $this->{topics}->{$topic_name} ) {
-            $response->[PAYLOAD] = "OK\n";
-        }
-        else {
-            $response->[PAYLOAD] = "WAIT\n";
-        }
-        $self->{sink}->fill($response);
-        return if ( $response->[PAYLOAD] eq "OK\n" );
-    }
     $self->consumer_groups->{$group_name} //= {
         broker_id => undef,
         topics    => {}
     };
     my $group = $self->consumer_groups->{$group_name};
-    $group->{topics}->{$topic_name} = $cache_size;
+    $group->{topics}->{$topic_name} = {
+        segment_size => $segment_size,
+        max_lifespan => $max_lifespan
+    };
     $self->rebalance_partitions;
     return;
 }
@@ -1865,9 +1853,10 @@ $C{help} = sub {
             . "                    --num_segments=<count>       \\\n"
             . "                    --segment_size=<bytes>       \\\n"
             . "                    --max_lifespan=<seconds>\n"
-            . "          set_consumer_group --group=<group>      \\\n"
-            . "                             --topic=<topic>      \\\n"
-            . "                             --cache_size=<bytes> \\\n"
+            . "          set_consumer_group --group=<group>          \\\n"
+            . "                             --topic=<topic>          \\\n"
+            . "                             --segment_size=<bytes>   \\\n"
+            . "                             --max_lifespan=<seconds>\n"
             . "          list_brokers\n"
             . "          list_topics [ <glob> ]\n"
             . "          list_consumer_groups [ <glob> ]\n"
@@ -2000,15 +1989,20 @@ $C{list_consumer_groups} = sub {
     my $results  = [
         [   [ 'GROUP NAME' => 'left' ],
             [ 'TOPIC'      => 'left' ],
-            [ 'CACHE SIZE' => 'right' ]
+            [ 'CACHE SIZE' => 'right' ],
+            [ 'LIFESPAN'   => 'right' ],
         ]
     ];
     for my $group_name ( sort keys %{ $self->patron->consumer_groups } ) {
         next if ( $glob and $group_name !~ m{$glob} );
         my $consumer_group = $self->patron->consumer_groups->{$group_name};
         for my $topic_name ( sort keys %{ $consumer_group->{topics} } ) {
-            my $cache_size = $consumer_group->{topics}->{$topic_name};
-            push @{$results}, [ $group_name, $topic_name, $cache_size ];
+            my $group = $consumer_group->{topics}->{$topic_name};
+            push @{$results},
+                [
+                $group_name,            $topic_name,
+                $group->{segment_size}, $group->{max_lifespan}
+                ];
         }
     }
     return $self->response( $envelope, $self->tabulate($results) );
