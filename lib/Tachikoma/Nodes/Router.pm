@@ -214,7 +214,7 @@ sub update_logs {
     my $recent_log_timers = Tachikoma->recent_log_timers;
     for my $text ( keys %{$recent_log_timers} ) {
         delete $recent_log_timers->{$text}
-            if ( $Tachikoma::Now - $recent_log_timers->{$text} > 300 );
+            if ( $Tachikoma::Now - $recent_log_timers->{$text}->[0] > 300 );
     }
     if ( $self->{type} eq 'root' and $Tachikoma::Now - $LAST_UTIME > 300 ) {
         Tachikoma->touch_log_file;
