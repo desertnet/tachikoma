@@ -516,14 +516,17 @@ sub log_SSL_error {
     my $names = undef;
     if ( $method eq 'connect_SSL' ) {
         $names = $self->{name};
+        Tachikoma->print_least_often( join q(: ), grep $_,
+            $names, "WARNING: $method failed",
+            $!, $ssl_error );
     }
     else {
         $names = join q( -> ), $self->{parent},
             ( split m{:}, $self->{name}, 2 )[0];
+        Tachikoma->print_less_often( join q(: ), grep $_,
+            $names, "WARNING: $method failed",
+            $!, $ssl_error );
     }
-    Tachikoma->print_less_often( join q(: ), grep $_,
-        $names, "WARNING: $method failed",
-        $!, $ssl_error );
     return;
 }
 
@@ -765,7 +768,7 @@ sub read_block {
     }
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
-        $self->print_less_often("WARNING: $caller couldn't read: $error")
+        $self->print_least_often("WARNING: $caller couldn't read: $error")
             if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
@@ -975,7 +978,7 @@ sub close_filehandle {
     return;
 }
 
-sub reconnect {    ## no critic (ProhibitExcessComplexity)
+sub reconnect {
     my $self   = shift;
     my $socket = $self->{fh};
     my $rv     = undef;
@@ -1038,10 +1041,6 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         else {
             $self->init_connect;
         }
-    }
-    else {
-        $self->print_less_often('reconnect: looking up hostname')
-            if ( not $self->{address} );
     }
     return $rv;
 }
