@@ -3,7 +3,7 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: Node.pm 41136 2021-09-17 08:08:00Z chris $
 #
 
 package Tachikoma::Node;
@@ -303,13 +303,19 @@ sub drop_message {
         my $command = Tachikoma::Command->new( $message->payload );
         $payload = ' payload: ' . $command->name . q( ) . $command->arguments;
     }
-    $self->print_less_often(
+    my @log = (
         "WARNING: $error - ",
         $message->type_as_string,
         ( $message->from   ? ' from: ' . $message->from : q() ),
         ( $message->to     ? ' to: ' . $message->to     : q() ),
         ( defined $payload ? $payload                   : q() )
     );
+    if ( $error eq 'NOT_AVAILABLE' ) {
+        $self->print_least_often(@log);
+    }
+    else {
+        $self->print_less_often(@log);
+    }
     return;
 }
 
@@ -370,13 +376,30 @@ sub shutdown_all_nodes {
     return;
 }
 
+sub print_least_often {
+    my ( $self, $text, @extra ) = @_;
+    my $recent = Tachikoma->recent_log_timers;
+    my $key    = $self->log_midfix($text);
+    if ( exists $recent->{$key} ) {
+        $recent->{$key}->[1]++;
+        $self->stderr( $text, @extra ) if ( $recent->{$key}->[1] == 10 );
+    }
+    else {
+        $recent->{$key} = [ Tachikoma->now // time, 1 ];
+    }
+    return;
+}
+
 sub print_less_often {
     my ( $self, $text, @extra ) = @_;
     my $recent = Tachikoma->recent_log_timers;
     my $key    = $self->log_midfix($text);
-    if ( not exists $recent->{$key} ) {
+    if ( exists $recent->{$key} ) {
+        $recent->{$key}->[1]++;
+    }
+    else {
         $self->stderr( $text, @extra );
-        $recent->{$key} = Tachikoma->now // time;
+        $recent->{$key} = [ Tachikoma->now // time, 1 ];
     }
     return;
 }
