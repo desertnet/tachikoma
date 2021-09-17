@@ -57,6 +57,7 @@ sub initialize_graph {
     $self->files(   {} );
     $self->forking( {} );
     $self->sink( $self->router );
+    $self->timer->set_timer( $Scan_Interval * 1000 );
     $interpreter->sink($self);
     $interpreter->commands->{'add_tail'} = sub {
         my $this     = shift;
@@ -70,7 +71,6 @@ sub initialize_graph {
             $quoted =~ s{/}{:}g;
             $self->files->{$quoted} = [ $expanded, $node_path, $stream ];
         }
-        $self->timer->set_timer(0) if ( $self->{timer} );
         return $this->okay($envelope);
     };
     $interpreter->commands->{'add'} = $interpreter->commands->{'add_tail'};

@@ -30,7 +30,6 @@ cd test_stream:tails
     add_tail  <home>/.tachikoma/log/iterator6.log topic2/6 6
     add_tail  <home>/.tachikoma/log/iterator7.log topic2/7 7
     tail_probe
-    start_tail
     secure 3
 cd ..
 

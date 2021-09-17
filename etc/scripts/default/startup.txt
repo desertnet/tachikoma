@@ -70,7 +70,6 @@ connect_node server_log:link server_logs:service/server_log
 
 cd tails
     tail_probe
-    start_tail
     insecure
 cd ..
 insecure
