@@ -386,9 +386,9 @@ sub drain_buffer_normal {
             : $self->{name};
         $message->[TO] = $self->{owner};
         $message->[ID] = $offset;
-        $self->{counter}++;
         $message->[TYPE] ^= TM_PERSIST
             if ( $message->[TYPE] & TM_PERSIST );
+        $self->{counter}++;
         $self->{sink}->fill($message);
         $offset += $size;
         $got -= $size;
@@ -421,15 +421,14 @@ sub drain_buffer_persist {
             : $self->{name};
         $message->[TO] = $self->{owner};
         $message->[ID] = $offset;
-        $self->{counter}++;
         $message->[TYPE] |= TM_PERSIST;
-        push @{ $self->{inflight} }, [ $message->[ID] => $Tachikoma::Now ];
+        push @{ $self->{inflight} }, [ $offset => $Tachikoma::Now ];
+        $self->{counter}++;
         $self->{msg_unanswered}++;
         $self->{sink}->fill($message);
-        $got = 0
-            if ( $self->{msg_unanswered} >= $self->{max_unanswered} );
         $offset += $size;
         $got -= $size;
+        last if ( $self->{msg_unanswered} >= $self->{max_unanswered} );
 
         # XXX:M
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
