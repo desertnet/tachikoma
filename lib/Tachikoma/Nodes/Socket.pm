@@ -836,10 +836,8 @@ sub drain_buffer_normal {
             : $name;
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
-                $self->print_less_often(
-                          "ERROR: message addressed to $message->[TO]"
-                        . " while owner is set to $owner"
-                        . " - dropping message from $message->[FROM]" )
+                $self->drop_message( $message,
+                    "message addressed while owner is set to $owner" )
                     if ( $message->[TYPE] != TM_ERROR );
                 next;
             }
