@@ -308,7 +308,7 @@ sub drop_message {
         $message->type_as_string,
         ( $message->from   ? ' from: ' . $message->from : q() ),
         ( $message->to     ? ' to: ' . $message->to     : q() ),
-        ( defined $payload ? $payload                   : q() )
+        ( defined $payload ? $payload                   : q() ),
     );
     if ( $error eq 'NOT_AVAILABLE' ) {
         $self->print_least_often(@log);
