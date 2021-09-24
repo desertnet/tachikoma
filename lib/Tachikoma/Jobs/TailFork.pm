@@ -93,7 +93,8 @@ sub fill {
         $self->request_shutdown;
     }
     elsif ( $message->[TYPE] & TM_EOF ) {
-        $self->stderr( 'WARNING: unexpected TM_EOF from ', $message->[FROM] );
+        $self->stderr( 'WARNING: unexpected TM_EOF from ', $message->[FROM] )
+            if ( $message->[FROM] ne 'Tail' );
         $self->shutdown_all_nodes;
     }
     elsif ( $message->[FROM] eq 'Tail' ) {
@@ -162,6 +163,7 @@ sub request_shutdown {
     my $self = shift;
     if ( not $Shutting_Down ) {
         $Shutting_Down = 1;
+        $self->{timer}->remove_node;
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_KILLME;
         $self->SUPER::fill($message);
