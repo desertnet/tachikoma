@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: LoadBalancer.pm 39963 2021-03-09 06:02:38Z chris $
 #
 
 package Tachikoma::Nodes::LoadBalancer;
@@ -75,8 +75,9 @@ sub fill {
         $self->{sink}->fill($message);
     }
     elsif ( $type != TM_ERROR ) {
-        my $owner = $self->get_stream_owner($message)
-            or return $self->print_less_often('WARNING: no recipients');
+        my $owner = $self->get_stream_owner($message);
+        return $self->print_less_often('WARNING: no recipients')
+            if ( not length $owner );
         my $mode = $self->{mode};
         if ( $type & TM_PERSIST and $mode eq 'persistent' ) {
             $self->stamp_message( $message, $self->{name} ) or return;
@@ -86,7 +87,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        $message->[TO] = $to ? join q(/), $owner, $to : $owner;
+        $message->[TO] = length $to ? join q(/), $owner, $to : $owner;
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -103,8 +104,8 @@ sub handle_response {
     my $msg_unanswered = $self->{msg_unanswered};
     my $id = length $message->[STREAM] ? $message->[STREAM] : $message->[ID];
     $id = ( split m{/}, $message->[FROM], 2 )[0] if ( not length $id );
-    my $stream = length $id ? $streams->{$id}  : undef;
-    my $owner  = $stream    ? $stream->{owner} : undef;
+    my $stream = length $id     ? $streams->{$id}  : undef;
+    my $owner  = length $stream ? $stream->{owner} : undef;
     return if ( not $stream );
 
     if ( $owner and defined $msg_unanswered->{$owner} ) {

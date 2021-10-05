@@ -7,7 +7,7 @@
 #
 use strict;
 use warnings;
-use Test::More tests => 3060;
+use Test::More tests => 3180;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -53,6 +53,7 @@ my %nodes = (
     'Tachikoma::Nodes::DirWatcher'            => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
+    'Tachikoma::Nodes::ErrorMonitor'          => q(),
     'Tachikoma::Nodes::FileController'        => q(),
     'Tachikoma::Nodes::FileReceiver'          => q(),
     'Tachikoma::Nodes::FileSender'            => q(),
@@ -121,6 +122,8 @@ my %nodes = (
     'Accessories::Nodes::IndexByHostname' => q(),
     'Accessories::Nodes::IndexByProcess'  => q(),
     'Accessories::Nodes::LogColor'        => q(),
+    'Accessories::Nodes::SFE4DigitLED'    => q(),
+    'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::Spool'           => qq($t/spool),
     'Accessories::Nodes::TestStream'      => qq(),
 );

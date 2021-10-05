@@ -6,7 +6,7 @@
 # Tachikomatic IPC - send and receive messages over filehandles
 #                  - on_EOF: close, send, ignore
 #
-# $Id: FileHandle.pm 38512 2020-02-17 18:56:39Z chris $
+# $Id: FileHandle.pm 39768 2021-01-18 21:19:30Z chris $
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -161,7 +161,7 @@ sub drain_buffer_normal {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
@@ -178,10 +178,8 @@ sub drain_buffer_normal {
             : $name;
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
-                $self->print_less_often(
-                          "ERROR: message addressed to $message->[TO]"
-                        . " while owner is set to $owner"
-                        . " - dropping message from $message->[FROM]" )
+                $self->drop_message( $message,
+                    "message addressed while owner is set to $owner" )
                     if ( $message->[TYPE] != TM_ERROR );
                 next;
             }
@@ -244,7 +242,6 @@ sub fill_fh {
             shift @{$buffer};
             $cursor = 0;
             $size   = 0;
-            next;
         }
         elsif ( $! and $! != EAGAIN ) {
             $self->print_less_often("WARNING: couldn't write: $!");

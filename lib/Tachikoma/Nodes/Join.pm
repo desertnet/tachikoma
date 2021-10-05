@@ -3,14 +3,18 @@
 # Tachikoma::Nodes::Join
 # ----------------------------------------------------------------------
 #
-# $Id: Join.pm 35512 2018-10-22 08:27:21Z chris $
+# $Id: Join.pm 40998 2021-09-09 22:10:09Z chris $
 #
 
 package Tachikoma::Nodes::Join;
 use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
-use Tachikoma::Message qw( TYPE TO ID PAYLOAD TM_BYTESTREAM TM_EOF );
+use Tachikoma::Message qw(
+    TYPE FROM TO ID PAYLOAD
+    TM_BYTESTREAM TM_PERSIST TM_EOF
+);
+use Getopt::Long qw( GetOptionsFromString );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -21,10 +25,11 @@ my $Default_Size     = 65536;
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{buffer}      = undef;
-    $self->{buffer_size} = $Default_Size;
-    $self->{last_update} = 0;
-    $self->{offset}      = undef;
+    $self->{buffer}    = undef;
+    $self->{offset}    = undef;
+    $self->{count}     = 0;
+    $self->{max_size}  = $Default_Size;
+    $self->{max_count} = undef;
     bless $self, $class;
     return $self;
 }
@@ -32,17 +37,35 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Join <node name> [ <interval> [ <buffer size> ] ]
+make_node Join <node name> [ --interval=<microseconds>    ]
+                           [ --size=<buffer size>         ]
+                           [ --count=<number of messages> ]
 EOF
 }
 
 sub arguments {
     my $self = shift;
     if (@_) {
-        $self->{arguments} = shift;
-        my ( $interval, $bufsize ) = split q( ), $self->{arguments}, 2;
+        my $arguments = shift;
+        my ( $interval, $size, $count );
+        my ( $r, $argv ) = GetOptionsFromString(
+            $arguments,
+            'interval=i' => \$interval,
+            'size=i'     => \$size,
+            'count=i'    => \$count,
+        );
+        if ( not $interval and not $size and not $count ) {
+            ( $interval, $size, $count ) = @{$argv};
+            $size ||= $Default_Size;
+        }
+        die "ERROR: invalid option\n" if ( not $r );
+        $self->{arguments} = $arguments;
+        $self->{buffer}    = undef;
+        $self->{offset}    = undef;
+        $self->{count}     = 0;
+        $self->{max_size}  = $size;
+        $self->{max_count} = $count;
         $self->set_timer( $interval || $Default_Interval );
-        $self->buffer_size($bufsize) if ($bufsize);
     }
     return $self->{arguments};
 }
@@ -51,7 +74,6 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_EOF ) {
-        $self->{last_update} = 0;
         $self->fire;
         return $self->{sink}->fill($message);
     }
@@ -63,33 +85,54 @@ sub fill {
     my $buffer = $self->{buffer};
     ${$buffer} .= $message->[PAYLOAD];
     $self->{offset} = $message->[ID] if ( not defined $self->{offset} );
+    $self->{count}++;
     $self->{counter}++;
-    if ( length( ${$buffer} ) >= $self->{buffer_size} ) {
-        $self->{last_update} = $Tachikoma::Right_Now;
+    if (   ( $self->{max_size} and length( ${$buffer} ) >= $self->{max_size} )
+        or ( $self->{max_count} and $self->{count} >= $self->{max_count} ) )
+    {
+        my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
         my $response = Tachikoma::Message->new;
-        $response->[TYPE]    = TM_BYTESTREAM;
-        $response->[ID]      = $self->{offset};
-        $response->[TO]      = $self->{owner};
+        $response->[TYPE] = TM_BYTESTREAM | $persist;
+        $response->[FROM] = $message->[FROM];
+        $response->[TO]   = $self->{owner};
+
+        # XXX:TODO
+        # We should use $self->{offset}, but that ID has already
+        # been cancelled.  Instead we'll just use the current ID
+        # to keep things moving.
+        #
+        # $response->[ID] = $self->{offset};
+        #
+        # To fix this with the current Consumer, we need to keep
+        # all messages joined under a given offset, so we can
+        # cancel all of them at once when we receive a response.
+        $response->[ID] = $message->[ID];
+
         $response->[PAYLOAD] = ${$buffer};
         $self->{buffer}      = undef;
         $self->{offset}      = undef;
-        return $self->{sink}->fill($response);
+        $self->{count}       = 0;
+        $self->set_timer( $self->{timer_interval} );
+        $self->{sink}->fill($response);
     }
-    return 1;
+    else {
+        $self->cancel($message);
+    }
+    return;
 }
 
 sub fire {
     my $self = shift;
-    return
-        if ( $Tachikoma::Right_Now - $self->{last_update} < 1.0
-        or not defined $self->{buffer} );
+    return if ( not defined $self->{buffer} );
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
-    $message->[ID]      = $self->{offset};
     $message->[TO]      = $self->{owner};
+    $message->[ID]      = $self->{offset};
     $message->[PAYLOAD] = ${ $self->{buffer} };
     $self->{buffer}     = undef;
     $self->{offset}     = undef;
+    $self->{count}      = 0;
+    $self->set_timer( $self->{timer_interval} );
     return $self->{sink}->fill($message);
 }
 
@@ -101,28 +144,36 @@ sub buffer {
     return $self->{buffer};
 }
 
-sub buffer_size {
-    my $self = shift;
-    if (@_) {
-        $self->{buffer_size} = shift;
-    }
-    return $self->{buffer_size};
-}
-
-sub last_update {
-    my $self = shift;
-    if (@_) {
-        $self->{last_update} = shift;
-    }
-    return $self->{last_update};
-}
-
 sub offset {
     my $self = shift;
     if (@_) {
         $self->{offset} = shift;
     }
     return $self->{offset};
+}
+
+sub count {
+    my $self = shift;
+    if (@_) {
+        $self->{count} = shift;
+    }
+    return $self->{count};
+}
+
+sub max_size {
+    my $self = shift;
+    if (@_) {
+        $self->{max_size} = shift;
+    }
+    return $self->{max_size};
+}
+
+sub max_count {
+    my $self = shift;
+    if (@_) {
+        $self->{max_count} = shift;
+    }
+    return $self->{max_count};
 }
 
 1;

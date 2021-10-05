@@ -60,7 +60,7 @@ function start_timer() {
                         + footer;
         }
         if (this.readyState == 4) {
-            timer = setTimeout(tick, 2000);
+            timer = setTimeout(tick, 1000);
         }
     };
     timer = setTimeout(tick, 0);

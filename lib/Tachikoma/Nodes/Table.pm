@@ -387,6 +387,14 @@ sub on_load_window {
     return;
 }
 
+sub on_load_window_complete {
+    my ( $self, $i ) = @_;
+    my $next_window = $self->{next_window}->[$i] // 0;
+    $self->roll_window( $i, $Tachikoma::Now )
+        if ( $Tachikoma::Now >= $next_window );
+    return;
+}
+
 sub on_save_window {
     my $self = shift;
     if (@_) {
@@ -397,23 +405,27 @@ sub on_save_window {
 
 sub on_load_snapshot {
     my ( $self, $i, $stored ) = @_;
-    $self->{caches}->[$i] = $stored->{cache} || [];
+    $self->{caches}->[$i]      = $stored->{cache}       || [];
+    $self->{next_window}->[$i] = $stored->{next_window} || [];
     return;
 }
 
 sub on_save_snapshot {
     my ( $self, $i, $stored ) = @_;
-    $stored->{cache} = $self->{caches}->[$i];
+    $stored->{cache}       = $self->{caches}->[$i];
+    $stored->{next_window} = $self->{next_window}->[$i];
     return;
 }
 
 sub new_cache {
     my ( $self, $i ) = @_;
     if ( defined $i ) {
-        $self->{caches}->[$i] = [];
+        $self->{caches}->[$i]      = [];
+        $self->{next_window}->[$i] = 0;
     }
     else {
-        $self->{caches} = [];
+        $self->{caches}      = [];
+        $self->{next_window} = [];
     }
     return;
 }

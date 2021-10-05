@@ -93,8 +93,7 @@ elsif ( $mode eq 'dump_message' ) {
     while (1) {
         my @output = ();
         for my $message ( @{ $consumer->fetch } ) {
-            $message->payload;
-            push @output, Dumper($message);
+            push @output, $message->as_string;
         }
         syswrite STDOUT, join q(), @output;
         last if check_status();
@@ -104,7 +103,7 @@ elsif ( $mode eq 'dump_payload' ) {
     while (1) {
         my @output = ();
         for my $message ( @{ $consumer->fetch } ) {
-            push @output, Dumper($message->payload);
+            push @output, Dumper( $message->payload );
         }
         syswrite STDOUT, join q(), @output;
         last if check_status();

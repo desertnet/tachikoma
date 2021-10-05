@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Timeout
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Timeout.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: HTTP_Timeout.pm 40923 2021-09-01 00:48:32Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Timeout;
@@ -53,8 +53,9 @@ sub fire {
                 }
                 elsif ( $Tachikoma::Now - $status->{last_update} > $timeout )
                 {
-                    $self->stderr(
-                        "WARNING: $name idle for $timeout seconds, closing");
+                    $self->print_less_often(
+                        "WARNING: idle for $timeout seconds, closing ",
+                        $name );
                     $node->remove_node;
                     delete $watched->{$name};
                 }

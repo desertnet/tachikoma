@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 39601 2020-12-05 00:47:38Z chris $
+# $Id: HTTP_Responder.pm 40883 2021-08-31 18:21:52Z chris $
 #
 
 package Tachikoma::Nodes::HTTP_Responder;
@@ -225,7 +225,7 @@ sub log_entry {
     my $user_agent = $headers->{'user-agent'} || q();
     my $log_entry  = Tachikoma::Message->new;
     $log_entry->[TYPE]    = TM_BYTESTREAM;
-    $log_entry->[TO]      = 'http:log';
+    $log_entry->[TO]      = 'access:log';
     $log_entry->[PAYLOAD] = join q(),
         $host, q( ),
         $request->{remote_addr}, q( - ),

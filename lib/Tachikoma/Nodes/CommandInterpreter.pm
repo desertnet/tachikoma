@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 39723 2020-12-17 20:12:19Z chris $
+# $Id: CommandInterpreter.pm 40980 2021-09-02 07:41:09Z chris $
 #
 
 package Tachikoma::Nodes::CommandInterpreter;
@@ -1794,13 +1794,13 @@ $L{reload} = $H{reload_config};
 
 $C{reload} = $C{reload_config};
 
-$H{env} = ["env [ <name> [ = <value> ] ]\n"];
+$H{remote_env} = ["env [ <name> [ = <value> ] ]\n"];
 
-$C{env} = sub {
+$C{remote_env} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'env' )
+    $self->verify_key( $envelope, ['meta'], 'remote_env' )
         or return $self->error("verification failed\n");
     my ( $key, $op, $value ) =
         split m{\s*(=)\s*}, $command->arguments, 2;
@@ -2278,6 +2278,7 @@ $C{initialize} = sub {
     die "ERROR: can't find _router\n"    if ( not $router );
     die "ERROR: can't find _responder\n" if ( not $responder );
     die "ERROR: already initialized\n"   if ( $router->type ne 'router' );
+    my $interval = $router->timer_interval;
     $router->stop_timer;
     my $node = $responder->sink;
 
@@ -2300,7 +2301,7 @@ $C{initialize} = sub {
     }
     $router->type('root');
     $router->register_router_node;
-    $router->set_timer(1000);
+    $router->set_timer($interval);
     return;
 };
 

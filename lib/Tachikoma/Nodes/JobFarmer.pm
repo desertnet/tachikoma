@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 39257 2020-07-26 09:33:43Z chris $
+# $Id: JobFarmer.pm 39973 2021-03-09 06:28:12Z chris $
 #
 
 package Tachikoma::Nodes::JobFarmer;
@@ -95,7 +95,7 @@ sub fill {
     my $message = shift;
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job =
-          $name
+        length $name
         ? $self->{job_controller}->{jobs}->{$name}
         : undef;
     if ( $job and $message->[TYPE] & TM_KILLME ) {
@@ -152,13 +152,15 @@ sub handle_response {
     if ( $message->[TYPE] & TM_RESPONSE ) {
         $self->{load_balancer}->handle_response($message);
     }
+    elsif ( not length $message->[TO] ) {
+        $message->[TO] = $self->{owner};
+    }
     if ( $self->{autokill} ) {
         $self->stamp_message( $message, $self->{name} );
     }
     else {
         $message->[FROM] = $from if ( $next and $next eq '_parent' );
     }
-    $message->[TO] = $self->{owner} if ( not length $message->[TO] );
     $self->{sink}->fill($message) if ( length $message->[TO] );
     return;
 }
@@ -218,6 +220,7 @@ $C{list_jobs} = sub {
         $response = join( "\n", sort keys %{$jobs} ) . "\n";
     }
     else {
+        $response = sprintf "%-5s  %s\n", 'PID', 'NAME';
         for my $name ( sort keys %{$jobs} ) {
             $response .= sprintf "%-5s  %s\n", $jobs->{$name}->pid, $name;
         }

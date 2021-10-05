@@ -26,8 +26,7 @@ sub fill {
     my $json     = JSON->new;
     my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
     my $response = bless [ @{$message} ], ref $message;
-    $response->[TYPE] = TM_STORABLE;
-    $response->[TYPE] |= $persist if ($persist);
+    $response->[TYPE] = TM_STORABLE | $persist;
     $response->payload( $json->decode( $message->[PAYLOAD] ) );
     return $self->SUPER::fill($response);
 }

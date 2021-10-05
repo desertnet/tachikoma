@@ -209,6 +209,12 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         $self->send_error( $message, "NOT_AVAILABLE\n" );
         return;
     }
+    elsif ( $self->{replication_factor} > 1
+        and not keys %{ $self->{in_sync_replicas} } )
+    {
+        $self->send_error( $message, "NOT_AVAILABLE\n" );
+        return;
+    }
     push @{ $self->{batch} }, $message;
     $self->set_timer( 0, 'oneshot' );
     return;
@@ -229,7 +235,7 @@ sub fire {
                 syswrite $fh,
                 $message->[TYPE] & TM_BATCH
                 ? $message->[PAYLOAD]
-                : ${ $message->packed };
+                : ${ $message->packed } // die "ERROR: couldn't write: $!";
         }
         $segment->[LOG_SIZE] += $wrote;
         $self->{offset}      += $wrote;
@@ -333,9 +339,6 @@ sub process_get_valid_offsets {
     my $node = $Tachikoma::Nodes{$name} or return;
     return if ( not $node or not $broker_id );
     $self->{followers}->{$broker_id} = $to;
-    my $replication_factor = keys( %{ $self->{followers} } ) + 1;
-    $self->{replication_factor} = $replication_factor
-        if ( $self->{replication_factor} < $replication_factor );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_REQUEST;
     $response->[FROM]    = $self->{name};
@@ -678,7 +681,7 @@ sub open_segments {
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
             $self->stderr(
-                'ERROR: truncating ' . ( $size - $new_size ) . ' bytes' )
+                'INFO: truncating ' . ( $size - $new_size ) . ' bytes' )
                 if ( not $self->{leader} );
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
@@ -830,11 +833,12 @@ sub get_segment {
     my $offset  = shift;
     my $segment = undef;
     if ( $offset < 0 ) {
-        if ( $offset < -1 and @{ $self->{segments} } > 1 ) {
+        $segment = $self->{segments}->[-1];
+        if (    not $segment->[LOG_SIZE]
+            and $offset < -1
+            and @{ $self->{segments} } > 1 )
+        {
             $segment = $self->{segments}->[-2];
-        }
-        else {
-            $segment = $self->{segments}->[-1];
         }
     }
     else {

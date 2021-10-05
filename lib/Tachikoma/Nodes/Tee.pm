@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 39713 2020-12-17 19:44:33Z chris $
+# $Id: Tee.pm 40969 2021-09-02 05:06:07Z chris $
 #
 
 package Tachikoma::Nodes::Tee;
@@ -48,36 +48,16 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $total   = scalar @{ $self->{owner} };
-    return $self->handle_response( $message, $total )
+    return $self->handle_response($message)
         if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
         or $message->[TYPE] == TM_ERROR );
-    if ( $total > 1 ) {
-        $self->tee($message);
-    }
-    elsif ($total) {
-        my $owner = $self->{owner}->[0];
-        my $name = ( split m{/}, $owner, 2 )[0];
-        return if ( not $Tachikoma::Nodes{$name} );
-        $message->[TO] = join q(/), grep length, $owner, $message->[TO];
-        if ( $message->[TYPE] & TM_PERSIST ) {
-            $self->stamp_message( $message, $self->{name} ) or return;
-        }
-        $self->SUPER::fill($message);
-    }
-    return;
-}
-
-sub tee {
-    my $self       = shift;
-    my $message    = shift;
     my $owners     = $self->{owner};
     my $message_id = undef;
     my $persist    = undef;
     my @keep       = ();
     my $packed     = $message->packed;
     if ( $message->[TYPE] & TM_PERSIST ) {
-        my $copy = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->unpacked($packed);
         $copy->[PAYLOAD]                 = q();
         $message_id                      = $self->msg_counter;
         $self->{messages}->{$message_id} = {
@@ -95,7 +75,7 @@ sub tee {
     for my $owner ( @{$owners} ) {
         my $name = ( split m{/}, $owner, 2 )[0];
         next if ( not $Tachikoma::Nodes{$name} );
-        my $copy = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->unpacked($packed);
         $copy->[TO] = join q(/), grep length, $owner, $copy->[TO];
         if ($persist) {
             $self->stamp_message( $copy, $self->{name} ) or return;
@@ -113,35 +93,27 @@ sub tee {
 }
 
 sub handle_response {
-    my $self    = shift;
-    my $message = shift;
-    my $total   = shift;
-    if ( $total > 1 ) {
-        my $messages = $self->{messages};
-        my $info     = $messages->{ $message->[ID] } or return;
-        my $original = $info->{original};
-        my $type     = $message->[PAYLOAD];
-        my $count    = $info->{count};
-        $count = $total if ( $total < $count );
+    my $self     = shift;
+    my $message  = shift;
+    my $total    = scalar @{ $self->{owner} };
+    my $messages = $self->{messages};
+    my $info     = $messages->{ $message->[ID] } or return;
+    my $original = $info->{original};
+    my $type     = $message->[PAYLOAD] eq 'cancel' ? 'cancel' : 'answer';
+    my $count    = $info->{count};
+    $count = $total if ( $total < $count );
 
-        if ( $info->{$type}++ >= $count - 1 ) {
-            delete $messages->{ $message->[ID] };
-            if ( $type eq 'cancel' ) {
-                $self->cancel($original);
-            }
-            else {
-                $self->answer($original);
-            }
+    if ( $info->{$type}++ >= $count - 1 ) {
+        delete $messages->{ $message->[ID] };
+        if ( $type eq 'cancel' ) {
+            $self->cancel($original);
         }
-        elsif ( $info->{answer} + $info->{cancel} >= $count ) {
-            delete $messages->{ $message->[ID] };
+        else {
             $self->answer($original);
         }
     }
-    elsif ( $message->[TO] ) {
-        $message->[TYPE] = TM_PERSIST | TM_RESPONSE;
-        $message->[PAYLOAD] = 'answer' if ( $message->[PAYLOAD] ne 'cancel' );
-        $self->{sink}->fill($message);
+    elsif ( $info->{answer} + $info->{cancel} >= $count ) {
+        delete $messages->{ $message->[ID] };
     }
     return;
 }

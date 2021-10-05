@@ -30,18 +30,20 @@ use version; our $VERSION = qv('v2.0.165');
 my $Path                = '/tmp/topics';
 my $Rebalance_Interval  = 0.2;            # timer during rebalance
 my $Heartbeat_Interval  = 1;              # ping timer
-my $Heartbeat_Timeout   = 60;             # keep this less than LCO timeout
-my $Halt_Time           = 0;              # wait to catch up
-my $Reset_Time          = 0;              # wait after tear down
+my $Heartbeat_Timeout   = 900;            # keep this less than LCO timeout
+my $Halt_Time           = 5;              # wait to catch up
+my $Reset_Time          = 5;              # wait after tear down
 my $Delete_Interval     = 60;             # delete old logs this often
-my $Check_Interval      = 900;            # look for better balance this often
+my $Check_Interval      = 1800;           # look for better balance this often
 my $Save_Interval       = 3600;           # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
-my $Election_Timeout  = 90;     # how long to wait before starting over
-my $LCO_Send_Interval = 10;     # how often to send last commit offsets
-my $LCO_Timeout       = 300;    # how long to wait before expiring cached LCO
-my $Last_LCO_Send     = 0;      # time we last sent LCO
-my $Default_Cache_Size = 128 * 1024;    # config for cache partitions
+my $Election_Short      = 30;             # wait if everyone is online
+my $Election_Long       = 120;            # wait if a broker is offline
+my $Election_Timeout   = 300;    # how long to wait before starting over
+my $LCO_Send_Interval  = 15;     # how often to send last commit offsets
+my $LCO_Timeout        = 3600;   # how long to wait before expiring cached LCO
+my $Last_LCO_Send      = 0;      # time we last sent LCO
+my $Default_Cache_Size = 1;      # config for cache partitions
 my $Num_Cache_Segments = 2;
 my %C                  = ();
 
@@ -661,17 +663,20 @@ sub process_rebalance {
     my $total  = shift;
     my $online = shift;
     my $span   = $Tachikoma::Now - $self->{last_election};
-    $self->{starting_up} = undef;
-    if ( $self->{is_controller} ) {
-        $self->send_halt          if ( $self->{stage} eq 'INIT' );
-        $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
-        $self->send_reset         if ( $self->{stage} eq 'RESET' );
-        $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
-        $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
-        $self->send_mapping       if ( $self->{stage} eq 'SEND' );
-        $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
-        $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
-        $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
+    my $wait   = $total == $online ? $Election_Short : $Election_Long;
+    if ( $span > $wait ) {
+        $self->{starting_up} = undef;
+        if ( $self->{is_controller} ) {
+            $self->send_halt          if ( $self->{stage} eq 'INIT' );
+            $self->wait_for_halt      if ( $self->{stage} eq 'HALT' );
+            $self->send_reset         if ( $self->{stage} eq 'RESET' );
+            $self->wait_for_reset     if ( $self->{stage} eq 'PAUSE' );
+            $self->determine_mapping  if ( $self->{stage} eq 'MAP' );
+            $self->send_mapping       if ( $self->{stage} eq 'SEND' );
+            $self->apply_mapping      if ( $self->{stage} eq 'APPLY' );
+            $self->wait_for_responses if ( $self->{stage} eq 'WAIT' );
+            $self->send_all_clear     if ( $self->{stage} eq 'FINISH' );
+        }
     }
     $self->{last_check}  = $Tachikoma::Now;
     $self->{last_delete} = $Tachikoma::Now;
@@ -1013,12 +1018,11 @@ sub determine_followers {
     die "ERROR: no replication factor specified\n" if ( not defined $count );
     $skip{$leader_pool} = 1 if ($leader_pool);
 
-    # find existing followers
+    # find candidate pools
     for my $broker_id ( keys %{ $query->{online_brokers} } ) {
         my $broker_pool = $brokers->{$broker_id}->{pool};
         next if ( $skip{$broker_pool} );
-        my $broker_lco = $self->{last_commit_offsets}->{$broker_id};
-        $candidates{$broker_pool} = 1 if ( $broker_lco->{$log_name} );
+        $candidates{$broker_pool} = 1;
     }
 
     # find best followers
@@ -1200,6 +1204,7 @@ sub apply_mapping {
             }
             for my $group_name ( keys %{$caches} ) {
                 next if ( not $caches->{$group_name} );
+                my $cache     = $caches->{$group_name};
                 my $group_log = "$log_name:$group_name";
                 $node = $Tachikoma::Nodes{$group_log};
                 if ( not $node ) {
@@ -1209,8 +1214,8 @@ sub apply_mapping {
                 $node->arguments(q());
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
                 $node->num_segments($Num_Cache_Segments);
-                $node->segment_size( $caches->{$group_name} );
-                $node->max_lifespan( $topic->{max_lifespan} );
+                $node->segment_size( $cache->{segment_size} );
+                $node->max_lifespan( $cache->{max_lifespan} );
                 $node->replication_factor( $topic->{replication_factor} );
                 $node->sink( $self->sink );
 
@@ -1542,44 +1547,31 @@ sub save_topic_state {
 }
 
 sub add_consumer_group {
-    my $self       = shift;
-    my $arguments  = shift;
-    my $message    = shift;
-    my $cache_size = $Default_Cache_Size;
-    my ( $group_name, $topic_name );
+    my $self      = shift;
+    my $arguments = shift;
+    my ( $group_name, $topic_name, $segment_size, $max_lifespan );
     my ( $r, $argv ) = GetOptionsFromString(
         $arguments,
-        'group=s'      => \$group_name,
-        'topic=s'      => \$topic_name,
-        'cache_size=s' => \$cache_size,
+        'group=s'        => \$group_name,
+        'topic=s'        => \$topic_name,
+        'segment_size=s' => \$segment_size,
+        'max_lifespan=i' => \$max_lifespan,
     );
     $group_name //= shift @{$argv};
+    $segment_size ||= $Default_Cache_Size;
+    $max_lifespan //= 0;
     return $self->stderr(
         "ERROR: bad arguments: ADD_CONSUMER_GROUP $arguments")
         if ( not $r or not $topic_name );
-
-    if ($message) {
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE] = TM_RESPONSE;
-        $response->[FROM] = $self->{name};
-        $response->[ID]   = $self->{generation};
-        $response->[TO]   = $message->[FROM];
-        my $this = $self->consumer_groups->{$group_name};
-        if ( $this and $this->{topics}->{$topic_name} ) {
-            $response->[PAYLOAD] = "OK\n";
-        }
-        else {
-            $response->[PAYLOAD] = "WAIT\n";
-        }
-        $self->{sink}->fill($response);
-        return if ( $response->[PAYLOAD] eq "OK\n" );
-    }
     $self->consumer_groups->{$group_name} //= {
         broker_id => undef,
         topics    => {}
     };
     my $group = $self->consumer_groups->{$group_name};
-    $group->{topics}->{$topic_name} = $cache_size;
+    $group->{topics}->{$topic_name} = {
+        segment_size => $segment_size,
+        max_lifespan => $max_lifespan
+    };
     $self->rebalance_partitions;
     return;
 }
@@ -1861,9 +1853,10 @@ $C{help} = sub {
             . "                    --num_segments=<count>       \\\n"
             . "                    --segment_size=<bytes>       \\\n"
             . "                    --max_lifespan=<seconds>\n"
-            . "          set_consumer_group --group=<group>      \\\n"
-            . "                             --topic=<topic>      \\\n"
-            . "                             --cache_size=<bytes> \\\n"
+            . "          set_consumer_group --group=<group>          \\\n"
+            . "                             --topic=<topic>          \\\n"
+            . "                             --segment_size=<bytes>   \\\n"
+            . "                             --max_lifespan=<seconds>\n"
             . "          list_brokers\n"
             . "          list_topics [ <glob> ]\n"
             . "          list_consumer_groups [ <glob> ]\n"
@@ -1996,15 +1989,20 @@ $C{list_consumer_groups} = sub {
     my $results  = [
         [   [ 'GROUP NAME' => 'left' ],
             [ 'TOPIC'      => 'left' ],
-            [ 'CACHE SIZE' => 'right' ]
+            [ 'CACHE SIZE' => 'right' ],
+            [ 'LIFESPAN'   => 'right' ],
         ]
     ];
     for my $group_name ( sort keys %{ $self->patron->consumer_groups } ) {
         next if ( $glob and $group_name !~ m{$glob} );
         my $consumer_group = $self->patron->consumer_groups->{$group_name};
         for my $topic_name ( sort keys %{ $consumer_group->{topics} } ) {
-            my $cache_size = $consumer_group->{topics}->{$topic_name};
-            push @{$results}, [ $group_name, $topic_name, $cache_size ];
+            my $group = $consumer_group->{topics}->{$topic_name};
+            push @{$results},
+                [
+                $group_name,            $topic_name,
+                $group->{segment_size}, $group->{max_lifespan}
+                ];
         }
     }
     return $self->response( $envelope, $self->tabulate($results) );
@@ -2165,6 +2163,22 @@ $C{purge_groups} = sub {
     return $self->error("ERROR: no arguments\n") if ( not length $arguments );
     $self->patron->inform_brokers("PURGE_GROUPS $arguments\n");
     $self->patron->purge_groups($arguments);
+    return $self->okay($envelope);
+};
+
+$C{check_mapping} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->check_mapping;
+    return $self->okay($envelope);
+};
+
+$C{rebalance} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->patron->rebalance_partitions('inform_brokers');
     return $self->okay($envelope);
 };
 

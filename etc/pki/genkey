@@ -1,9 +1,14 @@
 #!/bin/sh -e
 # TLS
-hostname=$1
-filename=$2
+csr=$1
+hostname=$2
+filename=$3
+if [ -z "${hostname}" ] ; then
+    echo 'Usage: genkey <csr> <hostname>'
+    exit 1
+fi
 if [ -z "${filename}" ] ; then
-    filename=tachkoma-rsa
+    filename=rsa
 fi
 cd tls/.work
 if [ ! -f ca.key ] ; then
@@ -13,7 +18,7 @@ fi
 mkdir -p  ../$hostname
 cp ca.crt ../${hostname}/
 rm -f server.csr server.key
-openssl req -new -out server.csr -config csr.conf
+openssl req -new -out server.csr -config ../../csr/${csr}.conf
 openssl x509 -req -days 3653                      \
               -in server.csr                      \
               -CA ca.crt                          \

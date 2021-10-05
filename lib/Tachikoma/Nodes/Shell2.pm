@@ -713,18 +713,40 @@ $BUILTINS{'read'} = sub {
 $H{'print'} = [qq(print "<message>\\n"\n)];
 
 $BUILTINS{'print'} = sub {
-    my $self          = shift;
-    my $raw_tree      = shift;
-    my $parse_tree    = $self->trim($raw_tree);
-    my $argument_tree = $parse_tree->{value}->[1];
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
     $self->fatal_parse_error('bad arguments for print')
         if ( @{ $parse_tree->{value} } > 2 );
+    my $argument_tree = $parse_tree->{value}->[1];
     my $output = join q(), @{ $self->evaluate($argument_tree) };
     syswrite STDOUT, $output or die if ( length $output );
     return [];
 };
 
-for my $type (qw( local var )) {
+$H{'grep'} = [qq(<command> | grep <regex>\n)];
+
+$BUILTINS{'grep'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for grep')
+        if ( @{ $parse_tree->{value} } > 3 );
+    my $arg1  = $parse_tree->{value}->[1];
+    my $arg2  = $parse_tree->{value}->[2];
+    my $regex = join q(), @{ $self->evaluate($arg1) };
+    my $lines = join q(), @{ $self->evaluate($arg2) };
+    $lines = $LOCAL{q(@)} if ( not length $lines );
+    my $output = q();
+
+    for my $line ( split m{^}, $lines ) {
+        $output .= $line if ( $line =~ m{$regex} );
+    }
+    syswrite STDOUT, $output or die if ( length $output );
+    return [];
+};
+
+for my $type (qw( local var env )) {
     $H{$type} = [
         "$type <name> [ <op> [ <value> ] ]\n",
         "    operators: = .= += -= *= /= //= ||=\n"
@@ -748,14 +770,28 @@ for my $type (qw( local var )) {
         $op_tree = $values->[ $i++ ];
         $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
         $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-        my $hash =
-            ( $type eq 'local' ) ? \%LOCAL : $self->{configuration}->{var};
+        my $hash = undef;
+
+        if ( $type eq 'local' ) {
+            $hash = \%LOCAL;
+        }
+        elsif ( $type eq 'env' ) {
+            $hash = \%ENV;
+        }
+        else {
+            $hash = $self->{configuration}->{var};
+        }
         my $key = join q(), @{ $self->evaluate($key_tree) };
         my $op  = join q(), @{ $self->evaluate($op_tree) };
         my $rv  = [];
 
         if ( length $op ) {
-            $rv = $self->operate( $key, $op, $value_tree, $hash );
+            if ( $type eq 'env' ) {
+                $rv = $self->operate_env( $hash, $key, $op, $value_tree );
+            }
+            else {
+                $rv = $self->operate( $hash, $key, $op, $value_tree );
+            }
         }
         elsif ( length $key ) {
             $hash->{$key} //= q();
@@ -977,7 +1013,7 @@ $BUILTINS{'for'} = sub {
         for ( grep exists $LOCAL{$_}, qw( index total ), $var );
     my $result = $self->evaluate($each_tree);
     $LOCAL{index} = [1];
-    $LOCAL{total} = [ scalar @{$result} ];
+    $LOCAL{total} = [ scalar grep m{\S}, @{$result} ];
     my $rv = [];
 
     for my $i ( @{$result} ) {
@@ -1514,11 +1550,13 @@ sub get_values {
                     " line $self->{counter}\n" );
                 $values = [];
             }
-            $values = (
-                ref $values
-                ? [ @{$values}, $whitespace ]
-                : [ $values, $whitespace ]
-            );
+            if ( length $whitespace ) {
+                $values =
+                    [ ( ref $values ? @{$values} : $values ), $whitespace ];
+            }
+            elsif ( not ref $values ) {
+                $values = [$values];
+            }
         }
         else {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
@@ -1612,11 +1650,11 @@ sub assignment {
     my $op = join q(), @{ $self->evaluate($op_tree) };
 
     if ( exists $LOCAL{$key} ) {
-        $self->operate( $key, $op, $value_tree, \%LOCAL );
+        $self->operate( \%LOCAL, $key, $op, $value_tree );
     }
     elsif ( exists $self->{configuration}->{var}->{$key} ) {
-        $self->operate( $key, $op, $value_tree,
-            $self->{configuration}->{var} );
+        $self->operate( $self->{configuration}->{var},
+            $key, $op, $value_tree );
     }
     else {
         $self->fatal_parse_error("no such variable: $key");
@@ -1624,29 +1662,11 @@ sub assignment {
     return [];
 }
 
-sub operate {    ## no critic (ProhibitExcessComplexity)
-    my ( $self, $key, $op, $value_tree, $hash ) = @_;
+sub operate {
+    my ( $self, $hash, $key, $op, $value_tree, ) = @_;
     my $rv = [];
-    my $v  = $hash->{$key};
-    $v = [] if ( not defined $v or not length $v );
-    $v = [$v] if ( not ref $v );
-
     if ($value_tree) {
-        my $result = $self->evaluate($value_tree);
-        shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
-        pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
-        my $joined = join q(), @{$result};
-        if ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
-        if ( $op eq q(=) ) { $v = $result; }
-        elsif ( $op eq q(.=) ) { push @{$v}, @{$result}; }
-        elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
-        elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
-        elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
-        elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
-        elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
-        elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
-        else { $self->fatal_parse_error("invalid operator: $op"); }
-
+        my $v = $self->operate_with_value( $hash, $key, $op, $value_tree );
         if ( @{$v} > 1 ) {
             $hash->{$key} = $v;
         }
@@ -1656,15 +1676,63 @@ sub operate {    ## no critic (ProhibitExcessComplexity)
         $rv = $v;
     }
     elsif ( length $op ) {
+        my $v = $hash->{$key};
+        $v = $v->[0] if ( ref $v );
+        $v = 0 if ( not defined $v or not length $v );
         if    ( $op eq q(=) )  { delete $hash->{$key}; }
-        elsif ( $op eq q(++) ) { $v->[0]++; $hash->{$key} = $v->[0]; }
-        elsif ( $op eq q(--) ) { $v->[0]--; $hash->{$key} = $v->[0]; }
+        elsif ( $op eq q(++) ) { $v++; $hash->{$key} = $v; }
+        elsif ( $op eq q(--) ) { $v--; $hash->{$key} = $v; }
         else { $self->fatal_parse_error("bad arguments: $op"); }
     }
     else {
         $self->fatal_parse_error('internal parser error');
     }
     return $rv;
+}
+
+sub operate_env {
+    my ( $self, $hash, $key, $op, $value_tree ) = @_;
+    my $rv = [];
+    if ($value_tree) {
+        my $v = $self->operate_with_value( $hash, $key, $op, $value_tree );
+        $hash->{$key} = join q(), @{$v};
+        $rv = $v;
+    }
+    elsif ( length $op ) {
+        my $v = $hash->{$key};
+        $v = $v->[0] if ( ref $v );
+        $v = 0 if ( not defined $v or not length $v );
+        if    ( $op eq q(=) )  { delete $hash->{$key}; }
+        elsif ( $op eq q(++) ) { $v++; $hash->{$key} = $v; }
+        elsif ( $op eq q(--) ) { $v--; $hash->{$key} = $v; }
+        else { $self->fatal_parse_error("bad arguments: $op"); }
+    }
+    else {
+        $self->fatal_parse_error('internal parser error');
+    }
+    return $rv;
+}
+
+sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
+    my ( $self, $hash, $key, $op, $value_tree ) = @_;
+    my $result = $self->evaluate($value_tree);
+    my $v      = $hash->{$key};
+    $v = [] if ( not defined $v or not length $v );
+    $v = [$v] if ( not ref $v );
+    shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
+    pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
+    my $joined = join q(), @{$result};
+    if ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
+    if ( $op eq q(=) ) { $v = $result; }
+    elsif ( $op eq q(.=) ) { push @{$v}, @{$result}; }
+    elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
+    elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
+    elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
+    elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
+    elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
+    elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
+    else { $self->fatal_parse_error("invalid operator: $op"); }
+    return $v;
 }
 
 sub _call_function {

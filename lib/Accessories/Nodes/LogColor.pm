@@ -60,53 +60,27 @@ sub fill {
         $self->cancel($message);
         return;
     }
-    if ( $payload =~ m{^\d+} ) {
-        if ( $payload =~ m{COMMAND} ) {
-            $payload = "\e[41m\e[2K$payload\e[0m";
-        }
-        elsif ( $payload =~ m{TRAP} ) {
-            $payload = "\e[41m\e[2K$payload\e[0m";
-        }
-        elsif ( $payload =~ m{ERROR} ) {
-            $payload = "\e[41m\e[2K$payload\e[0m";
-        }
-        elsif ( $payload =~ m{WARNING} ) {
-            $payload = "\e[43m\e[2K$payload\e[0m";
-        }
-        elsif ( $payload =~ m{INFO} ) {
-            $payload = "\e[90m$payload\e[0m";
-        }
-        elsif ( $payload =~ m{DEBUG} ) {
-            $payload = "\e[90m$payload\e[0m";
-        }
-        else {
-            $payload = "\e[93m$payload\e[0m";
-        }
+    $payload = $self->cleanup_syslog( $message, $payload )
+        if ( $payload =~ m{^\D} );
+    $payload =~ s/#033\[/\e[/g;
+    my $date_re = qr{\d{4}-\d\d-\d\d \d\d:\d\d:\d\d \S+};
+    if ( $payload =~ m{^($date_re) (\S+) (.*?:) (.*)$} ) {
+        my ( $date, $host, $process, $msg ) = ( $1, $2, $3, $4 );
+        my $color = $self->get_color($msg);
+        $payload = sprintf "\e[95m%s \e[96m%s \e[94m%s $color%s\e[0m",
+            $date, $host, $process, $msg;
+    }
+    elsif ( $payload =~ m{^($date_re) (\S+) (.*)$} ) {
+        my ( $date, $host, $msg ) = ( $1, $2, $3 );
+        my $color = $self->get_color($msg);
+        $payload = sprintf "\e[95m%s \e[96m%s $color%s\e[0m",
+            $date, $host, $msg;
     }
     else {
-        $payload = $self->cleanup_syslog( $message, $payload );
-        if ( $payload =~ m{ su\b| sudo\b} ) {
-            $payload = "\e[42m\e[2K$payload\e[0m";
-        }
-        elsif ( $payload =~ m{ svnagent} ) {
-            $payload = "\e[92m$payload\e[0m";
-        }
-        elsif ( $payload =~ m{(?<!without )(error|fail)}i
-            and $payload =~ m{(?<!\bno )$1}i )
-        {
-            $payload = "\e[91m$payload\e[0m";
-        }
-        elsif ( $payload =~ m{warn}i ) {
-            $payload = "\e[91m$payload\e[0m";
-        }
-        elsif ( $payload =~ m{congestion drops}i ) {
-            $payload = "\e[95m\e[2K$payload\e[0m";
-        }
-        else {
-            $payload = "\e[90m$payload\e[0m";
-        }
+        my $color = $self->get_color($payload);
+        $payload = sprintf "$color%s\e[0m", $payload;
     }
-    $message->[PAYLOAD] = "$payload\n";
+    $message->[PAYLOAD] = "\r$payload\n";
     $self->SUPER::fill($message);
     return;
 }
@@ -128,6 +102,38 @@ sub cleanup_syslog {
             . $payload;
     }
     return $payload;
+}
+
+sub get_color {
+    my $self    = shift;
+    my $payload = shift;
+    my $color   = undef;
+    if ( $payload =~ m{ERROR:} ) {
+
+        # $color = "\e[30;101m";
+        $color = "\e[91m";
+    }
+    elsif ( $payload =~ m{WARNING:} ) {
+
+        # $color = "\e[30;103m";
+        $color = "\e[93m";
+    }
+    elsif ( $payload =~ m{INFO:|DEBUG:|systemd[[]} ) {
+        $color = "\e[90m";
+    }
+    elsif ( $payload =~ m{auth|ssh|sftp}i ) {
+        $color = "\e[92m";
+    }
+    elsif ( $payload =~ m{fail|error}i ) {
+        $color = "\e[91m";
+    }
+    elsif ( $payload =~ m{warning}i ) {
+        $color = "\e[93m";
+    }
+    else {
+        $color = "\e[0m";
+    }
+    return $color;
 }
 
 sub months {

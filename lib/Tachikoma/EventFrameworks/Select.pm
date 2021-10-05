@@ -10,7 +10,7 @@ package Tachikoma::EventFrameworks::Select;
 use strict;
 use warnings;
 use IO::Select;
-use POSIX qw( :sys_wait_h SIGUSR1 );
+use POSIX qw( SIGUSR1 );
 use Time::HiRes;
 
 use version; our $VERSION = qv('v2.0.227');
@@ -24,7 +24,6 @@ use constant {
 my $READS         = undef;
 my $WRITES        = undef;
 my %TIMERS        = ();
-my $LAST_WAIT     = 0;
 my $GOT_SIGNAL    = undef;
 my $SHUTDOWN      = undef;
 my $GOT_HUP       = undef;
@@ -88,15 +87,11 @@ sub drain {
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for ( @{$reads}, @{$errors} ) {
-            my $fd = fileno $_;
-            next if ( not defined $fd );
-            my $node = $Tachikoma::Nodes_By_FD->{$fd};
+            my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
             &{ $node->{drain_fh} }($node);
         }
         for ( @{$writes} ) {
-            my $fd = fileno $_;
-            next if ( not defined $fd );
-            my $node = $Tachikoma::Nodes_By_FD->{$fd};
+            my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
             &{ $node->{fill_fh} }($node);
         }
         $self->handle_signal($this) if ($GOT_SIGNAL);
@@ -118,11 +113,6 @@ sub drain {
                 $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
             }
             &{ $node->{fire_cb} }($node);
-        }
-        if ( $Tachikoma::Right_Now - $LAST_WAIT > 5 ) {
-            $LAST_WAIT = $Tachikoma::Right_Now;
-            undef $!;
-            do { } while ( waitpid( -1, WNOHANG ) > 0 );
         }
     }
     return;

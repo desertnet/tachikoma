@@ -26,7 +26,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 2;             # wait at least this long on startup
+my $Startup_Delay   = 30;            # wait at least this long on startup
 my $Check_Interval  = 15;            # synchronous partition map check
 my $Commit_Interval = 60;            # commit offsets
 my $Timeout         = 900;           # default async message timeout
@@ -313,6 +313,9 @@ sub owner {
     if (@_) {
         $self->{owner}      = shift;
         $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        for my $partition_id ( keys %{ $self->consumers } ) {
+            $self->consumers->{$partition_id}->owner( $self->{owner} );
+        }
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{owner};
@@ -323,6 +326,9 @@ sub edge {
     if (@_) {
         $self->{edge}       = shift;
         $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        for my $partition_id ( keys %{ $self->consumers } ) {
+            $self->consumers->{$partition_id}->edge( $self->{owner} );
+        }
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{edge};

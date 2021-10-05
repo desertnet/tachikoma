@@ -95,7 +95,7 @@ $C{help} = sub {
             . "          remove_server <virtual server>\n"
             . "          list_paths [ <class> ]\n"
             . "          add_path [ <class> ] <path> <destination path>\n"
-            . "          remove_path <class> <path>\n" );
+            . "          remove_path [ <class> ] <path>\n" );
 };
 
 $C{list_servers} = sub {

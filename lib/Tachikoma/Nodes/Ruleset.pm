@@ -13,7 +13,7 @@ use Tachikoma::Node;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_EOF
+    TM_STORABLE TM_COMMAND
 );
 use parent qw( Tachikoma::Node );
 
@@ -60,7 +60,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 and defined $to
                 and $message_to !~ m{$to} )
             );
-        my $copy = Tachikoma::Message->new($packed);
+        my $copy = Tachikoma::Message->unpacked($packed);
         my @matches = $field ? $copy->[$field] =~ m{$re} : ();
         next if ( $field and not @matches );
         if ( $type eq 'deny' ) {

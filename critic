@@ -49,6 +49,7 @@ lib/Tachikoma/Nodes/ConsumerGroup.pm
 lib/Tachikoma/Nodes/DirWatcher.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
+lib/Tachikoma/Nodes/ErrorMonitor.pm
 lib/Tachikoma/Nodes/FileController.pm
 lib/Tachikoma/Nodes/FileHandle.pm
 lib/Tachikoma/Nodes/FileReceiver.pm
@@ -135,6 +136,8 @@ lib/Accessories/Nodes/Bucket.pm
 lib/Accessories/Nodes/IndexByHostname.pm
 lib/Accessories/Nodes/IndexByProcess.pm
 lib/Accessories/Nodes/LogColor.pm
+lib/Accessories/Nodes/SFE4DigitLED.pm
+lib/Accessories/Nodes/SFESerLCD.pm
 lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/TestStream.pm
 lib/Accessories/Nodes/Watcher.pm

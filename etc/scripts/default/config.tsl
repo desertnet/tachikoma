@@ -1,8 +1,9 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
-var hostname = `hostname -s`;
-var home     = `echo ~`;
 
-var topics_dir = <home>/.tachikoma/pool;
+var hostname     = `hostname -s`;
+var home         = `echo ~`;
+var services_dir = <home>/.tachikoma/services;
+var topics_dir   = <home>/.tachikoma/pool;
 
 var tachikoma.services = (
     engines
@@ -105,4 +106,18 @@ func run_benchmarks_profiled {
     };
     env NYTPROF=;
     env PERL5OPT=;
+}
+
+func start_service {
+    local service = <1>;
+    command jobs  start_job Shell <service>:job <services_dir>/<service>.tsl;
+    command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
+    command tails add_tail <home>/.tachikoma/log/<service>.log server_log:link;
+    connect_node <service>:job null;
+}
+
+func stop_service {
+    local service = <1>;
+    command jobs stop_job <service>:job;
+    # rm <service>:service;
 }

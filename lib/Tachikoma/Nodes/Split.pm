@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 37106 2019-03-30 23:23:46Z chris $
+# $Id: Split.pm 41002 2021-09-10 05:17:01Z chris $
 #
 
 package Tachikoma::Nodes::Split;
@@ -54,29 +54,11 @@ sub fill {
     my $message    = shift;
     my $messages   = undef;
     my $message_id = undef;
-    my $persist    = undef;
     return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
     if ( $message->[TYPE] & TM_PERSIST ) {
         $messages = $self->{messages};
-        if ( $message->[TYPE] & TM_RESPONSE ) {
-            $message_id = $message->[ID];
-            my $info     = $messages->{$message_id} or return;
-            my $original = $info->{original};
-            my $type     = $message->[PAYLOAD];
-            if ( $info->{$type}++ >= $info->{count} - 1 ) {
-                delete $messages->{$message_id};
-                return (
-                      $type eq 'cancel'
-                    ? $self->cancel($original)
-                    : $self->answer($original)
-                );
-            }
-            elsif ( $info->{answer} + $info->{cancel} >= $info->{count} ) {
-                delete $messages->{$message_id};
-                return $self->answer($original);
-            }
-            return;
-        }
+        return $self->handle_response($message)
+            if ( $message->[TYPE] & TM_RESPONSE );
         $message_id = $self->msg_counter;
         $messages->{$message_id} = {
             original  => $message,
@@ -85,57 +67,66 @@ sub fill {
             cancel    => 0,
             timestamp => $Tachikoma::Now
         };
-        $persist = 'true';
         $self->set_timer if ( not $self->{timer_is_active} );
     }
     my $delimiter = $self->{delimiter};
     my $count     = 0;
     $self->{counter}++;
+    my @payloads = ();
     if ( not $delimiter or $delimiter eq 'newline' ) {
         for my $line ( split m{(?<=\n)}, $message->[PAYLOAD] ) {
             if ( $line !~ m{\n} ) {
                 $self->{line_buffer} .= $line;
                 next;    # also last
             }
-            my $response = Tachikoma::Message->new;
-            $response->[TYPE]      = $message->[TYPE];
-            $response->[FROM]      = $self->{name};
-            $response->[TO]        = $self->{owner};
-            $response->[ID]        = $message_id;
-            $response->[TIMESTAMP] = $message->[TIMESTAMP];
-            $response->[PAYLOAD]   = $self->{line_buffer} . $line;
-            $self->{line_buffer}   = q();
-            $self->{sink}->fill($response);
+            push @payloads, $self->{line_buffer} . $line;
+            $self->{line_buffer} = q();
             $count++;
         }
     }
     elsif ( $delimiter eq 'whitespace' ) {
         for my $block ( split q( ), $message->[PAYLOAD] ) {
-            my $response = Tachikoma::Message->new;
-            $response->[TYPE]      = $message->[TYPE];
-            $response->[FROM]      = $self->{name};
-            $response->[TO]        = $self->{owner};
-            $response->[ID]        = $message_id;
-            $response->[TIMESTAMP] = $message->[TIMESTAMP];
-            $response->[PAYLOAD]   = $block . "\n";
-            $self->{sink}->fill($response);
+            push @payloads, $block . "\n";
             $count++;
         }
     }
     else {
         for my $block ( split m{$delimiter}, $message->[PAYLOAD] ) {
-            my $response = Tachikoma::Message->new;
-            $response->[TYPE]      = $message->[TYPE];
-            $response->[FROM]      = $self->{name};
-            $response->[TO]        = $self->{owner};
-            $response->[ID]        = $message_id;
-            $response->[TIMESTAMP] = $message->[TIMESTAMP];
-            $response->[PAYLOAD]   = $block . "\n";
-            $self->{sink}->fill($response);
+            push @payloads, $block . "\n";
             $count++;
         }
     }
     $messages->{$message_id}->{count} = $count if ($message_id);
+    for my $payload (@payloads) {
+        my $response = Tachikoma::Message->new;
+        $response->[TYPE]      = $message->[TYPE];
+        $response->[FROM]      = $self->{name};
+        $response->[TO]        = $self->{owner};
+        $response->[ID]        = $message_id if ($message_id);
+        $response->[TIMESTAMP] = $message->[TIMESTAMP];
+        $response->[PAYLOAD]   = $payload;
+        $self->{sink}->fill($response);
+    }
+    return;
+}
+
+sub handle_response {
+    my $self     = shift;
+    my $message  = shift;
+    my $info     = $self->{messages}->{ $message->[ID] } or return;
+    my $original = $info->{original};
+    my $type     = $message->[PAYLOAD];
+    if ( $info->{$type}++ >= $info->{count} - 1 ) {
+        delete $self->{messages}->{ $message->[ID] };
+        return (
+              $type eq 'cancel'
+            ? $self->cancel($original)
+            : $self->answer($original)
+        );
+    }
+    elsif ( $info->{answer} + $info->{cancel} >= $info->{count} ) {
+        delete $self->{messages}->{ $message->[ID] };
+    }
     return;
 }
 

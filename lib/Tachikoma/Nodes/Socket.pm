@@ -483,11 +483,7 @@ sub init_SSL_connection {
         $self->register_reader_node;
     }
     elsif ( $! != EAGAIN ) {
-        my $ssl_error = IO::Socket::SSL::errstr();
-        $ssl_error =~ s{(error)(error)}{$1: $2};
-        Tachikoma->print_less_often( join q(: ), grep $_, $self->{parent},
-            "WARNING: $method failed",
-            $!, $ssl_error );
+        $self->log_SSL_error($method);
 
         # this keeps the event framework from constantly
         # complaining about missing entries in %Nodes_By_FD
@@ -508,6 +504,28 @@ sub init_SSL_connection {
     }
     else {
         $self->unregister_writer_node;
+    }
+    return;
+}
+
+sub log_SSL_error {
+    my $self      = shift;
+    my $method    = shift;
+    my $ssl_error = IO::Socket::SSL::errstr();
+    $ssl_error =~ s{(error)(error)}{$1: $2};
+    my $names = undef;
+    if ( $method eq 'connect_SSL' ) {
+        $names = $self->{name};
+        Tachikoma->print_least_often( join q(: ), grep $_,
+            $names, "WARNING: $method failed",
+            $!, $ssl_error );
+    }
+    else {
+        $names = join q( -> ), $self->{parent},
+            ( split m{:}, $self->{name}, 2 )[0];
+        Tachikoma->print_less_often( join q(: ), grep $_,
+            $names, "WARNING: $method failed",
+            $!, $ssl_error );
     }
     return;
 }
@@ -737,7 +755,7 @@ sub read_block {
     }
     if ( $got >= $size and $size > 0 ) {
         my $message = eval {
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         };
         if ( not $message ) {
             my $trap = $@ || 'unknown error';
@@ -750,7 +768,7 @@ sub read_block {
     }
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
-        $self->print_less_often("WARNING: $caller couldn't read: $error")
+        $self->print_least_often("WARNING: $caller couldn't read: $error")
             if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
@@ -797,7 +815,7 @@ sub drain_buffer_normal {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $got -= $size;
         $self->{bytes_read} += $size;
         $self->{counter}++;
@@ -818,10 +836,8 @@ sub drain_buffer_normal {
             : $name;
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
-                $self->print_less_often(
-                          "ERROR: message addressed to $message->[TO]"
-                        . " while owner is set to $owner"
-                        . " - dropping message from $message->[FROM]" )
+                $self->drop_message( $message,
+                    "message addressed while owner is set to $owner" )
                     if ( $message->[TYPE] != TM_ERROR );
                 next;
             }
@@ -960,7 +976,7 @@ sub close_filehandle {
     return;
 }
 
-sub reconnect {    ## no critic (ProhibitExcessComplexity)
+sub reconnect {
     my $self   = shift;
     my $socket = $self->{fh};
     my $rv     = undef;
@@ -1023,10 +1039,6 @@ sub reconnect {    ## no critic (ProhibitExcessComplexity)
         else {
             $self->init_connect;
         }
-    }
-    else {
-        $self->print_less_often('reconnect: looking up hostname')
-            if ( not $self->{address} );
     }
     return $rv;
 }

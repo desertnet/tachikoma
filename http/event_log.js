@@ -2,61 +2,81 @@ var server_host       = window.location.hostname;
 var server_port       = window.location.port;
 var server_path       = "/cgi-bin/topic.cgi"
 var topic             = "event_log";
-var partition         = 0;
+var _num_partitions   = num_partitions || 1;
 var parsed_url        = new URL(window.location.href);
-var count             = parsed_url.searchParams.get("count") || 1000;
-var prefix_url        = "https://" + server_host + ":" + server_port
-                      + server_path + "/"
-                      + topic       + "/"
-                      + partition   + "/";
-var last_url          = prefix_url  + "/last/"   + count;
-var recent_url        = prefix_url  + "/recent/" + count;
-var server_url        = last_url;
-var xhttp             = new XMLHttpRequest();
-var timer             = null;
-var cached_msg        = [];
+var count             = parsed_url.searchParams.get("count")    || 100;
+var interval          = parsed_url.searchParams.get("interval") || 33;
+var xhttp             = [];
+var fetch_timers      = [];
+var display_timer     = null;
 var output            = [];
 var dirty             = 1;
 var show_event_output = 1;
 
 function start_timer() {
-    xhttp.onreadystatechange = function() {
+    for (var i = 0; i < _num_partitions; i++) {
+        start_partition(i);
+    }
+    display_timer = setInterval(display_table, interval);
+}
+
+function start_partition(partition) {
+    var prefix_url   = "https://" + server_host + ":" + server_port
+                     + server_path + "/"
+                     + topic       + "/"
+                     + partition   + "/";
+    var last_url     = prefix_url  + "/last/"   + count;
+    var recent_url   = prefix_url  + "/recent/" + count;
+    var server_url   = last_url;
+    xhttp[partition] = new XMLHttpRequest();
+    xhttp[partition].onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
-                timer = setTimeout(tick, 2000);
-                if (dirty) {
-                    display_table();
+                fetch_timers[partition] = setTimeout(tick,
+                                                     1000,
+                                                     partition,
+                                                     server_url);
+                if (msg.next_url == server_url) {
+                    update_table(msg);
                 }
             }
             else {
-                cached_msg = msg;
                 server_url = msg.next_url;
-                timer      = setTimeout(tick, 0);
-                update_table();
+                fetch_timers[partition] = setTimeout(tick,
+                                                     0,
+                                                     partition,
+                                                     server_url);
+                update_table(msg);
             }
         }
         else if (this.readyState == 4) {
-            timer = setTimeout(tick, 2000);
+            fetch_timers[partition] = setTimeout(tick,
+                                                 1000,
+                                                 partition,
+                                                 server_url);
         }
     };
-    timer = setTimeout(tick, 0);
+    fetch_timers[partition] = setTimeout(tick,
+                                         100,
+                                         partition,
+                                         server_url);
 }
 
-function update_table() {
-    for (var i = 0; i < cached_msg.payload.length; i++) {
+function update_table(msg) {
+    for (var i = 0; i < msg.payload.length; i++) {
         var tr    = "";
         var date  = new Date();
-        var queue = cached_msg.payload[i].queue || "";
-        var type  = cached_msg.payload[i].type;
+        var queue = msg.payload[i].queue || "";
+        var type  = msg.payload[i].type;
         date.setTime(
-            ( cached_msg.payload[i].timestamp - date.getTimezoneOffset() * 60 )
+            ( msg.payload[i].timestamp - date.getTimezoneOffset() * 60 )
             * 1000
         );
-        if (cached_msg.payload[i].type == "TASK_ERROR") {
+        if (msg.payload[i].type == "TASK_ERROR") {
             tr = "<tr bgcolor=\"#FF9999\">";
         }
-        else if (cached_msg.payload[i].type == "TASK_OUTPUT") {
+        else if (msg.payload[i].type == "TASK_OUTPUT") {
             if (show_event_output) {
                 tr = "<tr bgcolor=\"#99FF99\">";
             }
@@ -64,17 +84,17 @@ function update_table() {
                 continue;
             }
         }
-        else if (cached_msg.payload[i].type == "TASK_BEGIN"
-              || cached_msg.payload[i].type == "TASK_COMPLETE") {
+        else if (msg.payload[i].type == "TASK_BEGIN"
+              || msg.payload[i].type == "TASK_COMPLETE") {
             tr = "<tr bgcolor=\"#DDDDDD\">";
         }
         else {
             tr = "<tr>";
         }
         var key_href = "<a href=\"event_query.html?key="
-                     + cached_msg.payload[i].key + "\">"
-                     + cached_msg.payload[i].key + "</a>";
-        var value = cached_msg.payload[i].value || "";
+                     + msg.payload[i].key + "\">"
+                     + msg.payload[i].key + "</a>";
+        var value = msg.payload[i].value || "";
         var escaped = value.replace(/</g,"&lt;").replace(/&/g,"&amp;");
         var row = tr + "<td>" + date_string(date) + "</td>"
                      + "<td>" + queue             + "</td>"
@@ -86,46 +106,46 @@ function update_table() {
     while (output.length > count) {
         output.pop();
     }
-    dirty = 1;
+    dirty = msg.payload.length;
 }
 
 function display_table() {
-    document.getElementById("output").innerHTML
-                = "<table>"
-                + "<tr><th>TIMESTAMP</th>"
-                + "<th>QUEUE</th>"
-                + "<th>TYPE</th>"
-                + "<th>KEY</th>"
-                + "<th>VALUE</th></tr>"
-                + output.join("")
-                + "</table>";
-    dirty = 0;
+    if (dirty) {
+        while (output.length > count) {
+            output.pop();
+        }
+        document.getElementById("output").innerHTML
+                    = "<table>"
+                    + "<tr><th>TIMESTAMP</th>"
+                    + "<th>QUEUE</th>"
+                    + "<th>TYPE</th>"
+                    + "<th>KEY</th>"
+                    + "<th>VALUE</th></tr>"
+                    + output.join("")
+                    + "</table>";
+        dirty = 0;
+    }
 }
 
 function toggle_event_output() {
     if (show_event_output) {
         show_event_output = 0;
         document.getElementById("toggle").innerHTML = "show output";
-        clearTimeout(timer);
-        server_url = recent_url;
-        timer      = setTimeout(tick, 0);
     }
     else {
         show_event_output = 1;
         document.getElementById("toggle").innerHTML = "hide output";
-        clearTimeout(timer);
-        server_url = last_url;
-        timer      = setTimeout(tick, 0);
     }
     output = [];
-    update_table();
+    // update_table();
+    dirty = 1;
     display_table();
-    output = [];
+    // output = [];
 }
 
-function tick() {
-    xhttp.open("GET", server_url, true);
-    xhttp.send();
+function tick(partition, server_url) {
+    xhttp[partition].open("GET", server_url, true);
+    xhttp[partition].send();
 }
 
 function date_string(date) {

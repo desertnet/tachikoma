@@ -25,6 +25,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
+my $Startup_Delay   = 30;            # wait at least this long on startup
 my $Timeout         = 900;           # default async message timeout
 my $Expire_Interval = 15;            # check message timeouts
 my $Commit_Interval = 60;            # commit offsets
@@ -46,20 +47,20 @@ sub new {
         $self->{partition} = undef;
         $self->{offsetlog} = undef;
     }
-    $self->{broker_id}      = undef;
-    $self->{partition_id}   = undef;
-    $self->{offset}         = undef;
-    $self->{next_offset}    = undef;
-    $self->{default_offset} = 'end';
-    $self->{group}          = undef;
-    $self->{buffer}         = \$new_buffer;
-    $self->{poll_interval}  = $Poll_Interval;
-    $self->{last_receive}   = Time::HiRes::time;
-    $self->{cache}          = undef;
-    $self->{cache_type}     = undef;
-    $self->{cache_size}     = undef;
-    $self->{auto_commit}    = $self->{offsetlog} ? $Commit_Interval : undef;
-    $self->{last_commit}    = 0;
+    $self->{broker_id}       = undef;
+    $self->{partition_id}    = undef;
+    $self->{offset}          = undef;
+    $self->{next_offset}     = undef;
+    $self->{default_offset}  = 'end';
+    $self->{group}           = undef;
+    $self->{buffer}          = \$new_buffer;
+    $self->{poll_interval}   = $Poll_Interval;
+    $self->{last_receive}    = Time::HiRes::time;
+    $self->{cache}           = undef;
+    $self->{cache_type}      = undef;
+    $self->{last_cache_size} = undef;
+    $self->{auto_commit}     = $self->{offsetlog} ? $Commit_Interval : undef;
+    $self->{last_commit}     = 0;
     $self->{last_commit_offset} = -1;
     $self->{hub_timeout}        = $Hub_Timeout;
 
@@ -136,7 +137,7 @@ sub arguments {
         $self->{poll_interval}      = $poll_interval || $Poll_Interval;
         $self->{last_receive}       = $Tachikoma::Now;
         $self->{cache_type}         = $cache_type // $Cache_Type;
-        $self->{cache_size}         = undef;
+        $self->{last_cache_size}    = undef;
         $self->{auto_commit}        = $auto_commit // $Commit_Interval;
         $self->{auto_commit}        = undef if ( not $offsetlog );
         $self->{last_commit}        = 0;
@@ -159,7 +160,6 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    my $offset  = $message->[ID];
     if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         $self->handle_response($message);
     }
@@ -167,7 +167,8 @@ sub fill {
         $self->handle_error($message);
     }
     else {
-        if ( not $self->{expecting} ) {
+        my $offset = $message->[ID];
+        if ( not $self->{expecting} or not defined $offset ) {
             $self->drop_message( $message, 'unexpected message' )
                 if ( not $message->[TYPE] & TM_EOF );
             return;
@@ -177,8 +178,7 @@ sub fill {
         {
             $self->stderr( 'WARNING: skipping from ',
                 $self->{next_offset}, ' to ', $offset );
-            $self->reset_node;
-            return;
+            $self->next_offset(undef);
         }
         $self->{offset} //= $offset;
         if ( $message->[TYPE] & TM_EOF ) {
@@ -258,12 +258,7 @@ sub handle_error {
     my $message = shift;
     $self->stderr( $message->[PAYLOAD] )
         if ( $message->[PAYLOAD] ne "NOT_AVAILABLE\n" );
-    if ( defined $self->partition_id ) {
-        $self->remove_node;
-    }
-    else {
-        $self->arguments( $self->arguments );
-    }
+    $self->restart;
     return;
 }
 
@@ -291,13 +286,9 @@ sub fire {
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
-        $self->stderr('WARNING: timeout waiting for partition, trying again');
-        if ( defined $self->partition_id ) {
-            $self->remove_node;
-        }
-        else {
-            $self->arguments( $self->arguments );
-        }
+        $self->print_less_often(
+            'WARNING: timeout waiting for partition, trying again');
+        $self->restart;
         return;
     }
     if (    $self->{status} eq 'ACTIVE'
@@ -316,15 +307,18 @@ sub fire {
             $self->set_timer( $self->{poll_interval} * 1000 );
         }
     }
-    if ((   not $self->{max_unanswered}
-            or $self->{msg_unanswered} < $self->{max_unanswered}
-        )
-        and length ${ $self->{buffer} }
-        )
-    {
-        $self->drain_buffer;
+    if ( length ${ $self->{buffer} } ) {
+        if ( $self->{status} eq 'INIT' ) {
+            $self->drain_buffer_init;
+        }
+        elsif ( not $self->{max_unanswered} ) {
+            $self->drain_buffer_normal;
+        }
+        elsif ( $self->{msg_unanswered} < $self->{max_unanswered} ) {
+            $self->drain_buffer_persist;
+        }
     }
-    if ((   not $self->{max_unasnwered}
+    if ((   not $self->{max_unanswered}
             or $self->{msg_unanswered} < $self->{max_unanswered}
         )
         and not $self->{expecting}
@@ -335,11 +329,10 @@ sub fire {
     return;
 }
 
-sub drain_buffer {
+sub drain_buffer_init {
     my $self   = shift;
     my $offset = $self->{offset};
     my $buffer = $self->{buffer};
-    my $i      = $self->{partition_id};
     my $got    = length ${$buffer};
 
     # XXX:M
@@ -348,40 +341,15 @@ sub drain_buffer {
     #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
     #     : 0;
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-    while ( $got >= $size and $size > 0 ) {
+    while ( defined $self->{offset} and $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
-        if ( $self->{status} eq 'INIT' ) {
-            if ( $message->[TYPE] & TM_STORABLE ) {
-                $self->load_cache( $message->payload );
-            }
-            else {
-                $self->print_less_often( 'WARNING: unexpected ',
-                    $message->type_as_string, ' in cache' );
-            }
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
+        if ( $message->[TYPE] & TM_STORABLE ) {
+            $self->load_cache( $message->payload );
         }
         else {
-            $message->[FROM] =
-                defined $i
-                ? join q(/), $self->{name}, $i
-                : $self->{name};
-            $message->[TO] = $self->{owner};
-            $message->[ID] = $offset;
-            $self->{counter}++;
-            if ( not $self->{max_unanswered} ) {
-                $message->[TYPE] ^= TM_PERSIST
-                    if ( $message->[TYPE] & TM_PERSIST );
-                $self->{sink}->fill($message);
-            }
-            else {
-                $message->[TYPE] |= TM_PERSIST;
-                push @{ $self->{inflight} },
-                    [ $message->[ID] => $Tachikoma::Now ];
-                $self->{msg_unanswered}++;
-                $self->{sink}->fill($message);
-                $got = 0
-                    if ( $self->{msg_unanswered} >= $self->{max_unanswered} );
-            }
+            $self->print_less_often( 'WARNING: unexpected ',
+                $message->type_as_string, ' in cache' );
         }
         $offset += $size;
         $got -= $size;
@@ -393,7 +361,79 @@ sub drain_buffer {
         #     : 0;
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     }
-    if ( $self->{offset} != $offset ) {
+    if ( defined $self->{offset} and $self->{offset} != $offset ) {
+        $self->{last_receive} = $Tachikoma::Now;
+        $self->{offset}       = $offset;
+    }
+    return;
+}
+
+sub drain_buffer_normal {
+    my $self   = shift;
+    my $offset = $self->{offset};
+    my $buffer = $self->{buffer};
+    my $i      = $self->{partition_id};
+    my $got    = length ${$buffer};
+
+    # XXX:M
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
+    while ( defined $self->{offset} and $got >= $size and $size > 0 ) {
+        my $message =
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
+        $message->[FROM] =
+            defined $i
+            ? join q(/), $self->{name}, $i
+            : $self->{name};
+        $message->[TO] = $self->{owner};
+        $message->[ID] = $offset;
+        $message->[TYPE] ^= TM_PERSIST
+            if ( $message->[TYPE] & TM_PERSIST );
+        $self->{counter}++;
+        $self->{sink}->fill($message);
+        $offset += $size;
+        $got -= $size;
+
+        # XXX:M
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
+    }
+    if ( defined $self->{offset} and $self->{offset} != $offset ) {
+        $self->{last_receive} = $Tachikoma::Now;
+        $self->{offset}       = $offset;
+    }
+    return;
+}
+
+sub drain_buffer_persist {
+    my $self   = shift;
+    my $offset = $self->{offset};
+    my $buffer = $self->{buffer};
+    my $i      = $self->{partition_id};
+    my $got    = length ${$buffer};
+
+    # XXX:M
+    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
+    while ( defined $self->{offset} and $got >= $size and $size > 0 ) {
+        my $message =
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
+        $message->[FROM] =
+            defined $i
+            ? join q(/), $self->{name}, $i
+            : $self->{name};
+        $message->[TO] = $self->{owner};
+        $message->[ID] = $offset;
+        $message->[TYPE] |= TM_PERSIST;
+        push @{ $self->{inflight} }, [ $offset => $Tachikoma::Now ];
+        $self->{counter}++;
+        $self->{msg_unanswered}++;
+        $self->{sink}->fill($message);
+        $offset += $size;
+        $got -= $size;
+        last if ( $self->{msg_unanswered} >= $self->{max_unanswered} );
+
+        # XXX:M
+        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
+    }
+    if ( defined $self->{offset} and $self->{offset} != $offset ) {
         $self->{last_receive} = $Tachikoma::Now;
         $self->{offset}       = $offset;
     }
@@ -406,16 +446,21 @@ sub get_batch_async {
     return if ( not $self->{sink} );
     if ( not defined $offset ) {
         if ( $self->{status} eq 'INIT' ) {
-            $offset //= -2;
+            if ( $self->{cache_type} eq 'window' ) {
+                $offset = 0;
+            }
+            else {
+                $offset = -2;
+            }
         }
         elsif ( $self->default_offset eq 'start' ) {
-            $offset //= 0;
+            $offset = 0;
         }
         elsif ( $self->default_offset eq 'recent' ) {
-            $offset //= -2;
+            $offset = -2;
         }
         else {
-            $offset //= -1;
+            $offset = -1;
         }
         $self->next_offset($offset);
     }
@@ -450,13 +495,9 @@ sub expire_messages {
         and $Tachikoma::Now - $timestamp > $self->{timeout} )
     {
         $self->stderr('WARNING: timeout waiting for response, trying again');
-        if ( defined $self->partition_id ) {
-            $self->remove_node;
-        }
-        else {
-            $self->arguments( $self->arguments );
-            $self->next_offset($offset) if ( not $self->{offsetlog} );
-        }
+        $self->restart;
+        $self->next_offset($offset)
+            if ( not defined $self->partition_id and not $self->offsetlog );
         $retry = 1;
     }
     elsif ( $self->{auto_commit}
@@ -496,7 +537,7 @@ sub commit_offset_async {
     $message->[TO]      = $self->{offsetlog};
     $message->[PAYLOAD] = $stored;
     $self->{sink}->fill($message);
-    $self->{cache_size}         = $message->size;
+    $self->{last_cache_size}    = $message->size;
     $self->{last_commit}        = $Tachikoma::Now;
     $self->{last_commit_offset} = $offset;
     return;
@@ -533,6 +574,9 @@ sub load_cache_complete {
     my $i    = $self->{partition_id};
     if ( $self->{edge} and defined $i ) {
         if ( $self->{cache_type} eq 'window' ) {
+            if ( $self->{edge}->can('on_load_window_complete') ) {
+                $self->{edge}->on_load_window_complete($i);
+            }
             if ( $self->{edge}->can('on_save_window') ) {
                 $self->{edge}->on_save_window->[$i] = sub {
                     $self->commit_offset_async(@_);
@@ -561,12 +605,29 @@ sub load_cache_complete {
     return;
 }
 
+sub restart {
+    my $self = shift;
+    if ( defined $self->partition_id ) {
+        $self->remove_node;
+    }
+    else {
+        $self->arguments( $self->arguments );
+        $self->set_timer( $Startup_Delay * 1000 );
+    }
+    return;
+}
+
 sub owner {
     my $self = shift;
     if (@_) {
         $self->{owner} = shift;
         $self->last_receive($Tachikoma::Now);
-        $self->set_timer(0);
+        if ( defined $self->{partition_id} ) {
+            $self->set_timer(0);
+        }
+        else {
+            $self->set_timer( $Startup_Delay * 1000 );
+        }
     }
     return $self->{owner};
 }
@@ -578,26 +639,32 @@ sub edge {
         $self->{edge} = $edge;
         if ($edge) {
             my $i = $self->{partition_id};
-            $edge->new_cache($i)
-                if ( $edge and defined $i and $edge->can('new_cache') );
             $self->last_receive($Tachikoma::Now);
-            $self->set_timer(0);
+            if ( defined $i ) {
+                $edge->new_cache($i) if ( $edge->can('new_cache') );
+                $self->set_timer(0);
+            }
+            else {
+                $edge->new_cache if ( $edge->can('new_cache') );
+                $self->set_timer( $Startup_Delay * 1000 );
+            }
         }
     }
     return $self->{edge};
 }
 
-sub reset_node {
-    my $self = shift;
-    $self->next_offset(undef);
-    $self->edge( $self->{edge} );
-    return;
-}
-
 sub remove_node {
     my $self = shift;
     $self->name(q());
-    $self->reset_node;
+    $self->next_offset(undef);
+    if ( $self->{edge} and $self->{edge}->can('new_cache') ) {
+        if ( defined $self->{partition_id} ) {
+            $self->{edge}->new_cache( $self->{partition_id} );
+        }
+        else {
+            $self->{edge}->new_cache;
+        }
+    }
     return $self->SUPER::remove_node(@_);
 }
 
@@ -755,7 +822,7 @@ sub get_messages {
     my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
     while ( $got >= $size and $size > 0 ) {
         my $message =
-            Tachikoma::Message->new( \substr ${$buffer}, 0, $size, q() );
+            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
         $message->[ID] = join q(:), $offset, $offset + $size;
         $offset += $size;
@@ -941,12 +1008,12 @@ sub cache_type {
     return $self->{cache_type};
 }
 
-sub cache_size {
+sub last_cache_size {
     my $self = shift;
     if (@_) {
-        $self->{cache_size} = shift;
+        $self->{last_cache_size} = shift;
     }
-    return $self->{cache_size};
+    return $self->{last_cache_size};
 }
 
 sub auto_commit {

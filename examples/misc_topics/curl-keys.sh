@@ -1,5 +1,5 @@
 #!/bin/sh
-curl --netrc --data-binary '{
+curl --netrc --tls-max 1.2 --data-binary '{
     "op" : "keys",
     "field" : "server_log.'$1':index"
 }' \

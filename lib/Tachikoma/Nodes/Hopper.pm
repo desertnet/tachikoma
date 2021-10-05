@@ -53,7 +53,7 @@ sub fill {
         $self->SUPER::fill($message);
     }
     else {
-        my $copy = Tachikoma::Message->new( $message->packed );
+        my $copy = Tachikoma::Message->unpacked( $message->packed );
         push @{$queue}, $copy;
         $span = 0 if ( $span < 0 );
         $delay = $delay - $span * 1000 if ( $delay > $span * 1000 );
