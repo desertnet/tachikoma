@@ -420,8 +420,10 @@ sub on_save_snapshot {
 sub new_cache {
     my ( $self, $i ) = @_;
     if ( defined $i ) {
-        $self->{caches}->[$i]      = [];
-        $self->{next_window}->[$i] = 0;
+        if ( $i < $self->{num_partitions} ) {
+            $self->{caches}->[$i]      = [];
+            $self->{next_window}->[$i] = 0;
+        }
     }
     else {
         $self->{caches}      = [];

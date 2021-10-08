@@ -170,6 +170,9 @@ sub fill {
         $self->update_graph( $message->payload );
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
+        if ( $self->{edge} and $self->{edge}->can('new_cache') ) {
+            $self->{edge}->new_cache;
+        }
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->remove_node;
             delete $self->consumers->{$partition_id};
@@ -278,7 +281,6 @@ sub make_async_consumer {
         $consumer->broker_id($broker_id);
         $consumer->partition_id($partition_id);
         if ( $self->{group} ) {
-            $consumer->group( $self->group );
             $consumer->cache_type( $self->cache_type );
             if ( $self->cache_dir ) {
                 $consumer->cache_dir( $self->cache_dir );
@@ -326,8 +328,11 @@ sub edge {
     if (@_) {
         $self->{edge}       = shift;
         $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        if ( $self->{edge} and $self->{edge}->can('new_cache') ) {
+            $self->{edge}->new_cache;
+        }
         for my $partition_id ( keys %{ $self->consumers } ) {
-            $self->consumers->{$partition_id}->edge( $self->{owner} );
+            $self->consumers->{$partition_id}->edge( $self->{edge} );
         }
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
@@ -336,6 +341,9 @@ sub edge {
 
 sub remove_node {
     my $self = shift;
+    if ( $self->{edge} and $self->{edge}->can('new_cache') ) {
+        $self->{edge}->new_cache;
+    }
     for my $partition_id ( keys %{ $self->consumers } ) {
         $self->consumers->{$partition_id}->remove_node;
     }
