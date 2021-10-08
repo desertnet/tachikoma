@@ -52,7 +52,6 @@ sub new {
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
     $self->{default_offset}  = 'end';
-    $self->{group}           = undef;
     $self->{buffer}          = \$new_buffer;
     $self->{poll_interval}   = $Poll_Interval;
     $self->{last_receive}    = Time::HiRes::time;
@@ -958,14 +957,6 @@ sub default_offset {
         $self->next_offset(undef);
     }
     return $self->{default_offset};
-}
-
-sub group {
-    my $self = shift;
-    if (@_) {
-        $self->{group} = shift;
-    }
-    return $self->{group};
 }
 
 sub buffer {
