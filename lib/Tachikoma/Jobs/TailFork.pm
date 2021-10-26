@@ -113,26 +113,8 @@ sub fill {
         $self->{timer}->remove_node;
     }
     elsif ( $message->[PAYLOAD] =~ m{^dump(?:\s+(\S+))?\s*\n$} ) {
-        my $name     = $1;
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE] = TM_BYTESTREAM;
-        $response->[TO]   = $message->[FROM];
-        if ($name) {
-            my $copy = bless { %{ $Tachikoma::Nodes{$name} } }, 'main';
-            my %normal = map { $_ => 1 } qw( SCALAR ARRAY HASH );
-            for my $key ( keys %{$copy} ) {
-                my $value    = $copy->{$key};
-                my $ref_type = ref $value;
-                $copy->{$key} = $ref_type
-                    if ( $ref_type and not $normal{$ref_type} );
-            }
-            $response->[PAYLOAD] = Dumper($copy);
-        }
-        else {
-            $response->[PAYLOAD] =
-                join( "\n", sort keys %Tachikoma::Nodes ) . "\n";
-        }
-        $self->SUPER::fill($response);
+        my $name = $1;
+        $self->dump_node( $message, $name );
     }
     else {
         $self->stderr( 'WARNING: unexpected message from ',
@@ -168,6 +150,32 @@ sub request_shutdown {
         $message->[TYPE] = TM_KILLME;
         $self->SUPER::fill($message);
     }
+    return;
+}
+
+sub dump_node {
+    my $self     = shift;
+    my $message  = shift;
+    my $name     = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE] = TM_BYTESTREAM;
+    $response->[TO]   = $message->[FROM];
+    if ($name) {
+        my $copy = bless { %{ $Tachikoma::Nodes{$name} } }, 'main';
+        my %normal = map { $_ => 1 } qw( SCALAR ARRAY HASH );
+        for my $key ( keys %{$copy} ) {
+            my $value    = $copy->{$key};
+            my $ref_type = ref $value;
+            $copy->{$key} = $ref_type
+                if ( $ref_type and not $normal{$ref_type} );
+        }
+        $response->[PAYLOAD] = Dumper($copy);
+    }
+    else {
+        $response->[PAYLOAD] =
+            join( "\n", sort keys %Tachikoma::Nodes ) . "\n";
+    }
+    $self->SUPER::fill($response);
     return;
 }
 
