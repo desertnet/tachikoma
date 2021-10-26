@@ -1660,7 +1660,6 @@ sub empty_topics {
             }
         }
     }
-    $self->rebalance_partitions;
     return;
 }
 
@@ -1694,7 +1693,6 @@ sub empty_groups {
             }
         }
     }
-    $self->rebalance_partitions;
     return;
 }
 
