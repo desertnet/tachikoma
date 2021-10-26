@@ -304,10 +304,6 @@ sub fire {
         $self->determine_controller;
     }
     $self->send_heartbeat;
-    if ( $Tachikoma::Right_Now - $Last_LCO_Send > $LCO_Send_Interval ) {
-        $self->send_lco;
-        $Last_LCO_Send = $Tachikoma::Right_Now;
-    }
     my $total  = keys %{ $self->{brokers} };
     my $online = $self->check_heartbeats;
     if ( not $total or $online <= $total / 2 ) {
@@ -318,7 +314,11 @@ sub fire {
     elsif ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
         $self->process_rebalance( $total, $online );
     }
-    elsif ( $self->{is_controller}
+    elsif ( $Tachikoma::Right_Now - $Last_LCO_Send > $LCO_Send_Interval ) {
+        $self->send_lco;
+        $Last_LCO_Send = $Tachikoma::Right_Now;
+    }
+    if (    $self->{is_controller}
         and defined $self->{last_check}
         and $Tachikoma::Now - $self->{last_check} > $Check_Interval )
     {
@@ -562,7 +562,8 @@ sub send_lco {
     $message->[PAYLOAD] = {
         type       => 'LAST_COMMIT_OFFSETS',
         partitions => $broker_lco,
-        stats      => $broker_stats
+        stats      => $broker_stats,
+        status     => $self->{status},
     };
     if ($from) {
         $message->[TO] = $from;
@@ -585,10 +586,23 @@ sub send_lco {
 sub update_lco {
     my $self    = shift;
     my $message = shift;
+    my $payload = $message->payload;
     $self->{last_commit_offsets}->{ $message->[STREAM] } =
-        $message->payload->{partitions};
+        $payload->{partitions};
     $self->{broker_stats}->{ $message->[STREAM] } =
-        $message->payload->{stats};
+        $payload->{stats};
+    my $local_status  = $self->{status};
+    my $remote_status = $payload->{status};
+    $local_status  = 'ACTIVE' if ( $local_status eq 'CONTROLLER' );
+    $remote_status = 'ACTIVE' if ( $remote_status eq 'CONTROLLER' );
+
+    if ( $local_status ne $remote_status ) {
+        $self->stderr(
+            'WARNING: local status ', $self->{status},
+            ' != remote status ',     $payload->{status}
+        );
+        $self->rebalance_partitions('inform_brokers');
+    }
     return;
 }
 
@@ -614,7 +628,7 @@ sub check_heartbeats {
         $online++;
         $votes++ if ( $self->{votes}->{$broker_id} );
     }
-    if ( $online >= $total / 2 and $online == $votes ) {
+    if ( $online > $total / 2 and $online == $votes ) {
         $self->{is_controller} = 1;
     }
     else {
