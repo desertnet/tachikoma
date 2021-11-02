@@ -142,10 +142,13 @@ sub arguments {
             if ( not $arguments );
         my ( $broker_id, $path, $stick ) = split q( ), $arguments, 3;
         $path //= $Path;
-        $self->{arguments} = $arguments;
-        $self->{broker_id} = $broker_id;
-        $self->{path}      = $path;
-        $self->{stick}     = $stick;
+        $self->{arguments}   = $arguments;
+        $self->{broker_id}   = $broker_id;
+        $self->{path}        = $path;
+        $self->{stick}       = $stick;
+        $self->{last_check}  = $Tachikoma::Now;
+        $self->{last_delete} = $Tachikoma::Now;
+        $self->{last_save}   = $Tachikoma::Now;
         $self->load_topics if ( -e $self->{path} );
     }
     return $self->{arguments};
