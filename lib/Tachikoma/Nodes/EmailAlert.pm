@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::ErrorMonitor
+# Tachikoma::Nodes::EmailAlert
 # ----------------------------------------------------------------------
 #
-# $Id: ErrorMonitor.pm 12689 2012-02-01 01:24:14Z chris $
+# $Id: EmailAlert.pm 12689 2012-02-01 01:24:14Z chris $
 #
 
-package Tachikoma::Nodes::ErrorMonitor;
+package Tachikoma::Nodes::EmailAlert;
 use strict;
 use warnings;
 use Tachikoma::Message qw(

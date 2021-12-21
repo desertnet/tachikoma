@@ -49,7 +49,7 @@ lib/Tachikoma/Nodes/ConsumerGroup.pm
 lib/Tachikoma/Nodes/DirWatcher.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
-lib/Tachikoma/Nodes/ErrorMonitor.pm
+lib/Tachikoma/Nodes/EmailAlert.pm
 lib/Tachikoma/Nodes/FileController.pm
 lib/Tachikoma/Nodes/FileHandle.pm
 lib/Tachikoma/Nodes/FileReceiver.pm
