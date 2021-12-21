@@ -46,6 +46,7 @@ my @default_configs = (
 my $config_file = undef;
 my $host        = 'localhost';
 my $port        = 5601;
+my $use_SSL     = undef;
 my $prefix      = undef;
 my $quiet       = undef;
 my $timeout     = 180;
@@ -60,6 +61,7 @@ my $r = GetOptions(
     'config=s'  => \$config_file,
     'host=s'    => \$host,
     'port=i'    => \$port,
+    'use-ssl'   => \$use_SSL,
     'prefix=s'  => \$prefix,
     'quiet'     => \$quiet,
     'timeout=s' => \$timeout,
@@ -75,7 +77,7 @@ $prefix ||= $ARGV[0];
 $quiet ||= isatty(*STDIN) ? undef : 1;
 
 # connect
-my $tachikoma = Tachikoma->inet_client( $host, $port );
+my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
 $tachikoma->timeout($timeout);
 
 # blow out the tubes
