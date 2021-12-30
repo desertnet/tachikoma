@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Callback
 # ----------------------------------------------------------------------
 #
-# $Id: Callback.pm 34405 2018-07-06 12:56:26Z chris $
-#
 
 package Tachikoma::Nodes::Callback;
 use strict;

@@ -3,8 +3,7 @@
 # tachikoma job tests
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
 use Test::More tests => 52;

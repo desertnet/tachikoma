@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Scheduler
 # ----------------------------------------------------------------------
 #
-# $Id: Scheduler.pm 39768 2021-01-18 21:19:30Z chris $
-#
 
 package Tachikoma::Nodes::Scheduler;
 use strict;

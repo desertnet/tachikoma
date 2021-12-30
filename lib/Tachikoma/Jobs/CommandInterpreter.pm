@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37407 2019-04-20 21:25:35Z chris $
-#
 
 package Tachikoma::Jobs::CommandInterpreter;
 use strict;

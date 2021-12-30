@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::LWP
 # ----------------------------------------------------------------------
 #
-# $Id: LWP.pm 3301 2009-09-24 03:33:18Z chris $
-#
 
 package Tachikoma::Nodes::LWP;
 use strict;

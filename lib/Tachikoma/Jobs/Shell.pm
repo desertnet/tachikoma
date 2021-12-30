@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 39959 2021-03-09 05:43:22Z chris $
-#
 
 package Tachikoma::Jobs::Shell;
 use strict;

@@ -3,8 +3,6 @@
 # Accessories::Nodes::SFE4DigitLED
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Accessories::Nodes::SFE4DigitLED;
 use strict;

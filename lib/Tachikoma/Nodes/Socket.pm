@@ -9,8 +9,6 @@
 #                  - heartbeats and latency scores to reset bad connections
 #                  - on_EOF: close, send, ignore, reconnect
 #
-# $Id: Socket.pm 27118 2016-09-20 18:29:02Z chris $
-#
 
 package Tachikoma::Nodes::Socket;
 use strict;

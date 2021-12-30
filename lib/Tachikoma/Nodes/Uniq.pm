@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Uniq
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Uniq;
 use strict;

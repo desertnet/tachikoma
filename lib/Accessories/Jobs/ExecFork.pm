@@ -3,8 +3,6 @@
 # Accessories::Jobs::ExecFork
 # ----------------------------------------------------------------------
 #
-# $Id: ExecFork.pm 38388 2019-12-04 08:32:30Z chris $
-#
 
 package Accessories::Jobs::ExecFork;
 use strict;

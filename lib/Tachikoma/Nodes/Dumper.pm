@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 40348 2021-05-15 22:12:24Z chris $
-#
 
 package Tachikoma::Nodes::Dumper;
 use strict;

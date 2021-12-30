@@ -3,8 +3,7 @@
 # TopicTop client
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
 use Tachikoma;

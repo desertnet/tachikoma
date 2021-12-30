@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::FileController
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::FileController;
 use strict;

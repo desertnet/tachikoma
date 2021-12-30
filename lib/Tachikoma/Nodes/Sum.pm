@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Sum
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Sum;
 use strict;

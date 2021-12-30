@@ -3,8 +3,6 @@
 # Tachikoma::Message
 # ----------------------------------------------------------------------
 #
-# $Id: Message.pm 30962 2017-10-25 18:31:18Z chris $
-#
 
 package Tachikoma::Message;
 use strict;

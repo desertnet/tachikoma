@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::RegexTee
 # ----------------------------------------------------------------------
 #
-# $Id: RegexTee.pm 37951 2019-08-16 02:48:30Z chris $
-#
 
 package Tachikoma::Nodes::RegexTee;
 use strict;

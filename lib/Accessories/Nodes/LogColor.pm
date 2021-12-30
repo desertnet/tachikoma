@@ -3,8 +3,6 @@
 # Accessories::Nodes::LogColor
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Accessories::Nodes::LogColor;
 use strict;

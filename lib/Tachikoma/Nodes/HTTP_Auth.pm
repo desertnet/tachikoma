@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::HTTP_Auth;
 use strict;

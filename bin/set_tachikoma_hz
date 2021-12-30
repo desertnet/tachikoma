@@ -3,8 +3,6 @@
 # set_tachikoma_hz
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 use strict;
 use warnings;
 use Tachikoma;
@@ -25,7 +23,7 @@ open my $fh, '>', $hz_file or die "couldn't open $hz_file: $!";
 print {$fh} <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# \$Id\$
+# tachikoma server global polling interval
 # ----------------------------------------------------------------------
 
 use strict;

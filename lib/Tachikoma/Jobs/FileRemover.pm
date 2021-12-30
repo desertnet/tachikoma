@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::FileRemover
 # ----------------------------------------------------------------------
 #
-# $Id: FileRemover.pm 35512 2018-10-22 08:27:21Z chris $
-#
 # FileRemover simply accepts the path to a file, and after thoroughly
 # validating that path, moves it to a new location.
 #

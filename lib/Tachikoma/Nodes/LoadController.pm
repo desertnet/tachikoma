@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::LoadController
 # ----------------------------------------------------------------------
 #
-# $Id: LoadController.pm 8576 2010-09-24 06:14:51Z chris $
-#
 
 package Tachikoma::Nodes::LoadController;
 use strict;

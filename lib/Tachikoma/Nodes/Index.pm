@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Index
 # ----------------------------------------------------------------------
 #
-# $Id: Index.pm 31247 2017-11-06 05:42:49Z chris $
-#
 
 package Tachikoma::Nodes::Index;
 use strict;

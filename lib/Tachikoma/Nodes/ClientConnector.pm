@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::ClientConnector
 # ----------------------------------------------------------------------
 #
-# $Id: ClientConnector.pm 3511 2009-10-08 00:18:42Z chris $
-#
 
 package Tachikoma::Nodes::ClientConnector;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Substr
 # ----------------------------------------------------------------------
 #
-# $Id: Substr.pm 11165 2011-08-03 03:11:07Z chris $
-#
 
 package Tachikoma::Nodes::Substr;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Crypto
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Crypto;
 use strict;

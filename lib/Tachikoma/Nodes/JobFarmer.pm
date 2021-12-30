@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 39973 2021-03-09 06:28:12Z chris $
-#
 
 package Tachikoma::Nodes::JobFarmer;
 use strict;

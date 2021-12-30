@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::EmailAlert
 # ----------------------------------------------------------------------
 #
-# $Id: EmailAlert.pm 12689 2012-02-01 01:24:14Z chris $
-#
 
 package Tachikoma::Nodes::EmailAlert;
 use strict;

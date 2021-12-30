@@ -3,8 +3,7 @@
 # tachikoma node tests
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
 use Test::More tests => 3180;

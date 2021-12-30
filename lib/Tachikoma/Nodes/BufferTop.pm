@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::BufferTop
 # ----------------------------------------------------------------------
 #
-# $Id: BufferTop.pm 12254 2011-11-12 21:54:29Z chris $
-#
 
 package Tachikoma::Nodes::BufferTop;
 use strict;

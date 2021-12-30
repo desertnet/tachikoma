@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Reducer
 # ----------------------------------------------------------------------
 #
-# $Id: Reducer.pm 4031 2009-12-30 22:56:38Z chris $
-#
 
 package Tachikoma::Nodes::Reducer;
 use strict;

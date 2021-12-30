@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::BShell
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Jobs::BShell;
 use strict;

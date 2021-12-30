@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Table
 # ----------------------------------------------------------------------
 #
-# $Id: Table.pm 31247 2017-11-06 05:42:49Z chris $
-#
 
 package Tachikoma::Nodes::Table;
 use strict;

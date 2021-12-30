@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Tail
 # ----------------------------------------------------------------------
 #
-# $Id: Tail.pm 32953 2018-02-09 10:17:30Z chris $
-#
 
 package Tachikoma::Jobs::Tail;
 use strict;

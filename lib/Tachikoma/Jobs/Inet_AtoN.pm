@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Inet_AtoN
 # ----------------------------------------------------------------------
 #
-# $Id: Inet_AtoN.pm 35958 2018-11-29 01:37:07Z chris $
-#
 
 package Tachikoma::Jobs::Inet_AtoN;
 use strict;

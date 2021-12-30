@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::TimedList
 # ----------------------------------------------------------------------
 #
-# $Id: TimedList.pm 9677 2011-01-08 01:39:41Z chris $
-#
 
 package Tachikoma::Nodes::TimedList;
 use strict;

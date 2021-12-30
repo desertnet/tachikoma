@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::LogPrefix
 # ----------------------------------------------------------------------
 #
-# $Id: LogPrefix.pm 9795 2011-01-19 02:43:21Z chris $
-#
 
 package Tachikoma::Nodes::LogPrefix;
 use strict;

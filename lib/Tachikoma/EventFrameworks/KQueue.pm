@@ -3,8 +3,6 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::EventFrameworks::KQueue;
 use strict;

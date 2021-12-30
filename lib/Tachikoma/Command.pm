@@ -3,8 +3,6 @@
 # Tachikoma::Command
 # ----------------------------------------------------------------------
 #
-# $Id: Command.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Command;
 use strict;

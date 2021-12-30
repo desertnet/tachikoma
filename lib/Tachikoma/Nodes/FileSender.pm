@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::FileSender
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::FileSender;
 use strict;

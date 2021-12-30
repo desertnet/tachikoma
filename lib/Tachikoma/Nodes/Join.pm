@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Join
 # ----------------------------------------------------------------------
 #
-# $Id: Join.pm 40998 2021-09-09 22:10:09Z chris $
-#
 
 package Tachikoma::Nodes::Join;
 use strict;

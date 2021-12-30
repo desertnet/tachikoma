@@ -7,8 +7,6 @@
 #             wait_to_send, wait_to_close, wait_to_delete,
 #             wait_for_delete, wait_for_a_while
 #
-# $Id: Tail.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::Tail;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Aggregate
 # ----------------------------------------------------------------------
 #
-# $Id: Aggregate.pm 35512 2018-10-22 08:27:21Z chris $
-#
 
 package Tachikoma::Nodes::Aggregate;
 use strict;

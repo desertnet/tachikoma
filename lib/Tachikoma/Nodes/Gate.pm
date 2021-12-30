@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Gate
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Gate;
 use strict;

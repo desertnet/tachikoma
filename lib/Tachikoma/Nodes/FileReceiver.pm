@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::FileReceiver
 # ----------------------------------------------------------------------
 #
-# $Id: FileReceiver.pm 34052 2018-06-01 16:45:27Z chris $
-#
 
 package Tachikoma::Nodes::FileReceiver;
 use strict;

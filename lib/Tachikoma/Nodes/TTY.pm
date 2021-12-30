@@ -5,8 +5,6 @@
 #
 # Tachikoma::Nodes::STDIO plus Readline support
 #
-# $Id: TTY.pm 37026 2019-03-29 12:05:59Z chris $
-#
 
 package Tachikoma::Nodes::TTY;
 use strict;

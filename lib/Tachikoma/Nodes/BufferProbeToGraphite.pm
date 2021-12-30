@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::BufferProbeToGraphite
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::BufferProbeToGraphite;
 use strict;

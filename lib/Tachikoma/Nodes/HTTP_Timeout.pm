@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::HTTP_Timeout
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Timeout.pm 40923 2021-09-01 00:48:32Z chris $
-#
 
 package Tachikoma::Nodes::HTTP_Timeout;
 use strict;

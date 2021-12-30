@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::DirStats
 # ----------------------------------------------------------------------
 #
-# $Id: DirStats.pm 415 2008-12-24 21:08:33Z chris $
-#
 
 package Tachikoma::Jobs::DirStats;
 use strict;

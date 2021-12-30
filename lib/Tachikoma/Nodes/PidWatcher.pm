@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::PidWatcher
 # ----------------------------------------------------------------------
 #
-# $Id: PidWatcher.pm 20143 2014-07-29 23:15:57Z chris $
-#
 
 package Tachikoma::Nodes::PidWatcher;
 use strict;

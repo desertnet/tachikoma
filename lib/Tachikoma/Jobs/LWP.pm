@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::LWP
 # ----------------------------------------------------------------------
 #
-# $Id: LWP.pm 3033 2009-09-15 08:02:14Z chris $
-#
 
 package Tachikoma::Jobs::LWP;
 use strict;

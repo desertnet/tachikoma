@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::JobController;
 use strict;

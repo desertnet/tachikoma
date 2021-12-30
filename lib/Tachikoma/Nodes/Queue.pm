@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Queue
 # ----------------------------------------------------------------------
 #
-# $Id: Queue.pm 21099 2014-11-19 02:21:55Z chris $
-#
 
 package Tachikoma::Nodes::Queue;
 use strict;

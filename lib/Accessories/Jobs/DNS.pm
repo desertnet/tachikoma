@@ -3,8 +3,6 @@
 # Accessories::Jobs::DNS
 # ----------------------------------------------------------------------
 #
-# $Id: DNS.pm 415 2008-12-24 21:08:33Z chris $
-#
 
 package Accessories::Jobs::DNS;
 use strict;

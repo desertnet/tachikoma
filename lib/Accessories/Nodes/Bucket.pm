@@ -3,8 +3,6 @@
 # Accessories::Nodes::Bucket
 # ----------------------------------------------------------------------
 #
-# $Id: Bucket.pm 536 2009-01-04 00:43:07Z chris $
-#
 
 package Accessories::Nodes::Bucket;
 use strict;

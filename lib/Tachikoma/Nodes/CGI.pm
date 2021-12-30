@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::CGI
 # ----------------------------------------------------------------------
 #
-# $Id: CGI.pm 3301 2009-09-24 03:33:18Z chris $
-#
 
 package Tachikoma::Nodes::CGI;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Tee
 # ----------------------------------------------------------------------
 #
-# $Id: Tee.pm 40969 2021-09-02 05:06:07Z chris $
-#
 
 package Tachikoma::Nodes::Tee;
 use strict;

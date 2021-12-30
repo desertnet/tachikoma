@@ -1,4 +1,9 @@
 #!/usr/bin/perl
+# ----------------------------------------------------------------------
+# tachikoma server authorized keys generation
+# ----------------------------------------------------------------------
+#
+
 use strict;
 use warnings;
 our %Keys;
@@ -55,8 +60,9 @@ sub generate_authorized_keys {
 print <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# \$Id\$
+# tachikoma server authorized keys
 # ----------------------------------------------------------------------
+#
 
 use strict;
 use warnings;

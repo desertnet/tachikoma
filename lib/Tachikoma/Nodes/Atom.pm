@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Atom
 # ----------------------------------------------------------------------
 #
-# $Id: Atom.pm 536 2009-01-04 00:43:07Z chris $
-#
 
 package Tachikoma::Nodes::Atom;
 use strict;

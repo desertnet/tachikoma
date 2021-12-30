@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 39963 2021-03-09 06:02:38Z chris $
-#
 
 package Tachikoma::Nodes::LoadBalancer;
 use strict;

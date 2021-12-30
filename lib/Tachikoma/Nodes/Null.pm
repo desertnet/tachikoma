@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Null
 # ----------------------------------------------------------------------
 #
-# $Id: Null.pm 37101 2019-03-30 23:08:39Z chris $
-#
 
 package Tachikoma::Nodes::Null;
 use strict;

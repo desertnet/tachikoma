@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Ruleset
 # ----------------------------------------------------------------------
 #
-# $Id: Ruleset.pm 4142 2010-01-21 23:17:02Z chris $
-#
 
 package Tachikoma::Nodes::Ruleset;
 use strict;

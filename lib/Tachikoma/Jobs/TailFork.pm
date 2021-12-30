@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::TailFork
 # ----------------------------------------------------------------------
 #
-# $Id: TailFork.pm 9686 2011-01-08 07:17:51Z chris $
-#
 
 package Tachikoma::Jobs::TailFork;
 use strict;

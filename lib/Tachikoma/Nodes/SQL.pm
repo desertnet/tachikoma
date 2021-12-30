@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::SQL
 # ----------------------------------------------------------------------
 #
-# $Id: SQL.pm 23016 2015-07-24 21:29:45Z chris $
-#
 
 package Tachikoma::Nodes::SQL;
 use strict;

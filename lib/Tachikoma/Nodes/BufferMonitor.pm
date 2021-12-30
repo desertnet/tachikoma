@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::BufferMonitor
 # ----------------------------------------------------------------------
 #
-# $Id: BufferMonitor.pm 12689 2012-02-01 01:24:14Z chris $
-#
 
 package Tachikoma::Nodes::BufferMonitor;
 use strict;

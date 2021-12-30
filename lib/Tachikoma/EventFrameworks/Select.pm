@@ -3,8 +3,6 @@
 # Tachikoma::EventFrameworks::Select
 # ----------------------------------------------------------------------
 #
-# $Id: Select.pm 39072 2020-07-11 03:56:45Z chris $
-#
 
 package Tachikoma::EventFrameworks::Select;
 use strict;

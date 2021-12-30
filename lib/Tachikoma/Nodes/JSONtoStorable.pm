@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::JSONtoStorable
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::JSONtoStorable;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::SudoFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: SudoFarmer.pm 17140 2013-07-17 06:12:25Z chris $
-#
 
 package Tachikoma::Nodes::SudoFarmer;
 use strict;

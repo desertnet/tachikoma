@@ -5,8 +5,6 @@
 #
 #   - Manages Partitions and ConsumerGroups
 #
-# $Id: Broker.pm 29406 2017-04-29 11:18:09Z chris $
-#
 
 package Tachikoma::Nodes::Broker;
 use strict;

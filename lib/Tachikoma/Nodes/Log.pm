@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 40369 2021-05-16 17:28:16Z chris $
-#
 
 package Tachikoma::Nodes::Log;
 use strict;

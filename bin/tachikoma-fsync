@@ -3,8 +3,6 @@
 # tachikoma fsync client
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 use strict;
 use warnings;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Function
 # ----------------------------------------------------------------------
 #
-# $Id: Function.pm 2915 2009-09-09 03:38:21Z chris $
-#
 
 package Tachikoma::Nodes::Function;
 use strict;

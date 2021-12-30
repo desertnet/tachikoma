@@ -3,8 +3,6 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Job;
 use strict;

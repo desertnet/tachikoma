@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Split
 # ----------------------------------------------------------------------
 #
-# $Id: Split.pm 41002 2021-09-10 05:17:01Z chris $
-#
 
 package Tachikoma::Nodes::Split;
 use strict;

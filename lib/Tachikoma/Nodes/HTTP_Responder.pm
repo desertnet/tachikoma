@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::HTTP_Responder
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Responder.pm 40883 2021-08-31 18:21:52Z chris $
-#
 
 package Tachikoma::Nodes::HTTP_Responder;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::AltKV
 # ----------------------------------------------------------------------
 #
-# $Id: AltKV.pm 37661 2019-06-19 00:33:01Z chris $
-#
 
 package Tachikoma::Nodes::AltKV;
 use strict;

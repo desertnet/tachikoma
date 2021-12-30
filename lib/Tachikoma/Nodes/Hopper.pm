@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Hopper
 # ----------------------------------------------------------------------
 #
-# $Id: Hopper.pm 8952 2010-12-02 08:23:52Z chris $
-#
 
 package Tachikoma::Nodes::Hopper;
 use strict;

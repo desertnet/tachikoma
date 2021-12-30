@@ -5,8 +5,6 @@
 #
 #  - duct tape everything together at the last minute
 #
-# $Id: Responder.pm 36806 2019-03-20 17:59:15Z chris $
-#
 
 package Tachikoma::Nodes::Responder;
 use strict;

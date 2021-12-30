@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Log
 # ----------------------------------------------------------------------
 #
-# $Id: Log.pm 32953 2018-02-09 10:17:30Z chris $
-#
 
 package Tachikoma::Jobs::Log;
 use strict;

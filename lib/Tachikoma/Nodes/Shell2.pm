@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Shell2
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Shell2;
 use strict;

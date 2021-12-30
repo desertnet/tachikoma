@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::CGI
 # ----------------------------------------------------------------------
 #
-# $Id: CGI.pm 3033 2009-09-15 08:02:14Z chris $
-#
 
 package Tachikoma::Jobs::CGI;
 use strict;

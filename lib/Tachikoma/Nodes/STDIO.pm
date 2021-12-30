@@ -7,8 +7,6 @@
 # If Tachikoma had a single edge, this module would be it.
 #   - on_EOF: close, send, ignore, reconnect
 #
-# $Id: STDIO.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::STDIO;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::TailProbe
 # ----------------------------------------------------------------------
 #
-# $Id: TailProbe.pm 9044 2010-12-05 01:38:21Z chris $
-#
 
 package Tachikoma::Nodes::TailProbe;
 use strict;

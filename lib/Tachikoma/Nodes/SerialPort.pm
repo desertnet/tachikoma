@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::SerialPort
 # ----------------------------------------------------------------------
 #
-# $Id: SerialPort.pm 35585 2018-10-24 02:44:55Z chris $
-#
 
 package Tachikoma::Nodes::SerialPort;
 use strict;

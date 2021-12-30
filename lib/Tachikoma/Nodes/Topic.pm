@@ -5,8 +5,6 @@
 #
 #   - Sends messages to Partitions
 #
-# $Id: Topic.pm 29406 2017-04-29 11:18:09Z chris $
-#
 
 package Tachikoma::Nodes::Topic;
 use strict;

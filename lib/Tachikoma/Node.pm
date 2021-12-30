@@ -3,8 +3,6 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 41136 2021-09-17 08:08:00Z chris $
-#
 
 package Tachikoma::Node;
 use strict;

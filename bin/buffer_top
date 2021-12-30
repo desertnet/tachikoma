@@ -3,8 +3,6 @@
 # BufferTop client
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 use strict;
 use warnings;
 use Tachikoma;

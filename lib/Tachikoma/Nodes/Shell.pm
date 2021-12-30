@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::Shell;
 use strict;

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 40980 2021-09-02 07:41:09Z chris $
-#
 
 package Tachikoma::Nodes::CommandInterpreter;
 use strict;
