@@ -43,14 +43,18 @@ $tachikoma->timeout(60);
 while (1) {
     my $line = <STDIN>;
     push( @lines, $line ) if ( defined $line );
-    next if ( defined $line and @lines < $batch_size and time - $last < 1 );
+    $Tachikoma::Now = time;
+    next
+        if (defined $line
+        and @lines < $batch_size
+        and $Tachikoma::Now - $last < 1 );
     while ( @lines and not send_messages( $to, \@lines ) ) {
         sleep 1;
         $tachikoma = $tachikoma->reconnect;
     }
     last if ( not defined $line or not @lines );
     @lines = ();
-    $last  = time;
+    $last  = $Tachikoma::Now;
 }
 print "ok\n";
 exit 0;
