@@ -57,3 +57,8 @@ if [ ! -d ~/.tachikoma/tls ] ; then
     ./genkey net.desert $config server
     mv tls/$config ~/.tachikoma/tls
 fi
+
+# extras
+if which install_tachikoma_extra > /dev/null 2>&1 ; then
+    install_tachikoma_extra
+fi
