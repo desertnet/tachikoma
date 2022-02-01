@@ -149,5 +149,5 @@ function tick() {
 }
 
 function date_string(date) {
-    return date.toISOString().replace(/T/, " ").replace(/Z/, " ");
+    return date.toISOString().replace(/T/, "&nbsp;").replace(/Z/, "");
 }
