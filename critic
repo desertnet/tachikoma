@@ -133,6 +133,7 @@ lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/ExecFork.pm
 lib/Accessories/Jobs/Fortune.pm
 lib/Accessories/Nodes/Bucket.pm
+lib/Accessories/Nodes/Clock.pm
 lib/Accessories/Nodes/IndexByHostname.pm
 lib/Accessories/Nodes/IndexByProcess.pm
 lib/Accessories/Nodes/LogColor.pm
