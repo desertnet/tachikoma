@@ -65,6 +65,7 @@ sub fire {
         my $tiedhash = $node->tiedhash;
         my $files    = $node->files;
         for my $name ( sort keys %{$tiedhash} ) {
+            next if ( not exists $files->{$name} );
             my $filename = $files->{$name}->[0];
             my $tail_name = join q(/), $self->{prefix}, $name;
             $tail_name =~ s{:}{_}g;
