@@ -1,15 +1,13 @@
 var server_host      = window.location.hostname;
 var server_port      = window.location.port;
-var server_path      = "/cgi-bin/topic.cgi"
+var server_path      = "/cgi-bin/tail.cgi"
 var topic            = "tasks";
-var partition        = 0;
 var parsed_url       = new URL(window.location.href);
 var count            = parsed_url.searchParams.get("count")    || 1000;
 var interval         = parsed_url.searchParams.get("interval") || 33;
 var prefix_url       = "https://" + server_host + ":" + server_port
                      + server_path + "/"
-                     + topic       + "/"
-                     + partition;
+                     + topic;
 var last_url         = prefix_url  + "/last/"   + count;
 var recent_url       = prefix_url  + "/recent/" + count;
 var server_url       = last_url;
@@ -40,7 +38,7 @@ function start_timer() {
             fetch_timer = setTimeout(tick, 1000);
         }
     };
-    fetch_timer   = setTimeout(tick, 0);
+    fetch_timer   = setTimeout(tick, 100);
     display_timer = setInterval(display_table, interval);
 }
 
@@ -77,7 +75,7 @@ function update_table(msg) {
         var value = msg.payload[i].value
                  || msg.payload[i].payload
                  || "";
-        var escaped = value.replace(/</g,"&lt;").replace(/&/g,"&amp;");
+        var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
         var row = tr + "<td>" + date_string(date) + "</td>"
                      + "<td>" + type              + "</td>"
                      + "<td>" + key_href          + "</td>"
