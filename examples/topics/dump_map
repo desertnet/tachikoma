@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
+use Data::Dumper;
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+$Data::Dumper::Useperl  = 1;
+
+my $topic    = $ARGV[0];
+my $consumer = Tachikoma::Nodes::ConsumerBroker->new( $topic );
+print Dumper( $consumer->get_partitions );
+if ( $consumer->sync_error ) {
+    print STDERR $consumer->sync_error;
+    exit 1;
+}
