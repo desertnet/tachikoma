@@ -147,12 +147,10 @@ sub fire {
 
 sub handle_response {
     my ( $self, $message, $next, $from ) = @_;
-    if ( $message->[TYPE] & TM_RESPONSE ) {
-        $self->{load_balancer}->handle_response($message);
-    }
-    elsif ( not length $message->[TO] ) {
+    if ( not $message->[TYPE] & TM_RESPONSE and not length $message->[TO] ) {
         $message->[TO] = $self->{owner};
     }
+    $self->{load_balancer}->handle_response($message);
     if ( $self->{autokill} ) {
         $self->stamp_message( $message, $self->{name} );
     }

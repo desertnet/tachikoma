@@ -85,7 +85,7 @@ sub fill {
         return $self->handle_EOF( $message, $name, $job )
             if ( not $next and $to eq $job_owner and $type & TM_EOF );
     }
-    return $self->{interpreter}->fill($message);
+    return $self->{sink}->fill($message);
 }
 
 sub fire {

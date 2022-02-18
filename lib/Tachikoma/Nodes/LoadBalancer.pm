@@ -63,14 +63,17 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
-    my $to      = $message->[TO];
     if ( $type & TM_COMMAND or ( $type & TM_EOF and not $message->[STREAM] ) )
     {
         $self->interpreter->fill($message);
     }
-    elsif ( $type & TM_RESPONSE ) {
+    elsif ( length $message->[TO] ) {
         $self->handle_response($message);
         $self->{sink}->fill($message);
+    }
+    elsif ( $type & TM_RESPONSE ) {
+        return $self->print_less_often( 'WARNING: unexpected response from ',
+            $message->[FROM] );
     }
     elsif ( $type != TM_ERROR ) {
         my $owner = $self->get_stream_owner($message);
@@ -85,7 +88,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        $message->[TO] = length $to ? join q(/), $owner, $to : $owner;
+        $message->[TO] = $owner;
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
