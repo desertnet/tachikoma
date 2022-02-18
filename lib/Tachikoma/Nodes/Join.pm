@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
-    TYPE FROM TO ID PAYLOAD
+    TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_PERSIST TM_EOF
 );
 use Getopt::Long qw( GetOptionsFromString );
@@ -25,6 +25,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{buffer}    = undef;
     $self->{offset}    = undef;
+    $self->{stream}    = undef;
     $self->{count}     = 0;
     $self->{max_size}  = $Default_Size;
     $self->{max_count} = undef;
@@ -60,6 +61,7 @@ sub arguments {
         $self->{arguments} = $arguments;
         $self->{buffer}    = undef;
         $self->{offset}    = undef;
+        $self->{stream}    = undef;
         $self->{count}     = 0;
         $self->{max_size}  = $size;
         $self->{max_count} = $count;
@@ -82,7 +84,10 @@ sub fill {
     }
     my $buffer = $self->{buffer};
     ${$buffer} .= $message->[PAYLOAD];
-    $self->{offset} = $message->[ID] if ( not defined $self->{offset} );
+    if ( not defined $self->{offset} ) {
+        $self->{offset} = $message->[ID];
+        $self->{stream} = $message->[STREAM];
+    }
     $self->{count}++;
     $self->{counter}++;
     if (   ( $self->{max_size} and length( ${$buffer} ) >= $self->{max_size} )
@@ -106,9 +111,11 @@ sub fill {
         # cancel all of them at once when we receive a response.
         $response->[ID] = $message->[ID];
 
+        $response->[STREAM]  = $self->{stream};
         $response->[PAYLOAD] = ${$buffer};
         $self->{buffer}      = undef;
         $self->{offset}      = undef;
+        $self->{stream}      = undef;
         $self->{count}       = 0;
         $self->set_timer( $self->{timer_interval} );
         $self->{sink}->fill($response);
@@ -126,6 +133,7 @@ sub fire {
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $self->{owner};
     $message->[ID]      = $self->{offset};
+    $message->[STREAM]  = $self->{stream};
     $message->[PAYLOAD] = ${ $self->{buffer} };
     $self->{buffer}     = undef;
     $self->{offset}     = undef;
@@ -148,6 +156,14 @@ sub offset {
         $self->{offset} = shift;
     }
     return $self->{offset};
+}
+
+sub stream {
+    my $self = shift;
+    if (@_) {
+        $self->{stream} = shift;
+    }
+    return $self->{stream};
 }
 
 sub count {
