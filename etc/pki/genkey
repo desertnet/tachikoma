@@ -13,13 +13,13 @@ fi
 cd tls/.work
 if [ ! -f ca.key ] ; then
     openssl genrsa -out ca.key 4096
-    openssl req -new -x509 -days 3653 -key ca.key -out ca.crt -config ca.conf
+    openssl req -new -x509 -days 720 -key ca.key -out ca.crt -config ca.conf
 fi
 mkdir -p  ../$hostname
 cp ca.crt ../${hostname}/
 rm -f server.csr server.key
 openssl req -new -out server.csr -config ../../csr/${csr}.conf
-openssl x509 -req -days 3653                      \
+openssl x509 -req -days 720                       \
               -in server.csr                      \
               -CA ca.crt                          \
               -CAkey ca.key                       \
