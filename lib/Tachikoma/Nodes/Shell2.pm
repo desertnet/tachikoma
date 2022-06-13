@@ -181,76 +181,90 @@ sub new_func {
     return;
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self      = shift;
     my $message   = shift;
     my $responder = $self->{responder}->{name};
     $message->[FROM] = $responder if ($responder);
     if ( $self->mode eq 'command' ) {
-        if ( $message->type & TM_EOF ) {
-            $self->stderr('ERROR: got EOF while waiting for tokens')
-                if ( $self->parse_buffer );
-            return $self->shutdown_all_nodes
-                if ( $self->{errors} and not $self->{isa_tty} );
-            return $self->sink->fill($message);
-        }
-        $self->{counter}++;
-        my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
-        my $parse_tree   = undef;
-        $self->parse_buffer(q());
-        local $SIG{INT} = sub { die "^C\n" }
-            if ( $self->{isa_tty} );
-        my $okay = eval {
-            $parse_tree = $self->parse($parse_buffer);
-            return 1;
-        };
-
-        if ( not $okay ) {
-            my $error = $@ || 'parse failed: unknown error';
-            $self->report_error($error);
-        }
-        elsif ($parse_tree) {
-            $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
-            if ( not $self->{validate} ) {
-                $okay = eval {
-                    $self->send_command($parse_tree);
-                    return 1;
-                };
-                if ( not $okay ) {
-                    my $error = $@ || 'send_command failed: unknown error';
-                    $self->report_error($error);
-                }
-            }
-        }
-        elsif ( $parse_buffer =~ m{\S} and $parse_buffer !~ m{^\s*#} ) {
-            $self->parse_buffer($parse_buffer);
-            return;
-        }
-        if ( $self->{isa_tty} ) {
-            $self->get_completions if ( $self->dirty );
-            $self->prompt          if ( $self->mode eq 'command' );
-        }
+        $self->process_command($message);
     }
     else {
-        if ( $message->type & TM_EOF ) {
-            $message->from(q());
-            $self->sink->fill($message);
-            $self->path( $self->cwd );
-            $self->cwd(undef);
-            $self->mode('command');
-            $self->prompt if ( $self->isa_tty );
+        $self->process_bytestream($message);
+    }
+    return;
+}
+
+sub process_command {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->type & TM_EOF ) {
+        $self->stderr('ERROR: got EOF while waiting for tokens')
+            if ( $self->parse_buffer );
+        return $self->shutdown_all_nodes
+            if ( $self->{errors} and not $self->{isa_tty} );
+        return $self->sink->fill($message);
+    }
+    $self->{counter}++;
+    my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
+    my $parse_tree   = undef;
+    $self->parse_buffer(q());
+    local $SIG{INT} = sub { die "^C\n" }
+        if ( $self->{isa_tty} );
+    my $okay = eval {
+        $parse_tree = $self->parse($parse_buffer);
+        return 1;
+    };
+
+    if ( not $okay ) {
+        my $error = $@ || 'parse failed: unknown error';
+        $self->report_error($error);
+    }
+    elsif ($parse_tree) {
+        $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
+        if ( not $self->{validate} ) {
+            $okay = eval {
+                $self->send_command($parse_tree);
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ || 'send_command failed: unknown error';
+                $self->report_error($error);
+            }
         }
-        elsif ( $message->payload eq ".\n" ) {
-            $self->path( $self->cwd );
-            $self->cwd(undef);
-            $self->mode('command');
-            $self->prompt if ( $self->isa_tty );
-        }
-        else {
-            $message->to( $self->path );
-            $message->stream( $LOCAL{'message.stream'} );
-            $self->sink->fill($message);
-        }
+    }
+    elsif ( $parse_buffer =~ m{\S} and $parse_buffer !~ m{^\s*#} ) {
+        $self->parse_buffer($parse_buffer);
+        return;
+    }
+    if ( $self->{isa_tty} ) {
+        $self->get_completions if ( $self->dirty );
+        $self->prompt          if ( $self->mode eq 'command' );
+    }
+    return;
+}
+
+sub process_bytestream {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->type & TM_EOF ) {
+        $message->from(q());
+        $self->sink->fill($message);
+        $self->path( $self->cwd );
+        $self->cwd(undef);
+        $self->mode('command');
+        $self->prompt if ( $self->isa_tty );
+    }
+    elsif ( $message->payload eq ".\n" ) {
+        $self->path( $self->cwd );
+        $self->cwd(undef);
+        $self->mode('command');
+        $self->prompt if ( $self->isa_tty );
+    }
+    else {
+        $message->to( $self->path );
+        $message->stream( $LOCAL{'message.stream'} );
+        $self->sink->fill($message);
     }
     return;
 }
