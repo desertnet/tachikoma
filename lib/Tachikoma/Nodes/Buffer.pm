@@ -19,13 +19,12 @@ use parent qw( Tachikoma::Nodes::Scheduler );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Clear_Interval       = 900;
-my $Default_Timeout      = 900;
-my $Default_Times_Expire = 300;
-my $Timer_Interval       = 15;
-my $Home    = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir  = "$Home/.tachikoma/buffers";
-my $Counter = 0;
+my $Clear_Interval  = 900;
+my $Default_Timeout = 900;
+my $Timer_Interval  = 15;
+my $Home            = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_Dir          = "$Home/.tachikoma/buffers";
+my $Counter         = 0;
 my $Default_Max_Attempts = 10;
 my %C                    = ();
 
@@ -45,7 +44,6 @@ sub new {
     $self->{cache}            = undef;
     $self->{buffer_size}      = undef;
     $self->{responders}       = {};
-    $self->{trip_times}       = {};
     $self->{buffer_mode}      = 'normal';
     $self->{last_fire_time}   = 0;
     $self->{last_clear_time}  = 0;
@@ -53,7 +51,6 @@ sub new {
     $self->{last_buffer}      = undef;
     $self->{delay}            = 0;
     $self->{timeout}          = $Default_Timeout;
-    $self->{times_expire}     = $Default_Times_Expire;
     $self->{is_active}        = undef;
     $self->{interpreter}->commands( \%C );
     $self->{registrations}->{MSG_RECEIVED} = {};
@@ -148,16 +145,12 @@ sub handle_response {
     my $msg_unanswered = $self->{msg_unanswered};
     my $type           = 0;
     if ( $msg_unanswered->{$message_id} ) {
-        my $times = $self->{trip_times};
-        $times->{$Tachikoma::Right_Now} ||= [];
         my $entry = $msg_unanswered->{$message_id};
-        push @{ $times->{$Tachikoma::Right_Now} }, $message_id,
-            $Tachikoma::Right_Now - $entry->[0];
         $type = $entry->[1];
     }
     $payload = 'cancel' if ( $payload eq 'answer' and $type & TM_ERROR );
     if ( $payload eq 'cancel' ) {
-        my $tiedhash    = $self->{tiedhash} // $self->tiedhash;
+        my $tiedhash    = $self->{tiedhash}    // $self->tiedhash;
         my $buffer_size = $self->{buffer_size} // $self->get_buffer_size;
         if ( $buffer_size > 0 and $tiedhash->{$message_id} ) {
             $self->{rsp_received}++;
@@ -181,24 +174,11 @@ sub handle_response {
     return 1;
 }
 
-sub fire {    ## no critic (ProhibitExcessComplexity)
+sub fire {
     my $self = shift;
     $self->set_timer( $Timer_Interval * 1000 );
 
     # maintain stats
-    my $times = $self->{trip_times};
-    if ( $Tachikoma::Now - $self->{last_fire_time} > $Timer_Interval ) {
-        my $times_expire = $self->{times_expire};
-        for my $timestamp ( sort { $a <=> $b } keys %{$times} ) {
-            if ( $Tachikoma::Now - $timestamp > $times_expire ) {
-                delete $times->{$timestamp};
-            }
-            else {
-                last;
-            }
-        }
-        $self->{last_fire_time} = $Tachikoma::Now;
-    }
     if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
         $self->{responders}       = {};
         $self->{last_expire_time} = $Tachikoma::Now;
@@ -222,14 +202,11 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         }
     }
     if ( not $self->{owner} ) {
-        $self->stop_timer
-            if ( not keys %{$times} and not keys %{$msg_unanswered} );
+        $self->stop_timer if ( not keys %{$msg_unanswered} );
         return;
     }
 
     # refill the run queue
-    my $tiedhash = $self->{tiedhash} // $self->tiedhash;
-    my $tied     = tied %{$tiedhash};
     my $is_empty = undef;
     my $i        = keys %{$msg_unanswered};
     while ( $i < $max_unanswered ) {
@@ -238,19 +215,19 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
 
             # buffer is empty (this is the easiest place to detect it)
             # untie and unlink and create a fresh buffer:
-            if ( $Tachikoma::Now - $self->{last_clear_time} > $Clear_Interval
-                and $i == 1
-                and not $self->get_buffer_size )
-            {
-                if ($tied) {
-                    undef $tied;
-                    untie %{$tiedhash} or warn;
-                    unlink $self->filename or warn;
-                    $self->tiedhash(undef);
+            if ( $i == 1 and not $self->get_buffer_size ) {
+                if ( $Tachikoma::Now - $self->{last_clear_time}
+                    > $Clear_Interval )
+                {
+                    if ( tied %{ $self->{tiedhash} } ) {
+                        untie %{ $self->{tiedhash} } or warn;
+                        unlink $self->filename       or warn;
+                        $self->tiedhash(undef);
+                    }
+                    $self->{cache}           = undef;
+                    $self->{last_clear_time} = $Tachikoma::Now;
                 }
-                $self->{cache}           = undef;
-                $self->{last_clear_time} = $Tachikoma::Now;
-                $is_empty                = 'true';
+                $is_empty = 'true';
             }
             last;
         }
@@ -258,10 +235,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         $self->refill($key);
     }
     $self->{is_active} = 1;
-    $self->stop_timer
-        if ($is_empty
-        and not keys %{$times}
-        and not keys %{$msg_unanswered} );
+    $self->stop_timer if ( $is_empty and not keys %{$msg_unanswered} );
     return;
 }
 
@@ -302,10 +276,8 @@ sub refill {
             $to = $path;
         }
         elsif ( $path eq 'drop' ) {
-            my $message = eval { Tachikoma::Message->unpacked( \$packed ) };
             $self->stderr(
-                "ERROR: $key has failed $attempts attempts - dropping",
-                ' - type: ' . $message->type_as_string );
+                "ERROR: $key has failed $attempts attempts - dropping");
             $self->{buffer_size}-- if ( $self->{buffer_size} );
             delete $msg_unanswered->{$key};
             delete $tiedhash->{$key};
@@ -414,9 +386,7 @@ $C{help} = sub {
             . "          set_mode <normal | null>\n"
             . "          set_delay <seconds>\n"
             . "          set_timeout <seconds>\n"
-            . "          set_times_expire <seconds>\n"
             . "          list_responders\n"
-            . "          list_times\n"
             . "          stats [ -s ]\n"
             . "          reset [ -r ]\n"
             . "          kick\n" );
@@ -469,7 +439,7 @@ $C{remove_message} = sub {
     my $key      = $command->arguments;
     if ( $key eq q(*) ) {
         if ( $self->patron->filename ) {
-            untie %{$tiedhash} or warn;
+            untie %{$tiedhash}             or warn;
             unlink $self->patron->filename or warn;
         }
         $self->patron->msg_unanswered( {} );
@@ -619,17 +589,6 @@ $C{set_timeout} = sub {
     return $self->okay($envelope);
 };
 
-$C{set_times_expire} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    if ( $command->arguments =~ m{\D} ) {
-        die qq(seconds must be an integer\n);
-    }
-    $self->patron->times_expire( $command->arguments );
-    return $self->okay($envelope);
-};
-
 $C{list_responders} = sub {
     my $self       = shift;
     my $command    = shift;
@@ -643,25 +602,6 @@ $C{list_responders} = sub {
 };
 
 $C{responders} = $C{list_responders};
-
-$C{list_times} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $patron   = $self->patron;
-    my $times    = $patron->trip_times;
-    my $response = q();
-    for my $timestamp ( sort { $a <=> $b } keys %{$times} ) {
-        my @pairs = @{ $times->{$timestamp} };
-        while ( my $message_id = shift @pairs ) {
-            my $time = shift @pairs;
-            $response .= sprintf "%-20s %12f\n", $message_id, $time;
-        }
-    }
-    return $self->response( $envelope, $response );
-};
-
-$C{times} = $C{list_times};
 
 $C{stats} = sub {
     my $self            = shift;
@@ -791,7 +731,6 @@ sub dump_config {
     my $last_buffer     = $self->{last_buffer};
     my $delay           = $self->{delay};
     my $timeout         = $self->{timeout};
-    my $times_expire    = $self->{times_expire};
     $response = "make_node Buffer $self->{name}";
     $response .= " $filename"
         if ( $filename ne $name or $max_unanswered > 1 );
@@ -805,8 +744,6 @@ sub dump_config {
     $settings .= "  set_delay $delay\n" if ($delay);
     $settings .= "  set_timeout $timeout\n"
         if ( $timeout ne $Default_Timeout );
-    $settings .= "  set_times_expire $times_expire\n"
-        if ( $times_expire ne $Default_Times_Expire );
     $response .= "cd $self->{name}\n" . $settings . "cd ..\n" if ($settings);
     return $response;
 }
@@ -920,28 +857,12 @@ sub responders {
     return $self->{responders};
 }
 
-sub trip_times {
-    my $self = shift;
-    if (@_) {
-        $self->{trip_times} = shift;
-    }
-    return $self->{trip_times};
-}
-
 sub buffer_mode {
     my $self = shift;
     if (@_) {
         $self->{buffer_mode} = shift;
     }
     return $self->{buffer_mode};
-}
-
-sub last_fire_time {
-    my $self = shift;
-    if (@_) {
-        $self->{last_fire_time} = shift;
-    }
-    return $self->{last_fire_time};
 }
 
 sub last_buffer {
@@ -983,14 +904,6 @@ sub timeout {
         $self->{timeout} = shift;
     }
     return $self->{timeout};
-}
-
-sub times_expire {
-    my $self = shift;
-    if (@_) {
-        $self->{times_expire} = shift;
-    }
-    return $self->{times_expire};
 }
 
 sub timer {
