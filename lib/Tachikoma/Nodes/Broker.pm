@@ -940,7 +940,7 @@ sub check_mapping {
                 if ( $counts{$broker_id} < $current );
         }
         $ratio = $current / $ideal if ($ideal);
-        $ratio = 1.0 if ( $ideal - $current <= 1 );
+        $ratio = 1.0               if ( $ideal - $current <= 1 );
         $self->stderr( sprintf 'CHECK_MAPPING: %.2f%% optimal',
             $ratio * 100 );
         if ( $ratio < $Rebalance_Threshold ) {
@@ -1000,7 +1000,7 @@ sub determine_in_sync_replicas {
     my $last_commit_offset = 0;
     for my $broker_id ( keys %{ $query->{online_brokers} } ) {
         my $broker_lco = $self->{last_commit_offsets}->{$broker_id};
-        my $log = $broker_lco->{$log_name} or next;
+        my $log        = $broker_lco->{$log_name} or next;
         next
             if ( not defined $log->{lco}
             or $log->{lco} <= $last_commit_offset );
@@ -1008,7 +1008,7 @@ sub determine_in_sync_replicas {
     }
     for my $broker_id ( keys %{ $query->{online_brokers} } ) {
         my $broker_lco = $self->{last_commit_offsets}->{$broker_id};
-        my $log = $broker_lco->{$log_name} or next;
+        my $log        = $broker_lco->{$log_name} or next;
         next
             if ( not defined $log->{lco}
             or $log->{lco} < $last_commit_offset );
@@ -1414,7 +1414,7 @@ sub purge_stale_logs {
                 or $brokers->{$id}->{pool} ne $this_pool );
             my $lco = $self->{last_commit_offsets}->{$id};
             for my $log_name ( keys %{$lco} ) {
-                my $log = $lco->{$log_name} or next;
+                my $log        = $lco->{$log_name} or next;
                 my $topic_name = ( split m{:}, $log_name, 2 )[0];
                 if ( not $logs_for_this_pool{$log_name}
                     and -e $log->{filename} )
@@ -1447,7 +1447,7 @@ sub add_broker {
     my ( $host,      $port ) = split m{:}, $broker_id, 2;
     return if ( not $port );
     $path ||= $self->{path};
-    my $pool = join q(:), $host, $path;
+    my $pool   = join q(:), $host, $path;
     my $online = $broker_id eq $self->{broker_id};
     $self->brokers->{$broker_id} = {
         pool           => $pool,

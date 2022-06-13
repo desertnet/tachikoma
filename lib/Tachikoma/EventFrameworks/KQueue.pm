@@ -24,7 +24,7 @@ my %TIMERS = ();
 
 sub new {
     my $class = shift;
-    my $self = { handle_signal => \&handle_signal, };
+    my $self  = { handle_signal => \&handle_signal, };
     $KQUEUE = IO::KQueue->new;
     bless $self, $class;
     return $self;

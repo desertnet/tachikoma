@@ -53,7 +53,7 @@ sub fill {
 
 sub fire {
     my $self = shift;
-    my $pid = shift @{ $self->queue } or return;
+    my $pid  = shift @{ $self->queue } or return;
     return if ( kill 0, $pid or $! ne 'No such process' );
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_BYTESTREAM;

@@ -516,14 +516,14 @@ sub log_SSL_error {
         $names = $self->{name};
         Tachikoma->print_least_often( join q(: ), grep $_,
             $names, "WARNING: $method failed",
-            $!, $ssl_error );
+            $!,     $ssl_error );
     }
     else {
         $names = join q( -> ), $self->{parent},
             ( split m{:}, $self->{name}, 2 )[0];
         Tachikoma->print_less_often( join q(: ), grep $_,
             $names, "WARNING: $method failed",
-            $!, $ssl_error );
+            $!,     $ssl_error );
     }
     return;
 }
@@ -967,7 +967,7 @@ sub close_filehandle {
     }
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        my $exists = ( grep $_ eq $self, @{$reconnecting} )[0];
+        my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
     }
     $self->{set_state} = {};

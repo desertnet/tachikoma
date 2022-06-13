@@ -260,13 +260,13 @@ $C{restart_job} = sub {
 
         for my $name ( keys %{$jobs} ) {
             $self->disconnect_node( $load_balancer->name, $name );
-            $self->disconnect_node( $tee->name, $name ) if ($tee);
+            $self->disconnect_node( $tee->name,           $name ) if ($tee);
             $jobc->stop_job($name);
         }
     }
     elsif ( $jobs->{$name} ) {
         $self->disconnect_node( $load_balancer->name, $name );
-        $self->disconnect_node( $tee->name, $name ) if ($tee);
+        $self->disconnect_node( $tee->name,           $name ) if ($tee);
         $jobc->stop_job($name);
     }
     else {
@@ -424,7 +424,7 @@ sub start_job {
         }
     );
     push @{ $self->{load_balancer}->{owner} }, $job_name;
-    push @{ $self->{tee}->{owner} }, $job_name if ( $self->{tee} );
+    push @{ $self->{tee}->{owner} },           $job_name if ( $self->{tee} );
     return;
 }
 

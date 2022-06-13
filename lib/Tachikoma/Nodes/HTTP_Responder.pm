@@ -82,7 +82,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $header_text, $body ) = split m{\r\n\r\n}, ${$payload}, 2;
         ${$payload} = $body;
         my @lines = split m{^}, $header_text;
-        my $line = shift @lines;
+        my $line  = shift @lines;
         if ( not $line ) {
             delete $requests->{$name};
             delete $payloads->{$name};
@@ -97,7 +97,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $uri =~ s{^https?://[^/]+}{}i;
         my ( $script_url, $query_string ) = split m{[?]}, $uri, 2;
-        $headers = {};
+        $headers                 = {};
         $request->{server_port}  = $self->{port} || 80;
         $request->{remote_addr}  = $remote_addr;
         $request->{remote_port}  = $remote_port;
@@ -111,7 +111,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 
         for my $line (@lines) {
             my ( $key, $value ) = split m{:\s*}, $line, 2;
-            next if ( $key =~ m{[^\w-]} );
+            next                  if ( $key =~ m{[^\w-]} );
             $value =~ s{\r?\n$}{} if ( defined $value );
             $headers->{ lc $key } = $value;
         }

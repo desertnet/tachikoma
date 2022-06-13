@@ -796,7 +796,7 @@ $C{dump_node} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -849,7 +849,7 @@ $C{dump_hex} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -892,7 +892,7 @@ $C{dump_dec} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -1525,7 +1525,7 @@ $C{send_hex} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $path, $arguments ) = split q( ), $command->arguments, 2;
-    die qq(no path specified\n) if ( not $path );
+    die qq(no path specified\n)       if ( not $path );
     die qq(no hex values specified\n) if ( not defined $arguments );
     my $name = ( split m{/}, $path, 2 )[0];
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
@@ -1656,7 +1656,7 @@ $C{stats} = sub {
     my $envelope = shift;
     my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
-    my $response = [
+    my $response     = [
         [   [ 'NAME'       => 'left' ],
             [ 'COUNT'      => 'right' ],
             [ 'BUF_SIZE'   => 'right' ],
@@ -1896,16 +1896,16 @@ $C{remote_var} = sub {
     my $var = $self->configuration->var;
     if ( length $value ) {
         my $v = $var->{$key};
-        $v = [] if ( not defined $v or not length $v );
+        $v = []   if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
-        if ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ); }
-        if ( $op eq q(=) ) { $v = [$value]; }
-        elsif ( $op eq q(.=) ) { push @{$v}, $value; }
-        elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $value; }
-        elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $value; }
-        elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $value; }
-        elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $value; }
-        elsif ( $op eq q(//=) and not @{$v} ) { $v = [$value]; }
+        if    ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ); }
+        if    ( $op eq q(=) )            { $v = [$value]; }
+        elsif ( $op eq q(.=) )           { push @{$v}, $value; }
+        elsif ( $op eq q(+=) )           { $v->[0] //= 0; $v->[0] += $value; }
+        elsif ( $op eq q(-=) )           { $v->[0] //= 0; $v->[0] -= $value; }
+        elsif ( $op eq q(*=) )           { $v->[0] //= 0; $v->[0] *= $value; }
+        elsif ( $op eq q(/=) )           { $v->[0] //= 0; $v->[0] /= $value; }
+        elsif ( $op eq q(//=) and not @{$v} )           { $v = [$value]; }
         elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = [$value]; }
         else { return $self->error("invalid operator: $op"); }
 
@@ -1989,7 +1989,7 @@ $C{list_callbacks} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
-    my $response = join q(), map "$_\n", sort keys %{$callbacks};
+    my $response  = join q(), map "$_\n", sort keys %{$callbacks};
     return $self->response( $envelope, $response );
 };
 
@@ -2424,7 +2424,7 @@ sub verify_key {
         return 1 if ( not $disabled{$secure_level}->{$cmd_name} );
     }
     for my $tag ( @{$tags} ) {
-        next if ( $secure_level > 0 and $tag eq 'meta' );
+        next     if ( $secure_level > 0 and $tag eq 'meta' );
         return 1 if ( $entry->{allow}->{$tag} );
     }
     $self->stderr(
@@ -2464,7 +2464,7 @@ sub log_command {
     if ( $cmd_name ne 'prompt'
         and not( $message->[TYPE] & TM_COMPLETION and $comp{$cmd_name} ) )
     {
-        my $node = $self->patron || $self;
+        my $node          = $self->patron || $self;
         my $cmd_arguments = $command->{arguments};
         $cmd_arguments =~ s{\n}{\\n}g;
         $node->stderr( join q( ), 'FROM:', $message->[FROM], 'ID:',
@@ -2499,7 +2499,7 @@ sub make_node {
         my $class_path = $class;
         $class_path =~ s{::}{/}g;
         $class_path .= '.pm';
-        $rv = eval { require $class_path };
+        $rv    = eval { require $class_path };
         $error = $@
             if ( not $rv
             and ( not $error or $error =~ m{^Can't locate \S*$path} ) );
@@ -2560,7 +2560,7 @@ sub connect_inet {
     }
     $connection->use_SSL( $options{use_SSL} );
     $connection->scheme( $options{scheme} ) if ( $options{scheme} );
-    $connection->owner($owner) if ( length $owner );
+    $connection->owner($owner)              if ( length $owner );
     $connection->sink($self);
     return;
 }

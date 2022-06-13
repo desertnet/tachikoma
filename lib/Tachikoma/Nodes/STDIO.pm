@@ -211,7 +211,7 @@ sub fill_fh {
         }
     }
     $self->{output_cursor} = $cursor;
-    $self->{last_fill} = @{$buffer} ? $Tachikoma::Now : 0
+    $self->{last_fill}     = @{$buffer} ? $Tachikoma::Now : 0
         if ( defined $self->{last_fill} );
     $self->cancel($_) for (@cancel);
     $self->unregister_writer_node if ( not @{$buffer} );

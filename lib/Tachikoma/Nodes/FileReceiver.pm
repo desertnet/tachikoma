@@ -101,7 +101,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return 1;
             };
             if ( not $okay ) {
-                my $error = $@ || 'unknown error';
+                my $error   = $@ || 'unknown error';
                 my $details = $!;
                 chomp $error;
                 $error =~ s{ at /\S+ line \d+[.]$}{};
@@ -149,7 +149,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     elsif ( $op eq 'rename' ) {
         my $new_relative = undef;
         ( $relative, $new_relative ) = split $Separator, $relative, 2;
-        $relative =~ s{(?:^|/)[.][.](?=/)}{}g     if ($relative);
+        $relative     =~ s{(?:^|/)[.][.](?=/)}{}g if ($relative);
         $new_relative =~ s{(?:^|/)[.][.](?=/)}{}g if ($new_relative);
         $path = join q(/), $prefix, $relative;
         my $new_path = join q(/), $prefix, $new_relative;

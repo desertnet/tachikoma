@@ -112,7 +112,7 @@ attach($shutdown);
 attach($timeout) if ($seconds);
 if ($verbose) {
     $shell->show_commands('true') if ( not $isa_tty );
-    $dumper->stdin($stdin) if ($isa_tty);
+    $dumper->stdin($stdin)        if ($isa_tty);
     $dumper->debug($debug);
     attach($dumper);
 }
@@ -139,7 +139,7 @@ $Tachikoma::Right_Now = $Tachikoma::Now;
 if ($filename) {
     my @values = @ARGV;
     $config->{var}->{$_} = $values[$_] for ( 1 .. $#values );
-    $config->{var}->{q(0)}  = shift @values;
+    $config->{var}->{q(0)} = shift @values;
     $config->{var}->{q(@)}  = join q( ), @values;
     $config->{var}->{q(_C)} = scalar @values;
     my @lines = ();

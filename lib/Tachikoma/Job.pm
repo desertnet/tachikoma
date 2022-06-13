@@ -117,7 +117,7 @@ sub spawn {
         return;
     }
     else {
-        my $location = $self->configuration->prefix || '/usr/local/bin';
+        my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         my $type          = ( $options->{type} =~ m{^([\w:]+)$} )[0];
         my $username      = ( $options->{username} =~ m{^(\S*)$} )[0];

@@ -349,7 +349,7 @@ sub drain_buffer_init {
                 $message->type_as_string, ' in cache' );
         }
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
 
         # XXX:M
         # $size =
@@ -388,7 +388,7 @@ sub drain_buffer_normal {
         $self->{counter}++;
         $self->{sink}->fill($message);
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
 
         # XXX:M
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
@@ -424,7 +424,7 @@ sub drain_buffer_persist {
         $self->{msg_unanswered}++;
         $self->{sink}->fill($message);
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
         last if ( $self->{msg_unanswered} >= $self->{max_unanswered} );
 
         # XXX:M
@@ -739,7 +739,7 @@ sub get_offset {
             my $error    = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
-            last if ( not @{$messages} );
+            last                                      if ( not @{$messages} );
             $stored = $messages->[-1]->payload;
         }
         if ( $self->sync_error ) {
@@ -821,9 +821,9 @@ sub get_messages {
         my $message =
             Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID] = join q(:), $offset, $offset + $size;
+        $message->[ID]   = join q(:), $offset, $offset + $size;
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
 
         # XXX:M
         # $size =
@@ -840,7 +840,7 @@ sub get_messages {
 sub commit_offset {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
-    my $rv = undef;
+    my $rv     = undef;
     my $target = $self->target or return;
     die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
     my $message = Tachikoma::Message->new;

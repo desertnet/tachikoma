@@ -51,8 +51,8 @@ sub initialize_graph {
     $file_watcher->sink($self);
     $self->file_watcher($file_watcher);
     $self->connect_list( \@destinations );
-    $self->tails(   {} );
-    $self->files(   {} );
+    $self->tails( {} );
+    $self->files( {} );
     $self->forking( {} );
     $self->sink( $self->router );
     $self->timer->set_timer( $Scan_Interval * 1000 );
@@ -387,7 +387,7 @@ sub tiedhash {
                 -Mode     => 0600
                 or warn "couldn't tie $path: $!";
             %copy = %h;
-            untie %h or warn "couldn't untie $path: $!";
+            untie %h     or warn "couldn't untie $path: $!";
             unlink $path or warn "couldn't unlink $path: $!";
         }
         tie %h, 'BerkeleyDB::Btree',

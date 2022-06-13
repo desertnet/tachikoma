@@ -66,7 +66,7 @@ sub fill {
     return if ( $self->{shutting_down} );
     if ( $type & TM_KILLME ) {
         my $name = ( split m{/}, $message->[FROM], 2 )[0];
-        my $job = $self->{jobs}->{$name};
+        my $job  = $self->{jobs}->{$name};
         return $self->stderr("ERROR: TM_KILLME from unknown $name")
             if ( not $job );
         $job->{connector}->fill($message);
@@ -76,7 +76,7 @@ sub fill {
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
-        my $to        = $message->[TO] // q();
+        my $to        = $message->[TO]             // q();
         my $job_owner = $job->{connector}->{owner} // q();
         $message->[FROM] = $from
             if ($next
@@ -399,7 +399,7 @@ sub start_job {
     $options->{name} ||= $options->{type};
     $options->{arguments} //= q();
     $options->{owner}     //= q();
-    $options->{username}    = $self->username // q();
+    $options->{username}    = $self->username    // q();
     $options->{config_file} = $self->config_file // q();
     my $name = $options->{name};
 
@@ -538,7 +538,7 @@ sub dump_config {
             $response .= "$line\n";
         }
         for my $name ( sort keys %{$jobs} ) {
-            my $job = $jobs->{$name};
+            my $job   = $jobs->{$name};
             my $owner = $job->{connector}->{owner} or next;
             $response .= ("connect_node $name $owner\n");
         }

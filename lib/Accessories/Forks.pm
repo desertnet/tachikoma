@@ -20,7 +20,7 @@ use version; our $VERSION = qv('v2.0.700');
 
 sub new {
     my $class = shift;
-    my $self = { ev => Tachikoma::EventFrameworks::Select->new };
+    my $self  = { ev => Tachikoma::EventFrameworks::Select->new };
     bless $self, $class;
     Tachikoma->event_framework( $self->ev );
     return $self;
@@ -46,7 +46,7 @@ sub spawn {
     my $new_shells = sub {
         while ( keys %{ $job_controller->jobs } < $count and @{$commands} ) {
             my $command = shift @{$commands} or return;
-            my $name = join q(-), 'shell', Tachikoma->counter;
+            my $name    = join q(-), 'shell', Tachikoma->counter;
             $job_controller->start_job(
                 {   type      => 'ExecFork',
                     name      => $name,

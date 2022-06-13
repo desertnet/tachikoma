@@ -108,7 +108,7 @@ sub dump_response {
     my $use_readline = shift;
     my $type         = $message->[TYPE];
     my $command;
-    return if ( $type & TM_COMPLETION and $type & TM_ERROR );
+    return               if ( $type & TM_COMPLETION and $type & TM_ERROR );
     return TM_BYTESTREAM if ( not $type & TM_COMMAND );
     $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;

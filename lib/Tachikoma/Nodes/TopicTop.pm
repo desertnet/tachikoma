@@ -59,7 +59,7 @@ sub new {
     $self->set_timer( $Default_Output_Interval * 1000 );
     ## no critic (RequireLocalizedPunctuationVars)
     $SIG{WINCH} = sub { $Winch = 1 };
-    $SIG{INT} = sub {
+    $SIG{INT}   = sub {
         print "\e[0m\e[?25h";
         ## no critic (RequireCheckedSyscalls)
         system '/bin/stty', 'echo', '-cbreak';
@@ -297,7 +297,7 @@ sub calculate_row {
         $rate = $row->{last_rate};
     }
     if ( $rate > 0 ) {
-        my $eta = $row->{_distance} / $rate;
+        my $eta   = $row->{_distance} / $rate;
         my $hours = sprintf '%02d', $eta / 3600;
         $row->{eta} = strftime( "$hours:%M:%S", localtime $eta );
     }

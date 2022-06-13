@@ -93,7 +93,7 @@ sub fill {
     if (   ( $self->{max_size} and length( ${$buffer} ) >= $self->{max_size} )
         or ( $self->{max_count} and $self->{count} >= $self->{max_count} ) )
     {
-        my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
+        my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_BYTESTREAM | $persist;
         $response->[FROM] = $message->[FROM];

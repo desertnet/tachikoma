@@ -257,7 +257,7 @@ sub drain {
             alarm $timeout if ($timeout);
             $read = sysread $fh, ${$buffer}, BUFSIZ, $got;
             die "$!\n" if ( not defined $read );
-            alarm 0 if ($timeout);
+            alarm 0    if ($timeout);
             return 1;
         };
         if ( not $okay ) {
@@ -284,7 +284,7 @@ sub drain {
             #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
             #     : 0;
             $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-            $fh = undef if ( not defined $self->{sink}->fill($message) );
+            $fh   = undef if ( not defined $self->{sink}->fill($message) );
         }
         if ( not defined $read or $read < 1 ) {
             $self->close_filehandle;
@@ -538,7 +538,7 @@ sub check_pid {
 
 sub daemonize {    # from perlipc manpage
     my $self = shift;
-    open STDIN, '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
+    open STDIN,  '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
     open STDOUT, '>', '/dev/null'
         or die "ERROR: couldn't write /dev/null: $!";
     defined( my $pid = fork ) or die "ERROR: couldn't fork: $!";
@@ -561,7 +561,7 @@ sub reset_signal_handlers {
 
 sub open_log_file {
     my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
     chdir q(/) or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
         or die "ERROR: couldn't open log file $log: $!\n";
@@ -604,7 +604,7 @@ sub load_event_framework {
 
 sub touch_log_file {
     my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
     $self->close_log_file;
     $self->open_log_file;
     utime $Tachikoma::Now, $Tachikoma::Now, $log

@@ -196,7 +196,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         $self->{counter}++;
         my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
-        my $parse_tree = undef;
+        my $parse_tree   = undef;
         $self->parse_buffer(q());
         local $SIG{INT} = sub { die "^C\n" }
             if ( $self->{isa_tty} );
@@ -228,7 +228,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         if ( $self->{isa_tty} ) {
             $self->get_completions if ( $self->dirty );
-            $self->prompt if ( $self->mode eq 'command' );
+            $self->prompt          if ( $self->mode eq 'command' );
         }
     }
     else {
@@ -573,7 +573,7 @@ $EVALUATORS{'and'} = sub {
                 ? $branch
                 : $self->fake_tree( 'open_paren', $branch->{value} )
             );
-            shift @{$rv} while ( @{$rv} and $rv->[0] !~ m{\S} );
+            shift @{$rv} while ( @{$rv} and $rv->[0]  !~ m{\S} );
             pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
             my $test = join q(), @{$rv};
             $test =~ s{\s+}{}g;
@@ -593,7 +593,7 @@ $EVALUATORS{'or'} = sub {
             ? $branch
             : $self->fake_tree( 'open_paren', $branch->{value} )
         );
-        shift @{$rv} while ( @{$rv} and $rv->[0] !~ m{\S} );
+        shift @{$rv} while ( @{$rv} and $rv->[0]  !~ m{\S} );
         pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
         my $test = join q(), @{$rv};
         $test =~ s{\s+}{}g;
@@ -696,7 +696,7 @@ $BUILTINS{'read'} = sub {
     $self->stdin->pause if ( $self->{isa_tty} );
     my $line = eval {<STDIN>};
     $self->stdin->resume if ( $self->{isa_tty} );
-    die $@ if ( not defined $line );
+    die $@               if ( not defined $line );
 
     if ($name) {
         chomp $line;
@@ -717,7 +717,7 @@ $BUILTINS{'print'} = sub {
     $self->fatal_parse_error('bad arguments for print')
         if ( @{ $parse_tree->{value} } > 2 );
     my $argument_tree = $parse_tree->{value}->[1];
-    my $output = join q(), @{ $self->evaluate($argument_tree) };
+    my $output        = join q(), @{ $self->evaluate($argument_tree) };
     syswrite STDOUT, $output or die if ( length $output );
     return [];
 };
@@ -902,7 +902,7 @@ $BUILTINS{'if'} = sub {
     if ( @{ $parse_tree->{value} } > 3 ) {
         my $i = 3;
         while ( $i <= $#{ $parse_tree->{value} } - 1 ) {
-            my $cane = $parse_tree->{value}->[ $i++ ];
+            my $cane  = $parse_tree->{value}->[ $i++ ];
             my $sugar = join q(), @{ $self->evaluate($cane) };
             if ( $sugar eq 'elsif' ) {
                 my $elsif = $parse_tree->{value}->[ $i++ ];
@@ -1220,8 +1220,8 @@ $BUILTINS{'on'} = sub {
     my $event_tree = shift @values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
     my $func_tree = $self->fake_tree( 'open_brace', \@values );
-    my $name  = join q(), @{ $self->evaluate($name_tree) };
-    my $event = join q(), @{ $self->evaluate($event_tree) };
+    my $name      = join q(), @{ $self->evaluate($name_tree) };
+    my $event     = join q(), @{ $self->evaluate($event_tree) };
     $self->_send_command( 'on', "$name $event", nfreeze($func_tree) )
         if ( not $self->{validate} );
     return [];
@@ -1320,7 +1320,7 @@ $BUILTINS{'send_node'} = sub {
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     $self->fatal_parse_error('bad arguments for send_node')
         if ( $i > $#{$values} );
-    my $path = join q(), @{ $self->evaluate($path_tree) };
+    my $path       = join q(), @{ $self->evaluate($path_tree) };
     my $payload_rv = [];
     $self->evaluate_splice( $values, $payload_rv, $i );
     my $payload = join q(), @{$payload_rv};
@@ -1520,7 +1520,7 @@ sub fake_tree {
     return {
         type  => $type,
         value => [
-            {   type => ref $first ? $first->{type} : 'ident',
+            {   type  => ref $first ? $first->{type} : 'ident',
                 value => [ @{$values}[ $i .. $#{$values} ] ]
             }
         ]
@@ -1645,7 +1645,7 @@ sub assignment {
         if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-    my $op = join q(), @{ $self->evaluate($op_tree) };
+    my $op         = join q(), @{ $self->evaluate($op_tree) };
 
     if ( exists $LOCAL{$key} ) {
         $self->operate( \%LOCAL, $key, $op, $value_tree );
@@ -1676,7 +1676,7 @@ sub operate {
     elsif ( length $op ) {
         my $v = $hash->{$key};
         $v = $v->[0] if ( ref $v );
-        $v = 0 if ( not defined $v or not length $v );
+        $v = 0       if ( not defined $v or not length $v );
         if    ( $op eq q(=) )  { delete $hash->{$key}; }
         elsif ( $op eq q(++) ) { $v++; $hash->{$key} = $v; }
         elsif ( $op eq q(--) ) { $v--; $hash->{$key} = $v; }
@@ -1699,7 +1699,7 @@ sub operate_env {
     elsif ( length $op ) {
         my $v = $hash->{$key};
         $v = $v->[0] if ( ref $v );
-        $v = 0 if ( not defined $v or not length $v );
+        $v = 0       if ( not defined $v or not length $v );
         if    ( $op eq q(=) )  { delete $hash->{$key}; }
         elsif ( $op eq q(++) ) { $v++; $hash->{$key} = $v; }
         elsif ( $op eq q(--) ) { $v--; $hash->{$key} = $v; }
@@ -1715,14 +1715,14 @@ sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
     my ( $self, $hash, $key, $op, $value_tree ) = @_;
     my $result = $self->evaluate($value_tree);
     my $v      = $hash->{$key};
-    $v = [] if ( not defined $v or not length $v );
+    $v = []   if ( not defined $v or not length $v );
     $v = [$v] if ( not ref $v );
-    shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
+    shift @{$result} if ( @{$result} and $result->[0]  =~ m{^\s+$} );
     pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
     my $joined = join q(), @{$result};
-    if ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
-    if ( $op eq q(=) ) { $v = $result; }
-    elsif ( $op eq q(.=) ) { push @{$v}, @{$result}; }
+    if    ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
+    if    ( $op eq q(=) )            { $v = $result; }
+    elsif ( $op eq q(.=) )           { push @{$v}, @{$result}; }
     elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
     elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
     elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
@@ -1857,7 +1857,7 @@ sub cd {
         $cwd = $path;
     }
     elsif ( $path =~ m{^[.][.]/?} ) {
-        $cwd =~ s{/?[^/]+$}{};
+        $cwd  =~ s{/?[^/]+$}{};
         $path =~ s{^[.][.]/?}{};
         $cwd = $self->cd( $cwd, $path );
     }
@@ -2083,7 +2083,7 @@ sub parse_buffer {
 sub dirty {
     my $self = shift;
     if (@_) {
-        my $name = shift;
+        my $name  = shift;
         my %dirty = map { $_ => 1 } qw(
             listen_inet listen_unix
             connect_inet disconnect_inet

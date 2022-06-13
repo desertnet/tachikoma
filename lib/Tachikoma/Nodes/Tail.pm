@@ -179,7 +179,7 @@ sub drain_fh {
     my $fh   = $self->{fh} or return;
     $self->file_shrank if ( $kev and $kev->[4] < 0 );
     my $buffer = q();
-    my $read = sysread $fh, $buffer, 65536;
+    my $read   = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
     &{ $self->{drain_buffer} }( $self, \$buffer )
@@ -650,7 +650,7 @@ sub finished {
         ? $self->{bytes_answered}
         : $self->{bytes_read};
     return 'true' if ( not defined $self->{fh} );
-    return if ( $self->{on_EOF} eq 'wait_for_delete' );
+    return        if ( $self->{on_EOF} eq 'wait_for_delete' );
     if ( not defined $size ) {
         $size = ( stat $self->{fh} )[7];
         return 'true' if ( not defined $size );

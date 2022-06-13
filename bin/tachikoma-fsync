@@ -72,7 +72,7 @@ usage() if ( $help or not $r or not $ARGV[0] );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 $prefix ||= $ARGV[0];
-$quiet ||= isatty(*STDIN) ? undef : 1;
+$quiet  ||= isatty(*STDIN) ? undef : 1;
 
 # connect
 my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
@@ -244,7 +244,7 @@ while (1) {
     explore_path($_) for ( map glob, @ARGV );
     $finishing = $count;
     $tachikoma->drain if ($finishing);
-    print $clear if ( not $quiet );
+    print $clear      if ( not $quiet );
     my @updates = sort keys %unique;
     $total = @updates;
 

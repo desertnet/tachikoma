@@ -78,7 +78,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{verbose} = 1 if ( $self->{arguments} =~ /\bverbose\b/ );
+        $self->{verbose}   = 1 if ( $self->{arguments} =~ /\bverbose\b/ );
     }
     return $self->{arguments};
 }
@@ -189,7 +189,7 @@ sub fire {
     $self->verbose( sprintf 'fire: pending chunks: %d',
         $#{ $self->{pending_chunks} } );
     my $prev = $self->{last_displayed_chunk} // {};
-    my $pend = $self->{pending_chunks}->[0] //  {};
+    my $pend = $self->{pending_chunks}->[0]  // {};
     $self->verbose( 'last chunk: ' . Dumper($prev) . "\n" );
     $self->verbose( 'pend chunk: ' . Dumper($pend) . "\n" );
     #
@@ -248,8 +248,8 @@ sub format_chunk {
     my $output = q();
 
     #$self->send_message($self->cls);
-    my $dots   = $self->dots($chunk) // q();
-    my $chars  = $self->chars($chunk) // q();
+    my $dots   = $self->dots($chunk)       // q();
+    my $chars  = $self->chars($chunk)      // q();
     my $bright = $self->brightness($chunk) // q();
     $output .= $self->cls . $bright . $dots . $chars;
     $self->verbose( 'output length: ' . length($output) . "; '$output'" );
@@ -262,7 +262,7 @@ sub hashes_differ {
     my $b    = shift;
     my $rv   = 1;
     $Storable::canonical = 1;
-    $rv = 0 if ( nfreeze($a) eq nfreeze($b) );
+    $rv                  = 0 if ( nfreeze($a) eq nfreeze($b) );
     return $rv;
 }
 
@@ -328,7 +328,7 @@ sub chars {
         || length( $chunk->{char4} ) )
     {
         return ( ( $chunk->{char1} // q( ) )
-            . ( $chunk->{char2} // q( ) )
+            . ( $chunk->{char2}     // q( ) )
                 . ( $chunk->{char3} // q( ) )
                 . ( $chunk->{char4} // q( ) ) );
     }

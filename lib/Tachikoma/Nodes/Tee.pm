@@ -54,6 +54,7 @@ sub fill {
     my $persist    = undef;
     my @keep       = ();
     my $packed     = $message->packed;
+
     if ( $message->[TYPE] & TM_PERSIST ) {
         my $copy = Tachikoma::Message->unpacked($packed);
         $copy->[PAYLOAD]                 = q();

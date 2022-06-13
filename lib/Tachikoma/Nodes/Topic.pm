@@ -190,10 +190,10 @@ sub fire {
 }
 
 sub handle_response {
-    my ( $self, $message ) = @_;
-    my ( $i, $last_commit_offset ) = split m{:}, $message->[ID], 2;
+    my ( $self, $message )            = @_;
+    my ( $i,    $last_commit_offset ) = split m{:}, $message->[ID], 2;
     my $batch_responses = $self->{batch_responses}->{$i} // [];
-    my $responses = $batch_responses->[0];
+    my $responses       = $batch_responses->[0];
     if (    $responses
         and $responses->{last_commit_offset} == $last_commit_offset )
     {
@@ -393,7 +393,7 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
         sub {
-            if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
+            if    ( $_[0]->[TYPE] & TM_RESPONSE )    { $expecting = 0; }
             elsif ( $_[0]->[TYPE] & TM_ERROR )       { die $_[0]->[PAYLOAD]; }
             elsif ( $_[0]->[TYPE] & TM_EOF )         { $expecting = -1; }
             elsif ( not $_[0]->[TYPE] & TM_REQUEST ) { die $_[0]->[PAYLOAD]; }
@@ -462,7 +462,7 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
         sub {
-            if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
+            if    ( $_[0]->[TYPE] & TM_RESPONSE )    { $expecting = 0; }
             elsif ( $_[0]->[TYPE] & TM_ERROR )       { die $_[0]->[PAYLOAD]; }
             elsif ( $_[0]->[TYPE] & TM_EOF )         { $expecting = -1; }
             elsif ( not $_[0]->[TYPE] & TM_REQUEST ) { die $_[0]->[PAYLOAD]; }
