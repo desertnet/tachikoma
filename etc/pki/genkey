@@ -1,10 +1,9 @@
 #!/bin/sh -e
 # TLS
-csr=$1
-hostname=$2
-filename=$3
+hostname=$1
+filename=$2
 if [ -z "${hostname}" ] ; then
-    echo 'Usage: genkey <csr> <hostname>'
+    echo 'Usage: genkey <hostname> [ <filename> ]'
     exit 1
 fi
 if [ -z "${filename}" ] ; then
@@ -18,7 +17,7 @@ fi
 mkdir -p  ../$hostname
 cp ca.crt ../${hostname}/
 rm -f server.csr server.key
-openssl req -new -out server.csr -config ../../csr/${csr}.conf
+openssl req -new -out server.csr -config ../../csr/${hostname}.conf
 openssl x509 -req -days 720                       \
               -in server.csr                      \
               -CA ca.crt                          \
