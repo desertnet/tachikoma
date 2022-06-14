@@ -42,8 +42,6 @@ sub fill {
         or $message->[TYPE] == TM_ERROR );
     return $self->interpreter->fill($message)
         if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF );
-    return $self->SUPER::fill($message)
-        if ( not $message->[TYPE] & TM_BYTESTREAM );
 
     if ( $message->[TYPE] & TM_PERSIST ) {
         $message_id = $self->msg_counter;
