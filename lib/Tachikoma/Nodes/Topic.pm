@@ -267,6 +267,7 @@ sub batch_message {
     push @{ $self->{batch}->{$i} }, ${$packed};
     $self->{batch_offset}->{$i}++;
     $self->{batch_size}->{$i} += length ${$packed};
+    $self->{counter}++;
 
     if ( $message->[TYPE] & TM_PERSIST ) {
         $self->{responses}->{$i} //= [];
