@@ -76,8 +76,6 @@ sub fill {
     my $unanswered     = keys %{ $self->{msg_unanswered} };
     my $max_unanswered = $self->{max_unanswered};
     my $copy           = bless [ @{$message} ], ref $message;
-    $self->set_timer(0)
-        if ( $self->{owner} and $unanswered < $max_unanswered );
     return $self->stderr( 'ERROR: unexpected ',
         $message->type_as_string, ' from ', $message->from )
         if (not $type & TM_BYTESTREAM
@@ -109,7 +107,7 @@ sub fill {
         $self->{buffer_size}++;
     }
     $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    $sth->execute( $Tachikoma::Right_Now + $self->{delay},
+    $sth->execute( $Tachikoma::Now + $self->{delay},
         0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
         $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
     $self->{buffer_fills}++;
@@ -126,6 +124,8 @@ sub fill {
     elsif ( $type & TM_PERSIST ) {
         $self->cancel($message);
     }
+    $self->set_timer(0)
+        if ( $self->{owner} and $unanswered < $max_unanswered );
     return 1;
 }
 
@@ -271,7 +271,7 @@ sub refill {
     return if ( $msg_unanswered->{$key} or not defined $value );
     my ( $next_attempt, $attempts, $type, $id, $stream, $timestamp, $payload )
         = @{$value};
-    my $span    = ( $next_attempt - $Tachikoma::Right_Now ) * 1000;
+    my $span    = ( $next_attempt - $Tachikoma::Now ) * 1000;
     my $timeout = $self->{timeout};
     my $to      = $self->{owner};
 
@@ -282,7 +282,7 @@ sub refill {
     if ( $max_attempts and $attempts >= $max_attempts ) {
         my $path = $self->{on_max_attempts};
         my $name = ( split m{/}, $path, 2 )[0];
-        if ( $Tachikoma::Nodes{$name} ) {
+        if ( $Tachikoma::Nodes{$name} and $name ne $self->{name} ) {
             $self->print_less_often(
                 "$key has failed $attempts attempts - sending to $name");
             $to = $path;

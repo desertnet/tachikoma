@@ -98,8 +98,6 @@ sub fill {
     my $unanswered     = keys %{ $self->{msg_unanswered} };
     my $max_unanswered = $self->{max_unanswered};
     my $copy           = bless [ @{$message} ], ref $message;
-    $self->set_timer(0)
-        if ( $self->{owner} and $unanswered < $max_unanswered );
     return $self->stderr( 'ERROR: unexpected ',
         $message->type_as_string, ' from ', $message->from )
         if (not $type & TM_BYTESTREAM
@@ -118,7 +116,7 @@ sub fill {
     $self->{buffer_fills}++;
     $self->{buffer_size}++;
     $tiedhash->{$message_id} = pack 'F N a*',
-        $Tachikoma::Right_Now + $self->{delay}, 0, ${ $copy->packed };
+        $Tachikoma::Now + $self->{delay}, 0, ${ $copy->packed };
     $self->send_event(
         {   'type'  => 'MSG_RECEIVED',
             'key'   => $copy->[STREAM],
@@ -133,6 +131,8 @@ sub fill {
     elsif ( $type & TM_PERSIST ) {
         $self->cancel($message);
     }
+    $self->set_timer(0)
+        if ( $self->{owner} and $unanswered < $max_unanswered );
     return 1;
 }
 
@@ -258,13 +258,13 @@ sub refill {
     my $max_attempts   = $self->{max_attempts} || $Default_Max_Attempts;
     my $value          = $tiedhash->{$key};
     return if ( $msg_unanswered->{$key} or not defined $value );
-    my ( $timestamp, $attempts, $packed ) = unpack 'F N a*', $value;
-    my $span    = ( $timestamp - $Tachikoma::Right_Now ) * 1000;
+    my ( $next_attempt, $attempts, $packed ) = unpack 'F N a*', $value;
+    my $span    = ( $next_attempt - $Tachikoma::Now ) * 1000;
     my $timeout = $self->{timeout};
     my $to      = $self->{owner};
 
     if ( $self->{is_active} and $span > 0 ) {
-        $self->set_timer($span) if ( $timestamp < $self->{timer} );
+        $self->set_timer($span) if ( $next_attempt < $self->{timer} );
         return 'wait';
     }
     if ( $max_attempts and $attempts >= $max_attempts ) {
