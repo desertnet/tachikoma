@@ -15,13 +15,12 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Alert_Interval = 3600;
-
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{email_address} = q();
-    $self->{last_email}    = 0;
+    $self->{alert_interval} = 0;
+    $self->{email_address}  = q();
+    $self->{last_email}     = 0;
     bless $self, $class;
     return $self;
 }
@@ -29,9 +28,11 @@ sub new {
 sub arguments {
     my $self = shift;
     if (@_) {
-        $self->{arguments}     = shift;
-        $self->{email_address} = $self->{arguments};
-        $self->{last_email}    = 0;
+        $self->{arguments} = shift;
+        my ( $interval, $address ) = split q( ), $self->{arguments}, 2;
+        $self->{alert_interval} = $interval;
+        $self->{email_address}  = $address;
+        $self->{last_email}     = 0;
     }
     return $self->{arguments};
 }
@@ -49,7 +50,7 @@ sub send_alert {
     my $alert = shift;
     return
         if ( not $self->{email_address}
-        or $Tachikoma::Now - $self->{last_email} < $Alert_Interval );
+        or $Tachikoma::Now - $self->{last_email} < $self->{alert_interval} );
     $self->{'last_email'} = $Tachikoma::Now;
     my $email = $self->{email_address};
     delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};
@@ -60,6 +61,14 @@ sub send_alert {
     print {$mail} scalar( localtime time ), qq(\n\n), $alert;
     close $mail or $self->stderr("ERROR: couldn't close mail: $!");
     return;
+}
+
+sub alert_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{alert_interval} = shift;
+    }
+    return $self->{alert_interval};
 }
 
 sub last_email {
