@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 84;
+use Test::More tests => 86;
 
 use Tachikoma;
 use Tachikoma::Nodes::Shell2;
@@ -210,6 +210,19 @@ is( $answer, "{\\}\n", 'double quotes do not escape backslash' );
 
 #####################################################################
 
+$parse_tree = $shell->parse('send echo "\<test\>"');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer, "{<test>}\n", 'variables in double quotes are escaped with backslash' );
+
+#####################################################################
+
+$parse_tree = $shell->parse('send echo \<test\>');
+$answer     = q();
+$shell->send_command($parse_tree);
+is( $answer, "{<test>}\n", 'unquoted variables are escaped with backslash' );
+
+#####################################################################
 $parse_tree = $shell->parse("send echo \\\\\\\n\n");
 $answer     = q();
 $shell->send_command($parse_tree);

@@ -44,7 +44,7 @@ my $logical_re = qr{ !~ | =~ | !=? | <=? | >=? | == }x;
 my %TOKENS = (
     whitespace => qr{\s+},
     number     => qr{-?(?:\d+(?:[.]\d+)?|[.]\d+)},
-    ident      => qr{(?: [.+\-*/]* $ident_re $not_op_re | \\. )+}x,
+    ident      => qr{(?: [.+\-*/]* $ident_re $not_op_re )+}x,
     logical    => qr{(?: [.](?:[.]|(?!\=)) | $math_re | $logical_re )}x,
     op         => qr{(?: [.]= | [+][+] | -- | [|][|]=
                        | //=? | [+]=   | -= | [*]= | /= | = )}x,
