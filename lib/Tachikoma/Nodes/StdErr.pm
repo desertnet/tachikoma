@@ -23,6 +23,7 @@ EOF
 sub fill {
     my $self    = shift;
     my $message = shift;
+    $self->{counter}++;
     $self->stderr( $message->payload )
         if ( $message->type & TM_BYTESTREAM );
     return;
