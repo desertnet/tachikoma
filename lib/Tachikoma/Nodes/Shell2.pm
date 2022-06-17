@@ -1349,7 +1349,7 @@ $BUILTINS{'send_node'} = sub {
 
 $BUILTINS{'send'} = $BUILTINS{'send_node'};
 
-$H{'send_hash'} = [ "send_hash <path> [ <name> <value> ... ]\n", ];
+$H{'send_hash'} = [ "send_hash <path> <json>\n", ];
 
 $BUILTINS{'send_hash'} = sub {
     my $self     = shift;
