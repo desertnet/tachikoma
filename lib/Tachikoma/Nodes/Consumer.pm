@@ -23,7 +23,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 30;            # wait at least this long on startup
+my $Startup_Delay   = 15;            # wait at least this long on startup
 my $Timeout         = 900;           # default async message timeout
 my $Expire_Interval = 15;            # check message timeouts
 my $Commit_Interval = 60;            # commit offsets
@@ -619,12 +619,7 @@ sub owner {
     if (@_) {
         $self->{owner} = shift;
         $self->last_receive($Tachikoma::Now);
-        if ( defined $self->{partition_id} ) {
-            $self->set_timer(0);
-        }
-        else {
-            $self->set_timer( $Startup_Delay * 1000 );
-        }
+        $self->set_timer( $Startup_Delay * 1000 );
     }
     return $self->{owner};
 }
@@ -639,12 +634,11 @@ sub edge {
             $self->last_receive($Tachikoma::Now);
             if ( defined $i ) {
                 $edge->new_cache($i) if ( $edge->can('new_cache') );
-                $self->set_timer(0);
             }
             else {
                 $edge->new_cache if ( $edge->can('new_cache') );
-                $self->set_timer( $Startup_Delay * 1000 );
             }
+            $self->set_timer( $Startup_Delay * 1000 );
         }
     }
     return $self->{edge};

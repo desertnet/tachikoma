@@ -22,12 +22,11 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval    = 15;       # delay between polls
-my $Startup_Delay    = 30;       # wait at least this long on startup
-my $Response_Timeout = 300;      # wait before abandoning async responses
-my $Hub_Timeout      = 60;       # synchronous timeout waiting for hub
-my $Batch_Threshold  = 65536;    # low water mark before sending batches
-my $Batch_Interval   = 0.25;     # how long to wait if below threshold
+my $Poll_Interval   = 15;       # delay between polls
+my $Startup_Delay   = 45;       # wait at least this long on startup
+my $Hub_Timeout     = 60;       # synchronous timeout waiting for hub
+my $Batch_Threshold = 65536;    # low water mark before sending batches
+my $Batch_Interval  = 0.25;     # how long to wait if below threshold
 
 sub new {
     my $class = shift;

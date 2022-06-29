@@ -24,7 +24,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 30;            # wait at least this long on startup
+my $Startup_Delay   = 45;            # wait at least this long on startup
 my $Check_Interval  = 15;            # synchronous partition map check
 my $Commit_Interval = 60;            # commit offsets
 my $Timeout         = 900;           # default async message timeout
@@ -186,21 +186,26 @@ sub fill {
 sub fire {
     my $self      = shift;
     my $consumers = $self->{consumers};
-    if ( $Tachikoma::Now - $self->{last_check} > $Check_Interval ) {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_REQUEST;
-        $message->[FROM] = $self->name;
-        $message->[TO]   = $self->broker_path;
-        if ( defined $self->{partition_id} or not $self->{group} ) {
-            $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
-        }
-        else {
-            $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
-        }
-        $self->sink->fill($message);
-        $self->{last_check} = $Tachikoma::Now;
+    my $message   = Tachikoma::Message->new;
+    $message->[TYPE] = TM_REQUEST;
+    $message->[FROM] = $self->name;
+    $message->[TO]   = $self->broker_path;
+    if ( defined $self->{partition_id} or not $self->{group} ) {
+        $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
+    }
+    else {
+        $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
+    }
+    $self->sink->fill($message);
+    if ( not $self->{timer_interval}
+        or $self->{timer_interval} != $self->{poll_interval} * 1000 )
+    {
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     for my $partition_id ( keys %{$consumers} ) {
+        next
+            if ( $consumers->{$partition_id}->{timer_is_active}
+            or not $consumers->{$partition_id}->{name} );
         $consumers->{$partition_id}->fire;
     }
     return;
@@ -311,12 +316,11 @@ sub make_async_consumer {
 sub owner {
     my $self = shift;
     if (@_) {
-        $self->{owner}      = shift;
-        $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        $self->{owner} = shift;
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->owner( $self->{owner} );
         }
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        $self->set_timer( $Startup_Delay * 1000 );
     }
     return $self->{owner};
 }
@@ -324,15 +328,14 @@ sub owner {
 sub edge {
     my $self = shift;
     if (@_) {
-        $self->{edge}       = shift;
-        $self->{last_check} = $Tachikoma::Now + $Startup_Delay;
+        $self->{edge} = shift;
         if ( $self->{edge} and $self->{edge}->can('new_cache') ) {
             $self->{edge}->new_cache;
         }
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->edge( $self->{edge} );
         }
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        $self->set_timer( $Startup_Delay * 1000 );
     }
     return $self->{edge};
 }
