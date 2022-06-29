@@ -66,8 +66,9 @@ sub set_timer {
     my $self    = shift;
     my $time    = shift;
     my $oneshot = shift;
-    die "ERROR: invalid time requested by $self->{name}\n"
-        if ( defined $time and $time =~ m{[^\d.]} );
+
+    # die "ERROR: invalid time requested by $self->{name}\n"
+    #     if ( defined $time and $time =~ m{[^\d.]} );
     if ( not $self->{id} ) {
         do {
             $self->{id} = Tachikoma->counter;
