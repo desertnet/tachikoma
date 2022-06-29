@@ -3,9 +3,7 @@
 # Tachikoma::Nodes::Tail
 # ----------------------------------------------------------------------
 #
-#   - on_EOF: close, send, ignore, reopen, send_and_wait,
-#             wait_to_send, wait_to_close, wait_to_delete,
-#             wait_for_delete, wait_for_a_while
+#   - on_EOF: close, send, ignore, reopen, delete, wait_for_a_while
 #
 
 package Tachikoma::Nodes::Tail;
@@ -375,12 +373,6 @@ sub note_fh {
     my $self   = shift;
     my $on_eof = $self->{on_EOF};
     $self->unregister_watcher_node;
-    if ( $on_eof eq 'wait_for_delete' ) {
-        $self->wait_timer->stop_timer;
-        $self->{on_EOF} = 'wait_to_close';
-        $self->handle_EOF if ( $self->finished );
-        return;
-    }
     return if ( $on_eof ne 'reopen' and $on_eof ne 'ignore' );
 
     # $self->stderr("reopening $self->{filename}");
@@ -444,12 +436,7 @@ sub check_timers {
         $self->note_fh;
     }
     elsif ( $message->[STREAM] eq 'wait_timer' ) {
-        if ( $self->{on_EOF} eq 'wait_for_delete' ) {
-            $self->stderr('WARNING: timeout waiting for delete event');
-            $self->{on_EOF} = 'close';
-            $self->handle_EOF;
-        }
-        elsif ( $self->{on_EOF} eq 'wait_for_a_while' ) {
+        if ( $self->{on_EOF} eq 'wait_for_a_while' ) {
             $self->{on_EOF} = 'close';
             $self->handle_EOF;
         }
@@ -602,11 +589,7 @@ sub on_EOF {
     if (@_) {
         my $on_eof = shift;
         $self->{on_EOF} = $on_eof;
-        if ( $on_eof eq 'wait_for_delete' ) {
-            $self->register_watcher_node(qw( delete ));
-            $self->wait_timer->set_timer( 3600 * 1000, 'oneshot' );
-        }
-        elsif ( $on_eof eq 'wait_for_a_while' ) {
+        if ( $on_eof eq 'wait_for_a_while' ) {
             $self->wait_timer->set_timer( 900 * 1000, 'oneshot' );
         }
         $self->handle_EOF
@@ -650,13 +633,12 @@ sub finished {
         ? $self->{bytes_answered}
         : $self->{bytes_read};
     return 'true' if ( not defined $self->{fh} );
-    return        if ( $self->{on_EOF} eq 'wait_for_delete' );
     if ( not defined $size ) {
         $size = ( stat $self->{fh} )[7];
         return 'true' if ( not defined $size );
         $self->{size} = $size;
     }
-    return $pos >= $size;
+    return ( $size and $pos >= $size );
 }
 
 sub handle_soft_EOF {
@@ -672,6 +654,11 @@ sub handle_soft_EOF {
     my $hz = $self->{configuration}->{hz} || 10;
     $self->unregister_reader_node;
     $self->poll_timer->set_timer( 1000 / $hz, 'oneshot' );
+
+    # support STDIN
+    if ( defined $self->{size} and $self->{size} == 0 ) {
+        $self->{size} = $self->{bytes_read};
+    }
     return;
 }
 
@@ -687,21 +674,8 @@ sub reattempt {
 sub handle_EOF {
     my $self   = shift;
     my $on_eof = $self->{on_EOF};
-    if ( $on_eof eq 'send_and_wait' ) {
-        $self->send_EOF;
-        $self->unregister_reader_node;
-    }
-    elsif ( $on_eof eq 'wait_to_send' ) {
-        $self->wait_to_send_EOF;
-        $self->unregister_reader_node;
-    }
-    elsif ( $on_eof eq 'wait_to_close' ) {
-        $self->wait_to_close_EOF;
-        $self->unregister_reader_node;
-    }
-    elsif ( $on_eof eq 'wait_to_delete' ) {
-        $self->wait_to_delete_EOF;
-        $self->unregister_reader_node;
+    if ( $on_eof eq 'delete' ) {
+        $self->delete_EOF;
     }
     else {
         $self->SUPER::handle_EOF;
@@ -709,32 +683,12 @@ sub handle_EOF {
     return;
 }
 
-sub wait_to_send_EOF {
+sub delete_EOF {
     my $self = shift;
-    if ( not $self->{msg_unanswered} ) {
-        $self->send_EOF;
-    }
-    return;
-}
-
-sub wait_to_close_EOF {
-    my $self = shift;
-    if ( not $self->{msg_unanswered} ) {
-        $self->send_EOF;
-        $self->remove_node;
-    }
-    return;
-}
-
-sub wait_to_delete_EOF {
-    my $self = shift;
-    if ( not $self->{msg_unanswered} ) {
-        $self->send_EOF;
-        $self->remove_node;
-        unlink $self->{filename}
-            or
-            $self->stderr("WARNING: couldn't unlink $self->{filename}: $!");
-    }
+    $self->send_EOF;
+    $self->remove_node;
+    unlink $self->{filename}
+        or $self->stderr("WARNING: couldn't unlink $self->{filename}: $!");
     return;
 }
 

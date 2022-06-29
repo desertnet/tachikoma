@@ -223,7 +223,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->{sink}->fill($event);
 
             # send EOF now if the file is empty
-            $node->on_EOF('send_and_wait');
+            $node->on_EOF('send');
 
             # wait for response to beginning-of-file message
             $node->{msg_unanswered}++;

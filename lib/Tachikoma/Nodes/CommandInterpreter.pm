@@ -1415,7 +1415,7 @@ $C{slurp_file} = sub {
         );
         $node->owner($owner) if ( length $owner );
         $node->sink($sink);
-        $node->on_EOF( length $sink_name ? 'close' : 'wait_to_close' );
+        $node->on_EOF('close');
         return 1;
     };
     if ( not $okay ) {
