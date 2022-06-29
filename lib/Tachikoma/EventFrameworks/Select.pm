@@ -98,7 +98,7 @@ sub drain {
             my $timer = $TIMERS{$_} or next;
             next
                 if ( $Tachikoma::Right_Now - $timer->[LAST_FIRE]
-                < $timer->[INTERVAL] / 1000 );
+                < $timer->[INTERVAL] );
             my $node = $Tachikoma::Nodes_By_ID->{$_};
             if ( not $node ) {
                 delete $TIMERS{$_};
@@ -171,8 +171,10 @@ sub watch_for_signal {
 sub set_timer {
     my ( $self, $this, $interval, $oneshot ) = @_;
     $interval ||= 0;
-    $TIMERS{ $this->{id} } =
-        [ $interval, $oneshot, $Tachikoma::Right_Now || Time::HiRes::time ];
+    $TIMERS{ $this->{id} } = [
+        $interval / 1000,
+        $oneshot, $Tachikoma::Right_Now || Time::HiRes::time
+    ];
     return;
 }
 
