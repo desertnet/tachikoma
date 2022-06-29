@@ -1,0 +1,120 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw(
+    TYPE TO PAYLOAD
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_INFO TM_ERROR TM_EOF
+);
+use Getopt::Long qw( GetOptions );
+
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = undef;
+my $port        = undef;
+my $use_SSL     = undef;
+my $batch_size  = undef // 1;
+my $throttle    = undef;
+my $help        = undef;
+
+my $r = GetOptions(
+    'config=s'     => \$config_file,
+    'host=s'       => \$host,
+    'port=i'       => \$port,
+    'use-ssl'      => \$use_SSL,
+    'batch-size=s' => \$batch_size,
+    'throttle'     => \$throttle,
+    'help'         => \$help,
+);
+my $to = $ARGV[0];
+
+usage() if ( $help or not $r or not $to );
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
+
+my $tachikoma = Tachikoma->reconnect( $host, $port, $use_SSL );
+my @lines     = ();
+my $last      = time;
+$tachikoma->timeout(60);
+while (1) {
+    my $line = <STDIN>;
+    push( @lines, $line ) if ( defined $line );
+    $Tachikoma::Now = time;
+    next
+        if (defined $line
+        and @lines < $batch_size
+        and $Tachikoma::Now - $last < 1 );
+    while ( @lines and not send_messages( $to, \@lines ) ) {
+        sleep 1;
+        $tachikoma = $tachikoma->reconnect;
+    }
+    last if ( not defined $line or not @lines );
+    @lines = ();
+    $last  = $Tachikoma::Now;
+}
+print "ok\n";
+exit 0;
+
+sub send_messages {
+    my $to       = shift;
+    my $payloads = shift;
+    my $message  = Tachikoma::Message->new;
+    $message->[TYPE] =
+        $throttle
+        ? TM_BYTESTREAM | TM_PERSIST
+        : TM_BYTESTREAM;
+    $message->[TO] = $to;
+    my $expecting = $throttle ? scalar @{$payloads} : 0;
+    my $rv = eval {
+        for my $payload ( @{$payloads} ) {
+            $message->[PAYLOAD] = $payload;
+            $tachikoma->fill($message);
+        }
+        if ($throttle) {
+            $tachikoma->callback( get_response( \$expecting ) );
+            $tachikoma->drain;
+        }
+        return 1;
+    };
+    if ( not $rv ) {
+        print {*STDERR} $@;
+        $tachikoma->close_filehandle;
+        $expecting = -1;
+    }
+    elsif ( not $tachikoma->{fh} ) {
+        print {*STDERR} "ERROR: send_messages() lost connection\n";
+        $expecting = -1;
+    }
+    return ( $expecting == 0 ? 1 : undef );
+}
+
+sub get_response {
+    my $expecting = shift;
+    return sub {
+        my $response = shift;
+        if ( $response->[TYPE] & TM_RESPONSE ) { ${$expecting}--; }
+        elsif ( $response->[TYPE] & TM_ERROR ) { die $response->[PAYLOAD]; }
+        elsif ( $response->[TYPE] & TM_EOF ) { ${$expecting} = -1; }
+        elsif ( not $response->[TYPE] & TM_INFO ) {
+            die $response->[PAYLOAD];
+        }
+        return ( ${$expecting} > 0 ? 1 : undef );
+    };
+}
+
+sub usage {
+    print "Usage:\n"
+        . "fill_node [ --config=<path>     ]\n"
+        . "          [ --host=<host>       ]\n"
+        . "          [ --port=<port>       ]\n"
+        . "          [ --use-ssl           ]\n"
+        . "          [ --batch-size=<size> ]\n"
+        . "          [ --throttle          ]\n"
+        . "          [ --help              ]\n"
+        . "          <node path>\n";
+    exit 1;
+}
