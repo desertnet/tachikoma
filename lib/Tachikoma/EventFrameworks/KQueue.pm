@@ -114,7 +114,7 @@ sub drain {
         $evfilt_signal => 'handle_signal',
     );
 
-    while ( $connector ? $connector->{fh} : $this->{name} ) {
+    while ( $connector ? $connector->{fh} : length $this->{name} ) {
         my @events = $KQUEUE->kevent( keys %TIMERS ? 100 : 60000 );
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;

@@ -78,7 +78,7 @@ sub register_watcher_node {
 sub drain {
     my ( $self, $this, $connector ) = @_;
     my $configuration = $this->configuration;
-    while ( $connector ? $connector->{fh} : $this->{name} ) {
+    while ( $connector ? $connector->{fh} : length $this->{name} ) {
         my ( $reads, $writes, $errors ) =
             IO::Select->select( $READS, $WRITES, $READS,
             1 / ( $configuration->{hz} || 10 ) );
