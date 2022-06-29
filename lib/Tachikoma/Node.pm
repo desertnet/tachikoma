@@ -308,7 +308,8 @@ sub drop_message {
         ( $message->to     ? ' to: ' . $message->to     : q() ),
         ( defined $payload ? $payload                   : q() ),
     );
-    if ( $error eq 'NOT_AVAILABLE' ) {
+    my $uptime = $Tachikoma::Now - Tachikoma->init_time;
+    if ( $error eq 'NOT_AVAILABLE' and $uptime < 300 ) {
         $self->print_least_often(@log);
     }
     else {
