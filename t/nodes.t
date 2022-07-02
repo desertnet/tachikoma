@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3228;
+use Test::More tests => 3260;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -85,6 +85,7 @@ my %nodes = (
     'Tachikoma::Nodes::MemorySieve'       => q(),
     'Tachikoma::Nodes::Null'              => q(),
     'Tachikoma::Nodes::Partition'         => qq(--filename=$t/partition),
+    'Tachikoma::Nodes::PayloadTimeout'    => qq(),
     'Tachikoma::Nodes::PidWatcher'        => q(),
     'Tachikoma::Nodes::QueryEngine'       => q(),
     'Tachikoma::Nodes::Queue'             => qq($t/queue.q),
