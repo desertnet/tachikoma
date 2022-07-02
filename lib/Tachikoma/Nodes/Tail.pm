@@ -642,14 +642,13 @@ sub finished {
           $self->{max_unanswered}
         ? $self->{bytes_answered}
         : $self->{bytes_read};
-    return 'true'                if ( not defined $self->{fh} );
-    return defined $self->{size} if ( not length $self->{filename} );
-    if ( not defined $size ) {
+    return 'true' if ( not defined $self->{fh} );
+    if ( $self->{filename} and not defined $size ) {
         $size = ( stat $self->{fh} )[7];
         return 'true' if ( not defined $size );
         $self->{size} = $size;
     }
-    return $pos >= $size;
+    return ( defined $size and $pos >= $size );
 }
 
 sub handle_soft_EOF {
