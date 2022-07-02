@@ -2,10 +2,7 @@
 use strict;
 use warnings;
 use Tachikoma;
-use Tachikoma::EventFrameworks::Select;
-use Tachikoma::Nodes::Router;
-use Tachikoma::Nodes::STDIO qw( TK_R );
-use Tachikoma::Nodes::Socket qw( TK_SYNC );
+use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 use Getopt::Long qw( GetOptions );
 
 my $home            = ( getpwuid $< )[7];
@@ -14,8 +11,8 @@ my @default_configs = (
     '/usr/local/etc/tachikoma.conf',
 );
 my $config_file = undef;
-my $host        = 'localhost';
-my $port        = 4230;
+my $host        = undef;
+my $port        = undef;
 my $use_SSL     = undef;
 my $help        = undef;
 
@@ -31,19 +28,22 @@ my $node_name = $ARGV[0];
 usage() if ( $help or not $r or ( not $port and not $node_name ) );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
-Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
-my $router = Tachikoma::Nodes::Router->new;
-my $tachikoma =
-    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
-my $stdout = Tachikoma::Nodes::STDIO->filehandle(*STDOUT);
-$stdout->sink($router);
-$tachikoma->sink($stdout);
+my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
+$tachikoma->callback(
+    sub {
+        my $message = shift;
+        syswrite STDOUT, $message->[PAYLOAD]
+            if ( $message->[TYPE] & TM_BYTESTREAM );
+        $tachikoma->cancel($message);
+        return 1;
+    }
+);
 if ($node_name) {
     my $command = $tachikoma->command( 'connect_node', $node_name );
     $tachikoma->fill($command);
 }
-$router->drain($stdout);
+$tachikoma->drain;
 
 sub usage {
     print "Usage:\n"
