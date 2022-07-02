@@ -19,16 +19,16 @@ cd partitions
     insecure
 cd ..
 
-command jobs start_job TailForks test_stream:tails localhost:<root_port>
+command jobs start_job Tails test_stream:tails
 cd test_stream:tails
-    add_tail  <home>/.tachikoma/log/iterator0.log topic2/0 0
-    add_tail  <home>/.tachikoma/log/iterator1.log topic2/1 1
-    add_tail  <home>/.tachikoma/log/iterator2.log topic2/2 2
-    add_tail  <home>/.tachikoma/log/iterator3.log topic2/3 3
-    add_tail  <home>/.tachikoma/log/iterator4.log topic2/4 4
-    add_tail  <home>/.tachikoma/log/iterator5.log topic2/5 5
-    add_tail  <home>/.tachikoma/log/iterator6.log topic2/6 6
-    add_tail  <home>/.tachikoma/log/iterator7.log topic2/7 7
+    add_tail <home>/.tachikoma/log/iterator0.log _parent/topic2/0 0
+    add_tail <home>/.tachikoma/log/iterator1.log _parent/topic2/1 1
+    add_tail <home>/.tachikoma/log/iterator2.log _parent/topic2/2 2
+    add_tail <home>/.tachikoma/log/iterator3.log _parent/topic2/3 3
+    add_tail <home>/.tachikoma/log/iterator4.log _parent/topic2/4 4
+    add_tail <home>/.tachikoma/log/iterator5.log _parent/topic2/5 5
+    add_tail <home>/.tachikoma/log/iterator6.log _parent/topic2/6 6
+    add_tail <home>/.tachikoma/log/iterator7.log _parent/topic2/7 7
     tail_probe
     secure 3
 cd ..

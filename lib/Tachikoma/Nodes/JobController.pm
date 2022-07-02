@@ -140,7 +140,7 @@ sub handle_EOF {
         $job->remove_node;
     }
 
-    # This is mainly to notify custom jobs like TailForks.
+    # This is mainly to notify custom jobs that might use JobController.
     # CommandInterpreter will drop this message:
     return $self->{sink}->fill($message);
 }

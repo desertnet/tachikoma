@@ -23,8 +23,6 @@ lib/Tachikoma/Jobs/SQL.pm
 lib/Tachikoma/Jobs/Shell.pm
 lib/Tachikoma/Jobs/Tail.pm
 lib/Tachikoma/Jobs/Tails.pm
-lib/Tachikoma/Jobs/TailFork.pm
-lib/Tachikoma/Jobs/TailForks.pm
 lib/Tachikoma/Jobs/Task.pm
 lib/Tachikoma/Message.pm
 lib/Tachikoma/Node.pm
