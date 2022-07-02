@@ -43,7 +43,7 @@ sub initialize_graph {
     $self->tails( {} );
     $self->files( {} );
     $self->sink( $self->router );
-    $self->timer->set_timer( $Scan_Interval * 1000 );
+    $self->timer->set_timer( $Offset_Interval * 1000 );
     $self->last_scan( $Tachikoma::Now + $Startup_Delay );
     $interpreter->sink($self);
     $interpreter->commands->{'add_tail'} = sub {
