@@ -194,7 +194,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                         offset         => 0,
                         max_unanswered => 8,
                         on_EOF         => 'send',
-                        on_ENOENT      => 'die',
+                        on_ENOENT      => 'remove',
                         on_timeout     => 'die',
                     }
                 );
