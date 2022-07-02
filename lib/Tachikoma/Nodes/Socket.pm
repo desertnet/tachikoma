@@ -949,8 +949,8 @@ sub handle_EOF {
     }
     else {
         $self->set_state( 'EOF' => $self->{name} );
-        $self->SUPER::handle_EOF;
     }
+    $self->SUPER::handle_EOF;
     return;
 }
 

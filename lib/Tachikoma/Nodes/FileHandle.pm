@@ -263,6 +263,7 @@ sub null_cb {
 sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
+    $self->unregister_reader_node;
     if ( $on_EOF eq 'close' ) {
         $self->send_EOF;
         $self->remove_node;

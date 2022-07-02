@@ -677,9 +677,7 @@ sub handle_EOF {
     if ( $on_eof eq 'delete' ) {
         $self->delete_EOF;
     }
-    else {
-        $self->SUPER::handle_EOF;
-    }
+    $self->SUPER::handle_EOF;
     return;
 }
 
