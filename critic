@@ -8,7 +8,6 @@ lib/Tachikoma/Crypto.pm
 lib/Tachikoma/EventFrameworks/KQueue.pm
 lib/Tachikoma/EventFrameworks/Select.pm
 lib/Tachikoma/Job.pm
-lib/Tachikoma/Jobs/BShell.pm
 lib/Tachikoma/Jobs/CGI.pm
 lib/Tachikoma/Jobs/CommandInterpreter.pm
 lib/Tachikoma/Jobs/DirCheck.pm
