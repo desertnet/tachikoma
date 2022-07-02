@@ -314,6 +314,7 @@ sub fill {
     return $self->print_less_often( 'WARNING: unexpected type from ',
         $message->[FROM] )
         if ( $message->[TYPE] != ( TM_PERSIST | TM_RESPONSE ) );
+    return if ( $message->[PAYLOAD] eq 'answer' );
     return $self->print_less_often( 'WARNING: unexpected payload from ',
         $message->[FROM] )
         if ( $message->[PAYLOAD] ne 'cancel' );
