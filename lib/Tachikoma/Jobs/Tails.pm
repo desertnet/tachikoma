@@ -83,7 +83,7 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        $self->timer->set_timer(0);
+        $self->timer->set_timer( $Offset_Interval * 1000 );
         return $this->okay($envelope);
     };
     $interpreter->commands->{'stop_tail'} = sub {
@@ -203,7 +203,6 @@ sub rescan_files {
         delete $tiedhash->{$file} if ( not $files->{$file} );
     }
     tied( %{$tiedhash} )->db_sync;
-    $self->timer->set_timer( $Scan_Interval * 1000 );
     return;
 }
 
