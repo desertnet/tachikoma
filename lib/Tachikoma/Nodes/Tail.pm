@@ -3,7 +3,7 @@
 # Tachikoma::Nodes::Tail
 # ----------------------------------------------------------------------
 #
-#   - on_EOF: close, send, ignore, reopen, delete, wait_for_a_while
+#   - on_EOF: close, send, ignore, delete
 #
 
 package Tachikoma::Nodes::Tail;
@@ -38,7 +38,7 @@ sub new {
     $self->{msg_unanswered}  = 0;
     $self->{max_unanswered}  = 0;
     $self->{bytes_answered}  = 0;
-    $self->{on_EOF}          = 'reopen';
+    $self->{on_EOF}          = 'ignore';
     $self->{on_ENOENT}       = 'retry';
     $self->{on_timeout}      = 'expire';
     $self->{timeout}         = $Default_Timeout;
@@ -47,7 +47,6 @@ sub new {
     $self->{msg_timer}       = undef;
     $self->{poll_timer}      = undef;
     $self->{reattempt_timer} = undef;
-    $self->{wait_timer}      = undef;
     bless $self, $class;
     return $self;
 }
@@ -148,7 +147,7 @@ sub arguments {
         $self->set_drain_buffer;
         $self->register_reader_node;
         $self->register_watcher_node(qw( delete rename ))
-            if ( $self->{on_EOF} eq 'reopen' );
+            if ( $self->{on_EOF} eq 'ignore' );
     }
     return $self->{arguments};
 }
@@ -172,10 +171,8 @@ sub check_path {
 }
 
 sub drain_fh {
-    my $self = shift;
-    my $kev  = shift;
-    my $fh   = $self->{fh} or return;
-    $self->file_shrank if ( $kev and $kev->[4] < 0 );
+    my $self   = shift;
+    my $fh     = $self->{fh} or return;
     my $buffer = q();
     my $read   = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
@@ -188,7 +185,6 @@ sub drain_fh {
         if (
         not defined $read
         or (    $read < 1
-            and $self->{on_EOF} ne 'reopen'
             and $self->{on_EOF} ne 'ignore'
             and $self->finished )
         or (    $read
@@ -352,10 +348,7 @@ sub fill {
             if ( $self->msg_timer->{timer_is_active} );
     }
     $self->{msg_unanswered} = $msg_unanswered;
-    $self->handle_EOF
-        if ($self->{on_EOF} ne 'reopen'
-        and $self->{on_EOF} ne 'ignore'
-        and $self->finished );
+    $self->handle_EOF if ( $self->{on_EOF} ne 'ignore' and $self->finished );
     return 1;
 }
 
@@ -378,9 +371,7 @@ sub note_fh {
     my $self   = shift;
     my $on_eof = $self->{on_EOF};
     $self->unregister_watcher_node;
-    return if ( $on_eof ne 'reopen' and $on_eof ne 'ignore' );
-
-    # $self->stderr("reopening $self->{filename}");
+    return if ( $on_eof ne 'ignore' );
     if ( defined $self->{fd} ) {
         return $self->reattempt if ( not $self->finished );
         $self->unregister_reader_node;
@@ -400,7 +391,7 @@ sub note_fh {
         if ( not $self->{max_unanswered}
         or $self->{msg_unanswered} < $self->{max_unanswered} );
     $self->register_watcher_node(qw( delete rename ))
-        if ( $self->{on_EOF} eq 'reopen' );
+        if ( $self->{on_EOF} eq 'ignore' );
     $self->poll_timer->stop_timer;
     $self->reattempt_timer->stop_timer;
     $self->{bytes_read}     = 0;
@@ -408,23 +399,6 @@ sub note_fh {
     $self->{size}           = undef;
     $self->{line_buffer}    = q();
     $self->{reattempt}      = undef;
-    return;
-}
-
-sub file_shrank {
-    my $self = shift;
-    if ( $self->{on_EOF} ne 'reopen' ) {
-        my $filename = $self->{filename};
-        $self->stderr("ERROR: file $filename shrank unexpectedly");
-        $self->{on_EOF} = 'close';
-        $self->handle_EOF;
-        return;
-    }
-
-    # $self->stderr("WARNING: $self->{filename} has shrunk");
-    sysseek $self->{fh}, 0, SEEK_SET or die "ERROR: couldn't seek: $!";
-    $self->{bytes_read}     = 0;
-    $self->{bytes_answered} = 0;
     return;
 }
 
@@ -439,15 +413,6 @@ sub check_timers {
     }
     elsif ( $message->[STREAM] eq 'reattempt_timer' ) {
         $self->note_fh;
-    }
-    elsif ( $message->[STREAM] eq 'wait_timer' ) {
-        if ( $self->{on_EOF} eq 'wait_for_a_while' ) {
-            $self->{on_EOF} = 'close';
-            $self->handle_EOF;
-        }
-        else {
-            $self->stderr('ERROR: unexpected wait timer');
-        }
     }
     else {
         $self->stderr( 'WARNING: unexpected ', $message->type_as_string );
@@ -486,7 +451,6 @@ sub expire_messages {
         $self->register_reader_node;
         $self->msg_timer->stop_timer;
     }
-    $self->{last_expire} = $Tachikoma::Now;
     return;
 }
 
@@ -599,12 +563,8 @@ sub on_EOF {
     if (@_) {
         my $on_eof = shift;
         $self->{on_EOF} = $on_eof;
-        if ( $on_eof eq 'wait_for_a_while' ) {
-            $self->wait_timer->set_timer( 900 * 1000, 'oneshot' );
-        }
         $self->handle_EOF
-            if ($on_eof ne 'reopen'
-            and $on_eof ne 'ignore'
+            if ($on_eof ne 'ignore'
             and $self->{sink}
             and $self->finished );
     }
@@ -653,7 +613,7 @@ sub finished {
 
 sub handle_soft_EOF {
     my $self = shift;
-    if ( $self->{on_EOF} eq 'reopen' ) {
+    if ( $self->{on_EOF} eq 'ignore' ) {
         my $size = undef;
         $size = ( stat $self->{filename} )[7] if ( $self->{filename} );
         return $self->reattempt
@@ -754,25 +714,11 @@ sub reattempt_timer {
     return $self->{reattempt_timer};
 }
 
-sub wait_timer {
-    my $self = shift;
-    if (@_) {
-        $self->{wait_timer} = shift;
-    }
-    if ( not defined $self->{wait_timer} ) {
-        $self->{wait_timer} = Tachikoma::Nodes::Timer->new;
-        $self->{wait_timer}->stream('wait_timer');
-        $self->{wait_timer}->sink($self);
-    }
-    return $self->{wait_timer};
-}
-
 sub remove_node {
     my $self = shift;
     $self->{msg_timer}->remove_node       if ( $self->{msg_timer} );
     $self->{poll_timer}->remove_node      if ( $self->{poll_timer} );
     $self->{reattempt_timer}->remove_node if ( $self->{reattempt_timer} );
-    $self->{wait_timer}->remove_node      if ( $self->{wait_timer} );
     $self->SUPER::remove_node;
     return;
 }
