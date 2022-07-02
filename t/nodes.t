@@ -116,7 +116,6 @@ my %nodes = (
     'Tachikoma::Nodes::Timestamp'         => q(),
     'Tachikoma::Nodes::Topic'             => q(broker),
     'Tachikoma::Nodes::TopicProbe'        => q(1),
-    'Tachikoma::Nodes::Uniq'              => q(),
     'Tachikoma::Nodes::Watchdog'          => q(),
     'Accessories::Nodes::Bucket'          => qq($t/bucket),
     'Accessories::Nodes::Clock'           => q(),
@@ -127,6 +126,7 @@ my %nodes = (
     'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::Spool'           => qq($t/spool),
     'Accessories::Nodes::TestStream'      => qq(),
+    'Accessories::Nodes::Uniq'            => q(),
 );
 
 my %skip_owner_test = (
