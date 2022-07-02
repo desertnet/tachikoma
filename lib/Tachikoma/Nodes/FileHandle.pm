@@ -289,7 +289,7 @@ sub remove_node {
     $self->{drain_fh} = \&null_cb;
     $self->{fill_fh}  = \&null_cb;
     $self->{fill}     = \&null_cb;
-    $self->on_EOF('ignore');
+    $self->{on_EOF}   = 'ignore';
     push @Tachikoma::Closing, sub {
         $self->close_filehandle_and_remove_node;
     };
