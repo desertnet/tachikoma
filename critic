@@ -127,7 +127,6 @@ lib/Tachikoma/Nodes/Timestamp.pm
 lib/Tachikoma/Nodes/Topic.pm
 lib/Tachikoma/Nodes/TopicProbe.pm
 lib/Tachikoma/Nodes/TopicTop.pm
-lib/Tachikoma/Nodes/Uniq.pm
 lib/Tachikoma/Nodes/Watchdog.pm
 lib/Accessories/Jobs/APlay.pm
 lib/Accessories/Jobs/DNS.pm
@@ -143,5 +142,6 @@ lib/Accessories/Nodes/SFE4DigitLED.pm
 lib/Accessories/Nodes/SFESerLCD.pm
 lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/TestStream.pm
+lib/Accessories/Nodes/Uniq.pm
 lib/Accessories/Nodes/Watcher.pm
 lib/Accessories/Forks.pm
