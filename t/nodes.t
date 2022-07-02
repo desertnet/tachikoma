@@ -155,7 +155,6 @@ my %skip_all_tests = (
     'Tachikoma::Nodes::StorableToJSON' => 1,
     'Tachikoma::Nodes::TailTop'        => 1,
     'Tachikoma::Nodes::TopicTop'       => 1,
-    'Accessories::Nodes::Watcher'      => 1,
 );
 
 my $router    = test_construction('Tachikoma::Nodes::Router');

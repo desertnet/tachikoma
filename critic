@@ -140,5 +140,4 @@ lib/Accessories/Nodes/SFESerLCD.pm
 lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/TestStream.pm
 lib/Accessories/Nodes/Uniq.pm
-lib/Accessories/Nodes/Watcher.pm
 lib/Accessories/Forks.pm
