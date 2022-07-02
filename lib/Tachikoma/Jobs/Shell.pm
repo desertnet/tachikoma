@@ -52,6 +52,7 @@ sub initialize_shell_graph {
     $shell_stdin->name('shell:stdin');
     $shell_stdin->sink( $self->router );
     $shell_stdout->name('shell:stdout');
+    $shell_stdout->buffer_mode('line-buffered');
     $shell_stdout->sink($self);
     $shell_stderr->name('shell:stderr');
     $shell_stderr->buffer_mode('line-buffered');
