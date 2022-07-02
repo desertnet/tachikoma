@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 54;
+use Test::More tests => 52;
 
 sub test_construction {
     my $class = shift;
@@ -24,7 +24,6 @@ $tachikoma->event_framework(
 
 my @jobs = qw(
     Tachikoma::Job
-    Tachikoma::Jobs::BShell
     Tachikoma::Jobs::CGI
     Tachikoma::Jobs::CommandInterpreter
     Tachikoma::Jobs::DirCheck
