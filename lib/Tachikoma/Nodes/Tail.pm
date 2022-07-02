@@ -207,6 +207,10 @@ sub drain_buffer_normal {
     $message->[TO]      = $self->{owner};
     $message->[STREAM]  = $self->{stream};
     $message->[PAYLOAD] = ${$buffer};
+
+    # We want the offset at the end of the data we just read
+    # because when handling responses, this becomes "bytes_answered"
+    # which is our restart point on timeout
     $self->{bytes_read} += length ${$buffer};
     $message->[ID] = $self->{bytes_read};
     my $max_unanswered = $self->{max_unanswered};
