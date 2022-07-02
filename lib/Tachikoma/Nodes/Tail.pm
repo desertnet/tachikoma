@@ -112,7 +112,7 @@ sub arguments {
         my $fh;
         my $path = $self->check_path($filename);
         $stream //= join q(:), hostname(), $path;
-        $on_enoent = 'die' if ( defined $offset );
+        $on_enoent //= 'remove' if ( defined $offset );
         $self->close_filehandle if ( $self->{fh} );
         $self->{arguments}      = $arguments;
         $self->{filename}       = $path;
@@ -486,16 +486,19 @@ sub expire_messages {
 sub process_enoent {
     my $self     = shift;
     my $filename = $self->{filename};
-    if (    $self->{on_EOF} eq 'reopen'
-        and $self->{on_ENOENT} eq 'retry' )
-    {
+    if ( $self->{on_ENOENT} eq 'remove' ) {
+        $self->remove_node;
+    }
+    elsif ( $self->{on_ENOENT} eq 'die' ) {
+        die "ERROR: couldn't open $self->{filename}: $!\n";
+    }
+    elsif ( $self->{on_ENOENT} eq 'retry' ) {
         $self->print_less_often(
             "WARNING: can't open $self->{filename}: $! - retrying")
             if ( $self->reattempt > 10 );
-        return;
     }
     else {
-        die "ERROR: couldn't open $self->{filename}: $!\n";
+        $self->stderr("WARNING: can't open $self->{filename}: $!");
     }
     return;
 }
