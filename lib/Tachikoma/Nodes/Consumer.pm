@@ -206,11 +206,9 @@ sub handle_response {
         $self->remove_node if ( defined $self->partition_id );
         return;
     }
-    return $self->drop_message( $message, 'unexpected payload from ',
-        $message->[FROM] )
+    return $self->drop_message( $message, 'unexpected payload' )
         if ( $message->[PAYLOAD] ne 'cancel' );
-    return $self->drop_message( $message, 'unexpected response from ',
-        $message->[FROM] )
+    return $self->drop_message( $message, 'unexpected response' )
         if ( $msg_unanswered < 1 );
 
     if ( length $offset ) {
