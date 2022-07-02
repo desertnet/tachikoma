@@ -84,6 +84,7 @@ lib/Tachikoma/Nodes/Lookup.pm
 lib/Tachikoma/Nodes/MemorySieve.pm
 lib/Tachikoma/Nodes/Null.pm
 lib/Tachikoma/Nodes/Partition.pm
+lib/Tachikoma/Nodes/PayloadTimeout.pm
 lib/Tachikoma/Nodes/PidWatcher.pm
 lib/Tachikoma/Nodes/QueryEngine.pm
 lib/Tachikoma/Nodes/Queue.pm

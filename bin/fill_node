@@ -42,7 +42,6 @@ if ($throttle) {
     my $tachikoma =
         Tachikoma::Nodes::Socket->inet_client( $host, $port, undef,
         $use_SSL );
-    $tail->name('stdin');
     $tail->max_unanswered($throttle);
     $tail->size(0);
     $tail->owner($to);
