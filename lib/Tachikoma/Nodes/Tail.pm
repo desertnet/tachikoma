@@ -462,15 +462,17 @@ sub expire_messages {
         $self->stderr('WARNING: timeout waiting for response, trying again');
         my $fh     = $self->{fh};
         my $offset = $self->{bytes_answered};
-        my $size   = ( stat $fh )[7];
-        if ( not defined $offset or $offset < 0 ) {
-            $offset = sysseek $fh, 0, SEEK_END;
-        }
-        elsif ( $offset > 0 and $offset <= $size ) {
-            $offset = sysseek $fh, $offset, SEEK_SET;
-        }
-        else {
-            $offset = sysseek $fh, 0, SEEK_SET;
+        if ( length $self->{filename} ) {
+            my $size = ( stat $fh )[7];
+            if ( not defined $offset or $offset < 0 ) {
+                $offset = sysseek $fh, 0, SEEK_END;
+            }
+            elsif ( $offset > 0 and $offset <= $size ) {
+                $offset = sysseek $fh, $offset, SEEK_SET;
+            }
+            else {
+                $offset = sysseek $fh, 0, SEEK_SET;
+            }
         }
         $self->{bytes_read}     = $offset;
         $self->{bytes_answered} = $offset;
@@ -635,19 +637,21 @@ sub finished {
           $self->{max_unanswered}
         ? $self->{bytes_answered}
         : $self->{bytes_read};
-    return 'true' if ( not defined $self->{fh} );
+    return 'true'                if ( not defined $self->{fh} );
+    return defined $self->{size} if ( not length $self->{filename} );
     if ( not defined $size ) {
         $size = ( stat $self->{fh} )[7];
         return 'true' if ( not defined $size );
         $self->{size} = $size;
     }
-    return ( $size and $pos >= $size );
+    return $pos >= $size;
 }
 
 sub handle_soft_EOF {
     my $self = shift;
     if ( $self->{on_EOF} eq 'reopen' ) {
-        my $size = ( stat $self->{filename} )[7];
+        my $size = undef;
+        $size = ( stat $self->{filename} )[7] if ( $self->{filename} );
         return $self->reattempt
             if ( not defined $size or $size < $self->{bytes_read} );
     }
@@ -659,7 +663,7 @@ sub handle_soft_EOF {
     $self->poll_timer->set_timer( 1000 / $hz, 'oneshot' );
 
     # support STDIN
-    if ( defined $self->{size} and $self->{size} == 0 ) {
+    if ( not length $self->{filename} ) {
         $self->{size} = $self->{bytes_read};
     }
     return;
