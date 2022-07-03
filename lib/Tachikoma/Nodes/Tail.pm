@@ -191,7 +191,7 @@ sub drain_fh {
     # This end-of-file condition will only occur using
     # Tachikoma::EventFrameworks::Select:
     $self->handle_soft_EOF
-        if ( defined $read and $read < 1 );    # select()
+        if ( defined $read and $read < 1 );
 
     $self->handle_EOF
         if (
