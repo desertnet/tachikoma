@@ -60,6 +60,7 @@ else {
     $stdin->buffer_mode('line-buffered');
     $stdin->owner($to);
     $stdin->sink($tachikoma);
+    $tachikoma->sink($router);
     $router->drain($stdin);
 }
 
