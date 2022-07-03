@@ -51,9 +51,6 @@ my \$hostname = hostname();
         client
         server
     )},
-    # allow_commands => {map {\$_=>1} qw(
-    #     connect_node
-    # )},
     public_key =>
 q($public_key)};
 

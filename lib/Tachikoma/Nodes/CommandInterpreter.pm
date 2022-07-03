@@ -61,6 +61,33 @@ my @CONFIG_VARIABLES = qw(
     ssl_version
 );
 
+my %Disabled = (
+    1 => {
+        config     => 1,
+        func       => 1,
+        make_node  => 1,
+        remote_env => 1,
+        slurp      => 1,
+        var        => 1,
+    },
+    2 => {
+        command_node => 1,
+        remote       => 1,
+    },
+    3 => {
+        connect_node => 1,
+        update_rules => 1,
+        schedule     => 1,
+    },
+);
+
+for my $cmd_name ( keys %{ $Disabled{1} } ) {
+    $Disabled{2}->{$cmd_name} = $Disabled{1}->{$cmd_name};
+}
+for my $cmd_name ( keys %{ $Disabled{2} } ) {
+    $Disabled{3}->{$cmd_name} = $Disabled{2}->{$cmd_name};
+}
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -2355,7 +2382,7 @@ sub verify_command {
             $message->[FROM], ' failed: ', $id, ' not in authorized_keys' );
         return;
     }
-    $self->verify_key( $message, [ 'command', 'meta' ], $command->{name} )
+    $self->verify_key( $message, ['command'], $command->{name} )
         or return;
     my $response = undef;
     my $signed   = join q(:),
@@ -2408,28 +2435,23 @@ sub verify_key {
         if ( not $entry );
     return 1 if ( $id eq $my_id and $secure_level < 1 );
 
-    if ( $cmd_name and $entry->{allow_commands}->{$cmd_name} ) {
-        my %disabled = (
-            1 => { make_node => 1 },
-            2 => {
-                make_node    => 1,
-                command_node => 1
-            },
-            3 => {
-                make_node    => 1,
-                command_node => 1,
-                connect_node => 1
-            },
-        );
-        return 1 if ( not $disabled{$secure_level}->{$cmd_name} );
-    }
+    my $allow_tag = 1;
     for my $tag ( @{$tags} ) {
-        next     if ( $secure_level > 0 and $tag eq 'meta' );
-        return 1 if ( $entry->{allow}->{$tag} );
+        next if ( $tag eq 'meta' and $id eq $my_id );
+        $allow_tag = undef if ( not $entry->{allow}->{$tag} );
+    }
+    if ( $allow_tag or $secure_level < 0 ) {
+        if ($cmd_name) {
+            return 1 if ( not $Disabled{$secure_level}->{$cmd_name} );
+        }
+        else {
+            return 1;
+        }
     }
     $self->stderr(
-        'ERROR: verification failed:',
-        " $id not allowed to ",
+        'ERROR: verification of message from ',
+        $message->[FROM], ' failed: ', $id,
+        ' not allowed to ',
         $cmd_name || $tags->[0]
     );
     return;
