@@ -85,7 +85,10 @@ sub fire {
         elsif ( $node->isa('Tachikoma::Nodes::Consumer') ) {
             my $buff_name = join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
-            my $partition  = $Tachikoma::Nodes{ $node->{partition} } or next;
+            my $partition = $Tachikoma::Nodes{ $node->{partition} } or next;
+            next
+                if ( not defined $node->{offset}
+                or not defined $partition->{offset} );
             my $msg_in_buf = ( $partition->{offset} - $node->{offset} ) / 100;
             $out .= join q(),
                 'hostname:'        => $self->{my_hostname},
