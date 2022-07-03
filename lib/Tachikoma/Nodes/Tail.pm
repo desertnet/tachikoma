@@ -636,7 +636,7 @@ sub handle_soft_EOF {
         return $self->reattempt
             if ( not $inode
             or $inode != $self->{inode}
-            or not $size
+            or not defined $size
             or $size < $self->{bytes_read} );
     }
 
