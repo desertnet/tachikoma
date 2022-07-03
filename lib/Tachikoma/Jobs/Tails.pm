@@ -157,7 +157,7 @@ sub fill {
         for my $file ( keys %{$files} ) {
             next if ( not $files->{$file} );
             my $node = $Tachikoma::Nodes{"$file:tail"};
-            if ( $node and $node->{bytes_answered} > $tiedhash->{$file} ) {
+            if ( $node and $node->{bytes_answered} != $tiedhash->{$file} ) {
                 $tiedhash->{$file} = $node->{bytes_answered};
             }
         }
@@ -187,7 +187,7 @@ sub rescan_files {
             $tail->name("$file:tail");
             $tail->arguments($arguments);
             $tail->buffer_mode('line-buffered');
-            $tail->max_unanswered(8);
+            $tail->max_unanswered(256);
             $tail->timeout($Default_Timeout);
             $tail->owner($node_path);
             $tail->sink( $self->router );
