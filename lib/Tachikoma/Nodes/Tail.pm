@@ -62,8 +62,8 @@ make_node Tail <node name> --filename=<filename>             \
                            --offset=<offset>                 \
                            --buffer_mode=<buffer mode>       \
                            --max_unanswered=<max unanswered> \
-                           --on-eof=<on_EOF>                 \
-                           --on-enoent=<on_ENOENT>           \
+                           --on_eof=<on_EOF>                 \
+                           --on_enoent=<on_ENOENT>           \
                            --timeout=<seconds>
     # buffer modes: line-buffered, block-buffered, binary
 EOF
@@ -90,8 +90,8 @@ sub arguments {
                 'offset=i'         => \$offset,
                 'buffer_mode=s'    => \$buffer_mode,
                 'max_unanswered=i' => \$max_unanswered,
-                'on-eof=s'         => \$on_eof,
-                'on-enoent=s'      => \$on_enoent,
+                'on_eof=s'         => \$on_eof,
+                'on_enoent=s'      => \$on_enoent,
                 'timeout=i'        => \$timeout
             );
             die "ERROR: bad arguments for Tail\n" if ( not $r );
