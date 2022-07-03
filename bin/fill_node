@@ -4,9 +4,8 @@ use warnings;
 use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
-use Tachikoma::Nodes::STDIO qw( TK_R );
 use Tachikoma::Nodes::Tail;
-use Tachikoma::Nodes::Socket qw( TK_SYNC );
+use Tachikoma::Nodes::Socket qw( TK_R TK_SYNC );
 use Getopt::Long qw( GetOptions );
 
 my $home            = ( getpwuid $< )[7];
@@ -37,32 +36,16 @@ $config->load_config_file( $config_file ? $config_file : @default_configs );
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
 my $router = Tachikoma::Nodes::Router->new;
-if ($throttle) {
-    my $tail = Tachikoma::Nodes::Tail->filehandle( *STDIN, TK_R );
-    my $tachikoma =
-        Tachikoma::Nodes::Socket->inet_client( $host, $port, undef,
-        $use_SSL );
-    $tail->buffer_mode('line-buffered');
-    $tail->max_unanswered($throttle);
-    $tail->owner($to);
-    $tail->sink($tachikoma);
-    $tail->on_timeout('die');
-    $tail->on_ENOENT('die');
-    $tail->on_EOF('close');
-    $tachikoma->sink($tail);
-    $router->drain($tail);
-}
-else {
-    my $stdin = Tachikoma::Nodes::STDIO->filehandle( *STDIN, TK_R );
-    my $tachikoma =
-        Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
-        $use_SSL );
-    $stdin->buffer_mode('line-buffered');
-    $stdin->owner($to);
-    $stdin->sink($tachikoma);
-    $tachikoma->sink($router);
-    $router->drain($stdin);
-}
+my $tail   = Tachikoma::Nodes::Tail->filehandle( *STDIN, TK_R );
+my $tachikoma =
+    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
+$tail->buffer_mode('line-buffered');
+$tail->max_unanswered($throttle);
+$tail->on_EOF('close');
+$tail->owner($to);
+$tail->sink($tachikoma);
+$tachikoma->sink($tail);
+$router->drain($tail);
 
 sub usage {
     print "Usage:\n"
