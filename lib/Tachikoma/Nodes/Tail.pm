@@ -449,6 +449,7 @@ sub expire_messages {
                 $offset = sysseek $fh, 0, SEEK_SET;
             }
         }
+        $self->{line_buffer}    = q();
         $self->{bytes_read}     = $offset;
         $self->{bytes_answered} = $offset;
         $self->{inflight}       = [];
