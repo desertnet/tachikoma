@@ -163,6 +163,7 @@ sub fill_fh_sync {
     my $packed      = \$message->[PAYLOAD];
     my $packed_size = length ${$packed};
     my $wrote       = 0;
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
     while ( $wrote < $packed_size ) {
         my $rv = syswrite $fh, ${$packed}, $packed_size - $wrote, $wrote;
         $rv = 0 if ( not defined $rv );
