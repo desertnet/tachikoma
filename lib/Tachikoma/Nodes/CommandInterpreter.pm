@@ -37,10 +37,15 @@ $Data::Dumper::Useperl  = 1;
 
 Getopt::Long::Configure('bundling');
 
-my $HELP             = Tachikoma->configuration->help;
-my %C                = ();
-my %H                = ();
-my %L                = ();
+my $HELP     = Tachikoma->configuration->help;
+my %H        = ();
+my %L        = ();
+my %C        = ();
+my %DISABLED = (
+    1 => { map { $_ => 1 } qw( config func make_node remote_env slurp var ) },
+    2 => { map { $_ => 1 } qw( command_node ) },
+    3 => { map { $_ => 1 } qw( connect_node ) },
+);
 my @CONFIG_VARIABLES = qw(
     prefix
     log_dir
@@ -61,33 +66,6 @@ my @CONFIG_VARIABLES = qw(
     ssl_version
 );
 
-my %Disabled = (
-    1 => {
-        config     => 1,
-        func       => 1,
-        make_node  => 1,
-        remote_env => 1,
-        slurp      => 1,
-        var        => 1,
-    },
-    2 => {
-        command_node => 1,
-        remote       => 1,
-    },
-    3 => {
-        connect_node => 1,
-        update_rules => 1,
-        schedule     => 1,
-    },
-);
-
-for my $cmd_name ( keys %{ $Disabled{1} } ) {
-    $Disabled{2}->{$cmd_name} = $Disabled{1}->{$cmd_name};
-}
-for my $cmd_name ( keys %{ $Disabled{2} } ) {
-    $Disabled{3}->{$cmd_name} = $Disabled{2}->{$cmd_name};
-}
-
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -95,6 +73,7 @@ sub new {
     $self->{help_topics} = \%H;
     $self->{help_links}  = \%L;
     $self->{patron}      = undef;
+    $self->disabled( \%DISABLED );
     bless $self, $class;
     return $self;
 }
@@ -519,6 +498,18 @@ $C{list_reconnecting} = sub {
     my $response = q();
     for my $node ( @{ Tachikoma->nodes_to_reconnect } ) {
         $response .= $node->{name} . "\n" if ( length $node->{name} );
+    }
+    return $self->response( $envelope, $response );
+};
+
+$C{list_disabled} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $response = q();
+    my $secure_level = $self->configuration->secure_level;
+    for my $cmd_name ( sort keys %{ $self->disabled->{$secure_level} } ) {
+        $response .= "$cmd_name\n";
     }
     return $self->response( $envelope, $response );
 };
@@ -2442,7 +2433,7 @@ sub verify_key {
     }
     if ( $allow_tag or $secure_level < 0 ) {
         if ($cmd_name) {
-            return 1 if ( not $Disabled{$secure_level}->{$cmd_name} );
+            return 1 if ( not $self->disabled->{$secure_level}->{$cmd_name} );
         }
         else {
             return 1;
@@ -2849,14 +2840,6 @@ sub remove_node {
     return;
 }
 
-sub commands {
-    my $self = shift;
-    if (@_) {
-        $self->{commands} = shift;
-    }
-    return $self->{commands};
-}
-
 sub help_topics {
     my $self = shift;
     if (@_) {
@@ -2871,6 +2854,29 @@ sub help_links {
         $self->{help_links} = shift;
     }
     return $self->{help_links};
+}
+
+sub commands {
+    my $self = shift;
+    if (@_) {
+        $self->{commands} = shift;
+    }
+    return $self->{commands};
+}
+
+sub disabled {
+    my $self = shift;
+    if (@_) {
+        my $disabled = shift;
+        for my $cmd_name ( keys %{ $disabled->{1} } ) {
+            $disabled->{2}->{$cmd_name} = $disabled->{1}->{$cmd_name};
+        }
+        for my $cmd_name ( keys %{ $disabled->{2} } ) {
+            $disabled->{3}->{$cmd_name} = $disabled->{2}->{$cmd_name};
+        }
+        $self->{disabled} = $disabled;
+    }
+    return $self->{disabled};
 }
 
 sub patron {

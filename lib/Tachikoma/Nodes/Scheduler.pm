@@ -22,10 +22,11 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home          = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir        = "$Home/.tachikoma/schedules";
-my %Safe_Commands = map { $_ => 1 } qw( prompt help list_events events ls );
+my $HOME          = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR        = "$HOME/.tachikoma/schedules";
+my %SAFE_COMMANDS = map { $_ => 1 } qw( prompt help list_events events ls );
 my %C             = ();
+my %DISABLED      = ( 3 => { map { $_ => 1 } qw( schedule ) } );
 
 sub new {
     my $class = shift;
@@ -36,6 +37,7 @@ sub new {
     $self->{interpreter} = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
+    $self->{interpreter}->disabled( \%DISABLED );
     bless $self, $class;
     return $self;
 }
@@ -67,7 +69,7 @@ sub fill {
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             return $self->stderr($@) if ($@);
             my $cmd_name = $command->{name};
-            if ( not $Safe_Commands{$cmd_name} ) {
+            if ( not $SAFE_COMMANDS{$cmd_name} ) {
                 my $interpreter = $self->interpreter;
                 $interpreter->verify_key( $message, ['meta'], 'schedule' )
                     or return $interpreter->send_response( $message,
@@ -489,9 +491,9 @@ sub filename {
 sub db_dir {
     my $self = shift;
     if (@_) {
-        $DB_Dir = shift;
+        $DB_DIR = shift;
     }
-    return $DB_Dir;
+    return $DB_DIR;
 }
 
 sub buffer_size {
