@@ -17,7 +17,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
-use IO::Socket::SSL qw( SSL_WANT_WRITE );
 use POSIX qw( EAGAIN );
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
