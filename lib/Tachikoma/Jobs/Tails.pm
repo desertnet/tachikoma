@@ -84,6 +84,7 @@ sub initialize_graph {
         my $command  = shift;
         my $envelope = shift;
         $self->timer->set_timer( $Offset_Interval * 1000 );
+        $self->last_scan( $Tachikoma::Now + $Startup_Delay );
         return $this->okay($envelope);
     };
     $interpreter->commands->{'stop_tail'} = sub {
