@@ -183,8 +183,16 @@ sub drain_fh {
         if ( not defined $read );
     &{ $self->{drain_buffer} }( $self, \$buffer )
         if ( $read and $self->{sink} );
+
+    # Tachikoma::EventFrameworks::KQueue only calls drain_fh() when we are
+    # not already at the end of the file.  This means it relies on
+    # register_watcher_node() to watch for deletes and renames and calls
+    # note_fh() directly.
+    # This end-of-file condition will only occur using
+    # Tachikoma::EventFrameworks::Select:
     $self->handle_soft_EOF
         if ( defined $read and $read < 1 );    # select()
+
     $self->handle_EOF
         if (
         not defined $read
@@ -210,7 +218,7 @@ sub drain_buffer_normal {
 
     # We want the offset at the end of the data we just read
     # because when handling responses, this becomes "bytes_answered"
-    # which is our restart point on timeout
+    # which is our restart point on timeout.
     $self->{bytes_read} += length ${$buffer};
     $message->[ID] = $self->{bytes_read};
     my $max_unanswered = $self->{max_unanswered};
@@ -627,6 +635,8 @@ sub finished {
 
 sub handle_soft_EOF {
     my $self = shift;
+
+    # Watch for delete, rename and truncation.
     if ( $self->{on_EOF} eq 'ignore' ) {
         my $inode = 0;
         my $size  = undef;
@@ -641,13 +651,13 @@ sub handle_soft_EOF {
             or $size < $self->{bytes_read} );
     }
 
-    # only poll the file every so often
-    # also throttles overzealous fifos in kqueue
+    # Only poll the file every so often.
     my $hz = $self->{configuration}->{hz} || 10;
     $self->unregister_reader_node;
     $self->poll_timer->set_timer( 1000 / $hz, 'oneshot' );
 
-    # support STDIN
+    # Support STDIN--defining size() will enable finished() to return
+    # true once all of the messages have been acknowledged.
     if ( not length $self->{filename} ) {
         $self->{size} = $self->{bytes_read};
     }

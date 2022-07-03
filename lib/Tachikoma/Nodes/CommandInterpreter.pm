@@ -503,10 +503,10 @@ $C{list_reconnecting} = sub {
 };
 
 $C{list_disabled} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $response = q();
+    my $self         = shift;
+    my $command      = shift;
+    my $envelope     = shift;
+    my $response     = q();
     my $secure_level = $self->configuration->secure_level;
     for my $cmd_name ( sort keys %{ $self->disabled->{$secure_level} } ) {
         $response .= "$cmd_name\n";
@@ -2227,15 +2227,19 @@ $C{disable_profiling} = sub {
 $H{secure} = ["secure [ <level> ]\n"];
 
 $C{secure} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
-    my $num       = $command->arguments;
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $num      = $command->arguments;
+
+    # The shell likes to cache its prompt commands.  Clear the cache
+    # of any unsigned prompt command so that a new one can be made.
     my $responder = $Tachikoma::Nodes{_responder};
     if ($responder) {
         my $shell = $responder->shell;
         $shell->{last_prompt} = 0 if ($shell);
     }
+
     my $config       = $self->configuration;
     my $secure_level = $config->secure_level;
     if ( length $num ) {
@@ -2265,14 +2269,18 @@ $C{secure} = sub {
 };
 
 $C{insecure} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+
+    # The shell likes to cache its prompt commands.  Clear the cache
+    # of any unsigned prompt command so that a new one can be made.
     my $responder = $Tachikoma::Nodes{_responder};
     if ($responder) {
         my $shell = $responder->shell;
         $shell->{last_prompt} = 0 if ($shell);
     }
+
     my $config = $self->configuration;
     die "ERROR: process already secured\n"
         if ( defined $config->secure_level
