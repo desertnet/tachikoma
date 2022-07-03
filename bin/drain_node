@@ -36,7 +36,8 @@ Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 my $router = Tachikoma::Nodes::Router->new;
 my $tachikoma =
     Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
-my $stdout = Tachikoma::Nodes::STDIO->filehandle(*STDOUT);
+my $stdout = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
+$stdout->on_EOF('ignore');
 $stdout->sink($router);
 $tachikoma->sink($stdout);
 if ($node_name) {
