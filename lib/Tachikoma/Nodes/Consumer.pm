@@ -23,7 +23,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 15;            # wait at least this long on startup
+my $Startup_Delay   = 5;             # wait at least this long on startup
 my $Timeout         = 900;           # default async message timeout
 my $Expire_Interval = 15;            # check message timeouts
 my $Commit_Interval = 60;            # commit offsets

@@ -26,7 +26,7 @@ my $Home            = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_Dir          = "$Home/.tachikoma/tails";
 my $Offset_Interval = 1;
 my $Scan_Interval   = 15;
-my $Startup_Delay   = 60;
+my $Startup_Delay   = 30;
 my $Default_Timeout = 300;
 
 sub initialize_graph {
@@ -95,8 +95,7 @@ sub initialize_graph {
             my $watcher = $Tachikoma::Nodes{"$file:watcher"};
             $watcher->remove_node if ($watcher);
         }
-        $self->timer->remove_node if ( $self->{timer} );
-        $self->{timer} = undef;
+        $self->timer->stop_timer;
         return $this->okay($envelope);
     };
     $interpreter->commands->{'list_files'} = sub {

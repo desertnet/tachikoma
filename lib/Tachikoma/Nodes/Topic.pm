@@ -22,7 +22,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval   = 15;       # delay between polls
+my $Poll_Interval   = 5;        # delay between polls
 my $Startup_Delay   = 30;       # wait at least this long on startup
 my $Hub_Timeout     = 60;       # synchronous timeout waiting for hub
 my $Batch_Threshold = 65536;    # low water mark before sending batches
@@ -85,7 +85,7 @@ sub arguments {
         $self->{batch_timestamp} = {};
         $self->{responses}       = {};
         $self->{batch_responses} = {};
-        $self->set_timer;
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{arguments};
 }
@@ -180,10 +180,10 @@ sub fire {
     }
     if ( keys %{$batch} ) {
         $self->set_timer( $Batch_Interval * 1000 )
-            if ( not $self->{timer_interval} );
+            if ( $self->{timer_interval} != $Batch_Interval * 1000 );
     }
-    elsif ( defined $self->{timer_interval} ) {
-        $self->set_timer;
+    elsif ( $self->{timer_interval} != $self->{poll_interval} * 1000 ) {
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return;
 }
