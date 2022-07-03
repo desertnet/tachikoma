@@ -35,6 +35,8 @@ sub new {
     $self->{line_buffer}     = q();
     $self->{buffer_mode}     = 'binary';
     $self->{inflight}        = [];
+    $self->{inode}           = 0;
+    $self->{size}            = undef;
     $self->{msg_unanswered}  = 0;
     $self->{max_unanswered}  = 0;
     $self->{bytes_answered}  = 0;
@@ -130,7 +132,8 @@ sub arguments {
             $self->process_enoent;
             return $self->{arguments};
         }
-        my $size = ( stat $fh )[7];
+        my $inode = ( stat $fh )[1];
+        my $size  = ( stat _ )[7];
         if ( not defined $offset or $offset < 0 ) {
             $offset = sysseek $fh, 0, SEEK_END;
         }
@@ -140,6 +143,7 @@ sub arguments {
         else {
             $offset = 0;
         }
+        $self->{inode}          = $inode // 0;
         $self->{bytes_read}     = $offset;
         $self->{bytes_answered} = $offset;
         $self->fh($fh);
@@ -188,7 +192,7 @@ sub drain_fh {
             and $self->{on_EOF} ne 'ignore'
             and $self->finished )
         or (    $read
-            and $self->{size}
+            and defined $self->{size}
             and not $self->{sent_EOF}
             and $self->finished )
         );
@@ -396,6 +400,7 @@ sub note_fh {
     $self->reattempt_timer->stop_timer;
     $self->{bytes_read}     = 0;
     $self->{bytes_answered} = 0;
+    $self->{inode}          = ( stat $fh )[1] // 0;
     $self->{size}           = undef;
     $self->{line_buffer}    = q();
     $self->{reattempt}      = undef;
@@ -499,6 +504,14 @@ sub filename {
         $self->{filename} = shift;
     }
     return $self->{filename};
+}
+
+sub inode {
+    my $self = shift;
+    if (@_) {
+        $self->{inode} = shift;
+    }
+    return $self->{inode};
 }
 
 sub size {
@@ -614,10 +627,17 @@ sub finished {
 sub handle_soft_EOF {
     my $self = shift;
     if ( $self->{on_EOF} eq 'ignore' ) {
-        my $size = undef;
-        $size = ( stat $self->{filename} )[7] if ( $self->{filename} );
+        my $inode = 0;
+        my $size  = undef;
+        if ( $self->{filename} ) {
+            $inode = ( stat $self->{filename} )[1];
+            $size  = ( stat _ )[7];
+        }
         return $self->reattempt
-            if ( not defined $size or $size < $self->{bytes_read} );
+            if ( not $inode
+            or $inode != $self->{inode}
+            or not $size
+            or $size < $self->{bytes_read} );
     }
 
     # only poll the file every so often
