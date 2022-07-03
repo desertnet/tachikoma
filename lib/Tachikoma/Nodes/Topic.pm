@@ -48,6 +48,7 @@ sub new {
     $self->{responses}              = undef;
     $self->{batch_responses}        = undef;
     $self->{valid_broker_paths}     = undef;
+    $self->{registrations}->{RESET} = {};
     $self->{registrations}->{READY} = {};
 
     # sync support
@@ -336,6 +337,8 @@ sub reset_topic {
     $self->{batch_timestamp} = {};
     $self->{responses}       = {};
     $self->{batch_responses} = {};
+    $self->{set_state}       = {};
+    $self->notify( 'RESET' => $self->{name} );
     return;
 }
 

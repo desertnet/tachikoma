@@ -40,8 +40,8 @@ for i ( <start> .. <end> ) {
         on images.orphans READY {
             connect_edge images:lookup          images.orphans;
             connect_node images.ondisk:consumer images:lookup;
-            secure 3;
         };
+        secure 2;
     cd ..;
     connect_node images images<i>;
 }
