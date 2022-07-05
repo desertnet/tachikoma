@@ -341,7 +341,7 @@ sub fill {
             shift @{ $self->{inflight} };
         }
         elsif ( not $self->cancel_offset($offset) ) {
-            $self->print_less_often(
+            return $self->print_less_often(
                 'WARNING: unexpected response offset ',
                 "$offset from ",
                 $message->[FROM]
