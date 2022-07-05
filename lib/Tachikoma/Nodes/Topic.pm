@@ -276,13 +276,12 @@ sub batch_message {
     }
     if ( $self->{batch_size}->{$i} > $Batch_Threshold ) {
         $self->set_timer(0)
-            if (
-            not defined $self->{timer_interval}
-            or ( defined $self->{timer_interval}
-                and $self->{timer_interval} != 0 )
-            );
+            if ( not defined $self->{timer_interval}
+            or $self->{timer_interval} != 0 );
     }
-    elsif ( not defined $self->{timer_interval} ) {
+    elsif ( not defined $self->{timer_interval}
+        or $self->{timer_interval} != $Batch_Interval * 1000 )
+    {
         $self->set_timer( $Batch_Interval * 1000 );
     }
     return;
