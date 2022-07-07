@@ -33,6 +33,7 @@ sub new {
         counter       => 0,
         registrations => {},
         set_state     => {},
+        debug_state   => undef,
         configuration => Tachikoma->configuration,
     };
     bless $self, $class;
@@ -218,11 +219,20 @@ sub cancel {
 
 sub set_state {
     my ( $self, $event, $payload ) = @_;
-    $payload ||= $event;
-    chomp $payload;
-    $self->{set_state}->{$event} = $payload;
-    $self->notify( $event, $payload );
+    chomp $payload if ( defined $payload );
+    $self->{set_state}->{$event} = $payload // $event;
+    $self->notify( $event, $payload // $event );
+    $self->stderr( "DEBUG: $event" . ( length $payload ? " $payload" : q() ) )
+        if ( $self->{debug_state} );
     return;
+}
+
+sub debug_state {
+    my $self = shift;
+    if (@_) {
+        $self->{debug_state} = shift;
+    }
+    return $self->{debug_state};
 }
 
 sub notify {

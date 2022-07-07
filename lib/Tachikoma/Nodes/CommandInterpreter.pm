@@ -1652,6 +1652,20 @@ $C{on} = sub {
     return $self->okay($envelope);
 };
 
+$H{debug_state} = ["debug_state <node name>\n"];
+
+$C{debug_state} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $name     = $command->arguments;
+    die qq(no node specified\n) if ( not length $name );
+    my $node = $Tachikoma::Nodes{$name};
+    die qq(can't find node "$name"\n) if ( not $node );
+    $node->debug_state( not $node->debug_state );
+    return $self->okay($envelope);
+};
+
 $H{reset} = ["reset <node name>\n"];
 
 $C{reset} = sub {
