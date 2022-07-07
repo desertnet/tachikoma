@@ -25,7 +25,7 @@ use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
 my $Check_Interval  = 2;             # check partition map this often
-my $Startup_Delay   = 30;            # wait at least this long on startup
+my $Startup_Delay   = 15;            # wait at least this long on startup
 my $Commit_Interval = 60;            # commit offsets
 my $Timeout         = 900;           # default async message timeout
 my $Hub_Timeout     = 300;           # timeout waiting for hub
