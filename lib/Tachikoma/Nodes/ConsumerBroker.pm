@@ -39,12 +39,12 @@ sub new {
     $self->{topic}          = shift;
     $self->{group}          = shift;
     $self->{consumers}      = {};
-    $self->{default_offset} = 'end';
     $self->{poll_interval}  = $Poll_Interval;
-    $self->{cache_type}     = 'snapshot';
-    $self->{cache_dir}      = undef;
+    $self->{hub_timeout}    = $Hub_Timeout;
+    $self->{cache_type}     = $Cache_Type;
     $self->{auto_commit}    = $self->{group} ? $Commit_Interval : undef;
     $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
+    $self->{default_offset} = 'end';
     $self->{last_check}     = 0;
 
     # async support
@@ -59,7 +59,6 @@ sub new {
     # sync support
     $self->{broker}      = undef;
     $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
-    $self->{hub_timeout} = $Hub_Timeout;
     $self->{targets}     = {};
     $self->{partitions}  = undef;
     $self->{leader}      = undef;
@@ -80,10 +79,9 @@ make_node ConsumerBroker <node name> --broker=<path>               \
                                      --max_unanswered=<int>        \
                                      --timeout=<seconds>           \
                                      --poll_interval=<seconds>     \
-                                     --cache_type=<string>         \
-                                     --cache_dir=<path>            \
-                                     --auto_commit=<seconds>       \
                                      --hub_timeout=<seconds>       \
+                                     --cache_type=<string>         \
+                                     --auto_commit=<seconds>       \
                                      --default_offset=<int|string>
     # valid cache types: window, snapshot
     # valid offsets: start (0), recent (-2), end (-1)
@@ -94,10 +92,9 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($broker,        $topic,          $group,
-            $partition_id,  $max_unanswered, $timeout,
-            $poll_interval, $cache_type,     $cache_dir,
-            $auto_commit,   $hub_timeout,    $default_offset
+        my ($broker,         $topic,       $group,         $partition_id,
+            $max_unanswered, $timeout,     $poll_interval, $hub_timeout,
+            $cache_type,     $auto_commit, $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -108,10 +105,9 @@ sub arguments {
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
             'poll_interval=f'  => \$poll_interval,
-            'cache_type=s'     => \$cache_type,
-            'cache_dir=s'      => \$cache_dir,
-            'auto_commit=i'    => \$auto_commit,
             'hub_timeout=i'    => \$hub_timeout,
+            'cache_type=s'     => \$cache_type,
+            'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
         );
         die "ERROR: bad arguments for ConsumerBroker\n" if ( not $r );
@@ -126,10 +122,10 @@ sub arguments {
         $self->{max_unanswered} = $max_unanswered // 1;
         $self->{timeout}        = $timeout || $Timeout;
         $self->{poll_interval}  = $poll_interval || $Poll_Interval;
+        $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
 
         if ($group) {
-            $self->{cache_type}  = $cache_type // $Cache_Type;
-            $self->{cache_dir}   = $cache_dir;
+            $self->{cache_type}  = $cache_type  // $Cache_Type;
             $self->{auto_commit} = $auto_commit // $Commit_Interval;
             if ( $self->{cache_type} eq 'window' ) {
                 $self->{auto_commit} = undef;
@@ -142,8 +138,8 @@ sub arguments {
                 $self->{auto_offset} = undef;
             }
         }
-        $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
         $self->{default_offset} = $default_offset // 'end';
+        $self->{last_check}     = 0;
     }
     return $self->{arguments};
 }
@@ -242,8 +238,7 @@ sub update_graph {
     else {
         for my $partition_id ( sort keys %{$partitions} ) {
             my $broker_id = $partitions->{$partition_id};
-            next if ( not $broker_id );
-            if ( $self->make_broker_connection($broker_id) ) {
+            if ( $broker_id and $self->make_broker_connection($broker_id) ) {
                 $self->make_async_consumer( $partitions, $partition_id );
             }
         }
@@ -281,6 +276,8 @@ sub make_async_consumer {
     }
     my $consumer = $Tachikoma::Nodes{$consumer_name};
     if ( not $consumer ) {
+        $self->stderr("DEBUG: $consumer_name: CREATE")
+            if ( $self->debug_state );
         $consumer = Tachikoma::Nodes::Consumer->new;
         $consumer->name($consumer_name);
         $consumer->arguments("--partition=$log");
@@ -288,10 +285,7 @@ sub make_async_consumer {
         $consumer->partition_id($partition_id);
         if ( $self->{group} ) {
             $consumer->cache_type( $self->cache_type );
-            if ( $self->cache_dir ) {
-                $consumer->cache_dir( $self->cache_dir );
-            }
-            elsif ( $self->{auto_offset} ) {
+            if ( $self->{auto_offset} ) {
                 my $offsetlog = join q(:), $log, $self->{group};
                 $consumer->offsetlog($offsetlog);
             }
@@ -305,6 +299,7 @@ sub make_async_consumer {
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
         $consumer->owner( $self->owner );
+        $consumer->debug_state( $self->debug_state );
 
         for my $event ( keys %{ $self->{registrations} } ) {
             my $r = $self->{registrations}->{$event};
@@ -638,10 +633,7 @@ sub make_sync_consumer {
     if ( $self->group ) {
         $consumer->group( $self->group );
         $consumer->cache_type( $self->cache_type );
-        if ( $self->cache_dir ) {
-            $consumer->cache_dir( $self->cache_dir );
-        }
-        elsif ( $self->auto_offset ) {
+        if ( $self->auto_offset ) {
             my $offsetlog = join q(:), $log, $self->group;
             $consumer->offsetlog($offsetlog);
         }
@@ -729,18 +721,6 @@ sub consumers {
     return $self->{consumers};
 }
 
-sub default_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{default_offset} = shift;
-        for my $partition_id ( keys %{ $self->{consumers} } ) {
-            my $consumer = $self->{consumers}->{$partition_id};
-            $consumer->default_offset( $self->{default_offset} );
-        }
-    }
-    return $self->{default_offset};
-}
-
 sub poll_interval {
     my $self = shift;
     if (@_) {
@@ -749,20 +729,20 @@ sub poll_interval {
     return $self->{poll_interval};
 }
 
+sub hub_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{hub_timeout} = shift;
+    }
+    return $self->{hub_timeout};
+}
+
 sub cache_type {
     my $self = shift;
     if (@_) {
         $self->{cache_type} = shift;
     }
     return $self->{cache_type};
-}
-
-sub cache_dir {
-    my $self = shift;
-    if (@_) {
-        $self->{cache_dir} = shift;
-    }
-    return $self->{cache_dir};
 }
 
 sub auto_commit {
@@ -790,6 +770,18 @@ sub auto_offset {
             if ( not $self->{auto_offset} and $self->{auto_commit} );
     }
     return $self->{auto_offset};
+}
+
+sub default_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{default_offset} = shift;
+        for my $partition_id ( keys %{ $self->{consumers} } ) {
+            my $consumer = $self->{consumers}->{$partition_id};
+            $consumer->default_offset( $self->{default_offset} );
+        }
+    }
+    return $self->{default_offset};
 }
 
 sub last_check {
@@ -870,11 +862,6 @@ sub broker {
 sub broker_ids {
     my (@args) = @_;
     return Tachikoma::Nodes::Topic::broker_ids(@args);
-}
-
-sub hub_timeout {
-    my (@args) = @_;
-    return Tachikoma::Nodes::Topic::hub_timeout(@args);
 }
 
 sub targets {

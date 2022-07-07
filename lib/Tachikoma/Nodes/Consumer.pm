@@ -49,17 +49,17 @@ sub new {
     $self->{partition_id}    = undef;
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
-    $self->{default_offset}  = 'end';
     $self->{buffer}          = \$new_buffer;
     $self->{poll_interval}   = $Poll_Interval;
+    $self->{hub_timeout}     = $Hub_Timeout;
     $self->{last_receive}    = Time::HiRes::time;
     $self->{cache}           = undef;
     $self->{cache_type}      = undef;
     $self->{last_cache_size} = undef;
     $self->{auto_commit}     = $self->{offsetlog} ? $Commit_Interval : undef;
+    $self->{default_offset}  = 'end';
     $self->{last_commit}     = 0;
     $self->{last_commit_offset} = -1;
-    $self->{hub_timeout}        = $Hub_Timeout;
 
     # async support
     $self->{expecting}               = undef;
@@ -91,9 +91,9 @@ make_node Consumer <node name> --partition=<path>            \
                                --max_unanswered=<int>        \
                                --timeout=<seconds>           \
                                --poll_interval=<seconds>     \
+                               --hub_timeout=<seconds>       \
                                --cache_type=<string>         \
                                --auto_commit=<seconds>       \
-                               --hub_timeout=<seconds>       \
                                --default_offset=<int|string>
     # valid cache types: window, snapshot
     # valid offsets: start (0), recent (-2), end (-1)
@@ -104,9 +104,9 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,   $offsetlog,     $max_unanswered,
-            $timeout,     $poll_interval, $cache_type,
-            $auto_commit, $hub_timeout,   $default_offset
+        my ($partition,  $offsetlog,     $max_unanswered,
+            $timeout,    $poll_interval, $hub_timeout,
+            $cache_type, $auto_commit,   $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -114,10 +114,10 @@ sub arguments {
             'offsetlog=s'      => \$offsetlog,
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
-            'cache_type=s'     => \$cache_type,
             'poll_interval=i'  => \$poll_interval,
-            'auto_commit=i'    => \$auto_commit,
             'hub_timeout=i'    => \$hub_timeout,
+            'cache_type=s'     => \$cache_type,
+            'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
         );
         $partition //= shift @{$argv};
@@ -129,25 +129,26 @@ sub arguments {
         $self->{offsetlog}          = $offsetlog;
         $self->{offset}             = undef;
         $self->{next_offset}        = undef;
-        $self->{default_offset}     = $default_offset // 'end';
         $self->{buffer}             = \$new_buffer;
+        $self->{msg_unanswered}     = 0;
+        $self->{max_unanswered}     = $max_unanswered // 1;
+        $self->{timeout}            = $timeout || $Timeout;
         $self->{poll_interval}      = $poll_interval || $Poll_Interval;
+        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{last_receive}       = $Tachikoma::Now;
         $self->{cache_type}         = $cache_type // $Cache_Type;
         $self->{last_cache_size}    = undef;
         $self->{auto_commit}        = $auto_commit // $Commit_Interval;
         $self->{auto_commit}        = undef if ( not $offsetlog );
+        $self->{default_offset}     = $default_offset // 'end';
         $self->{last_commit}        = 0;
         $self->{last_commit_offset} = -1;
-        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{expecting}          = undef;
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
-        $self->{msg_unanswered}     = 0;
-        $self->{max_unanswered}     = $max_unanswered // 1;
-        $self->{timeout}            = $timeout || $Timeout;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
+        $self->{set_state}          = {};
         $self->set_state( 'ACTIVE' => $self->{partition} )
             if ( not $offsetlog );
     }
@@ -271,7 +272,7 @@ sub handle_EOF {
     else {
         $self->{next_offset} = $offset;
         $self->set_state( 'READY' => $self->{partition_id} )
-            if ( not $self->{set_state}->{READY} );
+            if ( not length $self->{set_state}->{READY} );
     }
     return;
 }
@@ -940,15 +941,6 @@ sub next_offset {
     return $self->{next_offset};
 }
 
-sub default_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{default_offset} = shift;
-        $self->next_offset(undef);
-    }
-    return $self->{default_offset};
-}
-
 sub buffer {
     my $self = shift;
     if (@_) {
@@ -963,6 +955,14 @@ sub poll_interval {
         $self->{poll_interval} = shift;
     }
     return $self->{poll_interval};
+}
+
+sub hub_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{hub_timeout} = shift;
+    }
+    return $self->{hub_timeout};
 }
 
 sub last_receive {
@@ -1005,6 +1005,15 @@ sub auto_commit {
     return $self->{auto_commit};
 }
 
+sub default_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{default_offset} = shift;
+        $self->next_offset(undef);
+    }
+    return $self->{default_offset};
+}
+
 sub last_commit {
     my $self = shift;
     if (@_) {
@@ -1019,14 +1028,6 @@ sub last_commit_offset {
         $self->{last_commit_offset} = shift;
     }
     return $self->{last_commit_offset};
-}
-
-sub hub_timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{hub_timeout} = shift;
-    }
-    return $self->{hub_timeout};
 }
 
 # async support
