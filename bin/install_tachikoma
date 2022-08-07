@@ -1,8 +1,4 @@
 #!/bin/sh -e
-config=$1
-if [ -z "$config" ] ; then
-    config=default
-fi
 if [ ! -d lib/Tachikoma/Nodes ] ; then
     echo ERROR: must be run from within tachikoma distribution.
     exit 1
@@ -20,44 +16,6 @@ else
 fi
 make clean
 rm -f Makefile.old
-
-# make dirs
-mkdir -p ~/.tachikoma/
-mkdir -p ~/.tachikoma/etc/
-mkdir -p ~/.tachikoma/http/
-mkdir -p ~/.tachikoma/log/
-mkdir -p ~/.tachikoma/partitions/
-mkdir -p ~/.tachikoma/pool/
-mkdir -p ~/.tachikoma/run/
-mkdir -p ~/.tachikoma/services/
-mkdir -p ~/.tachikoma/pki/
-
-# server config
-cp etc/Devel/tachikoma.conf ~/.tachikoma/etc/
-
-# private key
-bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
-
-# HTTP
-cp etc/Devel/CGI.conf ~/.tachikoma/etc/
-cp -r http/* ~/.tachikoma/http/
-
-# init scripts
-cp -Tr etc/services        ~/.tachikoma/services
-cp etc/scripts/$config/startup.txt ~/.tachikoma/
-cp etc/scripts/$config/config.tsl  ~/.tachikoma/
-
-# authorized keys
-etc/authorized_keys/regenerate.pl
-cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
-
-# TLS
-cp -r etc/pki ~/.tachikoma/
-if [ ! -d ~/.tachikoma/tls ] ; then
-    cd ~/.tachikoma/pki
-    ./genkey net.desert server
-    mv tls/net.desert ~/.tachikoma/tls
-fi
 
 # extras
 if which install_tachikoma_extra > /dev/null 2>&1 ; then
