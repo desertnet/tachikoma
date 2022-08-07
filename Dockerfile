@@ -25,7 +25,9 @@ RUN    useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma 
 
 WORKDIR /usr/src
 RUN git clone https://github.com/datapoke/tachikoma
-COPY ./local/ /usr/src/tachikoma/etc/scripts/local
+
+# NOTE: add your own configs here and use --build-arg CONFIG=local
+# COPY ./local/ /usr/src/tachikoma/etc/scripts/local
 
 WORKDIR /usr/src/tachikoma
 RUN    bin/install_tachikoma \
