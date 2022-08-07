@@ -40,6 +40,7 @@ sudo apt install libperl-critic-perl
 # To quickly get up and running with the example server,
 # run this from the distribution directory:
 bin/install_tachikoma
+bin/install_tachikoma_user
 
 
 

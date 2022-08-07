@@ -5,7 +5,6 @@ ARG TACHIKOMA_UID=1000
 
 RUN apt-get update && \
     apt-get install -y \
-        vim less procps \
         git build-essential \
         libberkeleydb-perl \
         libcgi-pm-perl \
@@ -19,12 +18,14 @@ RUN apt-get update && \
         libterm-readline-gnu-perl \
         libwww-perl \
     && rm -rf /var/lib/apt/lists/*
+        # vim less procps \
 
-RUN    useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -M tachikoma \
+RUN    useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma \
     && usermod -aG adm tachikoma
 
 WORKDIR /usr/src
 RUN git clone https://github.com/datapoke/tachikoma
+COPY ./local/ /usr/src/tachikoma/etc/scripts/local
 
 WORKDIR /usr/src/tachikoma
 RUN    bin/install_tachikoma \
