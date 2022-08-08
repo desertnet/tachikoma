@@ -19,7 +19,7 @@ my @default_configs = (
     "$home/.tachikoma/etc/tachikoma.conf",
     '/usr/local/etc/tachikoma.conf',
 );
-my ( $config_file, $class, $name, $arguments, $owner ) = @ARGV;
+my ( $config_file, $class, $name, $arguments ) = @ARGV;
 usage() if ( not $class );
 srand;
 my $config = Tachikoma->configuration;
@@ -44,7 +44,6 @@ $job->connector($connector);
 $job->router($router);
 $job->name($name);
 $job->arguments($arguments);
-$job->owner($owner);
 $job->type($class);
 $job->pid($$);
 local $0 = $name;

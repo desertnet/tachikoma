@@ -124,7 +124,6 @@ sub spawn {
         my $config_file   = ( $options->{config_file} =~ m{^(\S*)$} )[0];
         my $name          = ( $options->{name} =~ m{^(\S*)$} )[0];
         my $arguments     = ( $options->{arguments} =~ m{^(.*)$}s )[0];
-        my $owner         = ( $options->{owner} =~ m{^(\S*)$} )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -138,7 +137,7 @@ sub spawn {
             push @command, $SUDO, '-u', $username, '-C', FD_5 + 1;
         }
         push @command, $tachikoma_job, $config_file, $class, $name,
-            $arguments, $owner;
+            $arguments;
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;
     }
