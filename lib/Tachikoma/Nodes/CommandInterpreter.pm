@@ -1746,7 +1746,7 @@ $C{dump_config} = sub {
             $skip{$name} = 1;
             next;
         }
-        if (   $name eq 'command_interpreter'
+        if (   $name eq '_command_interpreter'
             or $name eq '_parent'
             or not $node->{sink}
             or not $node->{sink}->{name}
@@ -1773,7 +1773,7 @@ $C{dump_config} = sub {
     for my $name ( sort keys %Tachikoma::Nodes ) {
         next if ( $skip{$name} );
         my $node = $Tachikoma::Nodes{$name};
-        if ( $node->{sink}->{name} ne 'command_interpreter' ) {
+        if ( $node->{sink}->{name} ne '_command_interpreter' ) {
             $response .= "connect_sink $name $node->{sink}->{name}\n";
         }
         if ( $node->{edge} ) {

@@ -18,7 +18,7 @@ sub initialize_graph {
     my $self = shift;
     my $cgi  = Tachikoma::Nodes::CGI->new;
     $self->connector->sink($cgi);
-    $cgi->name('CGI');
+    $cgi->name('_cgi');
     $cgi->arguments( $self->arguments );
     $cgi->sink($self);
     $self->sink( $self->router );

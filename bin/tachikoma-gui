@@ -195,7 +195,7 @@ sub fill {
             $Branch       = undef if ($Reset_Branch);
             $Reset_Branch = undef;
             $Wait_For_Response-- if ( $Wait_For_Response > 0 );
-            build_tree( {}, 'command_interpreter' );
+            build_tree( {}, '_command_interpreter' );
             build_model();
         }
         elsif ( $command->name eq 'times' ) {
@@ -257,7 +257,7 @@ sub build_tree {
 sub build_model {
     %Cells     = ();
     %Distances = ();
-    my $name = $Branch || 'command_interpreter';
+    my $name = $Branch || '_command_interpreter';
     build_model_contents( $Branches{$name}, 0, $Window_Height, 0,
         $Window_Width, $Window_Height, 0 );
     return;
@@ -329,7 +329,7 @@ sub display {
         $Window_Height / 2,
         0, 0, 1, 0
     );
-    my $name = $Branch || 'command_interpreter';
+    my $name = $Branch || '_command_interpreter';
     display_branch($name);
     display_owners();
     glFlush();
@@ -1392,9 +1392,9 @@ sub by_sink {
     print STDERR "sink for $_[1] not defined\n" if not $s1;
     return (
           $s0 cmp $s1
-        ? $s0 eq 'command_interpreter'
+        ? $s0 eq '_command_interpreter'
                 ? -1
-                : $s1 eq 'command_interpreter' ? 1
+                : $s1 eq '_command_interpreter' ? 1
             : $s0 cmp $s1
         : $_[0] cmp $_[1]
     );

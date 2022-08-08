@@ -41,12 +41,12 @@ sub initialize_graph {
     $self->connector->sink($interpreter);
     $shell->responder($responder);
     $shell->sink($interpreter);
-    $interpreter->name('command_interpreter');
+    $interpreter->name('_command_interpreter');
     $responder->name('_responder');
     $responder->shell($shell);
     $responder->sink( $self->router );
     $self->interpreter($interpreter);
-    $file_watcher->name('FileWatcher');
+    $file_watcher->name('_file_watcher');
     $file_watcher->sink($self);
     $self->file_watcher($file_watcher);
     $self->tails( {} );
@@ -142,10 +142,10 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     $self->{counter}++;
-    if ( $message->from eq 'FileWatcher' ) {
+    if ( $message->from eq '_file_watcher' ) {
         my $events = qr{(created|inode changed|missing)};
         my $event  = undef;
-        if ( $message->[PAYLOAD] =~ m{^FileWatcher: file (.*) $events$} ) {
+        if ( $message->[PAYLOAD] =~ m{^_file_watcher: file (.*) $events$} ) {
             my $file = $1;
             $event = $2;
             $file =~ s{/}{:}g;
@@ -158,7 +158,7 @@ sub fill {
         $self->rescan_files if ( $event and $event ne 'missing' );
         return;
     }
-    elsif ( $message->from eq 'Timer' ) {
+    elsif ( $message->from eq '_timer' ) {
         my $tiedhash = $self->tiedhash;
         my $files    = $self->{files};
         if ( $Tachikoma::Now - $self->{last_scan} >= $Scan_Interval ) {
@@ -323,7 +323,7 @@ sub timer {
     }
     if ( not defined $self->{timer} ) {
         my $timer = Tachikoma::Nodes::Timer->new;
-        $timer->name('Timer');
+        $timer->name('_timer');
         $timer->sink($self);
         $self->{timer} = $timer;
     }

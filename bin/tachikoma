@@ -123,7 +123,7 @@ $responder->shell($shell);
 attach($responder);
 if ($new_server) {
     $node = $router;
-    $tachikoma->name('command_interpreter');
+    $tachikoma->name('_command_interpreter');
 }
 attach($tachikoma);
 $shell->stdin($stdin) if ( not $filename );
@@ -156,11 +156,11 @@ if ($filename) {
     }
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_EOF;
-    $message->[FROM] = 'stdin';
+    $message->[FROM] = '_stdin';
     $shell->fill($message);
 }
 else {
-    $stdin->name('stdin') if ( not $new_server );
+    $stdin->name('_stdin') if ( not $new_server );
     $stdin->buffer_mode('line-buffered');
     $stdin->use_readline('true') if ($isa_tty);
     attach($stdin);

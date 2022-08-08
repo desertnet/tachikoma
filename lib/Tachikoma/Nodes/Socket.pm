@@ -1050,7 +1050,7 @@ sub dns_lookup {
     my $job_controller = $Tachikoma::Nodes{'jobs'};
     if ( not $job_controller ) {
         require Tachikoma::Nodes::JobController;
-        my $interpreter = $Tachikoma::Nodes{'command_interpreter'}
+        my $interpreter = $Tachikoma::Nodes{'_command_interpreter'}
             or die q(FAILED: couldn't find interpreter);
         $job_controller = Tachikoma::Nodes::JobController->new;
         $job_controller->name('jobs');

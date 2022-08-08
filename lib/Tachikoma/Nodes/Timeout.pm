@@ -33,7 +33,7 @@ sub fire {
     my $self    = shift;
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_EOF;
-    $message->[FROM] = 'stdin';
+    $message->[FROM] = '_stdin';
     $self->{sink}->fill($message);
     return;
 }

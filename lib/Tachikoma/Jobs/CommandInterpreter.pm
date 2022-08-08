@@ -37,7 +37,7 @@ sub initialize_graph {
         }
     }
     $shell->sink($interpreter);
-    $interpreter->name('command_interpreter');
+    $interpreter->name('_command_interpreter');
     $interpreter->sink( $self->router );
     $responder->name('_responder');
     $responder->shell($shell);

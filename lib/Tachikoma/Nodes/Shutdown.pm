@@ -17,7 +17,7 @@ sub fill {
     my $self    = shift;
     my $message = shift or return;
     if ( $message->[TYPE] & TM_EOF ) {
-        return if ( $message->[FROM] !~ m{_responder$|stdin$} );
+        return if ( $message->[FROM] !~ m{_responder$|_stdin$} );
         return $self->shutdown_all_nodes;
     }
     $self->{sink}->fill($message) if ( $self->{sink} );

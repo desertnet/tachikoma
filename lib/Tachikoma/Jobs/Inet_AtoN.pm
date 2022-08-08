@@ -34,7 +34,7 @@ sub initialize_graph {
     }
     else {
         $self->timer( Tachikoma::Nodes::Timer->new );
-        $self->timer->name('Timer');
+        $self->timer->name('_timer');
         $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
         $self->timer->sink($self);
     }
@@ -47,7 +47,7 @@ sub fill {
     return if ( $message->[TYPE] & TM_EOF );
 
     # timeout, send a TM_KILLME request
-    if ( $message->[FROM] eq 'Timer' ) {
+    if ( $message->[FROM] eq '_timer' ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_KILLME;
         $self->timer->stop_timer;
