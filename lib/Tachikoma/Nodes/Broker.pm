@@ -1870,10 +1870,12 @@ $C{help} = sub {
             . "                             --topic=<topic>          \\\n"
             . "                             --segment_size=<bytes>   \\\n"
             . "                             --max_lifespan=<seconds>\n"
+            . "          set_default <name> <value>\n"
             . "          list_brokers\n"
             . "          list_topics [ <glob> ]\n"
             . "          list_consumer_groups [ <glob> ]\n"
             . "          list_partitions [ <glob> ]\n"
+            . "          list_defaults\n"
             . "          empty_topics <glob>\n"
             . "          empty_groups --group=<glob> \\\n"
             . "                       --topic=<glob>\n"
@@ -1985,7 +1987,6 @@ $C{set_consumer_group} = sub {
     my $envelope = shift;
     my $error    = $self->patron->check_status;
     return $self->error($error) if ($error);
-    my $topic_name = ( split q( ), $command->arguments, 2 )[1];
     return $self->error("ERROR: invalid arguments\n")
         if ( not $command->arguments );
     $self->patron->add_consumer_group( $command->arguments );
@@ -2114,6 +2115,31 @@ $C{list_partitions} = sub {
 
 $C{list_broker_partitions} = $C{list_partitions};
 $C{ls}                     = $C{list_partitions};
+
+$C{set_default} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $error    = $self->patron->check_status;
+    return $self->error($error) if ($error);
+    my ( $name, $value ) = split q( ), $command->arguments, 2;
+    return $self->error("ERROR: invalid arguments\n")
+        if ( not length $name and not length $value );
+    $self->patron->default_settings->{$name} = $value;
+    return $self->okay($envelope);
+};
+
+$C{list_defaults} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $results  = [ [ [ 'NAME' => 'left' ], [ 'VALUE' => 'left' ], ] ];
+    my $default  = $self->patron->default_settings;
+    for my $name ( sort keys %{$default} ) {
+        push @{$results}, [ $name, $default->{$name} ];
+    }
+    return $self->response( $envelope, $self->tabulate($results) );
+};
 
 $C{empty_topics} = sub {
     my $self     = shift;
