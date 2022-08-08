@@ -18,7 +18,6 @@ sub initialize_graph {
     my $self = shift;
     my $lwp  = Tachikoma::Nodes::LWP->new;
     $self->connector->sink($lwp);
-    $lwp->name('_lwp');
     if ( $self->owner ) {
         $lwp->arguments(90);
         $lwp->sink($self);
