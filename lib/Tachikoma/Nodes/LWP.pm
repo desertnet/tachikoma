@@ -8,7 +8,7 @@ package Tachikoma::Nodes::LWP;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use HTTP::Request::Common qw(GET);
 use LWP::UserAgent;
 use parent qw( Tachikoma::Node );
@@ -46,6 +46,8 @@ sub fill {
     my $res = $self->user_agent->request($req);
     if ( $res->content ) {
         my $response = bless [ @{$message} ], ref $message;
+        $response->[TO] = $message->[FROM]
+            if ( $message->[TO] eq '_return_to_sender' );
         $response->[PAYLOAD] = $res->content;
         $self->{sink}->fill($response);
     }
