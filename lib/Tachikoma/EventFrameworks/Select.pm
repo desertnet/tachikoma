@@ -19,36 +19,19 @@ use constant {
     LAST_FIRE => 2,
 };
 
-my $READS         = undef;
-my $WRITES        = undef;
-my %TIMERS        = ();
-my $GOT_SIGNAL    = undef;
-my $SHUTDOWN      = undef;
-my $GOT_HUP       = undef;
-my $RELOAD_CONFIG = undef;
-
 sub new {
     my $class = shift;
     my $self  = {};
-    $READS  = IO::Select->new;
-    $WRITES = IO::Select->new;
+    $self->{reads}  = IO::Select->new;
+    $self->{writes} = IO::Select->new;
+    $self->{timers} = {};
     bless $self, $class;
     return $self;
 }
 
-sub register_router_node {
-    my ( $self, $this ) = @_;
-    ## no critic (RequireLocalizedPunctuationVars)
-    $SIG{INT}  = sub { $GOT_SIGNAL = $SHUTDOWN      = 1 };
-    $SIG{TERM} = sub { $GOT_SIGNAL = $SHUTDOWN      = 1 };
-    $SIG{HUP}  = sub { $GOT_SIGNAL = $GOT_HUP       = 1 };
-    $SIG{USR1} = sub { $GOT_SIGNAL = $RELOAD_CONFIG = 1 };
-    return $this;
-}
-
 sub register_server_node {
     my ( $self, $this ) = @_;
-    $READS->add( $this->{fh} );
+    $self->{reads}->add( $this->{fh} );
     return $this;
 }
 
@@ -60,13 +43,13 @@ sub accept_connections {
 
 sub register_reader_node {
     my ( $self, $this ) = @_;
-    $READS->add( $this->{fh} ) if ( $this->{fh} );
+    $self->{reads}->add( $this->{fh} ) if ( $this->{fh} );
     return $this;
 }
 
 sub register_writer_node {
     my ( $self, $this ) = @_;
-    $WRITES->add( $this->{fh} ) if ( $this->{fh} );
+    $self->{writes}->add( $this->{fh} ) if ( $this->{fh} );
     return $this;
 }
 
@@ -76,36 +59,48 @@ sub register_watcher_node {
 }
 
 sub drain {
-    my ( $self, $this, $connector ) = @_;
-    my $configuration = $this->configuration;
-    while ( $connector ? $connector->{fh} : length $this->{name} ) {
-        my ( $reads, $writes, $errors ) =
-            IO::Select->select( $READS, $WRITES, $READS,
+    my ( $self, $router ) = @_;
+    my $configuration = $router->configuration;
+    my $got_signal    = undef;
+    my $reads         = $self->{reads};
+    my $writes        = $self->{writes};
+    my $timers        = $self->{timers};
+    local $SIG{INT}  = sub { $got_signal = 'SHUTDOWN' };
+    local $SIG{TERM} = sub { $got_signal = 'SHUTDOWN' };
+    local $SIG{HUP}  = sub { $got_signal = 'GOT_HUP' };
+    local $SIG{USR1} = sub { $got_signal = 'RELOAD_CONFIG' };
+
+    while ( $router->{is_active} ) {
+        my ( $reads_ready, $writes_ready, $errors ) =
+            IO::Select->select( $reads, $writes, $reads,
             1 / ( $configuration->{hz} || 10 ) );
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
-        for ( @{$reads}, @{$errors} ) {
+        for ( @{$reads_ready}, @{$errors} ) {
             my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
             &{ $node->{drain_fh} }($node);
         }
-        for ( @{$writes} ) {
+        for ( @{$writes_ready} ) {
             my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
             &{ $node->{fill_fh} }($node);
         }
-        $self->handle_signal($this) if ($GOT_SIGNAL);
+        if ($got_signal) {
+            $self->handle_signal( $router, $got_signal );
+            $got_signal = undef;
+        }
         &{$_}() while ( $_ = shift @Tachikoma::Closing );
-        for ( keys %TIMERS ) {
-            my $timer = $TIMERS{$_} or next;
+        for ( keys %{$timers} ) {
+            my $timer = $timers->{$_} or next;
             next
                 if ( $Tachikoma::Right_Now - $timer->[LAST_FIRE]
                 < $timer->[INTERVAL] );
             my $node = $Tachikoma::Nodes_By_ID->{$_};
             if ( not $node ) {
-                delete $TIMERS{$_};
+                delete $timers->{$_};
                 next;
             }
             elsif ( $timer->[ONESHOT] ) {
-                delete $TIMERS{$_};
+                delete $timers->{$_};
             }
             else {
                 $timer->[LAST_FIRE] = $Tachikoma::Right_Now;
@@ -117,44 +112,45 @@ sub drain {
 }
 
 sub handle_signal {
-    my ( $self, $this ) = @_;
-    if ($SHUTDOWN) {
-        $this->stderr('shutting down - received signal');
-        $this->shutdown_all_nodes;
+    my ( $self, $router, $got_signal ) = @_;
+    if ( $got_signal eq 'SHUTDOWN' ) {
+        $router->stderr('received signal');
+        $router->shutdown_all_nodes;
     }
-    if ($GOT_HUP) {
+    elsif ( $got_signal eq 'GOT_HUP' ) {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
-        $this->stderr('got SIGHUP - sending SIGUSR1');
+        $router->stderr('got SIGHUP - sending SIGUSR1');
         my $usr1 = SIGUSR1;
         kill -$usr1, $$ or die q(FAILURE: couldn't signal self);
-        $GOT_HUP = undef;
     }
-    if ($RELOAD_CONFIG) {
-        $this->stderr('got SIGUSR1 - reloading config');
+    elsif ( $got_signal eq 'RELOAD_CONFIG' ) {
+        $router->stderr('got SIGUSR1 - reloading config');
         Tachikoma->reload_config;
-        $this->register_router_node;
-        $RELOAD_CONFIG = undef;
     }
     return;
 }
 
 sub close_filehandle {
     my ( $self, $this ) = @_;
-    $READS->remove( $this->{fh} )  if ( $READS->exists( $this->{fh} ) );
-    $WRITES->remove( $this->{fh} ) if ( $WRITES->exists( $this->{fh} ) );
-    delete $TIMERS{ $this->{id} }  if ( defined $this->{id} );
+    $self->{reads}->remove( $this->{fh} )
+        if ( $self->{reads}->exists( $this->{fh} ) );
+    $self->{writes}->remove( $this->{fh} )
+        if ( $self->{writes}->exists( $this->{fh} ) );
+    delete $self->{timers}->{ $this->{id} } if ( defined $this->{id} );
     return;
 }
 
 sub unregister_reader_node {
     my ( $self, $this ) = @_;
-    $READS->remove( $this->{fh} ) if ( $READS->exists( $this->{fh} ) );
+    $self->{reads}->remove( $this->{fh} )
+        if ( $self->{reads}->exists( $this->{fh} ) );
     return;
 }
 
 sub unregister_writer_node {
     my ( $self, $this ) = @_;
-    $WRITES->remove( $this->{fh} ) if ( $WRITES->exists( $this->{fh} ) );
+    $self->{writes}->remove( $this->{fh} )
+        if ( $self->{writes}->exists( $this->{fh} ) );
     return;
 }
 
@@ -163,15 +159,10 @@ sub unregister_watcher_node {
     return;
 }
 
-sub watch_for_signal {
-    my ( $self, $signal ) = @_;
-    return;
-}
-
 sub set_timer {
     my ( $self, $this, $interval, $oneshot ) = @_;
     $interval ||= 0;
-    $TIMERS{ $this->{id} } = [
+    $self->{timers}->{ $this->{id} } = [
         $interval / 1000,
         $oneshot, $Tachikoma::Right_Now || Time::HiRes::time
     ];
@@ -180,12 +171,37 @@ sub set_timer {
 
 sub stop_timer {
     my ( $self, $this ) = @_;
-    delete $TIMERS{ $this->{id} } if ( defined $this->{id} );
+    delete $self->{timers}->{ $this->{id} } if ( defined $this->{id} );
     return;
 }
 
 sub queue {
-    return $READS, $WRITES;
+    my ($self) = @_;
+    return $self->{reads}, $self->{writes};
+}
+
+sub reads {
+    my $self = shift;
+    if (@_) {
+        $self->{reads} = shift;
+    }
+    return $self->{reads};
+}
+
+sub writes {
+    my $self = shift;
+    if (@_) {
+        $self->{reads} = shift;
+    }
+    return $self->{reads};
+}
+
+sub timers {
+    my $self = shift;
+    if (@_) {
+        $self->{timers} = shift;
+    }
+    return $self->{timers};
 }
 
 1;

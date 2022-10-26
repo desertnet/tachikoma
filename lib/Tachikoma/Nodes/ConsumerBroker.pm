@@ -9,36 +9,36 @@
 package Tachikoma::Nodes::ConsumerBroker;
 use strict;
 use warnings;
+use Tachikoma::Nodes::Socket qw( TK_SYNC );
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Topic;
 use Tachikoma::Nodes::Consumer;
 use Tachikoma::Message qw(
-    TYPE FROM TO ID PAYLOAD
+    TYPE FROM TO ID STREAM PAYLOAD
     TM_INFO TM_REQUEST TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval   = 1;             # poll for new messages this often
 my $Check_Interval  = 2;             # check partition map this often
-my $Startup_Delay   = 15;            # wait at least this long on startup
+my $Poll_Interval   = 1;             # poll for new messages this often
+my $Startup_Delay   = 5;             # wait at least this long on startup
 my $Commit_Interval = 60;            # commit offsets
-my $Timeout         = 900;           # default async message timeout
+my $Timeout         = 900;           # default message timeout
 my $Hub_Timeout     = 300;           # timeout waiting for hub
 my $Cache_Type      = 'snapshot';    # save complete state
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-
-    # async and sync support
     $self->{topic}          = shift;
     $self->{group}          = shift;
+    $self->{flags}          = 0;
     $self->{consumers}      = {};
+    $self->{check_interval} = 0;
     $self->{poll_interval}  = $Poll_Interval;
     $self->{hub_timeout}    = $Hub_Timeout;
     $self->{cache_type}     = $Cache_Type;
@@ -46,25 +46,25 @@ sub new {
     $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
     $self->{default_offset} = 'end';
     $self->{last_check}     = 0;
-
-    # async support
-    $self->{partition_id}            = undef;
-    $self->{broker_path}             = undef;
-    $self->{leader_path}             = undef;
-    $self->{max_unanswered}          = undef;
-    $self->{timeout}                 = undef;
-    $self->{registrations}->{ACTIVE} = {};
-    $self->{registrations}->{READY}  = {};
+    $self->{partition_id}   = undef;
+    $self->{broker_path}    = undef;
+    $self->{leader_path}    = undef;
+    $self->{max_unanswered} = undef;
+    $self->{timeout}        = undef;
+    $self->{startup_delay}  = 0;
+    $self->{registrations}->{READY} = {};
 
     # sync support
-    $self->{broker}      = undef;
-    $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
-    $self->{targets}     = {};
-    $self->{partitions}  = undef;
-    $self->{leader}      = undef;
-    $self->{last_expire} = 0;
-    $self->{eos}         = undef;
-    $self->{sync_error}  = undef;
+    if ( length $self->{topic} ) {
+        $self->{broker}      = undef;
+        $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
+        $self->{targets}     = {};
+        $self->{partitions}  = undef;
+        $self->{leader}      = undef;
+        $self->{last_expire} = 0;
+        $self->{eos}         = undef;
+        $self->{sync_error}  = undef;
+    }
     bless $self, $class;
     return $self;
 }
@@ -121,8 +121,10 @@ sub arguments {
         $self->{partition_id}   = $partition_id;
         $self->{max_unanswered} = $max_unanswered // 1;
         $self->{timeout}        = $timeout || $Timeout;
+        $self->{check_interval} = 0;
         $self->{poll_interval}  = $poll_interval || $Poll_Interval;
         $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
+        $self->{startup_delay}  = $Startup_Delay;
 
         if ($group) {
             $self->{cache_type}  = $cache_type  // $Cache_Type;
@@ -140,6 +142,7 @@ sub arguments {
         }
         $self->{default_offset} = $default_offset // 'end';
         $self->{last_check}     = 0;
+        $self->{set_state}      = {};
     }
     return $self->{arguments};
 }
@@ -148,20 +151,15 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_INFO ) {
-        my $topic  = $self->topic;
-        my $leader = $message->[PAYLOAD];
-        chomp $leader;
-        $self->make_broker_connection($leader) or return;
-        $self->leader_path( join q(/), $leader, $self->group );
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE]    = TM_REQUEST;
-        $response->[FROM]    = $self->name;
-        $response->[TO]      = $self->leader_path;
-        $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
-        $self->sink->fill($response);
+        if ( length $message->[ID] ) {
+            $self->update_leader($message);
+        }
+        else {
+            $self->update_state($message);
+        }
     }
     elsif ( $message->[TYPE] & TM_STORABLE ) {
-        $self->update_graph( $message->payload );
+        $self->update_graph($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
         if ( $self->{edge} and $self->{edge}->can('new_cache') ) {
@@ -182,7 +180,11 @@ sub fill {
 sub fire {
     my $self      = shift;
     my $consumers = $self->{consumers};
-    if ( $Tachikoma::Now - $self->{last_check} > $Check_Interval ) {
+    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+    if ( $Tachikoma::Right_Now - $self->{last_check}
+        >= $self->{check_interval} )
+    {
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_REQUEST;
         $message->[FROM] = $self->name;
@@ -193,8 +195,10 @@ sub fire {
         else {
             $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
         }
+        $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
         $self->sink->fill($message);
-        $self->{last_check} = $Tachikoma::Now;
+        $self->{last_check} = $Tachikoma::Right_Now;
     }
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
@@ -210,9 +214,44 @@ sub fire {
     return;
 }
 
+sub update_leader {
+    my $self    = shift;
+    my $message = shift;
+    my $topic   = $self->topic;
+    my $leader  = $message->[PAYLOAD];
+    chomp $leader;
+    $self->make_broker_connection($leader) or return;
+    $self->leader_path( join q(/), $leader, $self->group );
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_REQUEST;
+    $response->[FROM]    = $self->name;
+    $response->[TO]      = $self->leader_path;
+    $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
+    $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    $self->sink->fill($response);
+    return;
+}
+
+sub update_state {
+    my $self      = shift;
+    my $message   = shift;
+    my $event     = $message->[STREAM];
+    my $consumers = $self->consumers;
+    my $state     = 1;
+    for my $i ( keys %{$consumers} ) {
+        $state = undef
+            if ( not exists $consumers->{$i}->{set_state}->{$event} );
+    }
+    $self->set_state( $event => $state ) if ($state);
+    return;
+}
+
 sub update_graph {
     my $self       = shift;
-    my $partitions = shift;
+    my $message    = shift;
+    my $partitions = $message->payload;
+    my $ready      = $self->{check_interval} != $Check_Interval;
     if ( ref $partitions eq 'ARRAY' ) {
         my %mapping = ();
         my $i       = 0;
@@ -220,6 +259,9 @@ sub update_graph {
             $mapping{ $i++ } = $broker_id;
         }
         $partitions = \%mapping;
+    }
+    else {
+        $ready = undef;
     }
     for my $partition_id ( keys %{ $self->consumers } ) {
         if ( not $partitions->{$partition_id} ) {
@@ -232,16 +274,26 @@ sub update_graph {
         my $partition_id = $self->{partition_id};
         my $broker_id    = $partitions->{$partition_id};
         if ( $broker_id and $self->make_broker_connection($broker_id) ) {
-            $self->make_async_consumer( $partitions, $partition_id );
+            $self->make_consumer( $partitions, $partition_id );
+        }
+        else {
+            $ready = undef;
         }
     }
     else {
         for my $partition_id ( sort keys %{$partitions} ) {
             my $broker_id = $partitions->{$partition_id};
             if ( $broker_id and $self->make_broker_connection($broker_id) ) {
-                $self->make_async_consumer( $partitions, $partition_id );
+                $self->make_consumer( $partitions, $partition_id );
+            }
+            else {
+                $ready = undef;
             }
         }
+    }
+    if ($ready) {
+        $self->stderr('DEBUG: GRAPH_COMPLETE') if ( $self->debug_state );
+        $self->{check_interval} = $Check_Interval;
     }
     return;
 }
@@ -252,15 +304,23 @@ sub make_broker_connection {
     my $node      = $Tachikoma::Nodes{$broker_id};
     if ( not $node ) {
         my ( $host, $port ) = split m{:}, $broker_id, 2;
-        $node = inet_client_async Tachikoma::Nodes::Socket( $host, $port,
-            $broker_id );
+        if ( $self->flags & TK_SYNC ) {
+            $node = Tachikoma::Nodes::Socket->inet_client( $host, $port,
+                TK_SYNC );
+        }
+        else {
+            $node =
+                Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
+        }
+        $node->name($broker_id);
+        $node->debug_state( $self->debug_state );
         $node->on_EOF('reconnect');
         $node->sink( $self->sink );
     }
     return $node->auth_complete;
 }
 
-sub make_async_consumer {
+sub make_consumer {
     my $self          = shift;
     my $partitions    = shift;
     my $partition_id  = shift;
@@ -276,11 +336,11 @@ sub make_async_consumer {
     }
     my $consumer = $Tachikoma::Nodes{$consumer_name};
     if ( not $consumer ) {
-        $self->stderr("DEBUG: $consumer_name: CREATE")
+        $self->stderr("DEBUG: CREATE $consumer_name")
             if ( $self->debug_state );
         $consumer = Tachikoma::Nodes::Consumer->new;
         $consumer->name($consumer_name);
-        $consumer->arguments("--partition=$log");
+        $consumer->partition($log);
         $consumer->broker_id($broker_id);
         $consumer->partition_id($partition_id);
         if ( $self->{group} ) {
@@ -296,16 +356,12 @@ sub make_async_consumer {
         $consumer->hub_timeout( $self->hub_timeout );
         $consumer->max_unanswered( $self->max_unanswered );
         $consumer->timeout( $self->timeout );
+        $consumer->startup_delay( $self->startup_delay );
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
         $consumer->owner( $self->owner );
         $consumer->debug_state( $self->debug_state );
-
-        for my $event ( keys %{ $self->{registrations} } ) {
-            my $r = $self->{registrations}->{$event};
-            $consumer->{registrations}->{$event} =
-                { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
-        }
+        $consumer->register( 'READY', $self->name );
         $self->consumers->{$partition_id} = $consumer;
     }
     return;
@@ -318,7 +374,7 @@ sub owner {
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->owner( $self->{owner} );
         }
-        $self->set_timer( $Startup_Delay * 1000 );
+        $self->set_timer( $self->{startup_delay} * 1000 );
     }
     return $self->{owner};
 }
@@ -333,7 +389,7 @@ sub edge {
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->edge( $self->{edge} );
         }
-        $self->set_timer( $Startup_Delay * 1000 );
+        $self->set_timer( $self->{startup_delay} * 1000 );
     }
     return $self->{edge};
 }
@@ -352,10 +408,182 @@ sub remove_node {
         $message->[FROM]    = $self->name;
         $message->[TO]      = $self->leader_path;
         $message->[PAYLOAD] = "DISCONNECT\n";
-        $self->sink->fill($message)
-            if ( $self->sink and not Tachikoma->shutting_down );
+        if ( not Tachikoma->shutting_down ) {
+            $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+                if ( $self->debug_state );
+            $self->sink->fill($message) if ( $self->sink );
+        }
     }
     return $self->SUPER::remove_node;
+}
+
+sub topic {
+    my $self = shift;
+    if (@_) {
+        $self->{topic} = shift;
+    }
+    return $self->{topic};
+}
+
+sub group {
+    my $self = shift;
+    if (@_) {
+        $self->{group} = shift;
+    }
+    return $self->{group};
+}
+
+sub flags {
+    my $self = shift;
+    if (@_) {
+        $self->{flags} = shift;
+    }
+    return $self->{flags};
+}
+
+sub consumers {
+    my $self = shift;
+    if (@_) {
+        $self->{consumers} = shift;
+    }
+    return $self->{consumers};
+}
+
+sub check_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{check_interval} = shift;
+    }
+    return $self->{check_interval};
+}
+
+sub poll_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{poll_interval} = shift;
+    }
+    return $self->{poll_interval};
+}
+
+sub hub_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{hub_timeout} = shift;
+    }
+    return $self->{hub_timeout};
+}
+
+sub cache_type {
+    my $self = shift;
+    if (@_) {
+        $self->{cache_type} = shift;
+    }
+    return $self->{cache_type};
+}
+
+sub auto_commit {
+    my $self = shift;
+    if (@_) {
+        $self->{auto_commit} = shift;
+        die "ERROR: can't auto_commit without a group\n"
+            if ( $self->{auto_commit} and not $self->{group} );
+        $self->auto_offset(1) if ( $self->{auto_commit} );
+        for my $partition_id ( keys %{ $self->{consumers} } ) {
+            my $consumer = $self->{consumers}->{$partition_id};
+            $consumer->auto_commit( $self->{auto_commit} );
+        }
+    }
+    return $self->{auto_commit};
+}
+
+sub auto_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{auto_offset} = shift;
+        die "ERROR: can't auto_offset without a group\n"
+            if ( $self->{auto_offset} and not $self->{group} );
+        $self->auto_commit(undef)
+            if ( not $self->{auto_offset} and $self->{auto_commit} );
+    }
+    return $self->{auto_offset};
+}
+
+sub default_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{default_offset} = shift;
+        for my $partition_id ( keys %{ $self->{consumers} } ) {
+            my $consumer = $self->{consumers}->{$partition_id};
+            $consumer->default_offset( $self->{default_offset} );
+        }
+    }
+    return $self->{default_offset};
+}
+
+sub last_check {
+    my $self = shift;
+    if (@_) {
+        $self->{last_check} = shift;
+    }
+    return $self->{last_check};
+}
+
+sub partition_id {
+    my $self = shift;
+    if (@_) {
+        $self->{partition_id} = shift;
+    }
+    return $self->{partition_id};
+}
+
+sub broker_path {
+    my $self = shift;
+    if (@_) {
+        $self->{broker_path} = shift;
+    }
+    return $self->{broker_path};
+}
+
+sub leader_path {
+    my $self = shift;
+    if (@_) {
+        $self->{leader_path} = shift;
+    }
+    return $self->{leader_path};
+}
+
+sub msg_unanswered {
+    my $self           = shift;
+    my $msg_unanswered = 0;
+    for my $partition_id ( keys %{ $self->{consumers} } ) {
+        my $consumer = $self->{consumers}->{$partition_id};
+        $msg_unanswered += $consumer->{msg_unanswered};
+    }
+    return $msg_unanswered;
+}
+
+sub max_unanswered {
+    my $self = shift;
+    if (@_) {
+        $self->{max_unanswered} = shift;
+    }
+    return $self->{max_unanswered};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
+}
+
+sub startup_delay {
+    my $self = shift;
+    if (@_) {
+        $self->{startup_delay} = shift;
+    }
+    return $self->{startup_delay};
 }
 
 ########################
@@ -696,154 +924,6 @@ sub remove_target {
     return Tachikoma::Nodes::Topic::remove_target(@args);
 }
 
-# async and sync support
-sub topic {
-    my $self = shift;
-    if (@_) {
-        $self->{topic} = shift;
-    }
-    return $self->{topic};
-}
-
-sub group {
-    my $self = shift;
-    if (@_) {
-        $self->{group} = shift;
-    }
-    return $self->{group};
-}
-
-sub consumers {
-    my $self = shift;
-    if (@_) {
-        $self->{consumers} = shift;
-    }
-    return $self->{consumers};
-}
-
-sub poll_interval {
-    my $self = shift;
-    if (@_) {
-        $self->{poll_interval} = shift;
-    }
-    return $self->{poll_interval};
-}
-
-sub hub_timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{hub_timeout} = shift;
-    }
-    return $self->{hub_timeout};
-}
-
-sub cache_type {
-    my $self = shift;
-    if (@_) {
-        $self->{cache_type} = shift;
-    }
-    return $self->{cache_type};
-}
-
-sub auto_commit {
-    my $self = shift;
-    if (@_) {
-        $self->{auto_commit} = shift;
-        die "ERROR: can't auto_commit without a group\n"
-            if ( $self->{auto_commit} and not $self->{group} );
-        $self->auto_offset(1) if ( $self->{auto_commit} );
-        for my $partition_id ( keys %{ $self->{consumers} } ) {
-            my $consumer = $self->{consumers}->{$partition_id};
-            $consumer->auto_commit( $self->{auto_commit} );
-        }
-    }
-    return $self->{auto_commit};
-}
-
-sub auto_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{auto_offset} = shift;
-        die "ERROR: can't auto_offset without a group\n"
-            if ( $self->{auto_offset} and not $self->{group} );
-        $self->auto_commit(undef)
-            if ( not $self->{auto_offset} and $self->{auto_commit} );
-    }
-    return $self->{auto_offset};
-}
-
-sub default_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{default_offset} = shift;
-        for my $partition_id ( keys %{ $self->{consumers} } ) {
-            my $consumer = $self->{consumers}->{$partition_id};
-            $consumer->default_offset( $self->{default_offset} );
-        }
-    }
-    return $self->{default_offset};
-}
-
-sub last_check {
-    my $self = shift;
-    if (@_) {
-        $self->{last_check} = shift;
-    }
-    return $self->{last_check};
-}
-
-# async support
-sub partition_id {
-    my $self = shift;
-    if (@_) {
-        $self->{partition_id} = shift;
-    }
-    return $self->{partition_id};
-}
-
-sub broker_path {
-    my $self = shift;
-    if (@_) {
-        $self->{broker_path} = shift;
-    }
-    return $self->{broker_path};
-}
-
-sub leader_path {
-    my $self = shift;
-    if (@_) {
-        $self->{leader_path} = shift;
-    }
-    return $self->{leader_path};
-}
-
-sub msg_unanswered {
-    my $self           = shift;
-    my $msg_unanswered = 0;
-    for my $partition_id ( keys %{ $self->{consumers} } ) {
-        my $consumer = $self->{consumers}->{$partition_id};
-        $msg_unanswered += $consumer->{msg_unanswered};
-    }
-    return $msg_unanswered;
-}
-
-sub max_unanswered {
-    my $self = shift;
-    if (@_) {
-        $self->{max_unanswered} = shift;
-    }
-    return $self->{max_unanswered};
-}
-
-sub timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{timeout} = shift;
-    }
-    return $self->{timeout};
-}
-
-# sync support
 sub broker {
     my $self = shift;
     if (@_) {

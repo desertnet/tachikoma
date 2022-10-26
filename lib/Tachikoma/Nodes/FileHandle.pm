@@ -4,7 +4,7 @@
 # ----------------------------------------------------------------------
 #
 # Tachikomatic IPC - send and receive messages over filehandles
-#                  - on_EOF: close, send, ignore
+#                  - on_EOF: close, send, ignore, shutdown, die
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -270,6 +270,13 @@ sub handle_EOF {
     }
     elsif ( $on_EOF eq 'send' ) {
         $self->send_EOF;
+    }
+    elsif ( $on_EOF eq 'shutdown' ) {
+        $self->send_EOF;
+        Tachikoma->shutdown_all_nodes;
+    }
+    elsif ( $on_EOF eq 'die' ) {
+        die join q(), 'ERROR: ', $! || 'got EOF', "\n";
     }
     return;
 }

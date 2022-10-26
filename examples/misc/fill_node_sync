@@ -36,7 +36,7 @@ usage() if ( $help or not $r or not $to );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 
-my $tachikoma = Tachikoma->reconnect( $host, $port, $use_SSL );
+my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
 my @lines     = ();
 my $last      = time;
 $tachikoma->timeout(60);
@@ -48,10 +48,7 @@ while (1) {
         if (defined $line
         and @lines < $batch_size
         and $Tachikoma::Now - $last < 1 );
-    while ( @lines and not send_messages( $to, \@lines ) ) {
-        sleep 1;
-        $tachikoma = $tachikoma->reconnect;
-    }
+    last if ( @lines and not send_messages( $to, \@lines ) );
     last if ( not defined $line or not @lines );
     @lines = ();
     $last  = $Tachikoma::Now;

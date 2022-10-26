@@ -8,7 +8,6 @@ use strict;
 use warnings;
 use Test::More tests => 86;
 
-use Tachikoma;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Message qw( TM_COMMAND );

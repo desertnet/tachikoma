@@ -18,7 +18,6 @@ use Tachikoma::Message qw(
     TM_PING TM_COMMAND TM_RESPONSE TM_INFO TM_REQUEST
     TM_STORABLE TM_ERROR TM_EOF
 );
-use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime );
 use parent qw( Tachikoma::Nodes::Timer );
@@ -35,7 +34,7 @@ my $Delete_Interval     = 60;             # delete old logs this often
 my $Check_Interval      = 1800;           # look for better balance this often
 my $Save_Interval       = 3600;           # re-save topic configs this often
 my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
-my $Election_Short      = 15;             # wait if everyone is online
+my $Election_Short      = 1;              # wait if everyone is online
 my $Election_Long       = 120;            # wait if a broker is offline
 my $Election_Timeout   = 300;    # how long to wait before starting over
 my $LCO_Send_Interval  = 15;     # how often to send last commit offsets
@@ -90,6 +89,7 @@ sub new {
         max_lifespan       => 7 * 86400,
     };
     $self->{generation}          = 0;
+    $self->{is_leader}           = undef;
     $self->{is_controller}       = undef;
     $self->{last_commit_offsets} = {};
     $self->{last_check}          = undef;
@@ -211,9 +211,8 @@ sub load_configs {
 sub load_topic_config {
     my $self        = shift;
     my $topic_name  = shift;
-    my $broker_id   = $self->{broker_id};
     my $path        = $self->{path};
-    my $config_file = "$path/$topic_name/brokers/$broker_id/config";
+    my $config_file = "$path/$topic_name/.config";
     if ( -e $config_file ) {
         open my $fh, '<', $config_file
             or die "couldn't open $config_file: $!";
@@ -449,19 +448,24 @@ sub validate {
 
 sub determine_controller {
     my $self       = shift;
+    my $leader     = undef;
     my $controller = undef;
     my $count      = 0;
     my %leaders    = ();
     for my $broker_id ( sort keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
         if ( not $leaders{ $broker->{pool} } ) {
-            $broker->{leader} = 1;
             $leaders{ $broker->{pool} } = 1;
+            $broker->{is_leader}        = 1;
+            $self->{is_leader}          = 1
+                if ( $broker_id eq $self->{broker_id} );
             $controller //= $broker_id
                 if ( $self->{broker_pools}->{ $broker->{pool} } );
         }
         else {
-            $broker->{leader} = undef;
+            $broker->{is_leader} = undef;
+            $self->{is_leader}   = undef
+                if ( $broker_id eq $self->{broker_id} );
         }
     }
     $self->{controller} = $controller // q();
@@ -478,7 +482,7 @@ sub send_heartbeat {
         if ( $broker_id eq $self->{broker_id} ) {
             $broker->{last_heartbeat} = $Tachikoma::Right_Now;
             $broker->{last_ping}      = $Tachikoma::Right_Now;
-            $broker->{online}         = $Tachikoma::Now;
+            $broker->{is_online}      = $Tachikoma::Now;
             next;
         }
         $broker->{last_ping} = $Tachikoma::Right_Now;
@@ -513,8 +517,8 @@ sub receive_heartbeat {
         delete $self->{votes}->{ $message->[STREAM] };
     }
     my $now         = time;
-    my $back_online = not $broker->{online};
-    $broker->{online} = $Tachikoma::Now;
+    my $back_online = not $broker->{is_online};
+    $broker->{is_online} = $Tachikoma::Now;
     my $total  = 0;
     my $online = 0;
     for my $id ( keys %{ $self->{brokers} } ) {
@@ -522,7 +526,7 @@ sub receive_heartbeat {
         if ( $other->{pool} eq $broker->{pool} ) {
             $total++;
             $online++
-                if ( $now - $other->{online} < $Heartbeat_Timeout );
+                if ( $now - $other->{is_online} < $Heartbeat_Timeout );
         }
     }
     if ( $total and $online == $total ) {
@@ -575,8 +579,8 @@ sub send_lco {
             my $broker = $self->{brokers}->{$id};
             next
                 if ( $id eq $broker_id
-                or not $broker->{leader}
-                or not $broker->{online} );
+                or not $broker->{is_leader}
+                or not $broker->{is_online} );
             $message->[TO] = $broker->{path};
             $self->{sink}->fill($message);
         }
@@ -620,7 +624,7 @@ sub check_heartbeats {
             if ( $Tachikoma::Right_Now - $broker->{last_heartbeat}
             > $Heartbeat_Timeout );
         $offline{ $broker->{pool} } = 1
-            if ( not $broker->{online} );
+            if ( not $broker->{is_online} );
     }
     for my $broker_id ( keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
@@ -643,8 +647,10 @@ sub offline {
     my $broker_id = shift;
     my $broker    = $self->{brokers}->{$broker_id};
     return
-        if ( not $broker or not $broker->{online} or $self->{starting_up} );
-    $broker->{online} = 0;
+        if ( not $broker
+        or not $broker->{is_online}
+        or $self->{starting_up} );
+    $broker->{is_online} = 0;
     $self->{broker_pools}->{ $broker->{pool} } = 0;
     delete $self->{waiting_for_halt}->{$broker_id};
     delete $self->{waiting_for_reset}->{$broker_id};
@@ -659,6 +665,7 @@ sub rebalance_partitions {
     my $self           = shift;
     my $inform_brokers = shift;
     $self->halt_partitions if ( $self->{stage} ne 'INIT' );
+    $self->{is_leader}         = undef;
     $self->{is_controller}     = undef;
     $self->{votes}             = {};
     $self->{status}            = 'REBALANCING_PARTITIONS';
@@ -706,7 +713,7 @@ sub send_halt {
         my $broker = $self->{brokers}->{$broker_id};
         next
             if ( $broker_id eq $self->{broker_id}
-            or not $broker->{online} );
+            or not $broker->{is_online} );
         $self->{waiting_for_halt}->{$broker_id} = 1
             if ( $self->{broker_pools}->{ $broker->{pool} } );
     }
@@ -759,7 +766,7 @@ sub send_reset {
         my $broker = $self->{brokers}->{$broker_id};
         next
             if ( $broker_id eq $self->{broker_id}
-            or not $broker->{online} );
+            or not $broker->{is_online} );
         $self->{waiting_for_reset}->{$broker_id} = 1
             if ( $self->{broker_pools}->{ $broker->{pool} } );
     }
@@ -1124,7 +1131,7 @@ sub send_mapping {
         my $broker = $self->{brokers}->{$broker_id};
         next
             if ( $broker_id eq $self->{broker_id}
-            or not $broker->{online} );
+            or not $broker->{is_online} );
         my $message = Tachikoma::Message->new;
         $message->[TYPE]   = TM_STORABLE;
         $message->[FROM]   = $self->{name};
@@ -1245,9 +1252,7 @@ sub apply_mapping {
             }
         }
     }
-    for my $topic_name ( keys %{$topics} ) {
-        $self->save_topic_state($topic_name);
-    }
+    $self->save_topic_states;
     if ( $self->{is_controller} ) {
         $self->stderr( $self->{stage}, ' MAP_COMPLETE' );
         $self->{stage} = 'WAIT';
@@ -1341,7 +1346,7 @@ sub inform_brokers {
         my $broker = $self->{brokers}->{$broker_id};
         next
             if ( $broker_id eq $self->{broker_id}
-            or not $broker->{online} );
+            or not $broker->{is_online} );
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_INFO;
         $message->[FROM]    = $self->{name};
@@ -1370,7 +1375,7 @@ sub process_delete {
     }
 
     # purge stale logs, except those for other processes on this pool
-    $self->purge_stale_logs;
+    $self->purge_stale_logs if ( $self->{is_leader} );
     for my $log_name ( keys %{$broker_lco} ) {
         next if ( $Tachikoma::Nodes{$log_name} );
         my $log = $broker_lco->{$log_name} or next;
@@ -1391,9 +1396,7 @@ sub purge_stale_logs {
     my $broker_id = $self->{broker_id};
     my $this_pool = $self->{brokers}->{$broker_id}->{pool};
     my $now       = time;
-    if (    $self->{brokers}->{$broker_id}->{leader}
-        and $now - $self->{broker_pools}->{$this_pool} < $Heartbeat_Timeout )
-    {
+    if ( $now - $self->{broker_pools}->{$this_pool} < $Heartbeat_Timeout ) {
         my $brokers            = $self->{brokers};
         my $topics             = $self->{topics};
         my %logs_for_this_pool = ();
@@ -1456,16 +1459,17 @@ sub add_broker {
         path           => "$broker_id/broker",
         last_heartbeat => 0,
         last_ping      => 0,
-        online         => $online,
-        leader         => undef,
+        is_online      => $online,
+        is_leader      => undef,
     };
     $self->broker_pools->{$pool} = $online ? $Tachikoma::Now : 0;
 
     if ( $broker_id ne $self->{broker_id} ) {
         my $node = $Tachikoma::Nodes{$broker_id};
         if ( not $node ) {
-            $node = inet_client_async Tachikoma::Nodes::Socket( $host, $port,
-                $broker_id );
+            $node =
+                Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
+            $node->name($broker_id);
             $node->on_EOF('reconnect');
             $node->register( 'RECONNECT' => $self->{name} );
             $node->sink( $self->sink );
@@ -1519,8 +1523,10 @@ sub add_topic {
 
 sub save_topic_states {
     my $self = shift;
-    for my $topic_name ( keys %{ $self->{topics} } ) {
-        $self->save_topic_state($topic_name);
+    if ( $self->{is_leader} ) {
+        for my $topic_name ( keys %{ $self->{topics} } ) {
+            $self->save_topic_state($topic_name);
+        }
     }
     $self->{last_save} = $Tachikoma::Now;
     return;
@@ -1530,8 +1536,7 @@ sub save_topic_state {
     my $self        = shift;
     my $topic_name  = shift;
     my $path        = $self->{path};
-    my $broker_id   = $self->{broker_id};
-    my $config_file = "$path/$topic_name/brokers/$broker_id/config";
+    my $config_file = "$path/$topic_name/.config";
     my $tmp_file    = "$config_file.tmp";
     $self->make_parent_dirs($config_file);
     open my $fh, '>', $tmp_file
@@ -1779,13 +1784,8 @@ sub purge_broker_config {
     my $topic_name = shift;
     my $path       = $self->{path};
     ## no critic (RequireCheckedSyscalls)
-    for my $broker_id ( keys %{ $self->{brokers} } ) {
-        my $tmp  = "$path/$topic_name/brokers/$broker_id/config.tmp";
-        my $file = "$path/$topic_name/brokers/$broker_id/config";
-        unlink $tmp;
-        unlink $file;
-        rmdir "$path/$topic_name/brokers/$broker_id";
-    }
+    unlink "$path/$topic_name/config.tmp";
+    unlink "$path/$topic_name/config";
     rmdir "$path/$topic_name/brokers";
     rmdir "$path/$topic_name/partition";
     rmdir "$path/$topic_name";
@@ -1933,8 +1933,8 @@ $C{list_brokers} = sub {
             $broker->{port},
             $broker->{pool},
             strftime( '%F %T %Z', localtime( $broker->{last_heartbeat} ) ),
-            $broker->{online}         ? q(*) : q(),
-            $broker->{leader}         ? q(*) : q(),
+            $broker->{is_online}      ? q(*) : q(),
+            $broker->{is_leader}      ? q(*) : q(),
             $broker_id eq $controller ? q(*) : q(),
             ];
     }
@@ -2078,7 +2078,7 @@ $C{list_partitions} = sub {
             my $offset    = $stats ? $stats->{offset} : q();
             my $is_leader = $count ? q(*) : q();
             my $is_active = q();
-            my $is_online = $broker->{online} ? q(*) : q();
+            my $is_online = $broker->{is_online} ? q(*) : q();
             $is_active = q(*)
                 if ($log->{is_active}
                 and $Tachikoma::Now - $log->{is_active}
@@ -2318,6 +2318,14 @@ sub generation {
         $self->{generation} = shift;
     }
     return $self->{generation};
+}
+
+sub is_leader {
+    my $self = shift;
+    if (@_) {
+        $self->{is_leader} = shift;
+    }
+    return $self->{is_leader};
 }
 
 sub is_controller {

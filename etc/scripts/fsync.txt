@@ -34,7 +34,9 @@ func fsync_source {
             make_node AgeSieve           file:sieve          120;
             make_node FileController     FileController;
             make_node LoadBalancer       FileSender:load_balancer;
+            make_node Echo               output:link;
             make_node Tee                output:tee;
+            make_node Responder          FileSender:cap;
             make_node Scheduler          scheduler;
             make_node Watchdog           DirStats:watchdog   DirStats:gate;
             make_node Gate               DirStats:gate;
@@ -53,7 +55,6 @@ func fsync_source {
         make_node Responder          DirStats:cap;
         make_node Tee                DirStats:tee;
         make_node ClientConnector    DirStats:client_connector DirStats:tee;
-        make_node Responder          FileSender:cap;
 
         if (<count>) {
             command DirStats:buffer set_count 4;
@@ -70,14 +71,15 @@ func fsync_source {
                     make_node Tee             FileSender:tee;
                     make_node ClientConnector FileSender:client_connector FileSender:tee;
                     connect_sink FileSender:tee FileSender; # force responses through
-                    connect_node FileSender     _parent/FileSender:cap;
+                    connect_node FileSender     _parent/output:link;
                     listen_inet --scheme=rsa --use-ssl 0.0.0.0:<bridge_port>;
                     register 0.0.0.0:<bridge_port> FileSender:client_connector AUTHENTICATED;
                     secure 3;
                 cd ..;
                 connect_node FileSender:load_balancer <name>:bridge<i>/FileSender;
             };
-            connect_node FileSender:cap                output:tee;
+            connect_node output:tee                    FileSender:cap;
+            connect_node output:link                   output:tee;
             connect_node DirStats                      DirStats:cap;
             connect_node DirStats:sieve                DirStats;
             connect_node DirStats:buffer               DirStats:sieve;
@@ -97,7 +99,7 @@ func fsync_source {
                              --port=<port>
                              --name=target<index>;
                 make_node MemorySieve target<index>:sieve 1024 should_warn;
-                connect_node target<index>:sieve target<index>/file:buffer;
+                connect_node target<index>:sieve target<index>/file:gate;
                 if (<index> == 1) {
                     connect_node output:tee target<index>:sieve;
                 }
@@ -161,7 +163,7 @@ func fsync_source {
     return;
 }
 
-my_func fsync_destination {
+func fsync_destination {
     local name             ||= 'fsync';
     local path             ||= '/usr/local/sync';
     local user;

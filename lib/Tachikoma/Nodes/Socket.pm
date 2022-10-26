@@ -7,7 +7,7 @@
 #                  - RSA/Ed25519 handshakes
 #                  - TLSv1
 #                  - heartbeats and latency scores to reset bad connections
-#                  - on_EOF: close, send, ignore, reconnect
+#                  - on_EOF: close, send, ignore, shutdown, die, reconnect
 #
 
 package Tachikoma::Nodes::Socket;
@@ -48,10 +48,11 @@ use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.195');
 
+use constant DEFAULT_PORT => 4230;
+
 sub unix_server {
     my $class    = shift;
     my $filename = shift;
-    my $name     = shift;
     my $perms    = shift;
     my $gid      = shift;
     my $socket;
@@ -64,7 +65,6 @@ sub unix_server {
     chmod oct $perms, $filename or die "ERROR: chmod: $!" if ($perms);
     chown $>, $gid, $filename or die "ERROR: chown: $!" if ($gid);
     my $server = $class->new;
-    $server->name($name);
     $server->{type}      = 'listen';
     $server->{filename}  = $filename;
     $server->{fileperms} = $perms;
@@ -76,14 +76,12 @@ sub unix_server {
 sub unix_client {
     my $class    = shift;
     my $filename = shift;
-    my $name     = shift;
     my $flags    = shift;
     my $use_SSL  = shift;
     my $socket;
     socket $socket, PF_UNIX, SOCK_STREAM, 0 or die "FAILED: socket: $!";
     setsockopts($socket);
     my $client = $class->new($flags);
-    $client->name($name);
     $client->{type}          = 'connect';
     $client->{filename}      = $filename;
     $client->{last_upbeat}   = $Tachikoma::Now;
@@ -109,9 +107,7 @@ sub unix_client {
 sub unix_client_async {
     my $class    = shift;
     my $filename = shift;
-    my $name     = shift;
     my $client   = $class->new;
-    $client->name($name);
     $client->{type}          = 'connect';
     $client->{filename}      = $filename;
     $client->{last_upbeat}   = $Tachikoma::Now;
@@ -137,8 +133,8 @@ sub inet_server {
         or die "ERROR: bind: $!\n";
     listen $socket, SOMAXCONN or die "FAILED: listen: $!";
     my $server = $class->new;
-    $server->name( join q(:), $hostname, $port );
-    $server->{type} = 'listen';
+    $server->{type}    = 'listen';
+    $server->{address} = $iaddr;
     $server->fh($socket);
     return $server->register_server_node;
 }
@@ -156,7 +152,6 @@ sub inet_client {
         or die "FAILED: socket: $!";
     setsockopts($socket);
     my $client = $class->new($flags);
-    $client->name( join q(:), $hostname, $port );
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{address}       = $iaddr;
@@ -187,16 +182,13 @@ sub inet_client {
 sub inet_client_async {
     my $class    = shift;
     my $hostname = shift;
-    my $port     = shift || 4230;
-    my $name     = shift || $hostname;
+    my $port     = shift or die "FAILED: no port specified for $hostname";
     my $client   = $class->new;
-    $client->name($name);
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{port}          = $port;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
-    $client->dns_lookup;
     push @{ Tachikoma->nodes_to_reconnect }, $client;
     return $client;
 }
@@ -324,14 +316,15 @@ sub accept_connection {
         }
     }
     $node->name($name);
-    $node->{parent}    = $self->{name};
-    $node->{owner}     = $self->{owner};
-    $node->{sink}      = $self->{sink};
-    $node->{edge}      = $self->{edge};
-    $node->{on_EOF}    = $self->{on_EOF};
-    $node->{scheme}    = $self->{scheme};
-    $node->{delegates} = $self->{delegates};
-    $node->{fill}      = $node->{fill_modes}->{unauthenticated};
+    $node->{parent}      = $self->{name};
+    $node->{owner}       = $self->{owner};
+    $node->{sink}        = $self->{sink};
+    $node->{edge}        = $self->{edge};
+    $node->{on_EOF}      = $self->{on_EOF};
+    $node->{scheme}      = $self->{scheme};
+    $node->{delegates}   = $self->{delegates};
+    $node->{debug_state} = $self->{debug_state};
+    $node->{fill}        = $node->{fill_modes}->{unauthenticated};
     $node->set_drain_buffer;
 
     for my $event ( keys %{ $self->{registrations} } ) {
@@ -910,7 +903,7 @@ sub fill_buffer_init {
     else {
         $message->[TO] = join q(/), grep length, $self->{name},
             $message->[TO];
-        $Tachikoma::Nodes{_router}->send_error( $message, 'NOT_AVAILABLE' );
+        $Tachikoma::Nodes{'_router'}->send_error( $message, 'NOT_AVAILABLE' );
     }
     return;
 }
@@ -1050,11 +1043,13 @@ sub dns_lookup {
     my $job_controller = $Tachikoma::Nodes{'jobs'};
     if ( not $job_controller ) {
         require Tachikoma::Nodes::JobController;
-        my $interpreter = $Tachikoma::Nodes{'_command_interpreter'}
-            or die q(FAILED: couldn't find interpreter);
+        my $sink =
+               $Tachikoma::Nodes{'_command_interpreter'}
+            || $Tachikoma::Nodes{'_router'}
+            || die q(FAILED: couldn't find a suitable sink);
         $job_controller = Tachikoma::Nodes::JobController->new;
         $job_controller->name('jobs');
-        $job_controller->sink($interpreter);
+        $job_controller->sink($sink);
     }
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
     if ( not $inet_aton ) {
@@ -1121,7 +1116,8 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         }
         else {
             $response .= " $self->{hostname}";
-            $response .= ":$self->{port}" if ( $self->{port} != 4230 );
+            $response .= ":$self->{port}"
+                if ( $self->{port} != DEFAULT_PORT );
             $response .= " $self->{name}"
                 if ( $self->{name} ne $self->{hostname} );
             $response .= "\n";
@@ -1131,6 +1127,25 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         $response = $self->SUPER::dump_config;
     }
     return $response;
+}
+
+sub sink {
+    my ( $self, @args ) = @_;
+    my $rv = $self->SUPER::sink(@args);
+    if (    @args
+        and $self->{type} eq 'connect'
+        and not length $self->{address}
+        and not length $self->{filename} )
+    {
+        if ( $self->{name} ) {
+            $self->dns_lookup;
+        }
+        else {
+            $self->stderr('ERROR: async connections must be named');
+            $self->remove_node;
+        }
+    }
+    return $rv;
 }
 
 sub set_drain_buffer {

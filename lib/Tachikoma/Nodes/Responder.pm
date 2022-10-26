@@ -23,7 +23,6 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{last_buffer} = undef;
-    $self->{client}      = undef;
     $self->{ignore}      = undef;
     $self->{router}      = undef;
     $self->{shell}       = undef;
@@ -64,7 +63,7 @@ sub fill {
         delete $shell->callbacks->{ $message->[ID] };
         return;
     }
-    if ( $self->{client} or $self->{owner} ) {
+    if ( $self->{router} or $self->{owner} ) {
         $message->[TYPE] ^= TM_PERSIST if ( $type & TM_PERSIST );
         $self->SUPER::fill($message);
     }
@@ -85,7 +84,6 @@ sub get_last_buffer {
     my $self        = shift;
     my $message     = shift;
     my $last_buffer = $self->{last_buffer};
-    my $client      = $self->{client};
     my $from        = $message->[FROM];
     if ($last_buffer) {
         if ( not $from =~ s{^.*?($last_buffer)}{$1}s ) {
@@ -100,9 +98,6 @@ sub get_last_buffer {
                     $from );
             }
         }
-    }
-    elsif ( $client and $client eq 'tachikoma' ) {
-        $from = ( split m{/}, $from, 2 )[1];
     }
     return $from;
 }
@@ -121,14 +116,6 @@ sub last_buffer {
         $self->{last_buffer} = shift;
     }
     return $self->{last_buffer};
-}
-
-sub client {
-    my $self = shift;
-    if (@_) {
-        $self->{client} = shift;
-    }
-    return $self->{client};
 }
 
 sub ignore {

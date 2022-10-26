@@ -10,7 +10,7 @@ Tachikoma->configuration->load_config_file(
     '/usr/local/etc/tachikoma.conf',
 );
 
-my $tachikoma = Tachikoma->inet_client( 'localhost', 4231, 'use_SSL' );
+my $tachikoma = Tachikoma->inet_client;
 my $request   = Tachikoma::Message->new;
 $request->type(TM_BYTESTREAM);
 $request->to("echo");
@@ -23,4 +23,5 @@ $tachikoma->callback(
     }
 );
 $tachikoma->fill($request);
+$tachikoma->timeout(5);
 $tachikoma->drain;

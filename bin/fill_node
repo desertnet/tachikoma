@@ -1,12 +1,14 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Tail;
+use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Nodes::Socket qw( TK_R TK_SYNC );
 use Getopt::Long qw( GetOptions );
+
+use version; our $VERSION = qv('v2.0.929');
 
 my $home            = ( getpwuid $< )[7];
 my @default_configs = (
@@ -17,7 +19,9 @@ my $config_file = undef;
 my $host        = 'localhost';
 my $port        = 4230;
 my $use_SSL     = undef;
-my $throttle    = undef;
+my $stream      = undef;
+my $throttle    = 1;
+my $debug       = undef;
 my $help        = undef;
 
 my $r = GetOptions(
@@ -25,27 +29,39 @@ my $r = GetOptions(
     'host=s'     => \$host,
     'port=i'     => \$port,
     'use-ssl'    => \$use_SSL,
+    'stream=s'   => \$stream,
     'throttle:i' => \$throttle,
+    'debug:i'    => \$debug,
     'help'       => \$help,
 );
 my $to = $ARGV[0];
+$debug = 1 if ( defined $debug and not $debug );
 
 usage() if ( $help or not $r or not $to );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
-my $router = Tachikoma::Nodes::Router->new;
-my $tail   = Tachikoma::Nodes::Tail->filehandle( *STDIN, TK_R );
+my $router   = Tachikoma::Nodes::Router->new;
+my $tail     = Tachikoma::Nodes::Tail->filehandle( *STDIN, TK_R );
+my $shutdown = Tachikoma::Nodes::Shutdown->new;
 my $tachikoma =
     Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
+$tail->name('_stdin');
 $tail->buffer_mode('line-buffered');
 $tail->max_unanswered($throttle);
-$tail->on_EOF('close');
+$tail->stream($stream);
+$tail->debug_state($debug);
+$tail->on_EOF('shutdown');
 $tail->owner($to);
-$tail->sink($tachikoma);
+$tail->sink($shutdown);
+$shutdown->sink($tachikoma);
+$tachikoma->debug_state($debug);
+$tachikoma->on_EOF('die');
 $tachikoma->sink($tail);
-$router->drain($tail);
+$router->name('_router');
+$router->debug_state($debug);
+$router->drain;
 
 sub usage {
     print "Usage:\n"
@@ -53,7 +69,9 @@ sub usage {
         . "          [ --host=<host>       ]\n"
         . "          [ --port=<port>       ]\n"
         . "          [ --use-ssl           ]\n"
+        . "          [ --stream=<stream>   ]\n"
         . "          [ --throttle          ]\n"
+        . "          [ --debug             ]\n"
         . "          [ --help              ]\n"
         . "          <node path>\n";
     exit 1;

@@ -30,6 +30,7 @@ my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 
 my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
+$tachikoma->timeout(undef);
 $tachikoma->callback(
     sub {
         my $message = shift;

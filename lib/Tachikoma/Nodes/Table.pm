@@ -12,7 +12,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST TM_ERROR TM_EOF
 );
-use Tachikoma;
 use Digest::MD5 qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
 use parent qw( Tachikoma::Nodes::Timer );

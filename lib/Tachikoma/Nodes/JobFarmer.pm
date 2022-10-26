@@ -162,20 +162,18 @@ sub handle_response {
 }
 
 sub handle_EOF {
-    my ( $self, $message, $next ) = @_;
-    if ( $message->[STREAM] ) {
+    my ( $self, $message ) = @_;
+    if ( length $message->[STREAM] ) {
 
         # some EOF being delivered to job
         $self->{counter}++;
         $self->{load_balancer}->fill($message);
     }
-    elsif ($next) {
+    else {
 
         # echo EOF back to command-line
-        $self->{interpreter}->fill($message);
+        $self->{sink}->fill($message);
     }
-
-    # else: EOF is from job shutdown
     return;
 }
 

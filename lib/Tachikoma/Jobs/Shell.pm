@@ -71,6 +71,8 @@ sub fill {
     return if ( not $type & TM_BYTESTREAM and not $type & TM_EOF );
     if ( $from =~ m{^_parent} ) {
         if ( $type & TM_EOF ) {
+            ## no critic (RequireLocalizedPunctuationVars)
+            $SIG{PIPE} = undef;
             ## no critic (RequireCheckedSyscalls)
             kill SIGINT, $self->{shell_pid};
             return;

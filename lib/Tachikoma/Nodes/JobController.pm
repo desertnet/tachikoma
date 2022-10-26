@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX qw( SIGCHLD SIGKILL );
+use POSIX qw( SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -34,13 +34,13 @@ sub new {
     $self->{restart}       = {};
     $self->{username}      = undef;
     $self->{config_file}   = undef;
+    $self->{on_EOF}        = 'ignore';
     $self->{shutdown_mode} = 'wait';
     $self->{shutting_down} = undef;
     $self->{interpreter}   = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
     bless $self, $class;
-    Tachikoma->event_framework->watch_for_signal(SIGCHLD);
     return $self;
 }
 
@@ -139,10 +139,13 @@ sub handle_EOF {
         # but if it's from shutdown, we need to remove the connector:
         $job->remove_node;
     }
+    if ( $self->{on_EOF} eq 'send' ) {
 
-    # This is mainly to notify custom jobs that might use JobController.
-    # CommandInterpreter will drop this message:
-    return $self->{sink}->fill($message);
+        # This is mainly to notify custom jobs that might use JobController.
+        # CommandInterpreter will drop this message:
+        $self->{sink}->fill($message);
+    }
+    return;
 }
 
 $C{help} = sub {
@@ -616,6 +619,14 @@ sub config_file {
         }
     }
     return $config_file;
+}
+
+sub on_EOF {
+    my $self = shift;
+    if (@_) {
+        $self->{on_EOF} = shift;
+    }
+    return $self->{on_EOF};
 }
 
 sub shutdown_mode {

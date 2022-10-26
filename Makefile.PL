@@ -33,8 +33,10 @@ WriteMakefile(
     EXE_FILES   => [
         qw(
             bin/buffer_top
+            bin/consume_topic
             bin/drain_node
             bin/fill_node
+            bin/produce_topic
             bin/set_tachikoma_hz
             bin/tachikoma
             bin/tachikoma-client

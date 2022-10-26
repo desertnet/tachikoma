@@ -6,7 +6,6 @@
 
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::Job;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_SYNC );
@@ -34,9 +33,9 @@ my $connector =
 my $router = Tachikoma::Nodes::Router->new;
 $connector->name('_parent');
 $connector->type('job');
+$connector->on_EOF('shutdown');
 $router->name('_router');
 $router->type('job');
-$router->register_router_node;
 
 load_module($class);
 my $job = $class->new;
@@ -49,7 +48,7 @@ $job->pid($$);
 local $0 = $name;
 $job->initialize_graph;
 
-$router->drain($connector);
+$router->drain;
 
 sub usage {
     print {*STDERR} "ERROR: this program can only be run by tachikoma\n";

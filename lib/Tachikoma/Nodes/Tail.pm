@@ -181,6 +181,8 @@ sub drain_fh {
     my $read   = sysread $fh, $buffer, 65536;
     $self->print_less_often("WARNING: couldn't read: $!")
         if ( not defined $read );
+    $self->stderr( 'DEBUG: READ ', $read // 'undef', ' bytes' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     &{ $self->{drain_buffer} }( $self, \$buffer )
         if ( $read and $self->{sink} );
 
@@ -356,6 +358,7 @@ sub fill {
             if ( not $self->msg_timer->{timer_is_active} );
     }
     else {
+        $self->{bytes_answered} = $self->{bytes_read};
         $self->{msg_timer}->stop_timer
             if ( $self->msg_timer->{timer_is_active} );
     }
@@ -365,17 +368,19 @@ sub fill {
 }
 
 sub cancel_offset {
-    my $self   = shift;
-    my $offset = shift;
-    my $match  = undef;
-    ## no critic (ProhibitCStyleForLoops)
-    for ( my $i = 0; $i < @{ $self->{inflight} }; $i++ ) {
-        if ( $self->{inflight}->[$i]->[0] == $offset ) {
+    my $self     = shift;
+    my $offset   = shift;
+    my $inflight = $self->{inflight};
+    my $match    = undef;
+    my $i        = 0;
+    for my $record ( @{$inflight} ) {
+        if ( $record->[0] == $offset ) {
             $match = $i;
             last;
         }
+        $i++;
     }
-    splice @{ $self->{inflight} }, $match, 1 if ( defined $match );
+    splice @{$inflight}, $match, 1 if ( defined $match );
     return $match;
 }
 
@@ -630,11 +635,17 @@ sub finished {
         return 'true' if ( not defined $size );
         $self->{size} = $size;
     }
+    $self->stderr("DEBUG: POS $pos >= SIZE $size")
+        if ($self->{debug_state}
+        and $self->{debug_state} >= 4
+        and defined $size );
     return ( defined $size and $pos >= $size );
 }
 
 sub handle_soft_EOF {
     my $self = shift;
+    $self->stderr( 'DEBUG: SOFT_EOF ', $self->{msg_unanswered}, ' in flight' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
 
     # Watch for delete, rename and truncation.
     if ( $self->{on_EOF} eq 'ignore' ) {
@@ -676,6 +687,8 @@ sub reattempt {
 sub handle_EOF {
     my $self   = shift;
     my $on_eof = $self->{on_EOF};
+    $self->stderr('DEBUG: EOF')
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     if ( $on_eof eq 'delete' ) {
         $self->delete_EOF;
     }

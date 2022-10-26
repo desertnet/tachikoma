@@ -74,7 +74,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                     or
                     $self->stderr("ERROR: couldn't move $tmp to $path: $!");
                 $self->set_metadata( $path, $message->[PAYLOAD] )
-                    if ( $message->[PAYLOAD] );
+                    if ( length $message->[PAYLOAD] );
             }
             return $self->cancel($message);
         }

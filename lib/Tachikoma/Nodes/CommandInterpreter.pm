@@ -7,7 +7,6 @@
 package Tachikoma::Nodes::CommandInterpreter;
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
@@ -19,8 +18,6 @@ use Tachikoma::Message qw(
 use Tachikoma::Command;
 use Tachikoma::Crypto;
 use Tachikoma::Nodes::Shell2;
-use Tachikoma::Nodes::Socket;
-use Tachikoma::Nodes::STDIO;
 use Data::Dumper;
 use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime SIGHUP );
@@ -30,6 +27,8 @@ use Time::HiRes qw();
 use parent qw( Tachikoma::Node Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.280');
+
+use constant DEFAULT_PORT => 4230;
 
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
@@ -305,13 +304,14 @@ sub tabulate_help {
     my $row      = [];
     my $output   = q();
     if ( $glob ne q() ) {
-        @unsorted = grep m{$glob}, keys %{$_} for (@groups);
+        push @unsorted, grep m{$glob}, keys %{$_} for (@groups);
     }
     else {
         my $functions = $self->configuration->functions;
-        @unsorted = grep not( $functions->{$_} ), keys %{$_} for (@groups);
+        push @unsorted, grep not( $functions->{$_} ), keys %{$_}
+            for (@groups);
     }
-    @topics = sort @unsorted;
+    @topics = sort grep length, @unsorted;
     for my $i ( 0 .. $#topics ) {
         push @{$row}, $topics[$i];
         next if ( ( $i + 1 ) % 4 );
@@ -430,8 +430,8 @@ $C{list_fds} = sub {
     ];
     for my $fd ( sort { $a <=> $b } keys %{$nodes} ) {
         my $node   = $nodes->{$fd};
-        my $name   = $node->{name} || 'unknown';
-        my $type   = $node->{type} || 'unknown';
+        my $name   = $node->{name} // 'unknown';
+        my $type   = $node->{type} // 'unknown';
         my $sortby = $list_types ? $type : $name;
         next if ( $glob ne q() and $sortby !~ m{$glob} );
         push @{$response}, [ $fd, $node->{type}, $name ];
@@ -455,7 +455,7 @@ $C{list_ids} = sub {
     ];
     for my $id ( sort { $a <=> $b } keys %{$nodes} ) {
         my $node = $nodes->{$id};
-        my $name = $node->{name} || 'unknown';
+        my $name = $node->{name} // 'unknown';
         next if ( length $glob and $name !~ m{$glob} );
         my $is_active = $node->timer_is_active;
         my $interval  = $node->timer_interval;
@@ -477,19 +477,6 @@ $C{list_ids} = sub {
 };
 
 $C{list_timers} = $C{list_ids};
-
-$C{list_pids} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $nodes    = Tachikoma->nodes_by_pid;
-    my $response = sprintf "%16s %s\n", 'PID', 'NAME';
-    for my $pid ( sort { $a <=> $b } keys %{$nodes} ) {
-        my $node = $nodes->{$pid};
-        $response .= sprintf "%16d %s\n", $pid, $node->{name} || 'unknown';
-    }
-    return $self->response( $envelope, $response );
-};
 
 $C{list_reconnecting} = sub {
     my $self     = shift;
@@ -1027,15 +1014,20 @@ $C{listen_inet} = sub {
         for my $listen ( @{ $config->listen_sockets } ) {
             my $server_node = undef;
             if ( $listen->{Socket} ) {
+                require Tachikoma::Nodes::Socket;
                 $server_node =
-                    unix_server Tachikoma::Nodes::Socket( $listen->{Socket},
-                    '_listener' );
+                    Tachikoma::Nodes::Socket->unix_server(
+                    $listen->{Socket} );
+                $server_node->name('_listener');
             }
             else {
+                require Tachikoma::Nodes::Socket;
                 die qq(inet sockets disabled for keyless servers\n)
                     if ( not length $id );
                 $server_node =
-                    inet_server Tachikoma::Nodes::Socket( $listen->{Addr},
+                    Tachikoma::Nodes::Socket->inet_server( $listen->{Addr},
+                    $listen->{Port} );
+                $server_node->name( join q(:), $listen->{Addr},
                     $listen->{Port} );
             }
             $server_node->use_SSL( $listen->{use_SSL} );
@@ -1078,13 +1070,16 @@ $C{listen_inet} = sub {
     die qq(no address specified\n) if ( not $address );
     die qq(no port specified\n)    if ( not $port );
     if ($io_mode) {
-        $node = inet_server Tachikoma::Nodes::STDIO( $address, $port );
+        require Tachikoma::Nodes::STDIO;
+        $node = Tachikoma::Nodes::STDIO->inet_server( $address, $port );
     }
     else {
+        require Tachikoma::Nodes::Socket;
         die qq(inet sockets disabled for keyless servers\n)
             if ( not length $id );
-        $node = inet_server Tachikoma::Nodes::Socket( $address, $port );
+        $node = Tachikoma::Nodes::Socket->inet_server( $address, $port );
     }
+    $node->name( join q(:), $address, $port );
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
@@ -1156,17 +1151,18 @@ $C{listen_unix} = sub {
     die qq(no node name specified\n) if ( not length $name );
 
     if ($io_mode) {
+        require Tachikoma::Nodes::STDIO;
         $node =
-            unix_server Tachikoma::Nodes::STDIO( $filename, $name, $perms,
-            $gid );
+            Tachikoma::Nodes::STDIO->unix_server( $filename, $perms, $gid );
     }
     else {
+        require Tachikoma::Nodes::Socket;
         $node =
-            unix_server Tachikoma::Nodes::Socket( $filename, $name, $perms,
-            $gid );
+            Tachikoma::Nodes::Socket->unix_server( $filename, $perms, $gid );
     }
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
+    $node->name($name);
     $node->owner($owner) if ( length $owner );
     $node->use_SSL( $ssl_verify ? 'verify' : 'noverify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
@@ -1652,17 +1648,17 @@ $C{on} = sub {
     return $self->okay($envelope);
 };
 
-$H{debug_state} = ["debug_state <node name>\n"];
+$H{debug_state} = ["debug_state <node name> [ <level> ]\n"];
 
 $C{debug_state} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $name     = $command->arguments;
+    my ( $name, $level ) = split q( ), $command->arguments, 2;
     die qq(no node specified\n) if ( not length $name );
     my $node = $Tachikoma::Nodes{$name};
     die qq(can't find node "$name"\n) if ( not $node );
-    $node->debug_state( not $node->debug_state );
+    $node->debug_state( $level // not $node->debug_state );
     return $self->okay($envelope);
 };
 
@@ -2315,7 +2311,7 @@ $C{initialize} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _router\n"    if ( not $router );
     die "ERROR: can't find _responder\n" if ( not $responder );
-    die "ERROR: already initialized\n"   if ( $router->type ne 'router' );
+    die "ERROR: already initialized\n"   if ( $router->type ne 'tachikoma' );
     my $interval = $router->timer_interval;
     $router->stop_timer;
     my $node = $responder->sink;
@@ -2326,9 +2322,9 @@ $C{initialize} = sub {
     }
     Tachikoma->event_framework->close_filehandle($node);
     delete( Tachikoma->nodes_by_fd->{ $node->fd } );
-    $responder->client(undef);
-    $responder->sink(undef);
+    $responder->router(undef);
     $responder->edge(undef);
+    $responder->sink($router);
     my $okay = eval {
         Tachikoma->initialize( $name, $daemonize );
         return 1;
@@ -2338,7 +2334,6 @@ $C{initialize} = sub {
         exit 1;
     }
     $router->type('root');
-    $router->register_router_node;
     $router->set_timer($interval);
     return;
 };
@@ -2353,7 +2348,6 @@ $C{shutdown} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->stderr('shutting down - received command');
     $self->shutdown_all_nodes;
     return;
 };
@@ -2577,15 +2571,18 @@ sub connect_inet {
     my $connection = undef;
 
     if ( $mode eq 'message' ) {
-        $port ||= 4230;
+        require Tachikoma::Nodes::Socket;
+        $port ||= DEFAULT_PORT;
         $reconnect //= 'true';
         $connection =
-            inet_client_async Tachikoma::Nodes::Socket( $host, $port, $name );
+            Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
     }
     else {
+        require Tachikoma::Nodes::STDIO;
         $connection =
-            inet_client_async Tachikoma::Nodes::STDIO( $host, $port, $name );
+            Tachikoma::Nodes::STDIO->inet_client_async( $host, $port );
     }
+    $connection->name($name);
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2614,14 +2611,15 @@ sub connect_unix {
     my $connection = undef;
 
     if ( $mode eq 'message' ) {
+        require Tachikoma::Nodes::Socket;
         $reconnect //= 'true';
-        $connection =
-            unix_client_async Tachikoma::Nodes::Socket( $filename, $name );
+        $connection = Tachikoma::Nodes::Socket->unix_client_async($filename);
     }
     else {
-        $connection =
-            unix_client_async Tachikoma::Nodes::STDIO( $filename, $name );
+        require Tachikoma::Nodes::STDIO;
+        $connection = Tachikoma::Nodes::STDIO->unix_client_async($filename);
     }
+    $connection->name($name);
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2781,6 +2779,7 @@ sub tabulate {
     my @format     = ();
     my $show_title = ref $header->[0];
     for my $col ( 0 .. $#{$header} ) {
+        $max[$col] = 0;
         $max[$col] = length $header->[$col]->[0]
             if ( $show_title
             and length $header->[$col]->[0] > ( $max[$col] || 0 ) );

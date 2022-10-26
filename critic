@@ -1,3 +1,7 @@
+bin/consume_topic
+bin/drain_node
+bin/fill_node
+bin/produce_topic
 bin/tachikoma
 bin/tachikoma-fsync
 bin/tachikoma-job

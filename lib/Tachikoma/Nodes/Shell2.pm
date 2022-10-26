@@ -2032,8 +2032,6 @@ sub isa_tty {
     my $self = shift;
     if (@_) {
         $self->{isa_tty} = shift;
-        Tachikoma::EventFrameworks::Select::register_router_node()
-            if ( $self->{isa_tty} );
     }
     return $self->{isa_tty};
 }

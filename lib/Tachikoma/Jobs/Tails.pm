@@ -24,12 +24,12 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home            = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir          = "$Home/.tachikoma/tails";
-my $Offset_Interval = 1;
-my $Scan_Interval   = 15;
-my $Startup_Delay   = 30;
-my $Default_Timeout = 300;
+my $Home   = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_Dir = "$Home/.tachikoma/tails";
+my $Offset_Interval = 1;      # write offsets this often
+my $Scan_Interval   = 15;     # check files this often
+my $Startup_Delay   = -10;    # offset from scan interval
+my $Default_Timeout = 300;    # message timeout for tails
 
 sub initialize_graph {
     my $self         = shift;

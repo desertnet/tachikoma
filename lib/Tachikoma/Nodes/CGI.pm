@@ -59,7 +59,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 
     # looks like we're ready to die
     if ( $message->[TYPE] & TM_KILLME and $message->[FROM] ) {
-        return Tachikoma::Job->shutdown_all_nodes;
+        return Tachikoma->shutdown_all_nodes;
     }
 
     # otherwise make sure it's a TM_STORABLE

@@ -12,6 +12,14 @@ use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
 
+sub new {
+    my $class = shift;
+    my $self  = $class->SUPER::new;
+    $self->{callback} = shift;
+    bless $self, $class;
+    return $self;
+}
+
 sub arguments {
     my $self = shift;
     if (@_) {

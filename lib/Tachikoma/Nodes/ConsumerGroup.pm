@@ -14,7 +14,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_REQUEST TM_STORABLE TM_ERROR
 );
-use Tachikoma;
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');

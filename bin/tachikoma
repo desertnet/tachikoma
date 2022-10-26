@@ -6,7 +6,6 @@
 
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::TTY qw( TK_R TK_SYNC );
@@ -28,6 +27,7 @@ my @default_configs = (
     '/usr/local/etc/tachikoma.conf',
 );
 my $config_file   = undef;
+my $include_file  = undef;
 my $host          = undef;
 my $port          = undef;
 my $socket        = undef;
@@ -39,12 +39,14 @@ my $seconds       = undef;
 my $validate      = undef;
 my $verbose       = undef;
 my $debug         = undef;
+my $debug_state   = undef;
 my $help          = undef;
 
 splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 
 my $r = GetOptions(
     'config=s'      => \$config_file,
+    'include=s'     => \$include_file,
     'host=s'        => \$host,
     'port=i'        => \$port,
     'socket=s'      => \$socket,
@@ -56,9 +58,12 @@ my $r = GetOptions(
     'validate'      => \$validate,
     'verbose'       => \$verbose,
     'debug:i'       => \$debug,
+    'debug_state:i' => \$debug_state,
     'help'          => \$help,
 );
-my $filename = $ARGV[0];
+my @arguments = @ARGV;
+unshift @arguments, $include_file if ( length $include_file );
+my $filename = $arguments[0];
 
 usage() if ( $help or not $r );
 my $config = Tachikoma->configuration;
@@ -67,17 +72,20 @@ Tachikoma->scheme($scheme) if ($scheme);
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
 my $new_server = undef;
-$new_server = 'true' if ( not $host and not $socket );
+$new_server = 'true' if ( not $host and not length $socket );
 $port    //= $config->listen_sockets->[0]->{Port};
 $use_SSL //= $config->listen_sockets->[0]->{use_SSL};
-my $isa_tty = $filename ? undef : isatty(*STDIN);
-$verbose = 'true' if ( $isa_tty or $debug );
+my $isa_tty     = isatty(*STDIN);
+my $interactive = undef;
+$interactive = 'true'
+    if ( ( length $include_file or not length $filename ) and $isa_tty );
+$verbose = 'true' if ($debug);
+
 my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
     $timeout, $shutdown, $stdout,    $router,    $node
 );
 
-$stdin = Tachikoma::Nodes::TTY->filehandle( *STDIN, TK_R )
-    if ( not $filename );
+$stdin = Tachikoma::Nodes::TTY->filehandle( *STDIN, TK_R );
 $shell = Tachikoma::Nodes::Shell2->new;
 if ($new_server) {
     my $module = 'Tachikoma::Nodes::CommandInterpreter';
@@ -87,16 +95,16 @@ if ($new_server) {
 else {
     my $module = 'Tachikoma::Nodes::Socket';
     load_module($module);
-    if ($socket) {
-        $tachikoma =
-            $module->unix_client( $socket, '_socket', TK_SYNC, $use_SSL );
+    if ( length $socket ) {
+        $tachikoma = $module->unix_client( $socket, TK_SYNC, $use_SSL );
     }
     else {
         $tachikoma = $module->inet_client( $host, $port, TK_SYNC, $use_SSL );
     }
+    $tachikoma->name('_socket');
 }
 $responder = Tachikoma::Nodes::Responder->new;
-$dumper    = Tachikoma::Nodes::Dumper->new if ($verbose);
+$dumper    = Tachikoma::Nodes::Dumper->new if ( $verbose or $interactive );
 $timeout   = Tachikoma::Nodes::Timeout->new if ($seconds);
 $shutdown  = Tachikoma::Nodes::Shutdown->new;
 $stdout    = Tachikoma::Nodes::TTY->filehandle( *STDOUT, TK_SYNC );
@@ -104,30 +112,34 @@ $router    = Tachikoma::Nodes::Router->new;
 $node      = undef;
 
 $router->name('_router');
+$router->type('tachikoma');
+$router->debug_state($debug_state);
 $shell->path($path);
 $timeout->arguments( $seconds * 1000 ) if ($seconds);
 
 $node = $stdout;
 attach($shutdown);
 attach($timeout) if ($seconds);
-if ($verbose) {
-    $shell->show_commands('true') if ( not $isa_tty );
-    $dumper->stdin($stdin)        if ($isa_tty);
+if ( $verbose or $interactive ) {
+    $shell->show_commands('true') if ( not $interactive );
+    $dumper->stdin($stdin);
     $dumper->debug($debug);
     attach($dumper);
 }
-$responder->name('_responder') if ($new_server);
-$responder->client( $new_server ? 'new_server' : 'tachikoma' );
-$responder->router($tachikoma);
+$responder->name('_responder');
+$responder->router($router);
 $responder->shell($shell);
 attach($responder);
 if ($new_server) {
     $node = $router;
     $tachikoma->name('_command_interpreter');
 }
+else {
+    $tachikoma->debug_state($debug_state);
+    $tachikoma->on_EOF('die');
+}
 attach($tachikoma);
-$shell->stdin($stdin) if ( not $filename );
-$shell->isa_tty($isa_tty);
+$shell->stdin($stdin);
 $shell->want_reply($verbose);
 $shell->dumper($dumper);
 $shell->responder($responder);
@@ -136,8 +148,8 @@ attach($shell);
 $Tachikoma::Now       = time;
 $Tachikoma::Right_Now = $Tachikoma::Now;
 
-if ($filename) {
-    my @values = @ARGV;
+if ( length $filename ) {
+    my @values = @arguments;
     $config->{var}->{$_} = $values[$_] for ( 1 .. $#values );
     $config->{var}->{q(0)} = shift @values;
     $config->{var}->{q(@)}  = join q( ), @values;
@@ -152,19 +164,23 @@ if ($filename) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
         $message->[PAYLOAD] = $line;
-        $shell->fill($message);
+        $shell->fill($message) if ( not Tachikoma->shutting_down );
     }
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE] = TM_EOF;
-    $message->[FROM] = '_stdin';
-    $shell->fill($message);
+    if ( not length $include_file ) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE] = TM_EOF;
+        $message->[FROM] = '_stdin';
+        $shell->fill($message) if ( not Tachikoma->shutting_down );
+    }
 }
-else {
-    $stdin->name('_stdin') if ( not $new_server );
-    $stdin->buffer_mode('line-buffered');
-    $stdin->use_readline('true') if ($isa_tty);
-    attach($stdin);
+$stdin->name('_stdin');
+$stdin->buffer_mode('line-buffered');
+if ($interactive) {
+    $stdin->use_readline('true');
+    $shell->want_reply('true');
+    $shell->isa_tty('true');
 }
+attach($stdin);
 
 sub attach {
     my $next = shift;
@@ -173,32 +189,35 @@ sub attach {
     return;
 }
 
-if ($isa_tty) {
+if ( not $filename and $isa_tty ) {
     $shell->prompt;
     $shell->get_completions if ( $stdin->use_readline );
 }
 
-$router->drain( ( $host or $socket ) ? $tachikoma : undef );
+$router->drain;
 
 # makes sure readline resets the display:
 if ($isa_tty) {
     $stdin->close_filehandle;
-    print "\n";
+    print "\n" if ( $shell->last_prompt );
 }
 
-if ( $shell->errors and ( $validate or not $isa_tty ) ) {
+if ( $shell->errors
+    and ( $validate or ( length $filename or not $isa_tty ) ) )
+{
     print $filename ? "$filename " : 'stdin ', "had compilation errors.\n";
     exit 1;
 }
-print $filename ? "$filename " : q(), "syntax OK\n" if ($validate);
+print length $filename ? "$filename " : q(), "syntax OK\n" if ($validate);
 
 sub usage {
     print "Usage:\n"
-        . "tachikoma [ --config=<path>                   ]\n"
+        . "tachikoma [ --config=<file>                   ]\n"
+        . "          [ --include=<file>                  ]\n"
         . "          [ --host=<host>                     ]\n"
         . "          [ --port=<port>                     ]\n"
-        . "          [ --socket=<path>                   ]\n"
-        . "          [ --path=<path>                     ]\n"
+        . "          [ --socket=<file>                   ]\n"
+        . "          [ --path=<node>                     ]\n"
         . "          [ --line-buffered                   ]\n"
         . "          [ --use-ssl                         ]\n"
         . "          [ --scheme=<rsa,rsa-sha256,ed25519> ]\n"
@@ -206,6 +225,6 @@ sub usage {
         . "          [ --validate                        ]\n"
         . "          [ --verbose                         ]\n"
         . "          [ --help                            ]\n"
-        . "          [ <filename>                        ]\n";
+        . "          [ <file>                            ]\n";
     exit 1;
 }

@@ -27,6 +27,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
     $self->{fire_cb}                = \&fire_cb;
+    $self->{is_active}              = undef;
     $self->{handling_error}         = undef;
     $self->{registrations}->{TIMER} = {};
     bless $self, $class;
@@ -34,25 +35,13 @@ sub new {
     return $self;
 }
 
-sub register_router_node {
-    my $self = shift;
-    return $Tachikoma::Event_Framework->register_router_node($self);
-}
-
 sub drain {
-    my $self      = shift;
-    my $connector = shift;
+    my $self = shift;
     if ( not Tachikoma->shutting_down ) {
-        if ( $self->type eq 'root' ) {
-            my $class   = ref $Tachikoma::Event_Framework;
-            my $version = $self->configuration->wire_version;
-            $self->stderr("starting up - $class - wire format $version");
+        Tachikoma->event_framework->drain( $self->start );
+        while ( my $close_cb = shift @Tachikoma::Closing ) {
+            &{$close_cb}();
         }
-        $Tachikoma::Event_Framework->drain( $self, $connector );
-        $self->shutdown_all_nodes;
-    }
-    while ( my $close_cb = shift @Tachikoma::Closing ) {
-        &{$close_cb}();
     }
     if ( $self->type eq 'root' ) {
         $self->stderr('waiting for child processes...');
@@ -132,6 +121,8 @@ sub fire_cb {
     my $config       = $self->configuration;
     my @again        = ();
     my $reconnecting = Tachikoma->nodes_to_reconnect;
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     while ( my $node = shift @{$reconnecting} ) {
         my $okay = eval {
             push @again, $node if ( $node->reconnect );
@@ -293,7 +284,37 @@ sub remove_node {
     push @Tachikoma::Closing, sub {
         $self->SUPER::remove_node;
     };
+    $self->stop;
     return;
+}
+
+sub start {
+    my $self = shift;
+    Tachikoma->shutting_down(undef);
+    if ( $self->type eq 'root' or $self->debug_state ) {
+        my $class   = ref Tachikoma->event_framework;
+        my $version = $self->configuration->wire_version;
+        $self->stderr("starting up - $class - wire format $version");
+    }
+    $self->is_active(1);
+    return $self;
+}
+
+sub stop {
+    my $self = shift;
+    $self->is_active(undef);
+    if ( $self->type eq 'root' or $self->debug_state ) {
+        $self->stderr('shutting down');
+    }
+    return $self;
+}
+
+sub is_active {
+    my $self = shift;
+    if (@_) {
+        $self->{is_active} = shift;
+    }
+    return $self->{is_active};
 }
 
 sub handling_error {
