@@ -220,8 +220,7 @@ sub fill_fh {
 }
 
 sub handle_EOF {
-    my $self   = shift;
-    my $on_EOF = $self->{on_EOF};
+    my $self = shift;
     $self->{got_EOF} = undef;
     $self->SUPER::handle_EOF;
     return;

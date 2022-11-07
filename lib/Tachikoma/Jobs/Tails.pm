@@ -39,7 +39,6 @@ sub initialize_graph {
     my $responder    = Tachikoma::Nodes::Responder->new;
     my $file_watcher = Tachikoma::Nodes::FileWatcher->new;
     $self->connector->sink($interpreter);
-    $shell->responder($responder);
     $shell->sink($interpreter);
     $interpreter->name('_command_interpreter');
     $responder->name('_responder');

@@ -2322,8 +2322,6 @@ $C{initialize} = sub {
     }
     Tachikoma->event_framework->close_filehandle($node);
     delete( Tachikoma->nodes_by_fd->{ $node->fd } );
-    $responder->router(undef);
-    $responder->edge(undef);
     $responder->sink($router);
     my $okay = eval {
         Tachikoma->initialize( $name, $daemonize );

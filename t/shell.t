@@ -686,14 +686,14 @@ is( $answer, "{1\n}\n{101\n}\n", 'nested parentheses are otherwise ignored' );
 $parse_tree = $shell->parse(q({ local; { echo foo } }));
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[28][]\n", 'commands can be nested inside blocks' );
+is( $answer, "{foo\n}\n[38][]\n", 'commands can be nested inside blocks' );
 
 #####################################################################
 
 $parse_tree = $shell->parse(q({ local; { echo foo } date }));
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[28][date]\n",
+is( $answer, "{foo\n}\n[38][date]\n",
     'expressions after blocks are evaluated' );
 
 #####################################################################
@@ -701,7 +701,7 @@ is( $answer, "{foo\n}\n[28][date]\n",
 $parse_tree = $shell->parse(q({ local; { echo foo } ; date }));
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[28][]\n[date][]\n",
+is( $answer, "{foo\n}\n[38][]\n[date][]\n",
     'semicolons separate blocks and expressions' );
 
 #####################################################################
@@ -863,7 +863,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer,
-    "{sum == 0\n}\n[33][]\n{sum == 42\n}\n",
+    "{sum == 0\n}\n[43][]\n{sum == 42\n}\n",
     'local controls variable scope'
 );
 

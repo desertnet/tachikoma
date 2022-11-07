@@ -64,6 +64,7 @@ sub new {
         help                 => {},
         functions            => {},
         var                  => {},
+        debug_level          => undef,
         secure_level         => undef,
         scheme               => 'rsa',
         listen_sockets       => undef,
@@ -234,6 +235,14 @@ sub var {
         $self->{var} = shift;
     }
     return $self->{var};
+}
+
+sub debug_level {
+    my $self = shift;
+    if (@_) {
+        $self->{debug_level} = shift;
+    }
+    return $self->{debug_level};
 }
 
 sub secure_level {

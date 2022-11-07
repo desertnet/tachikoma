@@ -24,7 +24,6 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{last_buffer} = undef;
     $self->{ignore}      = undef;
-    $self->{router}      = undef;
     $self->{shell}       = undef;
     bless $self, $class;
     return $self;
@@ -63,7 +62,7 @@ sub fill {
         delete $shell->callbacks->{ $message->[ID] };
         return;
     }
-    if ( $self->{router} or $self->{owner} ) {
+    if ( $self->{shell} or $self->{owner} ) {
         $message->[TYPE] ^= TM_PERSIST if ( $type & TM_PERSIST );
         $self->SUPER::fill($message);
     }
@@ -75,7 +74,7 @@ sub fill {
         $response->[ID]      = $message->[ID];
         $response->[STREAM]  = $message->[STREAM];
         $response->[PAYLOAD] = $type & TM_ERROR ? 'answer' : 'cancel';
-        $self->router->fill($response);
+        $Tachikoma::Nodes{_router}->fill($response);
     }
     return;
 }
@@ -104,7 +103,6 @@ sub get_last_buffer {
 
 sub remove_node {
     my $self = shift;
-    $self->router(undef);
     $self->shell(undef);
     $self->SUPER::remove_node;
     return;
@@ -124,14 +122,6 @@ sub ignore {
         $self->{ignore} = shift;
     }
     return $self->{ignore};
-}
-
-sub router {
-    my $self = shift;
-    if (@_) {
-        $self->{router} = shift;
-    }
-    return $self->{router} || $self->{sink};
 }
 
 sub shell {

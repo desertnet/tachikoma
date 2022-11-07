@@ -8,7 +8,7 @@ package Tachikoma::Nodes::Shell;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TM_BYTESTREAM TM_COMMAND TM_NOREPLY );
+use Tachikoma::Message qw( FROM TM_BYTESTREAM TM_COMMAND TM_NOREPLY );
 use Tachikoma::Command;
 use parent qw( Tachikoma::Node );
 
@@ -26,6 +26,13 @@ sub new {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    if ( $message->[FROM] eq '_stdin' ) {
+        $message->[FROM] = '_responder';
+    }
+    else {
+        $self->stderr( 'ERROR: invalid shell input: ', $message->as_string );
+        exit 1;
+    }
     return $self->sink->fill($message)
         if ( not $message->type & TM_BYTESTREAM );
     for my $line ( split m{^}, $message->payload ) {

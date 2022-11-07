@@ -51,7 +51,7 @@ sub new {
     $self->{leader_path}    = undef;
     $self->{max_unanswered} = undef;
     $self->{timeout}        = undef;
-    $self->{startup_delay}  = 0;
+    $self->{startup_delay}  = undef;
     $self->{registrations}->{READY} = {};
 
     # sync support
@@ -92,9 +92,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($broker,         $topic,       $group,         $partition_id,
-            $max_unanswered, $timeout,     $poll_interval, $hub_timeout,
-            $cache_type,     $auto_commit, $default_offset,
+        my ($broker,        $topic,          $group,
+            $partition_id,  $max_unanswered, $timeout,
+            $poll_interval, $hub_timeout,    $startup_delay,
+            $cache_type,    $auto_commit,    $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -106,6 +107,7 @@ sub arguments {
             'timeout=i'        => \$timeout,
             'poll_interval=f'  => \$poll_interval,
             'hub_timeout=i'    => \$hub_timeout,
+            'startup_delay=i'  => \$startup_delay,
             'cache_type=s'     => \$cache_type,
             'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
@@ -124,7 +126,7 @@ sub arguments {
         $self->{check_interval} = 0;
         $self->{poll_interval}  = $poll_interval || $Poll_Interval;
         $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
-        $self->{startup_delay}  = $Startup_Delay;
+        $self->{startup_delay}  = $startup_delay // $Startup_Delay;
 
         if ($group) {
             $self->{cache_type}  = $cache_type  // $Cache_Type;

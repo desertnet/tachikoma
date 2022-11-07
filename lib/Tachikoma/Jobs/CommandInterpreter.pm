@@ -30,7 +30,6 @@ sub initialize_graph {
     }
     else {
         $shell = Tachikoma::Nodes::Shell2->new;
-        $shell->responder($responder);
         if ( @lines and $lines[0] eq "v2\n" ) {
             shift @lines;
             $shell->{counter}++;
@@ -48,6 +47,7 @@ sub initialize_graph {
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = '_stdin';
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }

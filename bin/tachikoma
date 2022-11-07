@@ -27,7 +27,6 @@ my @default_configs = (
     '/usr/local/etc/tachikoma.conf',
 );
 my $config_file   = undef;
-my $include_file  = undef;
 my $host          = undef;
 my $port          = undef;
 my $socket        = undef;
@@ -38,7 +37,7 @@ my $use_SSL       = undef;
 my $seconds       = undef;
 my $validate      = undef;
 my $verbose       = undef;
-my $debug         = undef;
+my $debug_level   = undef;
 my $debug_state   = undef;
 my $help          = undef;
 
@@ -46,7 +45,6 @@ splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 
 my $r = GetOptions(
     'config=s'      => \$config_file,
-    'include=s'     => \$include_file,
     'host=s'        => \$host,
     'port=i'        => \$port,
     'socket=s'      => \$socket,
@@ -57,13 +55,12 @@ my $r = GetOptions(
     'timeout=i'     => \$seconds,
     'validate'      => \$validate,
     'verbose'       => \$verbose,
-    'debug:i'       => \$debug,
+    'debug_level:i' => \$debug_level,
     'debug_state:i' => \$debug_state,
     'help'          => \$help,
 );
 my @arguments = @ARGV;
-unshift @arguments, $include_file if ( length $include_file );
-my $filename = $arguments[0];
+my $filename  = $arguments[0];
 
 usage() if ( $help or not $r );
 my $config = Tachikoma->configuration;
@@ -75,11 +72,9 @@ my $new_server = undef;
 $new_server = 'true' if ( not $host and not length $socket );
 $port    //= $config->listen_sockets->[0]->{Port};
 $use_SSL //= $config->listen_sockets->[0]->{use_SSL};
-my $isa_tty     = isatty(*STDIN);
-my $interactive = undef;
-$interactive = 'true'
-    if ( ( length $include_file or not length $filename ) and $isa_tty );
-$verbose = 'true' if ($debug);
+my $isa_tty = isatty(*STDIN);
+$verbose = 'true' if ($debug_level);
+$config->debug_level($debug_level);
 
 my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
     $timeout, $shutdown, $stdout,    $router,    $node
@@ -104,7 +99,7 @@ else {
     $tachikoma->name('_socket');
 }
 $responder = Tachikoma::Nodes::Responder->new;
-$dumper    = Tachikoma::Nodes::Dumper->new if ( $verbose or $interactive );
+$dumper    = Tachikoma::Nodes::Dumper->new if ( $verbose or $isa_tty );
 $timeout   = Tachikoma::Nodes::Timeout->new if ($seconds);
 $shutdown  = Tachikoma::Nodes::Shutdown->new;
 $stdout    = Tachikoma::Nodes::TTY->filehandle( *STDOUT, TK_SYNC );
@@ -120,14 +115,11 @@ $timeout->arguments( $seconds * 1000 ) if ($seconds);
 $node = $stdout;
 attach($shutdown);
 attach($timeout) if ($seconds);
-if ( $verbose or $interactive ) {
-    $shell->show_commands('true') if ( not $interactive );
-    $dumper->stdin($stdin);
-    $dumper->debug($debug);
+if ( $verbose or $isa_tty ) {
+    $shell->show_commands('true') if ( not $isa_tty );
     attach($dumper);
 }
 $responder->name('_responder');
-$responder->router($router);
 $responder->shell($shell);
 attach($responder);
 if ($new_server) {
@@ -139,10 +131,7 @@ else {
     $tachikoma->on_EOF('die');
 }
 attach($tachikoma);
-$shell->stdin($stdin);
 $shell->want_reply($verbose);
-$shell->dumper($dumper);
-$shell->responder($responder);
 $shell->validate($validate);
 attach($shell);
 $Tachikoma::Now       = time;
@@ -163,24 +152,30 @@ if ( length $filename ) {
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = '_stdin';
         $message->[PAYLOAD] = $line;
         $shell->fill($message) if ( not Tachikoma->shutting_down );
     }
-    if ( not length $include_file ) {
+    if ( not $shell->is_attached and not $config->secure_level ) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE] = TM_EOF;
         $message->[FROM] = '_stdin';
         $shell->fill($message) if ( not Tachikoma->shutting_down );
     }
 }
-$stdin->name('_stdin');
-$stdin->buffer_mode('line-buffered');
-if ($interactive) {
-    $stdin->use_readline('true');
-    $shell->want_reply('true');
-    $shell->isa_tty('true');
+else {
+    $shell->is_attached('true');
 }
-attach($stdin);
+if ( $shell->is_attached ) {
+    $stdin->name('_stdin');
+    $stdin->buffer_mode('line-buffered');
+    if ($isa_tty) {
+        $stdin->use_readline('true');
+        $shell->want_reply('true');
+        $shell->isa_tty('true');
+    }
+    attach($stdin);
+}
 
 sub attach {
     my $next = shift;
