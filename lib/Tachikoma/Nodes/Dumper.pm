@@ -45,7 +45,8 @@ sub fill {
     my $type         = undef;
     my $use_readline = undef;
     my $stdin        = $Tachikoma::Nodes{_stdin};
-    $use_readline = $stdin->use_readline if ($stdin);
+    $use_readline = $stdin->use_readline
+        if ( $stdin and $stdin->isa('Tachikoma::Nodes::TTY') );
     if ( $message->[TYPE] & TM_STORABLE ) {
         $type = $self->dump_storable($message);
     }
