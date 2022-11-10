@@ -96,9 +96,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,  $offsetlog,     $max_unanswered,
-            $timeout,    $poll_interval, $hub_timeout,
-            $cache_type, $auto_commit,   $default_offset,
+        my ($partition,     $offsetlog,     $max_unanswered,
+            $timeout,       $poll_interval, $hub_timeout,
+            $startup_delay, $cache_type,    $auto_commit,
+            $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -108,6 +109,7 @@ sub arguments {
             'timeout=i'        => \$timeout,
             'poll_interval=i'  => \$poll_interval,
             'hub_timeout=i'    => \$hub_timeout,
+            'startup_delay=i'  => \$startup_delay,
             'cache_type=s'     => \$cache_type,
             'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
@@ -139,7 +141,7 @@ sub arguments {
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
-        $self->{startup_delay}      = $Startup_Delay;
+        $self->{startup_delay}      = $startup_delay // $Startup_Delay;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
         $self->{set_state}          = {};
     }

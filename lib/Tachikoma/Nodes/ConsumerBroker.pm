@@ -50,8 +50,8 @@ sub new {
     $self->{broker_path}    = undef;
     $self->{leader_path}    = undef;
     $self->{max_unanswered} = undef;
-    $self->{timeout}        = undef;
-    $self->{startup_delay}  = undef;
+    $self->{timeout}        = $Timeout;
+    $self->{startup_delay}  = 0;
     $self->{registrations}->{READY} = {};
 
     # sync support
