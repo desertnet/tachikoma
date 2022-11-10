@@ -1405,16 +1405,16 @@ $BUILTINS{'ping'} = sub {
     return [ $self->sink->fill($message) ];
 };
 
-$H{'debug'} = [ "debug [ <level> ]\n", "    levels: 0, 1, 2\n" ];
+$H{'debug_level'} = [ "debug_level [ <level> ]\n", "    levels: 0, 1, 2\n" ];
 
-$BUILTINS{'debug'} = sub {
+$BUILTINS{'debug_level'} = sub {
     my $self       = shift;
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     my $level_tree = $parse_tree->{value}->[1];
     my $level      = not $self->configuration->debug_level;
     $level = join q(), @{ $self->evaluate($level_tree) } if ($level_tree);
-    $self->fatal_parse_error('bad arguments for debug')
+    $self->fatal_parse_error('bad arguments for debug_level')
         if ( @{ $parse_tree->{value} } > 2 );
     $self->configuration->debug_level($level);
     return [];
@@ -1518,11 +1518,27 @@ $BUILTINS{'shell'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
     my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    $line =~ s{\s*$}{};
     my ( $proto, $args ) = split q( ), $line, 2;
     $self->fatal_parse_error(qq(bad arguments for shell: "$args"))
-        if ( $args =~ m{\S} );
+        if ( length $args );
     $self->is_attached('true');
     return [];
+};
+
+$H{'exit'} = ["exit [ <value> ]\n"];
+
+$BUILTINS{'exit'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    $line =~ s{\s*$}{};
+    my ( $proto, $value ) = split q( ), $line, 2;
+    if ( $value =~ m{\D} ) {
+        $self->stderr(qq(ERROR: bad arguments for exit: "$value"));
+        $value = 1;
+    }
+    exit $value;
 };
 
 $OPERATORS{'lt'} = sub { $_[0] lt $_[1] };
