@@ -62,7 +62,7 @@ sub fill {
         delete $shell->callbacks->{ $message->[ID] };
         return;
     }
-    if ( $self->{shell} or $self->{owner} ) {
+    if ( $self->{owner} ) {
         $message->[TYPE] ^= TM_PERSIST if ( $type & TM_PERSIST );
         $self->SUPER::fill($message);
     }

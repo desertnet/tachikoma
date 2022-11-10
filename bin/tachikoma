@@ -120,6 +120,7 @@ if ( $verbose or $isa_tty ) {
     attach($dumper);
 }
 $responder->name('_responder');
+$responder->owner('_stdout');
 $responder->shell($shell);
 attach($responder);
 if ($new_server) {
@@ -166,6 +167,7 @@ if ( length $filename ) {
 else {
     $shell->is_attached('true');
 }
+
 if ( $shell->is_attached ) {
     $stdin->name('_stdin');
     $stdin->buffer_mode('line-buffered');
@@ -173,6 +175,8 @@ if ( $shell->is_attached ) {
         $stdin->use_readline('true');
         $shell->want_reply('true');
         $shell->isa_tty('true');
+        $shell->prompt;
+        $shell->get_completions if ( $stdin->use_readline );
     }
     attach($stdin);
 }
@@ -182,11 +186,6 @@ sub attach {
     $next->sink($node);
     $node = $next;
     return;
-}
-
-if ( not $filename and $isa_tty ) {
-    $shell->prompt;
-    $shell->get_completions if ( $stdin->use_readline );
 }
 
 $router->drain;
