@@ -1,0 +1,24 @@
+#!/usr/local/bin/tachikoma
+if (<_C> < 1) {
+    print "Usage: fetch.tsl \<path\> [ \<key\> ]\n";
+    exit 1;
+}
+
+var path=<1>
+var key=[var 2]
+connect_inet localhost:4230
+on localhost AUTHENTICATED {
+    local message.from = get_answer;
+    request localhost/<path> GET <key>;
+}
+make_node Function get_answer '
+    if (<message.type> == 1) {
+        send _responder <message.payload>;
+        exit 0;
+    }
+    else {
+        local;
+        exit 1;
+    };
+'
+secure 3

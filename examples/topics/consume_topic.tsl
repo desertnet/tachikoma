@@ -1,0 +1,18 @@
+#!/usr/local/bin/tachikoma --debug_state=0
+if (<_C> < 1) {
+    print "Usage: consume_topic.tsl \<topic\>\n";
+    exit 1;
+}
+
+var topic=<1>
+var name
+include config.tsl
+connect_hub
+make_x - ConsumerBroker consumer_broker --broker=<broker>      \
+                                        --default_offset=start \
+                                        --startup_delay=0      \
+                                        --poll_interval=0.1    \
+                                        --topic=<topic>
+# debug_state consumer_broker 9
+on consumer_broker READY exit 0
+secure 3
