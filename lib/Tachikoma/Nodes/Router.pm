@@ -117,34 +117,33 @@ sub send_error {
 }
 
 sub fire_cb {
-    my $self         = shift;
-    my $config       = $self->configuration;
-    my @again        = ();
-    my $reconnecting = Tachikoma->nodes_to_reconnect;
-    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
-    while ( my $node = shift @{$reconnecting} ) {
-        my $okay = eval {
-            push @again, $node if ( $node->reconnect );
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $node->stderr("ERROR: reconnect failed: $error");
-            $node->remove_node;
+    my $self   = shift;
+    my $config = $self->configuration;
+    if ( $config->secure_level ) {
+        my @again        = ();
+        my $reconnecting = Tachikoma->nodes_to_reconnect;
+        $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
+            if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        while ( my $node = shift @{$reconnecting} ) {
+            my $okay = eval {
+                push @again, $node if ( $node->reconnect );
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ || 'unknown error';
+                $node->stderr("ERROR: reconnect failed: $error");
+                $node->remove_node;
+            }
         }
+        @{$reconnecting} = @again;
     }
-    @{$reconnecting} = @again;
+    elsif ( defined $config->secure_level and $self->type ne 'router' ) {
+        $self->print_less_often('WARNING: process is insecure');
+    }
     $self->heartbeat( $config->var );
     $self->update_logs;
     $self->expire_callbacks;
     $self->notify_timer;
-    if (    defined $config->secure_level
-        and $config->secure_level == 0
-        and $self->type ne 'router' )
-    {
-        $self->print_less_often('WARNING: process is insecure');
-    }
     if ( defined $PROFILES ) {
         $self->trim_profiles;
     }

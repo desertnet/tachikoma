@@ -220,7 +220,7 @@ sub send_response {
     my $message  = shift;
     my $response = shift or return;
     return $response if ( not ref $response );
-    if ( $message->[TYPE] & TM_NOREPLY or not $self->{sink} ) {
+    if ( $message->[TYPE] & TM_NOREPLY ) {
         my $payload = $response->[PAYLOAD];
         $payload = Tachikoma::Command->new($payload)->{payload}
             if ( $response->[TYPE] & TM_COMMAND );
@@ -1505,7 +1505,7 @@ $C{request_node} = sub {
     $message->to($path);
     $message->payload($arguments) if ( defined $arguments );
     $self->sink->fill($message);
-    return $self->okay($envelope);
+    return;
 };
 
 $L{request} = $HELP->{request_node};
@@ -1525,7 +1525,8 @@ $C{send_node} = sub {
     $message->from( $envelope->from );
     $message->to($path);
     $message->payload("$arguments\n") if ( defined $arguments );
-    return $self->sink->fill($message);
+    $self->sink->fill($message);
+    return;
 };
 
 $L{send} = $HELP->{send_node};
@@ -2275,6 +2276,7 @@ $C{secure} = sub {
     elsif ( $secure_level < 3 ) {
         $config->secure_level( $secure_level + 1 );
     }
+    $Tachikoma::Nodes{_router}->fire_cb;
     return $self->okay($envelope);
 };
 
@@ -2293,9 +2295,10 @@ $C{insecure} = sub {
 
     my $config = $self->configuration;
     die "ERROR: process already secured\n"
-        if ( defined $config->secure_level
-        and $config->secure_level > 0 );
+        if ( $config->secure_level > 0 );
     $config->secure_level(-1);
+
+    $Tachikoma::Nodes{_router}->fire_cb;
     return $self->okay($envelope);
 };
 
@@ -2469,12 +2472,9 @@ sub verify_startup {
     my $id           = shift;
     my $secure_level = shift;
     return 1
-        if (
-        ( not length $id and not $secure_level )
-        or (    defined $secure_level
-            and $secure_level == 0
-            and $message->[FROM] =~ m{^(_parent/)*_responder$} )
-        );
+        if (defined $secure_level
+        and $secure_level == 0
+        and $message->[FROM] =~ m{^(_parent/)*_responder$} );
     return;
 }
 

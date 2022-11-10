@@ -972,6 +972,9 @@ sub reconnect {
     my $socket = $self->{fh};
     my $rv     = undef;
     return if ( not $self->{sink} );
+    my $secure = Tachikoma->configuration->{secure_level};
+    return $self->close_filehandle('reconnect')
+        if ( defined $secure and $secure == 0 );
     if ( not $socket or not fileno $socket ) {
         if ( $self->{filename} ) {
             socket $socket, PF_UNIX, SOCK_STREAM, 0
@@ -992,7 +995,9 @@ sub reconnect {
             die 'FAILED: TK_SYNC not supported';
         }
         else {
-            if ( not $self->{address} ) {
+            if ( defined $self->{inet_aton_serial}
+                and not $self->{address} )
+            {
                 if ( $Tachikoma::Inet_AtoN_Serial
                     == $self->{inet_aton_serial} )
                 {
@@ -1040,6 +1045,9 @@ sub dns_lookup {
     # When in doubt, use brute force--let's just fork our own resolver.
     # This turns out to perform quite well:
     #
+    my $secure = Tachikoma->configuration->{secure_level};
+    return $self->close_filehandle('reconnect')
+        if ( defined $secure and $secure == 0 );
     my $job_controller = $Tachikoma::Nodes{'jobs'};
     if ( not $job_controller ) {
         require Tachikoma::Nodes::JobController;
