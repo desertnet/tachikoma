@@ -45,26 +45,25 @@ sub drain {
     }
     if ( $self->type eq 'root' ) {
         $self->stderr('waiting for child processes...');
-        alarm 300;
-        local $SIG{ALRM} = sub { die "timeout\n" };
-        my $okay = eval {
-            do { }
-                while ( wait >= 0 );
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $self->stderr("WARNING: forcing shutdown - $error");
-        }
+    }
+    alarm 300;
+    local $SIG{ALRM} = sub { die "timeout\n" };
+    my $okay = eval {
+        do { }
+            while ( wait >= 0 );
+        return 1;
+    };
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        $self->stderr("WARNING: forcing shutdown - $error");
+    }
+    if ( $self->type eq 'root' ) {
         $self->stderr('removing pid file');
         Tachikoma->remove_pid;
         $self->stderr('shutdown complete');
-        kill -9, $$ or die if ( not $okay );
-        alarm 0;
     }
-    else {
-        do { } while ( wait >= 0 );
-    }
+    kill -9, $$ or die if ( not $okay );
+    alarm 0;
     return;
 }
 
