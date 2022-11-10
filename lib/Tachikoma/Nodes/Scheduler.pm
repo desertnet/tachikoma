@@ -65,7 +65,9 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     if ( $type & TM_COMMAND or $type & TM_EOF ) {
-        if ( ref $self eq 'Tachikoma::Nodes::Scheduler' ) {
+        if ( $type & TM_COMMAND
+            and ref $self eq 'Tachikoma::Nodes::Scheduler' )
+        {
             my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
             return $self->stderr($@) if ($@);
             my $cmd_name = $command->{name};
