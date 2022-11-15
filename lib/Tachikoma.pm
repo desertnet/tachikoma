@@ -444,6 +444,11 @@ sub shutdown_all_nodes {
     return Tachikoma::Node->shutdown_all_nodes(@args);
 }
 
+sub print_least_often {
+    my ( $self, @args ) = @_;
+    return Tachikoma::Node->print_less_often(@args);
+}
+
 sub print_less_often {
     my ( $self, @args ) = @_;
     return Tachikoma::Node->print_less_often(@args);
