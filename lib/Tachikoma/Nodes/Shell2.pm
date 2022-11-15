@@ -15,6 +15,7 @@ use Tachikoma::Message qw(
     TM_INFO TM_REQUEST TM_COMPLETION TM_NOREPLY
 );
 use Tachikoma::Command;
+use Carp;
 use Data::Dumper qw( Dumper );
 use Storable qw( nfreeze );
 my $USE_JSON;
@@ -1213,6 +1214,21 @@ $BUILTINS{'die'} = sub {
         if ( $self->{message_id} );
     my $value = join q(), @{ $self->evaluate($value_tree) };
     die "DIE:$value\n";
+};
+
+$H{'confess'} = ["confess <value>\n"];
+
+$BUILTINS{'confess'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    my $value_tree = $parse_tree->{value}->[1];
+    $self->fatal_parse_error('bad arguments for confess')
+        if ( @{ $parse_tree->{value} } > 2 );
+    delete $self->callbacks->{ $self->message_id }
+        if ( $self->{message_id} );
+    my $value = join q(), @{ $self->evaluate($value_tree) };
+    confess "CONFESS:$value\n";
 };
 
 $H{'on'} = ["on <node> <event> <commands>\n"];
