@@ -968,30 +968,71 @@ sub close_filehandle {
 }
 
 sub reconnect {
-    my $self   = shift;
-    my $socket = $self->{fh};
-    my $rv     = undef;
+    my $self = shift;
+    my $rv   = undef;
     return if ( not $self->{sink} );
     my $secure = Tachikoma->configuration->{secure_level};
     return $self->close_filehandle('reconnect')
         if ( defined $secure and $secure == 0 );
+    if ( $self->{filename} ) {
+        $rv = $self->reconnect_unix;
+    }
+    else {
+        $rv = $self->reconnect_inet;
+    }
+    return $rv;
+}
+
+sub reconnect_unix {
+    my $self   = shift;
+    my $socket = $self->{fh};
+    my $rv     = undef;
     if ( not $socket or not fileno $socket ) {
-        if ( $self->{filename} ) {
-            socket $socket, PF_UNIX, SOCK_STREAM, 0
-                or die "FAILED: socket: $!";
-            setsockopts($socket);
+        socket $socket, PF_UNIX, SOCK_STREAM, 0
+            or die "FAILED: socket: $!";
+        setsockopts($socket);
+        $self->close_filehandle;
+        $self->{fill} = $self->{fill_modes}->{fill};
+        $self->fh($socket);
+        if ( not connect $socket, pack_sockaddr_un( $self->{filename} ) ) {
+            $self->print_less_often(
+                "WARNING: reconnect: couldn't connect: $!");
             $self->close_filehandle;
-            $self->{fill} = $self->{fill_modes}->{fill};
-            $self->fh($socket);
-            if ( not connect $socket, pack_sockaddr_un( $self->{filename} ) )
-            {
-                $self->print_less_often(
-                    "WARNING: reconnect: couldn't connect: $!");
-                $self->close_filehandle;
-                return 'try again';
-            }
+            return 'try again';
         }
-        elsif ( $self->{flags} & TK_SYNC ) {
+        $self->{high_water_mark}  = 0;
+        $self->{largest_msg_sent} = 0;
+        $self->{latency_score}    = undef;
+    }
+    my $okay = eval {
+        $self->register_reader_node;
+        return 1;
+    };
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        $self->stderr("WARNING: register_reader_node failed: $error");
+        $self->close_filehandle;
+        return 'try again';
+    }
+    $self->stderr( 'reconnect: ', $! || 'success' );
+    if ( $self->{use_SSL} ) {
+        if ( not $self->start_SSL_connection ) {
+            $self->close_filehandle;
+            return 'try again';
+        }
+    }
+    else {
+        $self->init_connect;
+    }
+    return $rv;
+}
+
+sub reconnect_inet {
+    my $self   = shift;
+    my $socket = $self->{fh};
+    my $rv     = undef;
+    if ( not $socket or not fileno $socket ) {
+        if ( $self->{flags} & TK_SYNC ) {
             die 'FAILED: TK_SYNC not supported';
         }
         else {
@@ -1013,28 +1054,6 @@ sub reconnect {
         $self->{high_water_mark}  = 0;
         $self->{largest_msg_sent} = 0;
         $self->{latency_score}    = undef;
-    }
-    if ( $self->{filename} ) {
-        my $okay = eval {
-            $self->register_reader_node;
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $self->stderr("WARNING: register_reader_node failed: $error");
-            $self->close_filehandle;
-            return 'try again';
-        }
-        $self->stderr( 'reconnect: ', $! || 'success' );
-        if ( $self->{use_SSL} ) {
-            if ( not $self->start_SSL_connection ) {
-                $self->close_filehandle;
-                return 'try again';
-            }
-        }
-        else {
-            $self->init_connect;
-        }
     }
     return $rv;
 }
