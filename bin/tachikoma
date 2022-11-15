@@ -195,7 +195,6 @@ if ($isa_tty) {
         return 1;
     };
     my $error = $@;
-    print "\n" if ( $stdin->line_length );
     $stdin->close_filehandle;
     if ( not $okay ) {
         die $error;
