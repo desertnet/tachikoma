@@ -188,12 +188,21 @@ sub attach {
     return;
 }
 
-$router->drain;
-
 # makes sure readline resets the display:
 if ($isa_tty) {
+    my $okay = eval {
+        $router->drain;
+        return 1;
+    };
+    my $error = $@;
     $stdin->close_filehandle;
     print "\n" if ( $shell->last_prompt );
+    if ( not $okay ) {
+        die $error;
+    }
+}
+else {
+    $router->drain;
 }
 
 if ( $shell->errors
