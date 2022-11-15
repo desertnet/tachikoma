@@ -283,7 +283,7 @@ sub remove_node {
     push @Tachikoma::Closing, sub {
         $self->SUPER::remove_node;
     };
-    $self->stop;
+    $self->stop if ( $self->is_active );
     return;
 }
 

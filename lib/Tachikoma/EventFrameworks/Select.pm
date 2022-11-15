@@ -116,7 +116,7 @@ sub handle_signal {
     if ( $got_signal eq 'SHUTDOWN' ) {
         $router->stderr('received signal');
         $router->shutdown_all_nodes;
-        $router->stop;
+        $router->stop if ( $router->is_active );
     }
     elsif ( $got_signal eq 'GOT_HUP' ) {
         Tachikoma->touch_log_file if ( $$ == Tachikoma->my_pid );
