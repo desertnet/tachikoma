@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3266;
+use Test::More tests => 3262;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -130,12 +130,13 @@ my %nodes = (
 );
 
 my %skip_owner_test = (
-    'Tachikoma::Nodes::JobController' => 1,
-    'Tachikoma::Nodes::HTTP_Route'    => 1,
-    'Tachikoma::Nodes::LoadBalancer'  => 1,
-    'Tachikoma::Nodes::Queue'         => 1,
-    'Tachikoma::Nodes::RegexTee'      => 1,
-    'Tachikoma::Nodes::Tee'           => 1,
+    'Tachikoma::Nodes::CommandInterpreter' => 1,
+    'Tachikoma::Nodes::JobController'      => 1,
+    'Tachikoma::Nodes::HTTP_Route'         => 1,
+    'Tachikoma::Nodes::LoadBalancer'       => 1,
+    'Tachikoma::Nodes::Queue'              => 1,
+    'Tachikoma::Nodes::RegexTee'           => 1,
+    'Tachikoma::Nodes::Tee'                => 1,
 );
 
 my %skip_error_test = ( 'Tachikoma::Nodes::MemorySieve' => 1, );

@@ -2853,6 +2853,14 @@ sub name {
     return $self->SUPER::name(@_);
 }
 
+sub owner {
+    my $self = shift;
+    if (@_) {
+        die "ERROR: owner is not used by CommandInterpreter\n";
+    }
+    return q();
+}
+
 sub remove_node {
     my $self = shift;
     $self->{patron} = undef;
