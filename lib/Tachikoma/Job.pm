@@ -276,7 +276,7 @@ sub fill {
     my $rv      = undef;
     $message->[TO] = '_parent' if ( not length $message->[TO] );
     $self->{counter}++;
-    $rv = $self->{router}->fill($message)
+    $rv = $self->{sink}->fill($message)
         if ( not $message->[TYPE] & TM_EOF
         or $message->[FROM] ne '_parent' );
     return $rv;
