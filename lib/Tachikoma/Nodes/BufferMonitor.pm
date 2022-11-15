@@ -43,7 +43,6 @@ sub new {
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
     bless $self, $class;
-    $self->set_timer( $Timer_Interval * 1000 );
     return $self;
 }
 
@@ -54,17 +53,15 @@ sub arguments {
         $self->{buffers}      = {};
         $self->{email_alerts} = {};
         $self->{trap_alerts}  = {};
+        $self->set_timer( $Timer_Interval * 1000 );
     }
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
-        return
-            if ($message->[TYPE] & TM_EOF
-            and $message->[FROM] =~ m{^(?:_parent/)?[^/]+$} );
         return $self->interpreter->fill($message);
     }
     if ( $message->[TYPE] & TM_INFO ) {
