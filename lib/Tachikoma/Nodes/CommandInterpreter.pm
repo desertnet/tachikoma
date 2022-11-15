@@ -86,16 +86,21 @@ sub fill {
             and not $message->[TYPE] & TM_RESPONSE
             and not $message->[TYPE] & TM_ERROR )
         {
-            return $self->interpret($message);
+            $self->interpret($message) if ( not Tachikoma->shutting_down );
+            return;
         }
         elsif ( $message->[TYPE] & TM_PING ) {
             $message->[TO] = $message->[FROM];
         }
         elsif ( $message->[TYPE] & TM_EOF ) {
-            return
-                if ($message->[FROM] !~ m{/}
-                and $message->[FROM] ne '_responder' );
-            $message->[TO] = $message->[FROM];
+            if (   $message->[FROM] =~ m{/}
+                or $message->[FROM] eq '_responder' )
+            {
+                $message->[TO] = $message->[FROM];
+            }
+            else {
+                return;
+            }
         }
     }
     return $self->drop_message( $message, 'no sink' )

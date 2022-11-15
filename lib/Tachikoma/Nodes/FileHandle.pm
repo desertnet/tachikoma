@@ -274,6 +274,7 @@ sub handle_EOF {
         $self->send_EOF;
     }
     elsif ( $on_EOF eq 'shutdown' ) {
+        $self->close_filehandle;
         $self->send_EOF;
         Tachikoma->shutdown_all_nodes;
     }
