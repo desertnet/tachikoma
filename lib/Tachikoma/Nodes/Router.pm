@@ -37,11 +37,12 @@ sub new {
 
 sub drain {
     my $self = shift;
-    if ( not Tachikoma->shutting_down ) {
-        Tachikoma->event_framework->drain( $self->start );
-        while ( my $close_cb = shift @Tachikoma::Closing ) {
-            &{$close_cb}();
-        }
+    if ( Tachikoma->shutting_down ) {
+        die "ERROR: drain() called during shutdown\n";
+    }
+    Tachikoma->event_framework->drain( $self->start );
+    while ( my $close_cb = shift @Tachikoma::Closing ) {
+        &{$close_cb}();
     }
     if ( $self->type eq 'root' ) {
         $self->stderr('waiting for child processes...');
