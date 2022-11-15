@@ -1534,6 +1534,7 @@ $BUILTINS{'exit'} = sub {
     my $line     = join q(), @{ $self->evaluate($raw_tree) };
     $line =~ s{\s*$}{};
     my ( $proto, $value ) = split q( ), $line, 2;
+    $value ||= 0;
     if ( $value =~ m{\D} ) {
         $self->stderr(qq(ERROR: bad arguments for exit: "$value"));
         $value = 1;
