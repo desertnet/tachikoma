@@ -22,11 +22,10 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $HOME          = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_DIR        = "$HOME/.tachikoma/schedules";
-my %SAFE_COMMANDS = map { $_ => 1 } qw( prompt help list_events events ls );
-my %C             = ();
-my %DISABLED      = ( 3 => { map { $_ => 1 } qw( schedule ) } );
+my $HOME     = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR   = "$HOME/.tachikoma/schedules";
+my %C        = ();
+my %DISABLED = ( 3 => { map { $_ => 1 } qw( schedule ) } );
 
 sub new {
     my $class = shift;
@@ -65,19 +64,6 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     if ( $type & TM_COMMAND or $type & TM_EOF ) {
-        if ( $type & TM_COMMAND
-            and ref $self eq 'Tachikoma::Nodes::Scheduler' )
-        {
-            my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-            return $self->stderr($@) if ($@);
-            my $cmd_name = $command->{name};
-            if ( not $SAFE_COMMANDS{$cmd_name} ) {
-                my $interpreter = $self->interpreter;
-                $interpreter->verify_key( $message, ['meta'], 'schedule' )
-                    or return $interpreter->send_response( $message,
-                    $interpreter->error("verification failed\n") );
-            }
-        }
         return $self->interpreter->fill($message);
     }
     return $self->SUPER::fill($message);
@@ -92,14 +78,27 @@ sub fire {
         my $when = $time - $Tachikoma::Now;
         $next_when = $when if ( $when < $next_when );
         next if ( $when > 0 or not $enabled );
-        my $message = eval { Tachikoma::Message->unpacked( \$packed ) };
+        my $message = undef;
+        my $okay    = eval {
+            $message = Tachikoma::Message->unpacked( \$packed );
+            return 1;
+        };
+        if ( not $okay ) {
+            $self->stderr($@);
+            delete $self->tiedhash->{$message_id};
+            next;
+        }
         if ($message) {
             my $name    = ( split m{/}, $message->[FROM], 2 )[0] || q();
-            my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-            if ($@) {
+            my $command = undef;
+            $okay = eval {
+                $command = Tachikoma::Command->new( $message->[PAYLOAD] );
+                return 1;
+            };
+            if ( not $okay ) {
                 $self->stderr($@);
                 delete $self->tiedhash->{$message_id};
-                return;
+                next;
             }
             $message->[FROM] = $self->{owner}
                 if ( not $Tachikoma::Nodes{$name} );
@@ -195,7 +194,9 @@ $C{in} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join q( ), $command->name, $command->arguments;
+    $self->verify_key( $envelope, ['meta'], 'schedule' )
+        or return $self->error("verification failed\n");
+    my $text = join q( ), $command->name, $command->arguments;
     if ( $command->arguments =~ m{^(\d+[dhms]+)(?:/(\d+))? (.+)}s ) {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
         my ( $name, $arguments ) = split q( ), $imperative, 2;
@@ -234,8 +235,10 @@ $C{at} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join q( ), $command->name, $command->arguments;
-    my $pattern  = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+)}s;
+    $self->verify_key( $envelope, ['meta'], 'schedule' )
+        or return $self->error("verification failed\n");
+    my $text    = join q( ), $command->name, $command->arguments;
+    my $pattern = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+)}s;
     if ( $command->arguments =~ m{$pattern} ) {
         my ( $year, $month, $day, $hour, $min, $sec, $imperative ) =
             ( $1, $2, $3, $4, $5, $6, $7 );
@@ -266,7 +269,9 @@ $C{every} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $text     = join q( ), $command->name, $command->arguments;
+    $self->verify_key( $envelope, ['meta'], 'schedule' )
+        or return $self->error("verification failed\n");
+    my $text = join q( ), $command->name, $command->arguments;
     if ( $command->arguments =~ m{^(\d+[dhms]+)(?:/(\d+))? (.+)}s ) {
         my ( $spec, $divisor, $imperative ) = ( $1, $2, $3 );
         my ( $name, $arguments ) = split q( ), $imperative, 2;
@@ -305,6 +310,8 @@ $C{enable_event} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
+    $self->verify_key( $envelope, ['meta'], 'schedule' )
+        or return $self->error("verification failed\n");
     my $key      = $command->arguments;
     my $tiedhash = $self->patron->tiedhash;
     my $event    = $tiedhash->{$key};
@@ -325,6 +332,8 @@ $C{disable_event} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
+    $self->verify_key( $envelope, ['meta'], 'schedule' )
+        or return $self->error("verification failed\n");
     my $key      = $command->arguments;
     my $tiedhash = $self->patron->tiedhash;
     my $event    = $tiedhash->{$key};
@@ -345,6 +354,8 @@ $C{remove_event} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
+    $self->verify_key( $envelope, ['meta'], 'schedule' )
+        or return $self->error("verification failed\n");
     my $tiedhash = $self->patron->tiedhash;
     my $key      = $command->arguments;
     if ( exists $tiedhash->{$key} ) {
@@ -476,7 +487,7 @@ sub filename {
     my $path = undef;
     if (@_) {
         my $filename = shift;
-        $path = ( $filename =~ m{^(.*)$} )[0] if ($filename);
+        $path = ( $filename =~ m{^(.*)$} )[0] if ( defined $filename );
         $self->{filename} = $path;
     }
     if ( $self->{filename} ) {
