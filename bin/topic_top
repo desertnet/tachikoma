@@ -118,6 +118,8 @@ $topic_top->threshold($threshold);
 $topic_top->delay($delay);
 $topic_top->sink($stdout);
 
+$stdout->on_EOF('ignore');
+
 system( '/bin/stty', '-echo', 'cbreak' );
 $router->name('_router');
 $router->drain;

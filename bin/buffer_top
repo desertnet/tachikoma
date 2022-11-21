@@ -100,6 +100,8 @@ $buffer_top->threshold($threshold);
 $buffer_top->delay($delay);
 $buffer_top->sink($stdout);
 
+$stdout->on_EOF('ignore');
+
 system( '/bin/stty', '-echo', 'cbreak' );
 $router->name('_router');
 $router->drain;
