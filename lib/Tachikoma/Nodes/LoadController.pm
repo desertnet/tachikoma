@@ -616,23 +616,29 @@ $C{kick} = sub {
 
 sub add_connector {
     my ( $self, %args ) = @_;
-    my $id      = $args{id};
-    my $host    = $args{host};
-    my $port    = $args{port};
-    my $use_SSL = $args{use_SSL};
-    if ( $self->{sink} and not $Tachikoma::Nodes{$id} ) {
+    my $id         = $args{id};
+    my $host       = $args{host};
+    my $port       = $args{port};
+    my $use_SSL    = $args{use_SSL};
+    my $connection = $Tachikoma::Nodes{$id};
+    return if ( not $self->{sink} );
+    if ( not $connection ) {
         require Tachikoma::Nodes::Socket;
         $port ||= DEFAULT_PORT;
-        my $connection =
+        $connection =
             Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
         $connection->name($id);
         $connection->on_EOF('reconnect');
         $connection->use_SSL($use_SSL);
         $connection->sink( $self->sink );
+        $Tachikoma::Nodes{$id} = $connection;
     }
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = undef;
-    $self->note_reconnect($id);
+    $self->note_reconnect($id)
+        if ( $connection->{set_state}->{RECONNECT} );
+    $self->note_authenticated($id)
+        if ( $connection->{set_state}->{AUTHENTICATED} );
     my $tester = (
           $self->{circuit_tester}
         ? $Tachikoma::Nodes{ $self->{circuit_tester} }
