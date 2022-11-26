@@ -24,7 +24,7 @@ use version; our $VERSION = qv('v2.0.256');
 
 my $Batch_Interval  = 0.25;     # how long to wait if below threshold
 my $Batch_Threshold = 65536;    # low water mark before sending batches
-my $Poll_Interval   = 5;        # delay between polls
+my $Poll_Interval   = 1;        # delay between polls
 my $Startup_Delay   = 0;        # offset from poll interval
 my $Hub_Timeout     = 60;       # synchronous timeout waiting for hub
 
