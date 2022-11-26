@@ -80,7 +80,7 @@ my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
     $timeout, $shutdown, $stdout,    $router,    $node
 );
 
-$stdin = Tachikoma::Nodes::TTY->filehandle( *STDIN, TK_R );
+$stdin = Tachikoma::Nodes::TTY->filehandle( *STDIN, TK_SYNC | TK_R );
 $shell = Tachikoma::Nodes::Shell2->new;
 if ($new_server) {
     my $module = 'Tachikoma::Nodes::CommandInterpreter';
