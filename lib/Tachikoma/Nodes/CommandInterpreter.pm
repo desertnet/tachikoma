@@ -2371,6 +2371,41 @@ $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
 $C{daemonize} = $C{initialize};
 
+$H{set_timeout} = ["set_timeout <seconds>\n"];
+
+$C{set_timeout} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $router   = $Tachikoma::Nodes{_router};
+    die "ERROR: already initialized\n"
+        if ( $router->type ne 'tachikoma' );
+    my $okay = eval {
+        my $seconds = $command->arguments;
+        if ( $seconds and $seconds =~ m{^\d+$} ) {
+            require Tachikoma::Nodes::Timeout;
+            my $timeout   = Tachikoma::Nodes::Timeout->new;
+            my $responder = $Tachikoma::Nodes{_responder};
+            my $dumper    = $responder->sink;
+            my $shutdown  = $dumper->sink;
+            $timeout->arguments( $seconds * 1000 );
+            $timeout->sink($shutdown);
+            $dumper->sink($timeout);
+        }
+        else {
+            die qq(ERROR: bad arguments for set_timeout\n);
+        }
+        return 1;
+    };
+    if ( not $okay ) {
+        warn $@;
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
+        exit 1;
+    }
+    return;
+};
+
 $H{pivot_client} = [
     "pivot_client <hostname>[:<port>] [ <node name> ]\n",
     "pivot_client --host <host>                     \\\n",
@@ -2390,16 +2425,14 @@ $C{pivot_client} = sub {
         my $host      = undef;
         my $port      = undef;
         my $socket    = undef;
-        my $seconds   = undef;
         my $use_SSL   = undef;
         my $tachikoma = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $command->arguments,
-            'host=s'    => \$host,
-            'port=i'    => \$port,
-            'socket=s'  => \$socket,
-            'timeout=i' => \$seconds,
-            'use-ssl'   => \$use_SSL,
+            'host=s'   => \$host,
+            'port=i'   => \$port,
+            'socket=s' => \$socket,
+            'use-ssl'  => \$use_SSL,
         );
         die qq(invalid option\n) if ( not $r );
 
@@ -2438,16 +2471,6 @@ $C{pivot_client} = sub {
         $tachikoma->name('_socket');
         $tachikoma->on_EOF('die');
         $tachikoma->sink( $Tachikoma::Nodes{_router} );
-
-        if ($seconds) {
-            require Tachikoma::Nodes::Timeout;
-            my $timeout = Tachikoma::Nodes::Timeout->new;
-            $timeout->arguments( $seconds * 1000 );
-            my $dumper   = $responder->sink;
-            my $shutdown = $dumper->sink;
-            $dumper->sink($timeout);
-            $timeout->sink($shutdown);
-        }
         $self->remove_node;
         return 1;
     };

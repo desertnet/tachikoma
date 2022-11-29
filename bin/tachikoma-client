@@ -19,8 +19,8 @@ if ([var path])    { cd <path>                     }
 if ([var socket])  { args .= --socket=<socket>     }
 if ([var host])    { args .= --host=<host>         }
 if ([var port])    { args .= --port=<port>         }
-if ([var timeout]) { args .= --timeout=<timeout>   }
 if ([var use-ssl]) { args .= --use-ssl             }
+if ([var timeout]) { set_timeout <timeout>         }
 if ([var scheme])  { scheme <scheme>               }
 pivot_client <args>
 if ([var startup]) {
