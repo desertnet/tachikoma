@@ -2369,6 +2369,9 @@ $C{pivot_client} = sub {
     my $socket    = undef;
     my $use_SSL   = undef;
     my $tachikoma = undef;
+    my $router = $Tachikoma::Nodes{_router};
+    die "ERROR: already initialized\n"
+        if ( $router->type ne 'tachikoma' );
     my $okay      = eval {
         my ( $r, $argv ) = GetOptionsFromString(
             $command->arguments,
@@ -2390,9 +2393,6 @@ $C{pivot_client} = sub {
         die "ERROR: secure level already defined\n"
             if ( $config->secure_level != 0 );
         $config->secure_level(3);
-        my $router = $Tachikoma::Nodes{_router};
-        die "ERROR: already initialized\n"
-            if ( $router->type ne 'tachikoma' );
 
         require Tachikoma::Nodes::Socket;
         if ( length $socket ) {
