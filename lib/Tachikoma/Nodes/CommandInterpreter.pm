@@ -300,7 +300,7 @@ sub topical_help {
         $output = $self->tabulate_help( $glob, $s, $f, $h );
     }
     else {
-        $output = '';
+        $output = q();
         if ( scalar keys %{$s} ) {
             $output .= join q(),
                 "### SHELL BUILTINS ###\n",
@@ -2390,14 +2390,16 @@ $C{pivot_client} = sub {
         my $host      = undef;
         my $port      = undef;
         my $socket    = undef;
+        my $seconds   = undef;
         my $use_SSL   = undef;
         my $tachikoma = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $command->arguments,
-            'host=s'   => \$host,
-            'port=i'   => \$port,
-            'socket=s' => \$socket,
-            'use-ssl'  => \$use_SSL,
+            'host=s'    => \$host,
+            'port=i'    => \$port,
+            'socket=s'  => \$socket,
+            'timeout=i' => \$seconds,
+            'use-ssl'   => \$use_SSL,
         );
         die qq(invalid option\n) if ( not $r );
 
@@ -2435,7 +2437,17 @@ $C{pivot_client} = sub {
         $shell->sink($tachikoma);
         $tachikoma->name('_socket');
         $tachikoma->on_EOF('die');
-        $tachikoma->sink( $self->sink );
+        $tachikoma->sink( $Tachikoma::Nodes{_router} );
+
+        if ($seconds) {
+            require Tachikoma::Nodes::Timeout;
+            my $timeout = Tachikoma::Nodes::Timeout->new;
+            $timeout->arguments( $seconds * 1000 );
+            my $dumper   = $responder->sink;
+            my $shutdown = $dumper->sink;
+            $dumper->sink($timeout);
+            $timeout->sink($shutdown);
+        }
         $self->remove_node;
         return 1;
     };
