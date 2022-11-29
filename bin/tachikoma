@@ -30,7 +30,6 @@ my @default_configs = (
 my $config_file   = undef;
 my $line_buffered = undef;
 my $scheme        = undef;
-my $use_SSL       = undef;
 my $seconds       = undef;
 my $validate      = undef;
 my $verbose       = undef;
@@ -43,7 +42,6 @@ splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 my $r = GetOptions(
     'config=s'      => \$config_file,
     'scheme=s'      => \$scheme,
-    'use-ssl'       => \$use_SSL,
     'timeout=i'     => \$seconds,
     'validate'      => \$validate,
     'verbose'       => \$verbose,
@@ -179,7 +177,6 @@ print length $filename ? "$filename " : q(), "syntax OK\n" if ($validate);
 sub usage {
     print "Usage:\n"
         . "tachikoma [ --config=<file>                   ]\n"
-        . "          [ --use-ssl                         ]\n"
         . "          [ --scheme=<rsa,rsa-sha256,ed25519> ]\n"
         . "          [ --timeout=<seconds>               ]\n"
         . "          [ --validate                        ]\n"
