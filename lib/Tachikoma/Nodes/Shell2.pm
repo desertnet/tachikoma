@@ -198,6 +198,7 @@ sub process_command {
             if ( $self->parse_buffer );
         return $self->shutdown_all_nodes
             if ( $self->{errors} and not $self->{isa_tty} );
+        $message->to( $self->path );
         return $self->sink->fill($message);
     }
     $self->{counter}++;
