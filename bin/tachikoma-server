@@ -6,7 +6,8 @@ if (<_C> > 0) {
             var <_1> = <_2>
         }
         else {
-            log (ERROR: couldn\'t parse argument: [var <i>])
+            log (ERROR: couldn\'t parse argument: [var <i>]);
+            exit 1;
         }
     }
 }

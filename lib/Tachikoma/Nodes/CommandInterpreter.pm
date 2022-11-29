@@ -29,6 +29,9 @@ use parent qw( Tachikoma::Node Tachikoma::Crypto );
 use version; our $VERSION = qv('v2.0.280');
 
 use constant DEFAULT_PORT => 4230;
+use constant TK_R         => 000001;    #    1
+use constant TK_W         => 000002;    #    2
+use constant TK_SYNC      => 000004;    #    4
 
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
@@ -2348,6 +2351,83 @@ $C{initialize} = sub {
 $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
 $C{daemonize} = $C{initialize};
+
+$H{pivot_client} = [
+    "pivot_client <hostname>[:<port>] [ <node name> ]\n",
+    "pivot_client --host <host>                     \\\n",
+    "             --port <port>                     \\\n",
+    "             --socket <file>                   \\\n",
+    "             --use-ssl\n"
+];
+
+$C{pivot_client} = sub {
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $host      = 'localhost';
+    my $port      = DEFAULT_PORT;
+    my $socket    = undef;
+    my $use_SSL   = undef;
+    my $tachikoma = undef;
+    my $okay      = eval {
+        my ( $r, $argv ) = GetOptionsFromString(
+            $command->arguments,
+            'host=s'   => \$host,
+            'port=i'   => \$port,
+            'socket=s' => \$socket,
+            'use-ssl'  => \$use_SSL,
+        );
+        die qq(invalid option\n) if ( not $r );
+
+        if ( not $host and not $socket ) {
+            die qq(no host specified\n) if ( not @{$argv} );
+            my $host_port = shift @{$argv};
+            my ( $host_part, $port_part ) = split m{:}, $host_port, 2;
+            $host = $host_part;
+            $port ||= $port_part;
+        }
+        my $config = $self->configuration;
+        die "ERROR: secure level already defined\n"
+            if ( $config->secure_level != 0 );
+        $config->secure_level(3);
+        my $router = $Tachikoma::Nodes{_router};
+        die "ERROR: already initialized\n"
+            if ( $router->type ne 'tachikoma' );
+
+        require Tachikoma::Nodes::Socket;
+        if ( length $socket ) {
+            $tachikoma =
+                Tachikoma::Nodes::Socket->unix_client( $socket, TK_SYNC,
+                $use_SSL );
+        }
+        else {
+            $tachikoma =
+                Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
+                $use_SSL );
+        }
+
+        # The shell likes to cache its prompt commands.  Clear the cache
+        # of any unsigned prompt command so that a new one can be made.
+        my $responder = $Tachikoma::Nodes{_responder};
+        my $shell     = $responder->shell;
+        $shell->{last_prompt} = 0 if ( $shell->can('last_prompt') );
+        $shell->sink($tachikoma);
+        $tachikoma->name('_socket');
+        $tachikoma->on_EOF('die');
+        $tachikoma->sink( $self->sink );
+        $self->remove_node;
+        return 1;
+    };
+    if ( not $okay ) {
+        $self->shutdown_all_nodes;
+        die $@;
+    }
+    return;
+};
+
+$L{pivot} = $H{pivot_client};
+
+$C{pivot} = $C{pivot_client};
 
 $H{shutdown} = ["shutdown\n"];
 

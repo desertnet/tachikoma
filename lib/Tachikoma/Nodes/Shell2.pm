@@ -152,7 +152,6 @@ sub new {
     $self->{prefix}        = undef;
     $self->{mode}          = 'command';
     $self->{isa_tty}       = undef;
-    $self->{want_reply}    = undef;
     $self->{validate}      = undef;
     $self->{errors}        = 0;
     $self->{parse_buffer}  = q();
@@ -163,6 +162,7 @@ sub new {
     $self->{last_prompt}   = 0;
     $self->{show_parse}    = undef;
     $self->{show_commands} = undef;
+    $self->{want_reply}    = undef;
     $self->{is_attached}   = undef;
     bless $self, $class;
     $self->{configuration}->{help}->{$_} //= $H{$_} for ( keys %H );
@@ -1466,6 +1466,21 @@ $BUILTINS{'show_commands'} = sub {
     return [];
 };
 
+$H{'want_reply'} = [ "want_reply [ <value> ]\n", "    values: 0, 1\n" ];
+
+$BUILTINS{'want_reply'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    my $value_tree = $parse_tree->{value}->[1];
+    my $value      = not $self->want_reply;
+    $value = join q(), @{ $self->evaluate($value_tree) } if ($value_tree);
+    $self->fatal_parse_error('bad arguments for want_reply')
+        if ( @{ $parse_tree->{value} } > 2 );
+    $self->want_reply($value);
+    return [];
+};
+
 $H{'respond'} = ["respond\n"];
 
 $BUILTINS{'respond'} = sub {
@@ -2076,14 +2091,6 @@ sub isa_tty {
     return $self->{isa_tty};
 }
 
-sub want_reply {
-    my $self = shift;
-    if (@_) {
-        $self->{want_reply} = shift;
-    }
-    return $self->{want_reply} // $LOCAL{'message.from'};
-}
-
 sub validate {
     my $self = shift;
     if (@_) {
@@ -2167,6 +2174,14 @@ sub show_commands {
         $self->{show_commands} = shift;
     }
     return $self->{show_commands};
+}
+
+sub want_reply {
+    my $self = shift;
+    if (@_) {
+        $self->{want_reply} = shift;
+    }
+    return $self->{want_reply} // $LOCAL{'message.from'};
 }
 
 sub is_attached {
