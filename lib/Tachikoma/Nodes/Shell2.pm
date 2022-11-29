@@ -29,7 +29,7 @@ BEGIN {
         return 1;
     };
 }
-use parent qw( Tachikoma::Node );
+use parent qw( Tachikoma::Nodes::Shell );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -142,28 +142,18 @@ for my $type (@TOKEN_TYPES) {
         die "internal parser error - unexpected $type\n";
     };
 }
-my $COUNTER = 0;
+my $MSG_COUNTER = 0;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{cwd}           = undef;
-    $self->{path}          = undef;
-    $self->{prefix}        = undef;
-    $self->{mode}          = 'command';
-    $self->{isa_tty}       = undef;
-    $self->{validate}      = undef;
-    $self->{errors}        = 0;
-    $self->{parse_buffer}  = q();
-    $self->{callbacks}     = {};
-    $self->{message_id}    = undef;
-    $self->{dirty}         = undef;
-    $self->{prompt}        = undef;
-    $self->{last_prompt}   = 0;
-    $self->{show_parse}    = undef;
-    $self->{show_commands} = undef;
-    $self->{want_reply}    = undef;
-    $self->{is_attached}   = undef;
+    $self->{callbacks}    = {};
+    $self->{cwd}          = undef;
+    $self->{dirty}        = undef;
+    $self->{errors}       = 0;
+    $self->{message_id}   = undef;
+    $self->{parse_buffer} = q();
+    $self->{show_parse}   = undef;
     bless $self, $class;
     $self->{configuration}->{help}->{$_} //= $H{$_} for ( keys %H );
     return $self;
@@ -1877,7 +1867,8 @@ sub _send_command {
     my $payload   = shift;
     my $path      = shift;
     my $message   = $self->command( $name, $arguments, $payload );
-    $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->want_reply );
+    $message->type( TM_COMMAND | TM_NOREPLY )
+        if ( not $LOCAL{'message.from'} and not $self->{want_reply} );
     $message->from( $LOCAL{'message.from'} // '_responder' );
     $message->to( $self->prefix($path) );
     $message->id( $self->message_id );
@@ -1927,25 +1918,6 @@ sub callback {
     return $rv;
 }
 
-sub cd {
-    my $self = shift;
-    my $cwd  = shift || q();
-    my $path = shift || q();
-    if ( $path =~ m{^/} ) {
-        $cwd = $path;
-    }
-    elsif ( $path =~ m{^[.][.]/?} ) {
-        $cwd  =~ s{/?[^/]+$}{};
-        $path =~ s{^[.][.]/?}{};
-        $cwd = $self->cd( $cwd, $path );
-    }
-    elsif ($path) {
-        $cwd .= "/$path";
-    }
-    $cwd =~ s{(^/|/$)}{}g if ($cwd);
-    return $cwd;
-}
-
 sub get_completions {
     my $self = shift;
     return
@@ -1981,94 +1953,6 @@ sub restore_local {
     return;
 }
 
-sub callbacks {
-    my $self = shift;
-    if (@_) {
-        $self->{callbacks} = shift;
-    }
-    return $self->{callbacks};
-}
-
-sub message_id {
-    my $self = shift;
-    my $rv   = undef;
-    if (@_) {
-        $self->{message_id} = shift;
-    }
-    else {
-        $rv = $self->{message_id};
-        $self->{message_id} = undef;
-    }
-    return $rv;
-}
-
-sub name {
-    my $self = shift;
-    if (@_) {
-        die "ERROR: named Shell nodes are not allowed\n";
-    }
-    return $self->{name};
-}
-
-sub cwd {
-    my $self = shift;
-    if (@_) {
-        $self->{cwd} = shift;
-    }
-    return $self->{cwd};
-}
-
-sub path {
-    my $self = shift;
-    if (@_) {
-        $self->{path} = shift;
-    }
-    return $self->{path};
-}
-
-sub prefix {
-    my $self  = shift;
-    my $path  = shift;
-    my @paths = ();
-    push @paths, $self->{prefix} if ( length $self->{prefix} );
-    push @paths, $self->{path}   if ( length $self->{path} );
-    push @paths, $path           if ( length $path );
-    return join q(/), @paths;
-}
-
-sub set_prefix {
-    my $self = shift;
-    if (@_) {
-        $self->{prefix} = shift;
-    }
-    return $self->{prefix};
-}
-
-sub mode {
-    my $self = shift;
-    if (@_) {
-        $self->{mode} = shift;
-        if ( $Tachikoma::Nodes{_stdin} ) {
-            if ( $self->{mode} ne 'bytestream' ) {
-
-                # print STDERR "un-ignoring EOF\n";
-                $Tachikoma::Nodes{_stdin}->on_EOF('close');
-            }
-            else {
-                # print STDERR "ignoring EOF\n";
-                $Tachikoma::Nodes{_stdin}->on_EOF('send');
-            }
-        }
-    }
-    return $self->{mode};
-}
-
-sub msg_counter {
-    my $self = shift;
-    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
-}
-
 sub report_error {
     my $self = shift;
     if (@_) {
@@ -2083,36 +1967,28 @@ sub report_error {
     return;
 }
 
-sub isa_tty {
+sub name {
     my $self = shift;
     if (@_) {
-        $self->{isa_tty} = shift;
+        die "ERROR: named Shell nodes are not allowed\n";
     }
-    return $self->{isa_tty};
+    return $self->{name};
 }
 
-sub validate {
+sub callbacks {
     my $self = shift;
     if (@_) {
-        $self->{validate} = shift;
+        $self->{callbacks} = shift;
     }
-    return $self->{validate};
+    return $self->{callbacks};
 }
 
-sub errors {
+sub cwd {
     my $self = shift;
     if (@_) {
-        $self->{errors} = shift;
+        $self->{cwd} = shift;
     }
-    return $self->{errors};
-}
-
-sub parse_buffer {
-    my $self = shift;
-    if (@_) {
-        $self->{parse_buffer} = shift;
-    }
-    return $self->{parse_buffer};
+    return $self->{cwd};
 }
 
 sub dirty {
@@ -2139,25 +2015,44 @@ sub dirty {
     return $self->{dirty};
 }
 
-sub prompt {
-    my $self = shift;
-    if ( $Tachikoma::Now - $self->{last_prompt} > 60 ) {
-        $self->{prompt}      = $self->command('prompt');
-        $self->{last_prompt} = $Tachikoma::Now;
-    }
-    my $message = $self->{prompt};
-    $message->from('_responder');
-    $message->to( $self->path );
-    $self->sink->fill($message);
-    return;
-}
-
-sub last_prompt {
+sub mode {
     my $self = shift;
     if (@_) {
-        $self->{last_prompt} = shift;
+        $self->{mode} = shift;
+        if ( $Tachikoma::Nodes{_stdin} ) {
+            if ( $self->{mode} ne 'bytestream' ) {
+
+                # print STDERR "un-ignoring EOF\n";
+                $Tachikoma::Nodes{_stdin}->on_EOF('close');
+            }
+            else {
+                # print STDERR "ignoring EOF\n";
+                $Tachikoma::Nodes{_stdin}->on_EOF('send');
+            }
+        }
     }
-    return $self->{last_prompt};
+    return $self->{mode};
+}
+
+sub message_id {
+    my $self = shift;
+    my $rv   = undef;
+    if (@_) {
+        $self->{message_id} = shift;
+    }
+    else {
+        $rv = $self->{message_id};
+        $self->{message_id} = undef;
+    }
+    return $rv;
+}
+
+sub parse_buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{parse_buffer} = shift;
+    }
+    return $self->{parse_buffer};
 }
 
 sub show_parse {
@@ -2168,32 +2063,14 @@ sub show_parse {
     return $self->{show_parse};
 }
 
-sub show_commands {
-    my $self = shift;
-    if (@_) {
-        $self->{show_commands} = shift;
-    }
-    return $self->{show_commands};
-}
-
-sub want_reply {
-    my $self = shift;
-    if (@_) {
-        $self->{want_reply} = shift;
-    }
-    return $self->{want_reply} // $LOCAL{'message.from'};
-}
-
-sub is_attached {
-    my $self = shift;
-    if (@_) {
-        $self->{is_attached} = shift;
-    }
-    return $self->{is_attached};
-}
-
 sub builtins {
     return \%BUILTINS;
+}
+
+sub msg_counter {
+    my $self = shift;
+    $MSG_COUNTER = ( $MSG_COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
 }
 
 sub TIEHASH {
