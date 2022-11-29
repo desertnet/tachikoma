@@ -13,16 +13,16 @@ if (<_C> > 0) {
     }
 }
 var args
-if ([var verbose]) { show_commands 1; want_reply 1 }
-if ([var debug])   { debug_level <debug>           }
-if ([var path])    { cd <path>                     }
 if ([var socket])  { args .= --socket=<socket>     }
 if ([var host])    { args .= --host=<host>         }
 if ([var port])    { args .= --port=<port>         }
 if ([var use-ssl]) { args .= --use-ssl             }
-if ([var timeout]) { set_timeout <timeout>         }
 if ([var scheme])  { scheme <scheme>               }
+if ([var timeout]) { set_timeout <timeout>         }
 pivot_client <args>
+if ([var debug])   { debug_level <debug>           }
+if ([var verbose]) { show_commands 1; want_reply 1 }
+if ([var path])    { cd <path>                     }
 if ([var startup]) {
     include <startup>
 } else {
