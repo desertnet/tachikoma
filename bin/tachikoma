@@ -59,6 +59,7 @@ my $isa_tty = isatty(*STDIN);
 $verbose = 'true' if ($debug_level);
 $config->debug_level($debug_level);
 
+my $stdin     = undef;
 my $shell     = Tachikoma::Nodes::Shell2->new;
 my $tachikoma = Tachikoma::Nodes::CommandInterpreter->new;
 my $responder = Tachikoma::Nodes::Responder->new;
