@@ -2364,15 +2364,15 @@ $C{pivot_client} = sub {
     my $self      = shift;
     my $command   = shift;
     my $envelope  = shift;
-    my $host      = 'localhost';
-    my $port      = DEFAULT_PORT;
+    my $host      = undef;
+    my $port      = undef;
     my $socket    = undef;
     my $use_SSL   = undef;
     my $tachikoma = undef;
-    my $router = $Tachikoma::Nodes{_router};
+    my $router    = $Tachikoma::Nodes{_router};
     die "ERROR: already initialized\n"
         if ( $router->type ne 'tachikoma' );
-    my $okay      = eval {
+    my $okay = eval {
         my ( $r, $argv ) = GetOptionsFromString(
             $command->arguments,
             'host=s'   => \$host,
@@ -2383,11 +2383,10 @@ $C{pivot_client} = sub {
         die qq(invalid option\n) if ( not $r );
 
         if ( not $host and not $socket ) {
-            die qq(no host specified\n) if ( not @{$argv} );
-            my $host_port = shift @{$argv};
+            my $host_port = shift @{$argv} // q();
             my ( $host_part, $port_part ) = split m{:}, $host_port, 2;
-            $host = $host_part;
-            $port ||= $port_part;
+            $host = $host_part // 'localhost';
+            $port = $port_part // DEFAULT_PORT;
         }
         my $config = $self->configuration;
         die "ERROR: secure level already defined\n"
@@ -2419,8 +2418,10 @@ $C{pivot_client} = sub {
         return 1;
     };
     if ( not $okay ) {
-        $self->shutdown_all_nodes;
-        die $@;
+        warn $@;
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
+        exit 1;
     }
     return;
 };
