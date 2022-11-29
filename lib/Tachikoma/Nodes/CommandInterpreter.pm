@@ -39,7 +39,6 @@ $Data::Dumper::Useperl  = 1;
 
 Getopt::Long::Configure('bundling');
 
-my $HELP     = Tachikoma->configuration->help;
 my %H        = ();
 my %L        = ();
 my %C        = ();
@@ -253,15 +252,26 @@ sub send_response {
 }
 
 sub topical_help {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $glob     = $command->arguments;
-    my $config   = $self->configuration;
-    my $h        = $self->help_topics;
-    my $l        = $self->help_links;
-    if ( $HELP->{$glob} ) {
-        return $self->response( $envelope, join q(), @{ $HELP->{$glob} } );
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $glob      = $command->arguments;
+    my $config    = $self->configuration;
+    my $s         = {};
+    my $f         = $config->help;
+    my $h         = $self->help_topics;
+    my $l         = $self->help_links;
+    my $responder = $Tachikoma::Nodes{_responder};
+
+    if ($responder) {
+        my $shell = $responder->shell;
+        $s = $shell->help_topics if ($shell);
+    }
+    if ( $s->{$glob} ) {
+        return $self->response( $envelope, join q(), @{ $s->{$glob} } );
+    }
+    elsif ( $f->{$glob} ) {
+        return $self->response( $envelope, join q(), @{ $f->{$glob} } );
     }
     elsif ( $h->{$glob} ) {
         return $self->response( $envelope, join q(), @{ $h->{$glob} } );
@@ -269,7 +279,7 @@ sub topical_help {
     elsif ( $l->{$glob} ) {
         return $self->response( $envelope, join q(), @{ $l->{$glob} } );
     }
-    my $type = ( $glob =~ m{^([\w:]+)$} )[0];
+    my $type = ( $glob =~ m{^([\w\d:]+)$} )[0];
     if ($type) {
         my $class = undef;
         for my $prefix ( @{ $config->include_nodes }, 'Tachikoma::Nodes' ) {
@@ -287,13 +297,22 @@ sub topical_help {
     }
     my $output = undef;
     if ( $glob ne q() ) {
-        $output = $self->tabulate_help( $glob, $HELP, $h );
+        $output = $self->tabulate_help( $glob, $s, $f, $h );
     }
     else {
-        $output = join q(),
-            "### SHELL BUILTINS ###\n",
-            $self->tabulate_help( $glob, $HELP ),
-            "\n### SERVER COMMANDS ###\n",
+        $output = '';
+        if ( scalar keys %{$s} ) {
+            $output .= join q(),
+                "### SHELL BUILTINS ###\n",
+                $self->tabulate_help( $glob, $s ), "\n";
+        }
+        if ( scalar keys %{$f} ) {
+            $output .= join q(),
+                "### SERVER FUNCTIONS ###\n",
+                $self->tabulate_help( $glob, $f ), "\n";
+        }
+        $output .= join q(),
+            "### SERVER COMMANDS ###\n",
             $self->tabulate_help( $glob, $h );
     }
     if ($output) {
@@ -311,15 +330,9 @@ sub tabulate_help {
     my @topics   = ();
     my $row      = [];
     my $output   = q();
-    if ( $glob ne q() ) {
-        push @unsorted, grep m{$glob}, keys %{$_} for (@groups);
-    }
-    else {
-        my $functions = $self->configuration->functions;
-        push @unsorted, grep not( $functions->{$_} ), keys %{$_}
-            for (@groups);
-    }
+    push @unsorted, grep m{$glob}, keys %{$_} for (@groups);
     @topics = sort grep length, @unsorted;
+
     for my $i ( 0 .. $#topics ) {
         push @{$row}, $topics[$i];
         next if ( ( $i + 1 ) % 4 );
@@ -330,6 +343,8 @@ sub tabulate_help {
     $output = $self->tabulate($table) if ( @{$table} > 1 );
     return $output;
 }
+
+$L{cd} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
 
 $H{list_nodes} = [
     "list_nodes [ -celos ] [ <node name> ]\n",
@@ -1495,7 +1510,7 @@ $C{tell_node} = sub {
     return $self->okay($envelope);
 };
 
-$L{tell} = $HELP->{tell_node};
+$L{tell} = [ "tell_node <path> <info>\n", "    alias: tell\n" ];
 
 $C{tell} = $C{tell_node};
 
@@ -1516,7 +1531,7 @@ $C{request_node} = sub {
     return;
 };
 
-$L{request} = $HELP->{request_node};
+$L{request} = [ "request_node <path> <request>\n", "    alias: request\n" ];
 
 $C{request} = $C{request_node};
 
@@ -1537,7 +1552,7 @@ $C{send_node} = sub {
     return;
 };
 
-$L{send} = $HELP->{send_node};
+$L{send} = [ "send_node <path> <bytes>\n", "    alias: send\n" ];
 
 $C{send} = $C{send_node};
 
@@ -1599,29 +1614,11 @@ $C{reply_to} = sub {
     return;
 };
 
-# XXX: this exists for backward compatibility with the old Shell:
-$C{command_node} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'command_node' )
-        or return $self->error("verification failed\n");
-    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
-    die qq(no path specified\n)    if ( not $path );
-    die qq(no command specified\n) if ( not $arguments );
-    my $name = ( split m{/}, $path, 2 )[0];
-    die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
-    my ( $cmd_name, $cmd_arguments ) = split q( ), $arguments, 2;
-    my $message = $self->command( $cmd_name, $cmd_arguments );
-    $message->type( $envelope->type );
-    $message->from( $envelope->from );
-    $message->to($path);
-    $self->sink->fill($message);
-    return;
-};
-
-$L{command} = $HELP->{command_node};
-$L{cmd}     = $HELP->{command_node};
+$L{command} = [
+    "command_node <path> <command> [ <arguments> ]\n",
+    "    alias: command, cmd\n"
+];
+$L{cmd} = $L{command};
 
 $C{command} = $C{command_node};
 $C{cmd}     = $C{command_node};
@@ -2341,6 +2338,8 @@ $C{initialize} = sub {
     };
     if ( not $okay ) {
         print {*STDERR} $@ || "ERROR: initialize: unknown error\n";
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
         exit 1;
     }
     $router->type('root');

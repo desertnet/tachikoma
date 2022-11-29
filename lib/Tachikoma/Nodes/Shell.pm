@@ -14,6 +14,7 @@ use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
 
+my %H        = ();
 my %BUILTINS = ();
 
 sub new {
@@ -42,6 +43,8 @@ sub fill {
     }
     else {
         $self->stderr( 'ERROR: invalid shell input: ', $message->as_string );
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
         exit 1;
     }
     return $self->sink->fill($message)
@@ -98,6 +101,8 @@ sub parse_line {
     return;
 }
 
+$H{'chdir'} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
+
 $BUILTINS{'chdir'} = sub {
     my $self      = shift;
     my $arguments = shift;
@@ -108,11 +113,15 @@ $BUILTINS{'chdir'} = sub {
 
 $BUILTINS{'cd'} = $BUILTINS{'chdir'};
 
+$H{command_node} = [
+    "command_node <path> <command> [ <arguments> ]\n",
+    "    alias: command, cmd\n"
+];
+
 $BUILTINS{'command_node'} = sub {
     my $self      = shift;
     my $arguments = shift;
-    my ( $path, $new_name, $new_arguments ) =
-        ( split q( ), $arguments // q(), 3 );
+    my ( $path, $new_name, $new_arguments ) = split q( ), $arguments, 3;
     $self->send_command( $self->prefix($path), $new_name, $new_arguments );
     return;
 };
@@ -120,35 +129,7 @@ $BUILTINS{'command_node'} = sub {
 $BUILTINS{'command'} = $BUILTINS{'command_node'};
 $BUILTINS{'cmd'}     = $BUILTINS{'command_node'};
 
-$BUILTINS{'show_commands'} = sub {
-    my $self      = shift;
-    my $arguments = shift;
-    $self->show_commands($arguments);
-    return;
-};
-
-$BUILTINS{'want_reply'} = sub {
-    my $self      = shift;
-    my $arguments = shift;
-    my $value     = not $self->want_reply;
-    $value = $arguments if ( length $arguments );
-    $self->want_reply($value);
-    return;
-};
-
-$BUILTINS{'respond'} = sub {
-    my $self      = shift;
-    my $arguments = shift;
-    Tachikoma->nodes->{_responder}->ignore(undef);
-    return;
-};
-
-$BUILTINS{'ignore'} = sub {
-    my $self      = shift;
-    my $arguments = shift;
-    Tachikoma->nodes->{_responder}->ignore('true');
-    return;
-};
+$H{'ping'} = ["ping [ <path> ]\n"];
 
 $BUILTINS{'ping'} = sub {
     my $self      = shift;
@@ -164,22 +145,102 @@ $BUILTINS{'ping'} = sub {
 
 $BUILTINS{'pwd'} = sub {
     my $self = shift;
-    $self->send_command( 'pwd', $self->path );
+    $self->send_command( $self->path, 'pwd', $self->path );
     return;
 };
+
+$H{'debug_level'} = [ "debug_level [ <level> ]\n", "    levels: 0, 1, 2\n" ];
+
+$BUILTINS{'debug_level'} = sub {
+    my $self      = shift;
+    my $arguments = shift;
+    my $level     = not $self->configuration->debug_level;
+    $level = $arguments if ( length $arguments );
+    if ( $level =~ m{^\d+$} ) {
+        $self->configuration->debug_level($level);
+    }
+    else {
+        $self->stderr("ERROR: bad arguments for debug_level");
+    }
+    return;
+};
+
+$H{'show_commands'} = [ "show_commands [ <value> ]\n", "    values: 0, 1\n" ];
+
+$BUILTINS{'show_commands'} = sub {
+    my $self      = shift;
+    my $arguments = shift;
+    $self->show_commands($arguments);
+    return;
+};
+
+$H{'want_reply'} = [ "want_reply [ <value> ]\n", "    values: 0, 1\n" ];
+
+$BUILTINS{'want_reply'} = sub {
+    my $self      = shift;
+    my $arguments = shift;
+    my $value     = not $self->want_reply;
+    $value = $arguments if ( length $arguments );
+    $self->want_reply($value);
+    return;
+};
+
+$H{'respond'} = ["respond\n"];
+
+$BUILTINS{'respond'} = sub {
+    my $self      = shift;
+    my $arguments = shift;
+    Tachikoma->nodes->{_responder}->ignore(undef);
+    return;
+};
+
+$H{'ignore'} = ["ignore\n"];
+
+$BUILTINS{'ignore'} = sub {
+    my $self      = shift;
+    my $arguments = shift;
+    Tachikoma->nodes->{_responder}->ignore('true');
+    return;
+};
+
+$H{'sleep'} = ["sleep <seconds>\n"];
 
 $BUILTINS{'sleep'} = sub {
     my $self      = shift;
     my $arguments = shift;
-    sleep $arguments;
+    if ( $arguments =~ m{^\d+$} ) {
+        sleep $arguments;
+    }
+    else {
+        $self->stderr("ERROR: bad arguments for sleep: $arguments");
+    }
     return;
 };
+
+$H{'shell'} = ["shell\n"];
 
 $BUILTINS{'shell'} = sub {
     my $self      = shift;
     my $arguments = shift;
+    return $self->stderr(qq(ERROR: bad arguments for shell: "$arguments"))
+        if ( length $arguments );
     $self->is_attached('true');
     return;
+};
+
+$H{'exit'} = ["exit [ <value> ]\n"];
+
+$BUILTINS{'exit'} = sub {
+    my $self      = shift;
+    my $arguments = shift;
+    my $value     = $arguments || 0;
+    if ( $value =~ m{\D} ) {
+        $self->stderr(qq(ERROR: bad arguments for exit: "$arguments"));
+        $value = 1;
+    }
+    $Tachikoma::Nodes{_stdin}->close_filehandle
+        if ( $Tachikoma::Nodes{_stdin} );
+    exit $value;
 };
 
 sub send_command {
@@ -215,7 +276,7 @@ sub cd {
     return $cwd;
 }
 
-sub get_completions {}
+sub get_completions { }
 
 sub name {
     my $self = shift;
@@ -334,6 +395,10 @@ sub want_reply {
         $self->{want_reply} = shift;
     }
     return $self->{want_reply};
+}
+
+sub help_topics {
+    return \%H;
 }
 
 sub builtins {

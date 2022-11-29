@@ -155,7 +155,6 @@ sub new {
     $self->{parse_buffer} = q();
     $self->{show_parse}   = undef;
     bless $self, $class;
-    $self->{configuration}->{help}->{$_} //= $H{$_} for ( keys %H );
     return $self;
 }
 
@@ -178,6 +177,8 @@ sub fill {
     }
     else {
         $self->stderr( 'ERROR: invalid shell input: ', $message->as_string );
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
         exit 1;
     }
     if ( $self->mode eq 'command' ) {
@@ -1251,6 +1252,22 @@ $BUILTINS{'on'} = sub {
     return [];
 };
 
+$H{'chdir'} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
+
+$BUILTINS{'chdir'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    $line =~ s{\s*$}{};
+    my ( $proto, $path ) = split q( ), $line, 2;
+    my $cwd = $self->path;
+    $self->path( $self->cd( $cwd, $path ) );
+    $self->get_completions;
+    return [];
+};
+
+$BUILTINS{'cd'} = $BUILTINS{'chdir'};
+
 $H{'command_node'} = [
     "command_node <path> <command> [ <arguments> ]\n",
     "    alias: command, cmd\n"
@@ -1411,6 +1428,14 @@ $BUILTINS{'ping'} = sub {
     return [ $self->sink->fill($message) ];
 };
 
+$H{'pwd'} = ["pwd\n"];
+
+$BUILTINS{'pwd'} = sub {
+    my $self = shift;
+    $self->_send_command( 'pwd', $self->path );
+    return [];
+};
+
 $H{'debug_level'} = [ "debug_level [ <level> ]\n", "    levels: 0, 1, 2\n" ];
 
 $BUILTINS{'debug_level'} = sub {
@@ -1495,30 +1520,6 @@ $BUILTINS{'ignore'} = sub {
     return [];
 };
 
-$H{'chdir'} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
-
-$BUILTINS{'chdir'} = sub {
-    my $self     = shift;
-    my $raw_tree = shift;
-    my $line     = join q(), @{ $self->evaluate($raw_tree) };
-    $line =~ s{\s*$}{};
-    my ( $proto, $path ) = split q( ), $line, 2;
-    my $cwd = $self->path;
-    $self->path( $self->cd( $cwd, $path ) );
-    $self->get_completions;
-    return [];
-};
-
-$BUILTINS{'cd'} = $BUILTINS{'chdir'};
-
-$H{'pwd'} = ["pwd\n"];
-
-$BUILTINS{'pwd'} = sub {
-    my $self = shift;
-    $self->_send_command( 'pwd', $self->path );
-    return [];
-};
-
 $H{'sleep'} = ["sleep <seconds>\n"];
 
 $BUILTINS{'sleep'} = sub {
@@ -1560,6 +1561,8 @@ $BUILTINS{'exit'} = sub {
         $self->stderr(qq(ERROR: bad arguments for exit: "$value"));
         $value = 1;
     }
+    $Tachikoma::Nodes{_stdin}->close_filehandle
+        if ( $Tachikoma::Nodes{_stdin} );
     exit $value;
 };
 
@@ -2061,6 +2064,10 @@ sub show_parse {
         $self->{show_parse} = shift;
     }
     return $self->{show_parse};
+}
+
+sub help_topics {
+    return \%H;
 }
 
 sub builtins {
