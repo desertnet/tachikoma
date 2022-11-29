@@ -137,7 +137,7 @@ sub fire_cb {
         }
         @{$reconnecting} = @again;
     }
-    elsif ( defined $config->secure_level and $self->type ne 'router' ) {
+    elsif ( defined $config->secure_level and $self->type ne 'tachikoma' ) {
         $self->print_less_often('WARNING: process is insecure');
     }
     $self->heartbeat( $config->var );
