@@ -2322,7 +2322,7 @@ $C{initialize} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _router\n"    if ( not $router );
     die "ERROR: can't find _responder\n" if ( not $responder );
-    die "ERROR: already initialized\n"   if ( $router->type ne 'tachikoma' );
+    die "ERROR: already initialized\n"   if ( $router->type ne 'router' );
     my $interval = $router->timer_interval;
     $router->stop_timer;
     my $node = $responder->sink;
@@ -2366,7 +2366,7 @@ $C{pivot_client} = sub {
     my $envelope = shift;
     my $router   = $Tachikoma::Nodes{_router};
     die "ERROR: already initialized\n"
-        if ( $router->type ne 'tachikoma' );
+        if ( $router->type ne 'router' );
     my $okay = eval {
         my $host      = undef;
         my $port      = undef;

@@ -77,7 +77,6 @@ $router    = Tachikoma::Nodes::Router->new;
 $node      = undef;
 
 $router->name('_router');
-$router->type('tachikoma');
 $router->debug_state($debug_state);
 $timeout->arguments( $seconds * 1000 ) if ($seconds);
 
