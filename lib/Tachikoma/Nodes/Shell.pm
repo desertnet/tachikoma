@@ -160,7 +160,7 @@ $BUILTINS{'debug_level'} = sub {
         $self->configuration->debug_level($level);
     }
     else {
-        $self->stderr("ERROR: bad arguments for debug_level");
+        $self->stderr('ERROR: bad arguments for debug_level');
     }
     return;
 };
