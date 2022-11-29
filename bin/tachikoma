@@ -13,7 +13,6 @@ use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Responder;
 use Tachikoma::Nodes::Dumper;
-use Tachikoma::Nodes::Timeout;
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM TM_EOF );
 use Tachikoma::Config;
@@ -30,7 +29,6 @@ my @default_configs = (
 my $config_file   = undef;
 my $line_buffered = undef;
 my $scheme        = undef;
-my $seconds       = undef;
 my $validate      = undef;
 my $verbose       = undef;
 my $debug_level   = undef;
@@ -42,7 +40,6 @@ splice @ARGV, 1, 0, q(--) if ( @ARGV and $ARGV[0] !~ m{^-} );
 my $r = GetOptions(
     'config=s'      => \$config_file,
     'scheme=s'      => \$scheme,
-    'timeout=i'     => \$seconds,
     'validate'      => \$validate,
     'verbose'       => \$verbose,
     'debug_level:i' => \$debug_level,
@@ -62,28 +59,21 @@ my $isa_tty = isatty(*STDIN);
 $verbose = 'true' if ($debug_level);
 $config->debug_level($debug_level);
 
-my ($stdin,   $shell,    $tachikoma, $responder, $dumper,
-    $timeout, $shutdown, $stdout,    $router,    $node
-);
-
-$shell     = Tachikoma::Nodes::Shell2->new;
-$tachikoma = Tachikoma::Nodes::CommandInterpreter->new;
-$responder = Tachikoma::Nodes::Responder->new;
-$dumper    = Tachikoma::Nodes::Dumper->new;
-$timeout   = Tachikoma::Nodes::Timeout->new if ($seconds);
-$shutdown  = Tachikoma::Nodes::Shutdown->new;
-$stdout    = Tachikoma::Nodes::TTY->filehandle( *STDOUT, TK_SYNC );
-$router    = Tachikoma::Nodes::Router->new;
-$node      = undef;
+my $shell     = Tachikoma::Nodes::Shell2->new;
+my $tachikoma = Tachikoma::Nodes::CommandInterpreter->new;
+my $responder = Tachikoma::Nodes::Responder->new;
+my $dumper    = Tachikoma::Nodes::Dumper->new;
+my $shutdown  = Tachikoma::Nodes::Shutdown->new;
+my $stdout    = Tachikoma::Nodes::TTY->filehandle( *STDOUT, TK_SYNC );
+my $router    = Tachikoma::Nodes::Router->new;
+my $node      = undef;
 
 $router->name('_router');
 $router->type('tachikoma');
 $router->debug_state($debug_state);
-$timeout->arguments( $seconds * 1000 ) if ($seconds);
 
 $node = $stdout;
 attach($shutdown);
-attach($timeout) if ($seconds);
 attach($dumper);
 $responder->name('_responder');
 $responder->owner('_stdout');
@@ -178,7 +168,6 @@ sub usage {
     print "Usage:\n"
         . "tachikoma [ --config=<file>                   ]\n"
         . "          [ --scheme=<rsa,rsa-sha256,ed25519> ]\n"
-        . "          [ --timeout=<seconds>               ]\n"
         . "          [ --validate                        ]\n"
         . "          [ --verbose                         ]\n"
         . "          [ --help                            ]\n"
