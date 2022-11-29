@@ -1614,6 +1614,26 @@ $C{reply_to} = sub {
     return;
 };
 
+$C{command_node} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    $self->verify_key( $envelope, ['meta'], 'command_node' )
+        or return $self->error("verification failed\n");
+    my ( $path, $arguments ) = split q( ), $command->arguments, 2;
+    die qq(no path specified\n)    if ( not $path );
+    die qq(no command specified\n) if ( not $arguments );
+    my $name = ( split m{/}, $path, 2 )[0];
+    die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
+    my ( $cmd_name, $cmd_arguments ) = split q( ), $arguments, 2;
+    my $message = $self->command( $cmd_name, $cmd_arguments );
+    $message->type( $envelope->type );
+    $message->from( $envelope->from );
+    $message->to($path);
+    $self->sink->fill($message);
+    return;
+};
+
 $L{command} = [
     "command_node <path> <command> [ <arguments> ]\n",
     "    alias: command, cmd\n"
