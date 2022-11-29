@@ -2361,18 +2361,18 @@ $H{pivot_client} = [
 ];
 
 $C{pivot_client} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
-    my $host      = undef;
-    my $port      = undef;
-    my $socket    = undef;
-    my $use_SSL   = undef;
-    my $tachikoma = undef;
-    my $router    = $Tachikoma::Nodes{_router};
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $router   = $Tachikoma::Nodes{_router};
     die "ERROR: already initialized\n"
         if ( $router->type ne 'tachikoma' );
     my $okay = eval {
+        my $host      = undef;
+        my $port      = undef;
+        my $socket    = undef;
+        my $use_SSL   = undef;
+        my $tachikoma = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $command->arguments,
             'host=s'   => \$host,
@@ -2382,12 +2382,15 @@ $C{pivot_client} = sub {
         );
         die qq(invalid option\n) if ( not $r );
 
-        if ( not $host and not $socket ) {
+        if ( not $host ) {
             my $host_port = shift @{$argv} // q();
             my ( $host_part, $port_part ) = split m{:}, $host_port, 2;
-            $host = $host_part // 'localhost';
-            $port = $port_part // DEFAULT_PORT;
+            $host = $host_part if ( length $host_part );
+            $port = $port_part if ( length $port_part );
         }
+        $host //= 'localhost';
+        $port //= DEFAULT_PORT;
+
         my $config = $self->configuration;
         die "ERROR: secure level already defined\n"
             if ( $config->secure_level != 0 );
