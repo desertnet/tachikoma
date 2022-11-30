@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+  <title>log socket</title>
+  <meta charset="utf-8">
+  <script type="text/javascript">
+    var topic          = "";
+    var num_partitions = 0;
+    var offset         = "recent";
+    var count          = 100;
+    var interval       = 33;
+  </script>
+  <script type="text/javascript" src="tail.js"></script>
+</head>
+<body onload="start_timer()">
+  <button id="toggle" onclick="playOrPause()"></button>
+  <div id="output"></div>
+</body>
+</html>

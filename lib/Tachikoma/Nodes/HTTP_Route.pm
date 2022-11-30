@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::HTTP_Route
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Route.pm 1733 2009-05-06 22:36:14Z chris $
-#
 
 package Tachikoma::Nodes::HTTP_Route;
 use strict;
@@ -74,7 +72,7 @@ sub fill {
     my @new_path    = ();
     while (@components) {
         my $test_path = q(/) . join q(/), @components;
-        my $test = $paths->{$test_path};
+        my $test      = $paths->{$test_path};
         ( $destination = $test ) and last if ($test);
         unshift @new_path, pop @components;
     }

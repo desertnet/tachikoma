@@ -6,19 +6,18 @@ use JSON -support_by_pp;
 use LWP::UserAgent;
 use Mozilla::CA;
 
-my ( $server, $topic, $partition, $offset, $count ) = @ARGV;
+my ( $server, $topic, $offset, $count ) = @ARGV;
 die "ERROR: no topic\n" if not($topic);
-$partition //= 0;
-$offset    //= 0;
+$offset    //= 'start';
 $count     //= 1024;
 my $json = JSON->new;
 my $ua   = LWP::UserAgent->new;
 $ua->timeout(60);
 $ua->ssl_opts( SSL_ca_file => Mozilla::CA::SSL_ca_file() );
 push( @{ $ua->requests_redirectable }, 'GET' );
-$server =~ s($)(/cgi-bin/topic.cgi) if ( $server !~ m(/) );
-$server =~ s(^)(http://)            if ( $server !~ m(^https?://) );
-my $url = join( '/', $server, $topic, $partition, $offset, $count );
+$server =~ s{$}{/cgi-bin/tail.cgi} if ( $server !~ m{/} );
+$server =~ s{^}{http://}           if ( $server !~ m{^https?://} );
+my $url = join q(/), $server, $topic, $offset, $count;
 CONSUME: while (1) {
     my $req = GET $url;
     my $res = $ua->request($req);

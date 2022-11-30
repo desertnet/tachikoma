@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::QueryEngine
 # ----------------------------------------------------------------------
 #
-# $Id: QueryEngine.pm 31247 2017-11-06 05:42:49Z chris $
-#
 
 package Tachikoma::Nodes::QueryEngine;
 use strict;

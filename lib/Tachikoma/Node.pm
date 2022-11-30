@@ -3,12 +3,11 @@
 # Tachikoma::Node
 # ----------------------------------------------------------------------
 #
-# $Id: Node.pm 41136 2021-09-17 08:08:00Z chris $
-#
 
 package Tachikoma::Node;
 use strict;
 use warnings;
+use Tachikoma;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_REQUEST TM_ERROR TM_EOF
@@ -35,6 +34,7 @@ sub new {
         counter       => 0,
         registrations => {},
         set_state     => {},
+        debug_state   => undef,
         configuration => Tachikoma->configuration,
     };
     bless $self, $class;
@@ -97,9 +97,9 @@ sub remove_node {
 
 sub dump_config {
     my ($self) = @_;
-    my $name = $self->{name};
-    my $type = ( ref($self) =~ m{^\w+::Nodes::(.*)} )[0] or return q();
-    my $line = "make_node $type $name";
+    my $name   = $self->{name};
+    my $type   = ( ref($self) =~ m{^\w+::Nodes::(.*)} )[0] or return q();
+    my $line   = "make_node $type $name";
     if ( $self->{arguments} ) {
         my $arguments = $self->{arguments};
         $arguments =~ s{'}{\\'}g;
@@ -109,14 +109,23 @@ sub dump_config {
 }
 
 sub register {
-    my ( $self, $event, $name, $is_function ) = @_;
+    my ( $self, $event, @args ) = @_;
+    my ( $name, $is_function );
     my $registrations = $self->{registrations};
     die "no such event: $event\n" if ( not $registrations->{$event} );
     $registrations->{$event} ||= {};
-    $registrations->{$event}->{$name} = $is_function;
-    if ( length $self->{set_state}->{$event} ) {
-        $self->_notify_registered( $name, $event,
-            $self->{set_state}->{$event} );
+    if ( ref $args[0] ) {
+        ( $name, $is_function ) = ( Tachikoma->counter, @args );
+    }
+    else {
+        ( $name, $is_function ) = @args;
+    }
+    if ( not exists $registrations->{$event}->{$name} ) {
+        $registrations->{$event}->{$name} = $is_function;
+        if ( length $self->{set_state}->{$event} ) {
+            $self->_notify_registered( $name, $event,
+                $self->{set_state}->{$event} );
+        }
     }
     return;
 }
@@ -127,7 +136,7 @@ sub unregister {
     die "no such event: $event\n" if ( not $registrations->{$event} );
     if ( $registrations->{$event}->{$name} ) {
         my $responder = Tachikoma->nodes->{_responder};
-        my $shell = $responder ? $responder->{shell} : undef;
+        my $shell     = $responder ? $responder->{shell} : undef;
         if ($shell) {
             delete $shell->callbacks->{$name};
         }
@@ -220,11 +229,20 @@ sub cancel {
 
 sub set_state {
     my ( $self, $event, $payload ) = @_;
-    $payload ||= $event;
-    chomp $payload;
-    $self->{set_state}->{$event} = $payload;
-    $self->notify( $event, $payload );
+    chomp $payload if ( defined $payload );
+    $self->{set_state}->{$event} = $payload // $event;
+    $self->stderr( "DEBUG: $event" . ( length $payload ? " $payload" : q() ) )
+        if ( $self->{debug_state} );
+    $self->notify( $event, $payload // $event );
     return;
+}
+
+sub debug_state {
+    my $self = shift;
+    if (@_) {
+        $self->{debug_state} = shift;
+    }
+    return $self->{debug_state};
 }
 
 sub notify {
@@ -242,7 +260,14 @@ sub _notify_registered {
     my $registered = $self->{registrations}->{$event};
     my $responder  = $Tachikoma::Nodes{_responder};
     my $shell      = $responder ? $responder->{shell} : undef;
-    if ( defined $registered->{$name} ) {
+    if ( ref $registered->{$name} ) {
+        my $okay = eval { return &{ $registered->{$name} }($payload); };
+        if ( not $okay ) {
+            delete $registered->{$name};
+        }
+        return;
+    }
+    elsif ( defined $registered->{$name} ) {
         my $okay = $shell->callback(
             $name,
             {   from    => $self->{name},
@@ -255,7 +280,7 @@ sub _notify_registered {
         }
         return;
     }
-    if ( not $Tachikoma::Nodes{$name} ) {
+    elsif ( not $Tachikoma::Nodes{$name} ) {
         $self->stderr("WARNING: $name forgot to unregister");
         delete $registered->{$name};
         return;
@@ -310,7 +335,8 @@ sub drop_message {
         ( $message->to     ? ' to: ' . $message->to     : q() ),
         ( defined $payload ? $payload                   : q() ),
     );
-    if ( $error eq 'NOT_AVAILABLE' ) {
+    my $uptime = $Tachikoma::Now - Tachikoma->init_time;
+    if ( $error eq 'NOT_AVAILABLE' and $uptime < 300 ) {
         $self->print_least_often(@log);
     }
     else {
@@ -322,7 +348,7 @@ sub drop_message {
 sub make_parent_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q();
+    my $path      = q();
     pop @path_list;
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
@@ -339,7 +365,7 @@ sub make_parent_dirs {
 sub make_dirs {
     my ( $self, $path_string ) = @_;
     my @path_list = grep {length} split m{/}, $path_string;
-    my $path = q();
+    my $path      = q();
     for my $dir (@path_list) {
         $path .= q(/) . $dir;
         if (    not -d $path
@@ -412,15 +438,22 @@ sub stderr {
 
 sub log_prefix {
     my ( $self, @raw ) = @_;
-    my $prefix = join q(),
-        strftime( '%F %T %Z ', localtime time ),
-        hostname(), q( ), $0, '[', $$, ']: ';
+    my $router = $Tachikoma::Nodes{_router};
+    my $prefix = q();
+    if (   not $router
+        or $router->{type} eq 'root'
+        or $router->{type} eq 'job' )
+    {
+        $prefix = join q(), strftime( '%F %T %Z ', localtime time ),
+            hostname(), q( ), $0, '[', $$, ']: ';
+    }
+    elsif ( $router->{type} eq 'router' ) {
+        $prefix = sprintf '%10.5f ', Time::HiRes::time;
+    }
     if (@raw) {
         my $msg = join q(), grep defined, @raw;
         chomp $msg;
-        my $router = $Tachikoma::Nodes{_router};
-        $msg =~ s{^}{$prefix}mg
-            if ( not $router or $router->{type} ne 'router' );
+        $msg =~ s{^}{$prefix}mg if ( length $prefix );
         return $msg . "\n";
     }
     else {

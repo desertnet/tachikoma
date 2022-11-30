@@ -1,12 +1,11 @@
 var server_host       = window.location.hostname;
 var server_port       = window.location.port;
-var server_path       = "/cgi-bin/topic.cgi"
+var server_path       = "/cgi-bin/tail.cgi"
 var topic             = "event_log";
-var _num_partitions   = num_partitions || 1;
 var parsed_url        = new URL(window.location.href);
 var count             = parsed_url.searchParams.get("count")    || 100;
 var interval          = parsed_url.searchParams.get("interval") || 33;
-var xhttp             = [];
+var xhttp             = null;
 var fetch_timers      = [];
 var display_timer     = null;
 var output            = [];
@@ -14,53 +13,33 @@ var dirty             = 1;
 var show_event_output = 1;
 
 function start_timer() {
-    for (var i = 0; i < _num_partitions; i++) {
-        start_partition(i);
-    }
-    display_timer = setInterval(display_table, interval);
-}
-
-function start_partition(partition) {
-    var prefix_url   = "https://" + server_host + ":" + server_port
-                     + server_path + "/"
-                     + topic       + "/"
-                     + partition   + "/";
-    var last_url     = prefix_url  + "/last/"   + count;
-    var recent_url   = prefix_url  + "/recent/" + count;
-    var server_url   = last_url;
-    xhttp[partition] = new XMLHttpRequest();
-    xhttp[partition].onreadystatechange = function() {
+    var prefix_url = "https://" + server_host + ":" + server_port
+                   + server_path + "/"
+                   + topic;
+    var last_url   = prefix_url  + "/last/"   + count;
+    var server_url = last_url;
+    xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
-                fetch_timers[partition] = setTimeout(tick,
-                                                     1000,
-                                                     partition,
-                                                     server_url);
+                fetch_timer = setTimeout(tick, 1000, server_url);
                 if (msg.next_url == server_url) {
                     update_table(msg);
                 }
             }
             else {
-                server_url = msg.next_url;
-                fetch_timers[partition] = setTimeout(tick,
-                                                     0,
-                                                     partition,
-                                                     server_url);
+                server_url  = msg.next_url;
+                fetch_timer = setTimeout(tick, 0, server_url);
                 update_table(msg);
             }
         }
         else if (this.readyState == 4) {
-            fetch_timers[partition] = setTimeout(tick,
-                                                 1000,
-                                                 partition,
-                                                 server_url);
+            fetch_timer = setTimeout(tick, 1000, server_url);
         }
     };
-    fetch_timers[partition] = setTimeout(tick,
-                                         100,
-                                         partition,
-                                         server_url);
+    fetch_timer   = setTimeout(tick, 100, server_url);
+    display_timer = setInterval(display_table, interval);
 }
 
 function update_table(msg) {
@@ -95,7 +74,7 @@ function update_table(msg) {
                      + msg.payload[i].key + "\">"
                      + msg.payload[i].key + "</a>";
         var value = msg.payload[i].value || "";
-        var escaped = value.replace(/</g,"&lt;").replace(/&/g,"&amp;");
+        var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
         var row = tr + "<td>" + date_string(date) + "</td>"
                      + "<td>" + queue             + "</td>"
                      + "<td>" + type              + "</td>"
@@ -143,11 +122,11 @@ function toggle_event_output() {
     // output = [];
 }
 
-function tick(partition, server_url) {
-    xhttp[partition].open("GET", server_url, true);
-    xhttp[partition].send();
+function tick(server_url) {
+    xhttp.open("GET", server_url, true);
+    xhttp.send();
 }
 
 function date_string(date) {
-    return date.toISOString().replace(/T/, " ").replace(/Z/, " ");
+    return date.toISOString().replace(/T/, "&nbsp;").replace(/Z/, "");
 }

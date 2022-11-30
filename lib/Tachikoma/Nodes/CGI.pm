@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::CGI
 # ----------------------------------------------------------------------
 #
-# $Id: CGI.pm 3301 2009-09-24 03:33:18Z chris $
-#
 
 package Tachikoma::Nodes::CGI;
 use strict;
@@ -61,7 +59,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 
     # looks like we're ready to die
     if ( $message->[TYPE] & TM_KILLME and $message->[FROM] ) {
-        return Tachikoma::Job->shutdown_all_nodes;
+        return Tachikoma->shutdown_all_nodes;
     }
 
     # otherwise make sure it's a TM_STORABLE
@@ -190,7 +188,7 @@ FIND_SCRIPT: while ($test_path) {
     if ($is_post) {
         if ( $request->{tmp} ) {
             my $tmp_path = join q(/), $self->{tmp_path}, 'post';
-            my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
+            my $tmp      = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             open *STDIN, '<', $tmp or die "ERROR: couldn't open $tmp: $!";
         }
         else {
@@ -241,7 +239,7 @@ FIND_SCRIPT: while ($test_path) {
     if ($is_post) {
         if ( $request->{tmp} ) {
             my $tmp_path = join q(/), $self->{tmp_path}, 'post';
-            my $tmp = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
+            my $tmp      = ( $request->{tmp} =~ m{^($tmp_path/\w+$)} )[0];
             unlink $tmp or die "ERROR: couldn't unlink $tmp: $!";
             close STDIN or die "ERROR: couldn't close $tmp: $!";
         }

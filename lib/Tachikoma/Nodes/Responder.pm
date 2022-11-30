@@ -5,8 +5,6 @@
 #
 #  - duct tape everything together at the last minute
 #
-# $Id: Responder.pm 36806 2019-03-20 17:59:15Z chris $
-#
 
 package Tachikoma::Nodes::Responder;
 use strict;
@@ -25,9 +23,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{last_buffer} = undef;
-    $self->{client}      = undef;
     $self->{ignore}      = undef;
-    $self->{router}      = undef;
     $self->{shell}       = undef;
     bless $self, $class;
     return $self;
@@ -66,7 +62,7 @@ sub fill {
         delete $shell->callbacks->{ $message->[ID] };
         return;
     }
-    if ( $self->{client} or $self->{owner} ) {
+    if ( $self->{owner} ) {
         $message->[TYPE] ^= TM_PERSIST if ( $type & TM_PERSIST );
         $self->SUPER::fill($message);
     }
@@ -78,7 +74,7 @@ sub fill {
         $response->[ID]      = $message->[ID];
         $response->[STREAM]  = $message->[STREAM];
         $response->[PAYLOAD] = $type & TM_ERROR ? 'answer' : 'cancel';
-        $self->router->fill($response);
+        $Tachikoma::Nodes{_router}->fill($response);
     }
     return;
 }
@@ -87,7 +83,6 @@ sub get_last_buffer {
     my $self        = shift;
     my $message     = shift;
     my $last_buffer = $self->{last_buffer};
-    my $client      = $self->{client};
     my $from        = $message->[FROM];
     if ($last_buffer) {
         if ( not $from =~ s{^.*?($last_buffer)}{$1}s ) {
@@ -103,15 +98,11 @@ sub get_last_buffer {
             }
         }
     }
-    elsif ( $client and $client eq 'tachikoma' ) {
-        $from = ( split m{/}, $from, 2 )[1];
-    }
     return $from;
 }
 
 sub remove_node {
     my $self = shift;
-    $self->router(undef);
     $self->shell(undef);
     $self->SUPER::remove_node;
     return;
@@ -125,28 +116,12 @@ sub last_buffer {
     return $self->{last_buffer};
 }
 
-sub client {
-    my $self = shift;
-    if (@_) {
-        $self->{client} = shift;
-    }
-    return $self->{client};
-}
-
 sub ignore {
     my $self = shift;
     if (@_) {
         $self->{ignore} = shift;
     }
     return $self->{ignore};
-}
-
-sub router {
-    my $self = shift;
-    if (@_) {
-        $self->{router} = shift;
-    }
-    return $self->{router} || $self->{sink};
 }
 
 sub shell {

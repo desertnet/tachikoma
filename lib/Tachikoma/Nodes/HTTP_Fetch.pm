@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::HTTP_Fetch
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Fetch.pm 1733 2009-05-06 22:36:14Z chris $
-#
 
 package Tachikoma::Nodes::HTTP_Fetch;
 use strict;

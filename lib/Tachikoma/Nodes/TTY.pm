@@ -5,14 +5,12 @@
 #
 # Tachikoma::Nodes::STDIO plus Readline support
 #
-# $Id: TTY.pm 37026 2019-03-29 12:05:59Z chris $
-#
 
 package Tachikoma::Nodes::TTY;
 use strict;
 use warnings;
 use Tachikoma::Nodes::STDIO qw( TK_R TK_W TK_SYNC );
-use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
 use Term::ReadLine qw();
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::STDIO );
@@ -102,6 +100,7 @@ sub resume {
                     $term->addhistory($buf) if ( $buf =~ /\S/ );
                     my $message = Tachikoma::Message->new;
                     $message->[TYPE]    = TM_BYTESTREAM;
+                    $message->[FROM]    = $self->{name};
                     $message->[PAYLOAD] = $buf . "\n";
                     push @{ $self->{queue} }, $message;
                 }

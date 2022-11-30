@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Callback
 # ----------------------------------------------------------------------
 #
-# $Id: Callback.pm 34405 2018-07-06 12:56:26Z chris $
-#
 
 package Tachikoma::Nodes::Callback;
 use strict;
@@ -13,6 +11,14 @@ use Tachikoma::Node;
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
+
+sub new {
+    my $class = shift;
+    my $self  = $class->SUPER::new;
+    $self->{callback} = shift;
+    bless $self, $class;
+    return $self;
+}
 
 sub arguments {
     my $self = shift;

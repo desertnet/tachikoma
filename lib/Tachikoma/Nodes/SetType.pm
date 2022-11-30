@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::SetType
 # ----------------------------------------------------------------------
 #
-# $Id: SetType.pm 9709 2011-01-12 00:01:13Z chris $
-#
 
 package Tachikoma::Nodes::SetType;
 use strict;

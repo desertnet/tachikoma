@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::BufferProbe
 # ----------------------------------------------------------------------
 #
-# $Id: BufferProbe.pm 9044 2010-12-05 01:38:21Z chris $
-#
 
 package Tachikoma::Nodes::BufferProbe;
 use strict;
@@ -88,15 +86,19 @@ sub fire {
             my $buff_name = join q(/), $self->{prefix}, $node->{name};
             $buff_name =~ s{:}{_}g;
             my $partition = $Tachikoma::Nodes{ $node->{partition} } or next;
+            next
+                if ( not defined $node->{offset}
+                or not defined $partition->{offset} );
+            my $msg_in_buf = ( $partition->{offset} - $node->{offset} ) / 100;
             $out .= join q(),
                 'hostname:'        => $self->{my_hostname},
                 ' buff_name:'      => $buff_name,
                 ' buff_fills:'     => $partition->{counter},
                 ' err_sent:'       => 0,
                 ' max_unanswered:' => $node->{max_unanswered},
-                ' msg_in_buf:' => $partition->{counter} - $node->{counter},
-                ' msg_rcvd:'   => $partition->{counter},
-                ' msg_sent:'   => 0,
+                ' msg_in_buf:'     => $msg_in_buf,
+                ' msg_rcvd:'       => $partition->{counter},
+                ' msg_sent:'       => 0,
                 ' msg_unanswered:' => $node->{msg_unanswered},
                 ' p_msg_sent:'     => $node->{counter},
                 ' resp_rcvd:' => $node->{counter} - $node->{msg_unanswered},

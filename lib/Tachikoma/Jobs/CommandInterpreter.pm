@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 37407 2019-04-20 21:25:35Z chris $
-#
 
 package Tachikoma::Jobs::CommandInterpreter;
 use strict;
@@ -32,14 +30,13 @@ sub initialize_graph {
     }
     else {
         $shell = Tachikoma::Nodes::Shell2->new;
-        $shell->responder($responder);
         if ( @lines and $lines[0] eq "v2\n" ) {
             shift @lines;
             $shell->{counter}++;
         }
     }
     $shell->sink($interpreter);
-    $interpreter->name('command_interpreter');
+    $interpreter->name('_command_interpreter');
     $interpreter->sink( $self->router );
     $responder->name('_responder');
     $responder->shell($shell);
@@ -50,6 +47,7 @@ sub initialize_graph {
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = '_stdin';
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }

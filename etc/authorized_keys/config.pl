@@ -1,4 +1,9 @@
 #!/usr/bin/perl
+# ----------------------------------------------------------------------
+# tachikoma server authorized keys generation
+# ----------------------------------------------------------------------
+#
+
 use strict;
 use warnings;
 our %Keys;
@@ -32,12 +37,6 @@ sub authorize {
     return;
 }
 
-sub authorize_commands {
-    my $id = shift;
-    $authorized_commands{$id} = { map { $_ => 1 } @_ };
-    return;
-}
-
 sub add_keys {
     my $keyring = shift;
     $Keys{$_} = $keyring->{$_} for (keys %$keyring);
@@ -55,8 +54,9 @@ sub generate_authorized_keys {
 print <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# \$Id\$
+# tachikoma server authorized keys
 # ----------------------------------------------------------------------
+#
 
 use strict;
 use warnings;
@@ -75,16 +75,6 @@ for my $id (sort keys %authorized) {
             $tags
         )},
 EOF
-    if ($authorized_commands{$id}) {
-        my $commands = join("\n            ",
-            sort keys %{ $authorized_commands{$id} }
-        );
-        print <<"EOF";
-        allow_commands => {map {\$_=>1} qw(
-            $commands
-        )},
-EOF
-    }
     if ($Keys{$id}) {
         print <<"EOF";
         public_key =>

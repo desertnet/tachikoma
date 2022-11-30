@@ -5,8 +5,6 @@
 #
 #   - Assigns Partitions to ConsumerBrokers
 #
-# $Id: ConsumerGroup.pm 29406 2017-04-29 11:18:09Z chris $
-#
 
 package Tachikoma::Nodes::ConsumerGroup;
 use strict;
@@ -16,7 +14,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_REQUEST TM_STORABLE TM_ERROR
 );
-use Tachikoma;
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');

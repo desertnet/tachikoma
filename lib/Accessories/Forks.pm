@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id: Config.pm 23999 2015-11-19 02:34:42Z chris $
+# Accessories::Forks
 # ----------------------------------------------------------------------
+#
 
 package Accessories::Forks;
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Callback;
 use Tachikoma::Nodes::JobController;
@@ -19,7 +19,9 @@ use version; our $VERSION = qv('v2.0.700');
 
 sub new {
     my $class = shift;
-    my $self = { ev => Tachikoma::EventFrameworks::Select->new };
+    my $self  = {};
+    $self->{ev}        = Tachikoma::EventFrameworks::Select->new;
+    $self->{is_active} = undef;
     bless $self, $class;
     Tachikoma->event_framework( $self->ev );
     return $self;
@@ -45,7 +47,7 @@ sub spawn {
     my $new_shells = sub {
         while ( keys %{ $job_controller->jobs } < $count and @{$commands} ) {
             my $command = shift @{$commands} or return;
-            my $name = join q(-), 'shell', Tachikoma->counter;
+            my $name    = join q(-), 'shell', Tachikoma->counter;
             $job_controller->start_job(
                 {   type      => 'ExecFork',
                     name      => $name,
@@ -54,7 +56,8 @@ sub spawn {
                 }
             );
         }
-        $stdin->{fh} = undef if ( keys %Tachikoma::Nodes <= 1 );
+        $self->is_active(
+            scalar( keys %{ $job_controller->jobs } ) + @{$commands} );
         return;
     };
 
@@ -73,7 +76,7 @@ sub spawn {
 
     &{$new_shells};
 
-    $self->ev->drain( $stdin, $stdin );
+    $self->ev->drain($self);
 
     delete $Tachikoma::Nodes{_parent};
     return;
@@ -85,6 +88,18 @@ sub ev {
         $self->{ev} = shift;
     }
     return $self->{ev};
+}
+
+sub is_active {
+    my $self = shift;
+    if (@_) {
+        $self->{is_active} = shift;
+    }
+    return $self->{is_active};
+}
+
+sub configuration {
+    return {};
 }
 
 1;

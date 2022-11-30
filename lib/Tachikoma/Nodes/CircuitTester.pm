@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::CircuitTester
 # ----------------------------------------------------------------------
 #
-# $Id: CircuitTester.pm 35512 2018-10-22 08:27:21Z chris $
-#
 
 package Tachikoma::Nodes::CircuitTester;
 use strict;

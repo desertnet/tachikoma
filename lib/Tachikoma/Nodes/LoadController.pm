@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::LoadController
 # ----------------------------------------------------------------------
 #
-# $Id: LoadController.pm 8576 2010-09-24 06:14:51Z chris $
-#
 
 package Tachikoma::Nodes::LoadController;
 use strict;
@@ -19,6 +17,8 @@ use Sys::Hostname qw( hostname );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
+
+use constant DEFAULT_PORT => 4230;
 
 my $Kick_Delay = 10;
 my %C          = ();
@@ -74,7 +74,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return $self->interpreter->fill($message);
     }
     elsif ( $type & TM_PING ) {
-        my $id = $message->[ID] or return;
+        my $id      = $message->[ID] or return;
         my $offline = $self->{offline};
         if ( $offline->{$id} ) {
             my $load_balancers = $self->{load_balancers};
@@ -129,6 +129,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         else {
             my $payload = $message->[PAYLOAD];
+            chomp $payload;
             my ( $host, $port, $use_SSL ) = split m{:}, $payload, 3;
             my $id_regex       = $self->{id_regex};
             my $hostname_regex = $self->{hostname_regex};
@@ -615,22 +616,29 @@ $C{kick} = sub {
 
 sub add_connector {
     my ( $self, %args ) = @_;
-    my $id      = $args{id};
-    my $host    = $args{host};
-    my $port    = $args{port};
-    my $use_SSL = $args{use_SSL};
-    if ( $self->{sink} ) {
-        $self->{sink}->connect_inet(
-            name      => $id,
-            host      => $host,
-            port      => $port,
-            use_SSL   => $use_SSL ? 1 : q(),
-            reconnect => 1
-        ) if ( not $Tachikoma::Nodes{$id} );
+    my $id         = $args{id};
+    my $host       = $args{host};
+    my $port       = $args{port};
+    my $use_SSL    = $args{use_SSL};
+    my $connection = $Tachikoma::Nodes{$id};
+    return if ( not $self->{sink} );
+    if ( not $connection ) {
+        require Tachikoma::Nodes::Socket;
+        $port ||= DEFAULT_PORT;
+        $connection =
+            Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
+        $connection->name($id);
+        $connection->on_EOF('reconnect');
+        $connection->use_SSL($use_SSL);
+        $connection->sink( $self->sink );
+        $Tachikoma::Nodes{$id} = $connection;
     }
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = undef;
-    $self->note_reconnect($id);
+    $self->note_reconnect($id)
+        if ( $connection->{set_state}->{RECONNECT} );
+    $self->note_authenticated($id)
+        if ( $connection->{set_state}->{AUTHENTICATED} );
     my $tester = (
           $self->{circuit_tester}
         ? $Tachikoma::Nodes{ $self->{circuit_tester} }

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Gate
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Gate;
 use strict;
@@ -24,7 +22,7 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments = shift || q();
+        my $arguments     = shift              || q();
         my $old_arguments = $self->{arguments} || q();
         $self->stderr($arguments) if ( $arguments ne $old_arguments );
         $self->{arguments} = $arguments;

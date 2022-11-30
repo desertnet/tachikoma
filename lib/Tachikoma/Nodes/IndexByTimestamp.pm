@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::IndexByTimestamp
 # ----------------------------------------------------------------------
 #
-# $Id: IndexByTimestamp.pm 3511 2009-10-08 00:18:42Z chris $
-#
 
 package Tachikoma::Nodes::IndexByTimestamp;
 use strict;

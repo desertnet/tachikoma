@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Timeout
 # ----------------------------------------------------------------------
 #
-# $Id: Timeout.pm 34375 2018-07-03 12:17:22Z chris $
-#
 
 package Tachikoma::Nodes::Timeout;
 use strict;
@@ -35,7 +33,7 @@ sub fire {
     my $self    = shift;
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_EOF;
-    $message->[FROM] = 'stdin';
+    $message->[FROM] = '_stdin';
     $self->{sink}->fill($message);
     return;
 }

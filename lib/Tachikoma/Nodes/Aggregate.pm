@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Aggregate
 # ----------------------------------------------------------------------
 #
-# $Id: Aggregate.pm 35512 2018-10-22 08:27:21Z chris $
-#
 
 package Tachikoma::Nodes::Aggregate;
 use strict;
@@ -75,7 +73,7 @@ sub fill {
             }
         }
         $self->{partitions} = {};
-        my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
+        my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
         my $response = Tachikoma::Message->new;
         $response->[TYPE]      = TM_STORABLE | $persist;
         $response->[FROM]      = $message->[FROM];

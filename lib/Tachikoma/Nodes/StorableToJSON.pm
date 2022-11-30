@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::StorableToJSON
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::StorableToJSON;
 use strict;
@@ -28,7 +26,7 @@ sub fill {
     $json->pretty(1);
     $json->allow_blessed(1);
     $json->convert_blessed(0);
-    my $persist = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
+    my $persist  = $message->[TYPE] & TM_PERSIST ? TM_PERSIST : 0;
     my $response = bless [ @{$message} ], ref $message;
     $response->[TYPE]    = TM_BYTESTREAM | $persist;
     $response->[PAYLOAD] = $json->encode( $message->payload );

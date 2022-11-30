@@ -1,3 +1,7 @@
+bin/consume_topic
+bin/drain_node
+bin/fill_node
+bin/produce_topic
 bin/tachikoma
 bin/tachikoma-fsync
 bin/tachikoma-job
@@ -8,7 +12,6 @@ lib/Tachikoma/Crypto.pm
 lib/Tachikoma/EventFrameworks/KQueue.pm
 lib/Tachikoma/EventFrameworks/Select.pm
 lib/Tachikoma/Job.pm
-lib/Tachikoma/Jobs/BShell.pm
 lib/Tachikoma/Jobs/CGI.pm
 lib/Tachikoma/Jobs/CommandInterpreter.pm
 lib/Tachikoma/Jobs/DirCheck.pm
@@ -23,8 +26,7 @@ lib/Tachikoma/Jobs/Log.pm
 lib/Tachikoma/Jobs/SQL.pm
 lib/Tachikoma/Jobs/Shell.pm
 lib/Tachikoma/Jobs/Tail.pm
-lib/Tachikoma/Jobs/TailFork.pm
-lib/Tachikoma/Jobs/TailForks.pm
+lib/Tachikoma/Jobs/Tails.pm
 lib/Tachikoma/Jobs/Task.pm
 lib/Tachikoma/Message.pm
 lib/Tachikoma/Node.pm
@@ -49,7 +51,7 @@ lib/Tachikoma/Nodes/ConsumerGroup.pm
 lib/Tachikoma/Nodes/DirWatcher.pm
 lib/Tachikoma/Nodes/Dumper.pm
 lib/Tachikoma/Nodes/Echo.pm
-lib/Tachikoma/Nodes/ErrorMonitor.pm
+lib/Tachikoma/Nodes/EmailAlert.pm
 lib/Tachikoma/Nodes/FileController.pm
 lib/Tachikoma/Nodes/FileHandle.pm
 lib/Tachikoma/Nodes/FileReceiver.pm
@@ -84,6 +86,7 @@ lib/Tachikoma/Nodes/Lookup.pm
 lib/Tachikoma/Nodes/MemorySieve.pm
 lib/Tachikoma/Nodes/Null.pm
 lib/Tachikoma/Nodes/Partition.pm
+lib/Tachikoma/Nodes/PayloadTimeout.pm
 lib/Tachikoma/Nodes/PidWatcher.pm
 lib/Tachikoma/Nodes/QueryEngine.pm
 lib/Tachikoma/Nodes/Queue.pm
@@ -125,7 +128,6 @@ lib/Tachikoma/Nodes/Timestamp.pm
 lib/Tachikoma/Nodes/Topic.pm
 lib/Tachikoma/Nodes/TopicProbe.pm
 lib/Tachikoma/Nodes/TopicTop.pm
-lib/Tachikoma/Nodes/Uniq.pm
 lib/Tachikoma/Nodes/Watchdog.pm
 lib/Accessories/Jobs/APlay.pm
 lib/Accessories/Jobs/DNS.pm
@@ -133,6 +135,7 @@ lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/ExecFork.pm
 lib/Accessories/Jobs/Fortune.pm
 lib/Accessories/Nodes/Bucket.pm
+lib/Accessories/Nodes/Clock.pm
 lib/Accessories/Nodes/IndexByHostname.pm
 lib/Accessories/Nodes/IndexByProcess.pm
 lib/Accessories/Nodes/LogColor.pm
@@ -140,5 +143,5 @@ lib/Accessories/Nodes/SFE4DigitLED.pm
 lib/Accessories/Nodes/SFESerLCD.pm
 lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/TestStream.pm
-lib/Accessories/Nodes/Watcher.pm
+lib/Accessories/Nodes/Uniq.pm
 lib/Accessories/Forks.pm

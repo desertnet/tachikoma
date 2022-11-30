@@ -3,13 +3,11 @@
 # tachikoma socket tests
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
-use Test::More tests => 6;
+use Test::More tests => 8;
 
-use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Socket;
@@ -22,7 +20,7 @@ my $address = '127.0.0.1';
 my $port    = '9197';
 my $test    = "foo\n";
 my $size    = length $test;
-my $answer  = '';
+my $answer  = q();
 my $total   = 10;
 my $i       = $total;
 my $taint   = undef;
@@ -35,15 +33,15 @@ my $taint   = undef;
 $test .= $taint;
 
 my $router = Tachikoma::Nodes::Router->new;
-$router->name('_router');
 is( ref $router, 'Tachikoma::Nodes::Router',
     'Tachikoma::Nodes::Router->new is ok' );
 
-my $server = inet_server Tachikoma::Nodes::Socket( $address, $port );
+my $server = Tachikoma::Nodes::Socket->inet_server( $address, $port );
+is( defined $server->{address}, 1, '$server->address is ok');
+
+$server->name('_server');
 is( ref $server, 'Tachikoma::Nodes::Socket',
     'Tachikoma::Nodes::Socket->inet_server is ok' );
-
-$server->name( $server->name . ':server' );
 
 my $destination = Tachikoma::Nodes::Callback->new;
 is( ref $destination,
@@ -53,12 +51,15 @@ $server->sink($destination);
 $destination->callback(
     sub {
         $answer .= $_[0]->[PAYLOAD];
-        $router->remove_node
+        $router->stop
             if ( length($answer) >= $size * $total );
     }
 );
 
 my $client = Tachikoma::Nodes::Socket->inet_client( $address, $port );
+is( defined $client->{address}, 1, '$client->address is ok');
+
+$client->name('_client');
 is( ref $client, 'Tachikoma::Nodes::Socket',
     'Tachikoma::Nodes::Socket->inet_client is ok' );
 

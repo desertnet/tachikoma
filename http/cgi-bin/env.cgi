@@ -3,8 +3,6 @@
 # env.cgi
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 use strict;
 use warnings;
@@ -17,13 +15,12 @@ $Data::Dumper::Useperl  = 1;
 
 my $cgi = CGI->new;
 
-print( $cgi->header,
+print $cgi->header,
     '<pre>',
     Dumper( \%ENV ),
     "</pre><hr>\n",
     '<pre>',
     $cgi->param('POSTDATA'),
-    "</pre><hr>\n",
-);
+    "</pre><hr>\n";
 
 1;

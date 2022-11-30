@@ -11,7 +11,7 @@ Tachikoma->configuration->load_config_file(
 );
 
 my $tachikoma = Tachikoma->inet_client( 'localhost', 4231, 'use_SSL' );
-my $request = Tachikoma::Message->new;
+my $request   = Tachikoma::Message->new;
 $request->type(TM_BYTESTREAM);
 $request->to("echo");
 $request->payload("hello, world\n");

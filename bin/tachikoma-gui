@@ -3,8 +3,6 @@
 # tachikoma gui
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 use strict;
 use warnings;
@@ -109,7 +107,7 @@ sub fill {
     return if ( $message->type & TM_EOF );
     if ( $message->type & TM_RESPONSE ) {
         my $command = Tachikoma::Command->new( $message->payload );
-        %Counters = () if ( $message->from ne $Last_From );
+        %Counters  = () if ( $message->from ne $Last_From );
         $Last_From = $message->from;
         if ( $command->name eq 'dump_metadata' ) {
             my $now = Time::HiRes::time;
@@ -197,7 +195,7 @@ sub fill {
             $Branch       = undef if ($Reset_Branch);
             $Reset_Branch = undef;
             $Wait_For_Response-- if ( $Wait_For_Response > 0 );
-            build_tree( {}, 'command_interpreter' );
+            build_tree( {}, '_command_interpreter' );
             build_model();
         }
         elsif ( $command->name eq 'times' ) {
@@ -259,7 +257,7 @@ sub build_tree {
 sub build_model {
     %Cells     = ();
     %Distances = ();
-    my $name = $Branch || 'command_interpreter';
+    my $name = $Branch || '_command_interpreter';
     build_model_contents( $Branches{$name}, 0, $Window_Height, 0,
         $Window_Width, $Window_Height, 0 );
     return;
@@ -331,7 +329,7 @@ sub display {
         $Window_Height / 2,
         0, 0, 1, 0
     );
-    my $name = $Branch || 'command_interpreter';
+    my $name = $Branch || '_command_interpreter';
     display_branch($name);
     display_owners();
     glFlush();
@@ -714,7 +712,7 @@ sub display_owners {
             my $num = $count + ( $remainder-- > 0 ? 1 : 0 );
             if ( $type eq 'filter' ) {
                 $counter = $Counters{$owner} or next;
-                $num = $counter->{received} - $counter->{old_received};
+                $num     = $counter->{received} - $counter->{old_received};
                 $num = $total if ( $num > $total );    # bleh
             }
             my $show_lines = ( $num and $Show_Owners > 1 ) ? 1 : 0;
@@ -748,7 +746,7 @@ sub display_owners {
                 sqrt(
                 ( $tx - $fx )**2 + ( $ty - $fy )**2 + ( $tz - $fz )**2 );
             my $rise = $tz - $fz;
-            my $run = sqrt( ( $tx - $fx )**2 + ( $ty - $fy )**2 );
+            my $run  = sqrt( ( $tx - $fx )**2 + ( $ty - $fy )**2 );
             $run = 0.000000001 if ( not $run );
             my $segment   = $distance / $num;
             my $angle     = atan2( $ty - $fy, $tx - $fx );
@@ -800,7 +798,7 @@ sub display_sub_window {
             or $x + $Char_Width + $Line_Padding * 2 >= $Sub_Window_Width )
         {
             $x = $Line_Padding;
-            $y -= $Line_Height;
+            $y    -= $Line_Height;
             $copy += $Line_Height if ( $y < $Line_Padding );
         }
     }
@@ -880,6 +878,7 @@ sub display_graph_window {
     my $max_x        = 0;
     my $max_y        = 0;
     my %by_timestamp = ();
+
     for ( my $i = 0; $i < $#Data - 1; $i += 2 ) {
         my ( $timestamp, $datum ) = ( $Data[$i], $Data[ $i + 1 ] );
         next if ( not defined $datum );
@@ -972,9 +971,9 @@ sub reshape_3d {
     }
     glutSetWindowTitle(
           ( $Path and $Branch ) ? "tachikoma - $Path/$Branch"
-        : $Path   ? "tachikoma - $Path"
-        : $Branch ? "tachikoma - $Branch"
-        :           'tachikoma'
+        : $Path                 ? "tachikoma - $Path"
+        : $Branch               ? "tachikoma - $Branch"
+        :                         'tachikoma'
     );
     build_model();
     return;
@@ -1259,52 +1258,6 @@ sub action {
         $message->to($Path);
         $tachikoma->fill($message);
     }
-    elsif ( $type eq 'buffer' ) {
-        if ( not $Graph_Window ) {
-            $Graph_Window = glutCreateSubWindow(
-                $Parent_Window,
-                $Window_Width * 1 / 12,
-                $Window_Height * 1 / 12,
-                $Window_Width * 5 / 6,
-                $Window_Height * 5 / 6
-            );
-            glutDisplayFunc( \&display_graph_window );
-            glutReshapeFunc( \&reshape_graph_window );
-            glutKeyboardFunc( \&keyboard );
-            glutMouseFunc( \&mouse );
-            glEnable(GL_BLEND);
-            glEnable(GL_ALPHA_TEST);
-            glEnable(GL_LINE_SMOOTH);
-            glEnable(GL_POLYGON_SMOOTH);
-            glEnable(GL_LIGHTING);
-            glEnable(GL_LIGHT0);
-            glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-            glLineWidth(1.0);
-            glLightfv_p( GL_LIGHT0, GL_DIFFUSE,  1, 1, 1, 1 );
-            glLightfv_p( GL_LIGHT0, GL_AMBIENT,  1, 1, 1, 0.5 );
-            glLightfv_p( GL_LIGHT0, GL_SPECULAR, 1, 1, 1, 1 );
-            glMaterialfv_p( GL_FRONT, GL_SHININESS, 1 );
-            $Graph_Char_List = glGenLists(256)
-                if ( not $Graph_Char_List );
-
-            for my $i ( 0 .. 255 ) {
-                glNewList( $Graph_Char_List + $i, GL_COMPILE );
-                glutBitmapCharacter( GLUT_BITMAP_8_BY_13, $i );
-                glEndList();
-            }
-        }
-        else {
-            glutSetWindow($Graph_Window);
-            glutShowWindow();
-            reshape_graph_window();
-        }
-        $Show_Graph_Window = 'true';
-        $Graph_Path        = $Path ? join( '/', $Path, $name ) : $name;
-        @Data              = ();
-        my $message = $tachikoma->command('times');
-        $message->to($Graph_Path);
-        $tachikoma->fill($message);
-    }
     elsif ( $type eq 'group' ) {
         $Branch = $name;
         glutSetWindowTitle(
@@ -1417,7 +1370,6 @@ sub find_cell {
             and $ix <= $x + $w
             and $iy <= $y + $h
             and (  $Nodes{$name}->{can_enter}
-                or $type eq 'buffer'
                 or $type eq 'source'
                 or $type eq 'group' )
             )
@@ -1440,9 +1392,9 @@ sub by_sink {
     print STDERR "sink for $_[1] not defined\n" if not $s1;
     return (
           $s0 cmp $s1
-        ? $s0 eq 'command_interpreter'
+        ? $s0 eq '_command_interpreter'
                 ? -1
-                : $s1 eq 'command_interpreter' ? 1
+                : $s1 eq '_command_interpreter' ? 1
             : $s0 cmp $s1
         : $_[0] cmp $_[1]
     );

@@ -7,9 +7,7 @@
 #                  - RSA/Ed25519 handshakes
 #                  - TLSv1
 #                  - heartbeats and latency scores to reset bad connections
-#                  - on_EOF: close, send, ignore, reconnect
-#
-# $Id: Socket.pm 27118 2016-09-20 18:29:02Z chris $
+#                  - on_EOF: close, send, ignore, shutdown, die, reconnect
 #
 
 package Tachikoma::Nodes::Socket;
@@ -50,10 +48,11 @@ use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.195');
 
+use constant DEFAULT_PORT => 4230;
+
 sub unix_server {
     my $class    = shift;
     my $filename = shift;
-    my $name     = shift;
     my $perms    = shift;
     my $gid      = shift;
     my $socket;
@@ -66,7 +65,6 @@ sub unix_server {
     chmod oct $perms, $filename or die "ERROR: chmod: $!" if ($perms);
     chown $>, $gid, $filename or die "ERROR: chown: $!" if ($gid);
     my $server = $class->new;
-    $server->name($name);
     $server->{type}      = 'listen';
     $server->{filename}  = $filename;
     $server->{fileperms} = $perms;
@@ -78,14 +76,12 @@ sub unix_server {
 sub unix_client {
     my $class    = shift;
     my $filename = shift;
-    my $name     = shift;
     my $flags    = shift;
     my $use_SSL  = shift;
     my $socket;
     socket $socket, PF_UNIX, SOCK_STREAM, 0 or die "FAILED: socket: $!";
     setsockopts($socket);
     my $client = $class->new($flags);
-    $client->name($name);
     $client->{type}          = 'connect';
     $client->{filename}      = $filename;
     $client->{last_upbeat}   = $Tachikoma::Now;
@@ -111,9 +107,7 @@ sub unix_client {
 sub unix_client_async {
     my $class    = shift;
     my $filename = shift;
-    my $name     = shift;
     my $client   = $class->new;
-    $client->name($name);
     $client->{type}          = 'connect';
     $client->{filename}      = $filename;
     $client->{last_upbeat}   = $Tachikoma::Now;
@@ -139,8 +133,8 @@ sub inet_server {
         or die "ERROR: bind: $!\n";
     listen $socket, SOMAXCONN or die "FAILED: listen: $!";
     my $server = $class->new;
-    $server->name( join q(:), $hostname, $port );
-    $server->{type} = 'listen';
+    $server->{type}    = 'listen';
+    $server->{address} = $iaddr;
     $server->fh($socket);
     return $server->register_server_node;
 }
@@ -158,7 +152,6 @@ sub inet_client {
         or die "FAILED: socket: $!";
     setsockopts($socket);
     my $client = $class->new($flags);
-    $client->name( join q(:), $hostname, $port );
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{address}       = $iaddr;
@@ -189,16 +182,13 @@ sub inet_client {
 sub inet_client_async {
     my $class    = shift;
     my $hostname = shift;
-    my $port     = shift || 4230;
-    my $name     = shift || $hostname;
+    my $port     = shift or die "FAILED: no port specified for $hostname";
     my $client   = $class->new;
-    $client->name($name);
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{port}          = $port;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
-    $client->dns_lookup;
     push @{ Tachikoma->nodes_to_reconnect }, $client;
     return $client;
 }
@@ -326,14 +316,15 @@ sub accept_connection {
         }
     }
     $node->name($name);
-    $node->{parent}    = $self->{name};
-    $node->{owner}     = $self->{owner};
-    $node->{sink}      = $self->{sink};
-    $node->{edge}      = $self->{edge};
-    $node->{on_EOF}    = $self->{on_EOF};
-    $node->{scheme}    = $self->{scheme};
-    $node->{delegates} = $self->{delegates};
-    $node->{fill}      = $node->{fill_modes}->{unauthenticated};
+    $node->{parent}      = $self->{name};
+    $node->{owner}       = $self->{owner};
+    $node->{sink}        = $self->{sink};
+    $node->{edge}        = $self->{edge};
+    $node->{on_EOF}      = $self->{on_EOF};
+    $node->{scheme}      = $self->{scheme};
+    $node->{delegates}   = $self->{delegates};
+    $node->{debug_state} = $self->{debug_state};
+    $node->{fill}        = $node->{fill_modes}->{unauthenticated};
     $node->set_drain_buffer;
 
     for my $event ( keys %{ $self->{registrations} } ) {
@@ -518,14 +509,14 @@ sub log_SSL_error {
         $names = $self->{name};
         Tachikoma->print_least_often( join q(: ), grep $_,
             $names, "WARNING: $method failed",
-            $!, $ssl_error );
+            $!,     $ssl_error );
     }
     else {
         $names = join q( -> ), $self->{parent},
             ( split m{:}, $self->{name}, 2 )[0];
         Tachikoma->print_less_often( join q(: ), grep $_,
             $names, "WARNING: $method failed",
-            $!, $ssl_error );
+            $!,     $ssl_error );
     }
     return;
 }
@@ -912,7 +903,7 @@ sub fill_buffer_init {
     else {
         $message->[TO] = join q(/), grep length, $self->{name},
             $message->[TO];
-        $Tachikoma::Nodes{_router}->send_error( $message, 'NOT_AVAILABLE' );
+        $Tachikoma::Nodes{'_router'}->send_error( $message, 'NOT_AVAILABLE' );
     }
     return;
 }
@@ -951,8 +942,8 @@ sub handle_EOF {
     }
     else {
         $self->set_state( 'EOF' => $self->{name} );
-        $self->SUPER::handle_EOF;
     }
+    $self->SUPER::handle_EOF;
     return;
 }
 
@@ -969,7 +960,7 @@ sub close_filehandle {
     }
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        my $exists = ( grep $_ eq $self, @{$reconnecting} )[0];
+        my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
     }
     $self->{set_state} = {};
@@ -977,31 +968,77 @@ sub close_filehandle {
 }
 
 sub reconnect {
+    my $self = shift;
+    my $rv   = undef;
+    return if ( not $self->{sink} );
+    my $secure = Tachikoma->configuration->{secure_level};
+    return $self->close_filehandle('reconnect')
+        if ( defined $secure and $secure == 0 );
+    if ( $self->{filename} ) {
+        $rv = $self->reconnect_unix;
+    }
+    else {
+        $rv = $self->reconnect_inet;
+    }
+    return $rv;
+}
+
+sub reconnect_unix {
     my $self   = shift;
     my $socket = $self->{fh};
     my $rv     = undef;
-    return if ( not $self->{sink} );
     if ( not $socket or not fileno $socket ) {
-        if ( $self->{filename} ) {
-            socket $socket, PF_UNIX, SOCK_STREAM, 0
-                or die "FAILED: socket: $!";
-            setsockopts($socket);
+        socket $socket, PF_UNIX, SOCK_STREAM, 0
+            or die "FAILED: socket: $!";
+        setsockopts($socket);
+        $self->close_filehandle;
+        $self->{fill} = $self->{fill_modes}->{fill};
+        $self->fh($socket);
+        if ( not connect $socket, pack_sockaddr_un( $self->{filename} ) ) {
+            $self->print_less_often(
+                "WARNING: reconnect: couldn't connect: $!");
             $self->close_filehandle;
-            $self->{fill} = $self->{fill_modes}->{fill};
-            $self->fh($socket);
-            if ( not connect $socket, pack_sockaddr_un( $self->{filename} ) )
-            {
-                $self->print_less_often(
-                    "WARNING: reconnect: couldn't connect: $!");
-                $self->close_filehandle;
-                return 'try again';
-            }
+            return 'try again';
         }
-        elsif ( $self->{flags} & TK_SYNC ) {
+        $self->{high_water_mark}  = 0;
+        $self->{largest_msg_sent} = 0;
+        $self->{latency_score}    = undef;
+    }
+    my $okay = eval {
+        $self->register_reader_node;
+        return 1;
+    };
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        $self->stderr("WARNING: register_reader_node failed: $error");
+        $self->close_filehandle;
+        return 'try again';
+    }
+    $self->stderr( 'reconnect: ', $! || 'success' );
+    if ( $self->{use_SSL} ) {
+        if ( not $self->start_SSL_connection ) {
+            $self->close_filehandle;
+            return 'try again';
+        }
+    }
+    else {
+        $self->init_connect;
+    }
+    return $rv;
+}
+
+sub reconnect_inet {
+    my $self   = shift;
+    my $socket = $self->{fh};
+    my $rv     = undef;
+    if ( not $socket or not fileno $socket ) {
+        if ( $self->{flags} & TK_SYNC ) {
             die 'FAILED: TK_SYNC not supported';
         }
         else {
-            if ( not $self->{address} ) {
+            if ( defined $self->{inet_aton_serial}
+                and not $self->{address} )
+            {
                 if ( $Tachikoma::Inet_AtoN_Serial
                     == $self->{inet_aton_serial} )
                 {
@@ -1018,28 +1055,6 @@ sub reconnect {
         $self->{largest_msg_sent} = 0;
         $self->{latency_score}    = undef;
     }
-    if ( $self->{filename} ) {
-        my $okay = eval {
-            $self->register_reader_node;
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $self->stderr("WARNING: register_reader_node failed: $error");
-            $self->close_filehandle;
-            return 'try again';
-        }
-        $self->stderr( 'reconnect: ', $! || 'success' );
-        if ( $self->{use_SSL} ) {
-            if ( not $self->start_SSL_connection ) {
-                $self->close_filehandle;
-                return 'try again';
-            }
-        }
-        else {
-            $self->init_connect;
-        }
-    }
     return $rv;
 }
 
@@ -1049,14 +1064,19 @@ sub dns_lookup {
     # When in doubt, use brute force--let's just fork our own resolver.
     # This turns out to perform quite well:
     #
+    my $secure = Tachikoma->configuration->{secure_level};
+    return $self->close_filehandle('reconnect')
+        if ( defined $secure and $secure == 0 );
     my $job_controller = $Tachikoma::Nodes{'jobs'};
     if ( not $job_controller ) {
         require Tachikoma::Nodes::JobController;
-        my $interpreter = $Tachikoma::Nodes{'command_interpreter'}
-            or die q(FAILED: couldn't find interpreter);
+        my $sink =
+               $Tachikoma::Nodes{'_command_interpreter'}
+            || $Tachikoma::Nodes{'_router'}
+            || die q(FAILED: couldn't find a suitable sink);
         $job_controller = Tachikoma::Nodes::JobController->new;
         $job_controller->name('jobs');
-        $job_controller->sink($interpreter);
+        $job_controller->sink($sink);
     }
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
     if ( not $inet_aton ) {
@@ -1123,7 +1143,8 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         }
         else {
             $response .= " $self->{hostname}";
-            $response .= ":$self->{port}" if ( $self->{port} != 4230 );
+            $response .= ":$self->{port}"
+                if ( $self->{port} != DEFAULT_PORT );
             $response .= " $self->{name}"
                 if ( $self->{name} ne $self->{hostname} );
             $response .= "\n";
@@ -1133,6 +1154,25 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         $response = $self->SUPER::dump_config;
     }
     return $response;
+}
+
+sub sink {
+    my ( $self, @args ) = @_;
+    my $rv = $self->SUPER::sink(@args);
+    if (    @args
+        and $self->{type} eq 'connect'
+        and not length $self->{address}
+        and not length $self->{filename} )
+    {
+        if ( $self->{name} ) {
+            $self->dns_lookup;
+        }
+        else {
+            $self->stderr('ERROR: async connections must be named');
+            $self->remove_node;
+        }
+    }
+    return $rv;
 }
 
 sub set_drain_buffer {

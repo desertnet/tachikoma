@@ -3,8 +3,6 @@
 # Accessories::Nodes::IndexByProcess
 # ----------------------------------------------------------------------
 #
-# $Id: IndexByTimestamp.pm 3511 2009-10-08 00:18:42Z chris $
-#
 
 package Accessories::Nodes::IndexByProcess;
 use strict;

@@ -3,8 +3,6 @@
 # gen_server_key
 # ----------------------------------------------------------------------
 #
-# $Id: gen_server_key 38537 2020-02-23 09:32:13Z chris $
-#
 use strict;
 use warnings;
 use Crypt::OpenSSL::RSA;
@@ -30,7 +28,7 @@ open my $fh, '>', $id_file or die "couldn't open $id_file: $!";
 print {$fh} <<"EOF";
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# \$Id\$
+# tachikoma server rsa keypair
 # ----------------------------------------------------------------------
 
 use strict;
@@ -53,9 +51,6 @@ my \$hostname = hostname();
         client
         server
     )},
-    # allow_commands => {map {\$_=>1} qw(
-    #     connect_node
-    # )},
     public_key =>
 q($public_key)};
 

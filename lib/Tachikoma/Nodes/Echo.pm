@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Echo
 # ----------------------------------------------------------------------
 #
-# $Id: Echo.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::Echo;
 use strict;
@@ -28,8 +26,8 @@ sub fill {
     my $owner   = $self->{owner};
     my $to      = $message->[TO];
     return if ( $message->[TYPE] == TM_ERROR and not $to );
-    $message->[TO] = join q(/), $owner, $to if ( $owner and $to );
-    $message->[TO] = $message->[FROM] if ( not $owner and not $to );
+    $message->[TO] = join q(/), $owner, $to if ( $owner     and $to );
+    $message->[TO] = $message->[FROM]       if ( not $owner and not $to );
     return $self->SUPER::fill($message);
 }
 

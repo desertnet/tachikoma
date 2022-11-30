@@ -5,8 +5,6 @@
 #
 #   - Fetches messages from Partitions
 #
-# $Id: Consumer.pm 29406 2017-04-29 11:18:09Z chris $
-#
 
 package Tachikoma::Nodes::Consumer;
 use strict;
@@ -17,7 +15,6 @@ use Tachikoma::Message qw(
     TM_REQUEST TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
     VECTOR_SIZE
 );
-use Tachikoma;
 use Getopt::Long qw( GetOptionsFromString );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
@@ -25,8 +22,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.256');
 
 my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 30;            # wait at least this long on startup
-my $Timeout         = 900;           # default async message timeout
+my $Startup_Delay   = 5;             # wait at least this long on startup
+my $Timeout         = 900;           # default message timeout
 my $Expire_Interval = 15;            # check message timeouts
 my $Commit_Interval = 60;            # commit offsets
 my $Hub_Timeout     = 300;           # timeout waiting for hub
@@ -34,54 +31,46 @@ my $Cache_Type      = 'snapshot';    # save complete state
 my %Targets         = ();
 
 sub new {
-    my $class = shift;
-    my $self  = $class->SUPER::new;
-
-    # async and sync support
+    my $class      = shift;
+    my $self       = $class->SUPER::new;
     my $new_buffer = q();
-    if (@_) {
-        $self->{partition} = shift;
-        $self->{offsetlog} = shift;
-    }
-    else {
-        $self->{partition} = undef;
-        $self->{offsetlog} = undef;
-    }
+    $self->{partition}       = shift;
+    $self->{offsetlog}       = shift;
     $self->{broker_id}       = undef;
     $self->{partition_id}    = undef;
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
-    $self->{default_offset}  = 'end';
-    $self->{group}           = undef;
     $self->{buffer}          = \$new_buffer;
     $self->{poll_interval}   = $Poll_Interval;
+    $self->{hub_timeout}     = $Hub_Timeout;
     $self->{last_receive}    = Time::HiRes::time;
     $self->{cache}           = undef;
-    $self->{cache_type}      = undef;
+    $self->{cache_type}      = $Cache_Type;
     $self->{last_cache_size} = undef;
     $self->{auto_commit}     = $self->{offsetlog} ? $Commit_Interval : undef;
+    $self->{default_offset}  = 'end';
     $self->{last_commit}     = 0;
-    $self->{last_commit_offset} = -1;
-    $self->{hub_timeout}        = $Hub_Timeout;
-
-    # async support
+    $self->{last_commit_offset}      = -1;
     $self->{expecting}               = undef;
     $self->{saved_offset}            = undef;
     $self->{inflight}                = [];
     $self->{last_expire}             = $Tachikoma::Now;
     $self->{msg_unanswered}          = 0;
-    $self->{max_unanswered}          = undef;
+    $self->{max_unanswered}          = 1;
     $self->{timeout}                 = $Timeout;
-    $self->{status}                  = undef;
+    $self->{startup_delay}           = 0;
+    $self->{status}                  = $self->{offsetlog} ? 'INIT' : 'ACTIVE';
     $self->{registrations}->{ACTIVE} = {};
     $self->{registrations}->{READY}  = {};
 
     # sync support
-    $self->{host}       = 'localhost';
-    $self->{port}       = 4230;
-    $self->{target}     = undef;
-    $self->{eos}        = undef;
-    $self->{sync_error} = undef;
+    if ( length $self->{partition} ) {
+        $self->{host}       = 'localhost';
+        $self->{port}       = 4230;
+        $self->{target}     = undef;
+        $self->{eos}        = undef;
+        $self->{sync_error} = undef;
+    }
     bless $self, $class;
     return $self;
 }
@@ -94,9 +83,9 @@ make_node Consumer <node name> --partition=<path>            \
                                --max_unanswered=<int>        \
                                --timeout=<seconds>           \
                                --poll_interval=<seconds>     \
+                               --hub_timeout=<seconds>       \
                                --cache_type=<string>         \
                                --auto_commit=<seconds>       \
-                               --hub_timeout=<seconds>       \
                                --default_offset=<int|string>
     # valid cache types: window, snapshot
     # valid offsets: start (0), recent (-2), end (-1)
@@ -107,9 +96,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,   $offsetlog,     $max_unanswered,
-            $timeout,     $poll_interval, $cache_type,
-            $auto_commit, $hub_timeout,   $default_offset
+        my ($partition,     $offsetlog,     $max_unanswered,
+            $timeout,       $poll_interval, $hub_timeout,
+            $startup_delay, $cache_type,    $auto_commit,
+            $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -117,10 +107,11 @@ sub arguments {
             'offsetlog=s'      => \$offsetlog,
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
-            'cache_type=s'     => \$cache_type,
             'poll_interval=i'  => \$poll_interval,
-            'auto_commit=i'    => \$auto_commit,
             'hub_timeout=i'    => \$hub_timeout,
+            'startup_delay=i'  => \$startup_delay,
+            'cache_type=s'     => \$cache_type,
+            'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
         );
         $partition //= shift @{$argv};
@@ -132,27 +123,27 @@ sub arguments {
         $self->{offsetlog}          = $offsetlog;
         $self->{offset}             = undef;
         $self->{next_offset}        = undef;
-        $self->{default_offset}     = $default_offset // 'end';
         $self->{buffer}             = \$new_buffer;
+        $self->{msg_unanswered}     = 0;
+        $self->{max_unanswered}     = $max_unanswered // 1;
+        $self->{timeout}            = $timeout || $Timeout;
         $self->{poll_interval}      = $poll_interval || $Poll_Interval;
+        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{last_receive}       = $Tachikoma::Now;
         $self->{cache_type}         = $cache_type // $Cache_Type;
         $self->{last_cache_size}    = undef;
         $self->{auto_commit}        = $auto_commit // $Commit_Interval;
         $self->{auto_commit}        = undef if ( not $offsetlog );
+        $self->{default_offset}     = $default_offset // 'end';
         $self->{last_commit}        = 0;
         $self->{last_commit_offset} = -1;
-        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
         $self->{expecting}          = undef;
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
-        $self->{msg_unanswered}     = 0;
-        $self->{max_unanswered}     = $max_unanswered // 1;
-        $self->{timeout}            = $timeout || $Timeout;
+        $self->{startup_delay}      = $startup_delay // $Startup_Delay;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
-        $self->set_state( 'ACTIVE' => $self->{partition} )
-            if ( not $offsetlog );
+        $self->{set_state}          = {};
     }
     return $self->{arguments};
 }
@@ -182,7 +173,7 @@ sub fill {
         }
         $self->{offset} //= $offset;
         if ( $message->[TYPE] & TM_EOF ) {
-            $self->handle_EOF($offset);
+            $self->handle_EOF($message);
         }
         else {
             $self->{next_offset} = $offset + length $message->[PAYLOAD];
@@ -209,11 +200,9 @@ sub handle_response {
         $self->remove_node if ( defined $self->partition_id );
         return;
     }
-    return $self->drop_message( $message, 'unexpected payload from ',
-        $message->[FROM] )
+    return $self->drop_message( $message, 'unexpected payload' )
         if ( $message->[PAYLOAD] ne 'cancel' );
-    return $self->drop_message( $message, 'unexpected response from ',
-        $message->[FROM] )
+    return $self->drop_message( $message, 'unexpected response' )
         if ( $msg_unanswered < 1 );
 
     if ( length $offset ) {
@@ -222,7 +211,7 @@ sub handle_response {
             shift @{ $self->{inflight} };
         }
         elsif ( not defined $self->cancel_offset($offset) ) {
-            $self->print_less_often(
+            return $self->print_less_often(
                 'WARNING: unexpected response offset ',
                 "$offset from ",
                 $message->[FROM]
@@ -263,8 +252,9 @@ sub handle_error {
 }
 
 sub handle_EOF {
-    my $self   = shift;
-    my $offset = shift;
+    my $self    = shift;
+    my $message = shift;
+    my $offset  = $message->[ID];
     if ( $self->{status} eq 'INIT' ) {
         $self->{status} = 'ACTIVE';
         $self->load_cache_complete;
@@ -276,13 +266,15 @@ sub handle_EOF {
     else {
         $self->{next_offset} = $offset;
         $self->set_state( 'READY' => $self->{partition_id} )
-            if ( not $self->{set_state}->{READY} );
+            if ( not length $self->{set_state}->{READY} );
     }
     return;
 }
 
 sub fire {
     my $self = shift;
+    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
@@ -324,7 +316,7 @@ sub fire {
         and not $self->{expecting}
         )
     {
-        $self->get_batch_async;
+        $self->get_batch;
     }
     return;
 }
@@ -352,7 +344,7 @@ sub drain_buffer_init {
                 $message->type_as_string, ' in cache' );
         }
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
 
         # XXX:M
         # $size =
@@ -391,7 +383,7 @@ sub drain_buffer_normal {
         $self->{counter}++;
         $self->{sink}->fill($message);
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
 
         # XXX:M
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
@@ -427,7 +419,7 @@ sub drain_buffer_persist {
         $self->{msg_unanswered}++;
         $self->{sink}->fill($message);
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
         last if ( $self->{msg_unanswered} >= $self->{max_unanswered} );
 
         # XXX:M
@@ -440,7 +432,7 @@ sub drain_buffer_persist {
     return;
 }
 
-sub get_batch_async {
+sub get_batch {
     my $self   = shift;
     my $offset = $self->{next_offset};
     return if ( not $self->{sink} );
@@ -480,6 +472,8 @@ sub get_batch_async {
         : $self->{partition};
     $message->[PAYLOAD] = "GET $offset\n";
     $self->{expecting} = 1;
+    $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     $self->{sink}->fill($message);
     return;
 }
@@ -505,13 +499,13 @@ sub expire_messages {
         and $Tachikoma::Now - $self->{last_commit} >= $self->{auto_commit}
         and $offset != $self->{last_commit_offset} )
     {
-        $self->commit_offset_async;
+        $self->commit_offset;
     }
     $self->{last_expire} = $Tachikoma::Now;
     return not $retry;
 }
 
-sub commit_offset_async {
+sub commit_offset {
     my $self      = shift;
     my $timestamp = shift;
     my $cache     = shift;
@@ -579,7 +573,7 @@ sub load_cache_complete {
             }
             if ( $self->{edge}->can('on_save_window') ) {
                 $self->{edge}->on_save_window->[$i] = sub {
-                    $self->commit_offset_async(@_);
+                    $self->commit_offset(@_);
                     return;
                 };
             }
@@ -612,7 +606,7 @@ sub restart {
     }
     else {
         $self->arguments( $self->arguments );
-        $self->set_timer( $Startup_Delay * 1000 );
+        $self->set_timer( $self->{startup_delay} * 1000 );
     }
     return;
 }
@@ -622,12 +616,10 @@ sub owner {
     if (@_) {
         $self->{owner} = shift;
         $self->last_receive($Tachikoma::Now);
-        if ( defined $self->{partition_id} ) {
-            $self->set_timer(0);
-        }
-        else {
-            $self->set_timer( $Startup_Delay * 1000 );
-        }
+        $self->set_timer( $self->{startup_delay} * 1000 );
+        $self->set_state( 'ACTIVE' => $self->{partition} )
+            if (not $self->{offsetlog}
+            and not $self->{set_state}->{ACTIVE} );
     }
     return $self->{owner};
 }
@@ -642,12 +634,14 @@ sub edge {
             $self->last_receive($Tachikoma::Now);
             if ( defined $i ) {
                 $edge->new_cache($i) if ( $edge->can('new_cache') );
-                $self->set_timer(0);
             }
             else {
                 $edge->new_cache if ( $edge->can('new_cache') );
-                $self->set_timer( $Startup_Delay * 1000 );
             }
+            $self->set_timer( $self->{startup_delay} * 1000 );
+            $self->set_state( 'ACTIVE' => $self->{partition} )
+                if (not $self->{offsetlog}
+                and not $self->{set_state}->{ACTIVE} );
         }
     }
     return $self->{edge};
@@ -677,6 +671,226 @@ sub dump_config {
     return $response;
 }
 
+sub partition {
+    my $self = shift;
+    if (@_) {
+        $self->{partition} = shift;
+    }
+    return $self->{partition};
+}
+
+sub offsetlog {
+    my $self = shift;
+    if (@_) {
+        $self->{offsetlog}   = shift;
+        $self->{status}      = 'INIT';
+        $self->{last_commit} = 0;
+    }
+    return $self->{offsetlog};
+}
+
+sub broker_id {
+    my $self = shift;
+    if (@_) {
+        $self->{broker_id} = shift;
+        my ( $host, $port ) = split m{:}, $self->{broker_id}, 2;
+        $self->{host} = $host;
+        $self->{port} = $port;
+    }
+    if ( not defined $self->{broker_id} ) {
+        $self->{broker_id} = join q(:), $self->{host}, $self->{port};
+    }
+    return $self->{broker_id};
+}
+
+sub partition_id {
+    my $self = shift;
+    if (@_) {
+        $self->{partition_id} = shift;
+    }
+    return $self->{partition_id};
+}
+
+sub offset {
+    my $self = shift;
+    if (@_) {
+        $self->{offset} = shift;
+    }
+    return $self->{offset};
+}
+
+sub next_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{next_offset} = shift;
+        my $new_buffer = q();
+        $self->{buffer} = \$new_buffer;
+        $self->{offset} = undef;
+    }
+    return $self->{next_offset};
+}
+
+sub buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{buffer} = shift;
+    }
+    return $self->{buffer};
+}
+
+sub poll_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{poll_interval} = shift;
+    }
+    return $self->{poll_interval};
+}
+
+sub hub_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{hub_timeout} = shift;
+    }
+    return $self->{hub_timeout};
+}
+
+sub last_receive {
+    my $self = shift;
+    if (@_) {
+        $self->{last_receive} = shift;
+    }
+    return $self->{last_receive};
+}
+
+sub cache {
+    my $self = shift;
+    if (@_) {
+        $self->{cache} = shift;
+    }
+    return $self->{cache};
+}
+
+sub cache_type {
+    my $self = shift;
+    if (@_) {
+        $self->{cache_type} = shift;
+    }
+    return $self->{cache_type};
+}
+
+sub last_cache_size {
+    my $self = shift;
+    if (@_) {
+        $self->{last_cache_size} = shift;
+    }
+    return $self->{last_cache_size};
+}
+
+sub auto_commit {
+    my $self = shift;
+    if (@_) {
+        $self->{auto_commit} = shift;
+    }
+    return $self->{auto_commit};
+}
+
+sub default_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{default_offset} = shift;
+        $self->next_offset(undef);
+    }
+    return $self->{default_offset};
+}
+
+sub last_commit {
+    my $self = shift;
+    if (@_) {
+        $self->{last_commit} = shift;
+    }
+    return $self->{last_commit};
+}
+
+sub last_commit_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{last_commit_offset} = shift;
+    }
+    return $self->{last_commit_offset};
+}
+
+sub expecting {
+    my $self = shift;
+    if (@_) {
+        $self->{expecting} = shift;
+    }
+    return $self->{expecting};
+}
+
+sub saved_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{saved_offset} = shift;
+    }
+    return $self->{saved_offset};
+}
+
+sub inflight {
+    my $self = shift;
+    if (@_) {
+        $self->{inflight} = shift;
+    }
+    return $self->{inflight};
+}
+
+sub last_expire {
+    my $self = shift;
+    if (@_) {
+        $self->{last_expire} = shift;
+    }
+    return $self->{last_expire};
+}
+
+sub msg_unanswered {
+    my $self = shift;
+    if (@_) {
+        $self->{msg_unanswered} = shift;
+    }
+    return $self->{msg_unanswered};
+}
+
+sub max_unanswered {
+    my $self = shift;
+    if (@_) {
+        $self->{max_unanswered} = shift;
+    }
+    return $self->{max_unanswered};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
+}
+
+sub startup_delay {
+    my $self = shift;
+    if (@_) {
+        $self->{startup_delay} = shift;
+    }
+    return $self->{startup_delay};
+}
+
+sub status {
+    my $self = shift;
+    if (@_) {
+        $self->{status} = shift;
+    }
+    return $self->{status};
+}
+
 ########################
 # synchronous interface
 ########################
@@ -694,7 +908,7 @@ sub fetch {
         if (defined $self->{auto_commit}
         and defined $self->{offset}
         and Time::HiRes::time - $self->{last_commit} >= $self->{auto_commit}
-        and not $self->commit_offset );
+        and not $self->commit_offset_sync );
     usleep( $self->{poll_interval} * 1000000 )
         if ( $self->{eos} and $self->{poll_interval} );
     $self->{eos} = undef;
@@ -742,7 +956,7 @@ sub get_offset {
             my $error    = $consumer->sync_error // q();
             chomp $error;
             $self->sync_error("GET_OFFSET: $error\n") if ($error);
-            last if ( not @{$messages} );
+            last                                      if ( not @{$messages} );
             $stored = $messages->[-1]->payload;
         }
         if ( $self->sync_error ) {
@@ -824,9 +1038,9 @@ sub get_messages {
         my $message =
             Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
         $message->[FROM] = $from;
-        $message->[ID] = join q(:), $offset, $offset + $size;
+        $message->[ID]   = join q(:), $offset, $offset + $size;
         $offset += $size;
-        $got -= $size;
+        $got    -= $size;
 
         # XXX:M
         # $size =
@@ -840,10 +1054,10 @@ sub get_messages {
     return;
 }
 
-sub commit_offset {
+sub commit_offset_sync {
     my $self = shift;
     return 1 if ( $self->{last_commit} >= $self->{last_receive} );
-    my $rv = undef;
+    my $rv     = undef;
     my $target = $self->target or return;
     die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
     my $message = Tachikoma::Message->new;
@@ -880,7 +1094,7 @@ sub reset_offset {
     $self->next_offset(0);
     $self->cache($cache);
     $self->last_commit(0);
-    return $self->commit_offset;
+    return $self->commit_offset_sync;
 }
 
 sub retry_offset {
@@ -891,229 +1105,6 @@ sub retry_offset {
     return;
 }
 
-# async and sync support
-sub partition {
-    my $self = shift;
-    if (@_) {
-        $self->{partition} = shift;
-    }
-    return $self->{partition};
-}
-
-sub offsetlog {
-    my $self = shift;
-    if (@_) {
-        $self->{offsetlog}   = shift;
-        $self->{status}      = 'INIT';
-        $self->{last_commit} = 0;
-    }
-    return $self->{offsetlog};
-}
-
-sub broker_id {
-    my $self = shift;
-    if (@_) {
-        $self->{broker_id} = shift;
-        my ( $host, $port ) = split m{:}, $self->{broker_id}, 2;
-        $self->{host} = $host;
-        $self->{port} = $port;
-    }
-    if ( not defined $self->{broker_id} ) {
-        $self->{broker_id} = join q(:), $self->{host}, $self->{port};
-    }
-    return $self->{broker_id};
-}
-
-sub partition_id {
-    my $self = shift;
-    if (@_) {
-        $self->{partition_id} = shift;
-    }
-    return $self->{partition_id};
-}
-
-sub offset {
-    my $self = shift;
-    if (@_) {
-        $self->{offset} = shift;
-    }
-    return $self->{offset};
-}
-
-sub next_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{next_offset} = shift;
-        my $new_buffer = q();
-        $self->{buffer} = \$new_buffer;
-        $self->{offset} = undef;
-    }
-    return $self->{next_offset};
-}
-
-sub default_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{default_offset} = shift;
-        $self->next_offset(undef);
-    }
-    return $self->{default_offset};
-}
-
-sub group {
-    my $self = shift;
-    if (@_) {
-        $self->{group} = shift;
-    }
-    return $self->{group};
-}
-
-sub buffer {
-    my $self = shift;
-    if (@_) {
-        $self->{buffer} = shift;
-    }
-    return $self->{buffer};
-}
-
-sub poll_interval {
-    my $self = shift;
-    if (@_) {
-        $self->{poll_interval} = shift;
-    }
-    return $self->{poll_interval};
-}
-
-sub last_receive {
-    my $self = shift;
-    if (@_) {
-        $self->{last_receive} = shift;
-    }
-    return $self->{last_receive};
-}
-
-sub cache {
-    my $self = shift;
-    if (@_) {
-        $self->{cache} = shift;
-    }
-    return $self->{cache};
-}
-
-sub cache_type {
-    my $self = shift;
-    if (@_) {
-        $self->{cache_type} = shift;
-    }
-    return $self->{cache_type};
-}
-
-sub last_cache_size {
-    my $self = shift;
-    if (@_) {
-        $self->{last_cache_size} = shift;
-    }
-    return $self->{last_cache_size};
-}
-
-sub auto_commit {
-    my $self = shift;
-    if (@_) {
-        $self->{auto_commit} = shift;
-    }
-    return $self->{auto_commit};
-}
-
-sub last_commit {
-    my $self = shift;
-    if (@_) {
-        $self->{last_commit} = shift;
-    }
-    return $self->{last_commit};
-}
-
-sub last_commit_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{last_commit_offset} = shift;
-    }
-    return $self->{last_commit_offset};
-}
-
-sub hub_timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{hub_timeout} = shift;
-    }
-    return $self->{hub_timeout};
-}
-
-# async support
-sub expecting {
-    my $self = shift;
-    if (@_) {
-        $self->{expecting} = shift;
-    }
-    return $self->{expecting};
-}
-
-sub saved_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{saved_offset} = shift;
-    }
-    return $self->{saved_offset};
-}
-
-sub inflight {
-    my $self = shift;
-    if (@_) {
-        $self->{inflight} = shift;
-    }
-    return $self->{inflight};
-}
-
-sub last_expire {
-    my $self = shift;
-    if (@_) {
-        $self->{last_expire} = shift;
-    }
-    return $self->{last_expire};
-}
-
-sub msg_unanswered {
-    my $self = shift;
-    if (@_) {
-        $self->{msg_unanswered} = shift;
-    }
-    return $self->{msg_unanswered};
-}
-
-sub max_unanswered {
-    my $self = shift;
-    if (@_) {
-        $self->{max_unanswered} = shift;
-    }
-    return $self->{max_unanswered};
-}
-
-sub timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{timeout} = shift;
-    }
-    return $self->{timeout};
-}
-
-sub status {
-    my $self = shift;
-    if (@_) {
-        $self->{status} = shift;
-    }
-    return $self->{status};
-}
-
-# sync support
 sub remove_target {
     my $self = shift;
     if ( $self->{target} ) {
@@ -1179,5 +1170,4 @@ sub sync_error {
     }
     return $self->{sync_error};
 }
-
 1;

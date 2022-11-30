@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Router
 # ----------------------------------------------------------------------
 #
-# $Id: Router.pm 12579 2012-01-11 04:10:56Z chris $
-#
 
 package Tachikoma::Nodes::Router;
 use strict;
@@ -29,6 +27,7 @@ sub new {
     my $self  = $class->SUPER::new;
     $self->{type}                   = 'router';
     $self->{fire_cb}                = \&fire_cb;
+    $self->{is_active}              = undef;
     $self->{handling_error}         = undef;
     $self->{registrations}->{TIMER} = {};
     bless $self, $class;
@@ -36,48 +35,39 @@ sub new {
     return $self;
 }
 
-sub register_router_node {
-    my $self = shift;
-    return $Tachikoma::Event_Framework->register_router_node($self);
-}
-
 sub drain {
-    my $self      = shift;
-    my $connector = shift;
-    if ( not Tachikoma->shutting_down ) {
-        if ( $self->type eq 'root' ) {
-            my $class   = ref $Tachikoma::Event_Framework;
-            my $version = $self->configuration->wire_version;
-            $self->stderr("starting up - $class - wire format $version");
-        }
-        $Tachikoma::Event_Framework->drain( $self, $connector );
-        $self->shutdown_all_nodes;
+    my $self = shift;
+    if ( Tachikoma->shutting_down ) {
+        die "ERROR: drain() called during shutdown\n"
+            if ( defined $self->is_active );
+    }
+    else {
+        Tachikoma->event_framework->drain( $self->start );
     }
     while ( my $close_cb = shift @Tachikoma::Closing ) {
         &{$close_cb}();
     }
     if ( $self->type eq 'root' ) {
         $self->stderr('waiting for child processes...');
-        alarm 300;
-        local $SIG{ALRM} = sub { die "timeout\n" };
-        my $okay = eval {
-            do { }
-                while ( wait >= 0 );
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $self->stderr("WARNING: forcing shutdown - $error");
-        }
+    }
+    alarm 300;
+    local $SIG{ALRM} = sub { die "timeout\n" };
+    my $okay = eval {
+        do { }
+            while ( wait >= 0 );
+        return 1;
+    };
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        $self->stderr("WARNING: forcing shutdown - $error");
+    }
+    if ( $self->type eq 'root' ) {
         $self->stderr('removing pid file');
         Tachikoma->remove_pid;
         $self->stderr('shutdown complete');
-        kill -9, $$ or die if ( not $okay );
-        alarm 0;
     }
-    else {
-        do { } while ( wait >= 0 );
-    }
+    kill -9, $$ or die if ( not $okay );
+    alarm 0;
     return;
 }
 
@@ -130,32 +120,33 @@ sub send_error {
 }
 
 sub fire_cb {
-    my $self         = shift;
-    my $config       = $self->configuration;
-    my @again        = ();
-    my $reconnecting = Tachikoma->nodes_to_reconnect;
-    while ( my $node = shift @{$reconnecting} ) {
-        my $okay = eval {
-            push @again, $node if ( $node->reconnect );
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $node->stderr("ERROR: reconnect failed: $error");
-            $node->remove_node;
+    my $self   = shift;
+    my $config = $self->configuration;
+    if ( $config->secure_level ) {
+        my @again        = ();
+        my $reconnecting = Tachikoma->nodes_to_reconnect;
+        $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
+            if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        while ( my $node = shift @{$reconnecting} ) {
+            my $okay = eval {
+                push @again, $node if ( $node->reconnect );
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ || 'unknown error';
+                $node->stderr("ERROR: reconnect failed: $error");
+                $node->remove_node;
+            }
         }
+        @{$reconnecting} = @again;
     }
-    @{$reconnecting} = @again;
+    elsif ( defined $config->secure_level and $self->type ne 'tachikoma' ) {
+        $self->print_less_often('WARNING: process is insecure');
+    }
     $self->heartbeat( $config->var );
     $self->update_logs;
     $self->expire_callbacks;
     $self->notify_timer;
-    if (    defined $config->secure_level
-        and $config->secure_level == 0
-        and $self->type ne 'router' )
-    {
-        $self->print_less_often('WARNING: process is insecure');
-    }
     if ( defined $PROFILES ) {
         $self->trim_profiles;
     }
@@ -295,7 +286,37 @@ sub remove_node {
     push @Tachikoma::Closing, sub {
         $self->SUPER::remove_node;
     };
+    $self->stop if ( $self->is_active );
     return;
+}
+
+sub start {
+    my $self = shift;
+    Tachikoma->shutting_down(undef);
+    if ( $self->type eq 'root' or $self->debug_state ) {
+        my $class   = ref Tachikoma->event_framework;
+        my $version = $self->configuration->wire_version;
+        $self->stderr("starting up - $class - wire format $version");
+    }
+    $self->is_active(1);
+    return $self;
+}
+
+sub stop {
+    my $self = shift;
+    $self->is_active(0);
+    if ( $self->type eq 'root' or $self->debug_state ) {
+        $self->stderr('shutting down');
+    }
+    return $self;
+}
+
+sub is_active {
+    my $self = shift;
+    if (@_) {
+        $self->{is_active} = shift;
+    }
+    return $self->{is_active};
 }
 
 sub handling_error {

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Timestamp
 # ----------------------------------------------------------------------
 #
-# $Id: Timestamp.pm 17140 2013-07-17 06:12:25Z chris $
-#
 
 package Tachikoma::Nodes::Timestamp;
 use strict;
@@ -37,7 +35,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $position, $offset ) = split q( ), $self->{arguments}, 2;
         $self->{position} = $position // 'prefix';
-        $self->{offset}   = $offset // 0;
+        $self->{offset}   = $offset   // 0;
     }
     return $self->{arguments};
 }

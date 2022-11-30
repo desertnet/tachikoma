@@ -5,60 +5,59 @@
 #
 #   - Sends messages to Partitions
 #
-# $Id: Topic.pm 29406 2017-04-29 11:18:09Z chris $
-#
 
 package Tachikoma::Nodes::Topic;
 use strict;
 use warnings;
+use Tachikoma::Nodes::Socket qw( TK_SYNC );
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD IS_UNTHAWED LAST_MSG_FIELD
     TM_BYTESTREAM TM_BATCH TM_STORABLE TM_REQUEST
     TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Tachikoma;
 use Digest::MD5 qw( md5 );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval    = 15;       # delay between polls
-my $Startup_Delay    = 30;       # wait at least this long on startup
-my $Response_Timeout = 300;      # wait before abandoning async responses
-my $Hub_Timeout      = 60;       # synchronous timeout waiting for hub
-my $Batch_Threshold  = 65536;    # low water mark before sending batches
-my $Batch_Interval   = 0.25;     # how long to wait if below threshold
+my $Batch_Interval  = 0.25;     # how long to wait if below threshold
+my $Batch_Threshold = 65536;    # low water mark before sending batches
+my $Poll_Interval   = 1;        # delay between polls
+my $Startup_Delay   = 0;        # offset from poll interval
+my $Hub_Timeout     = 60;       # synchronous timeout waiting for hub
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-
-    # async and sync support
-    $self->{topic}         = shift;
-    $self->{partitions}    = undef;
-    $self->{poll_interval} = $Poll_Interval;
-
-    # async support
+    $self->{topic}                  = shift;
+    $self->{flags}                  = 0;
     $self->{broker_path}            = undef;
-    $self->{next_partition}         = undef;
-    $self->{last_check}             = undef;
-    $self->{batch}                  = undef;
-    $self->{batch_offset}           = undef;
-    $self->{batch_size}             = undef;
-    $self->{batch_timestamp}        = undef;
-    $self->{responses}              = undef;
-    $self->{batch_responses}        = undef;
+    $self->{partitions}             = undef;
+    $self->{batch_interval}         = $Batch_Interval;
+    $self->{batch_threshold}        = $Batch_Threshold;
+    $self->{poll_interval}          = $Poll_Interval;
+    $self->{next_partition}         = 0;
+    $self->{last_check}             = 0;
+    $self->{batch}                  = {};
+    $self->{batch_offset}           = {};
+    $self->{batch_size}             = {};
+    $self->{batch_timestamp}        = {};
+    $self->{responses}              = {};
+    $self->{batch_responses}        = {};
     $self->{valid_broker_paths}     = undef;
+    $self->{registrations}->{RESET} = {};
     $self->{registrations}->{READY} = {};
 
     # sync support
-    $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
-    $self->{persist}     = 'cancel';
-    $self->{hub_timeout} = $Hub_Timeout;
-    $self->{targets}     = {};
-    $self->{sync_error}  = undef;
+    if ( length $self->{topic} ) {
+        $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
+        $self->{persist}     = 'cancel';
+        $self->{hub_timeout} = $Hub_Timeout;
+        $self->{targets}     = {};
+        $self->{sync_error}  = undef;
+    }
     bless $self, $class;
     return $self;
 }
@@ -88,7 +87,7 @@ sub arguments {
         $self->{batch_timestamp} = {};
         $self->{responses}       = {};
         $self->{batch_responses} = {};
-        $self->set_timer;
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return $self->{arguments};
 }
@@ -131,11 +130,15 @@ sub fill {
 }
 
 sub fire {
-    my $self       = shift;
-    my $partitions = $self->{partitions};
-    my $batch      = $self->{batch};
+    my $self           = shift;
+    my $partitions     = $self->{partitions};
+    my $batch          = $self->{batch};
+    my $batch_interval = $self->{batch_interval};
+    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ($partitions) {
         my $topic           = $self->{topic};
+        my $batch_threshold = $self->{batch_threshold};
         my $batch_offset    = $self->{batch_offset};
         my $batch_size      = $self->{batch_size};
         my $batch_timestamp = $self->{batch_timestamp};
@@ -143,9 +146,9 @@ sub fire {
         my $batch_responses = $self->{batch_responses};
         for my $i ( keys %{$batch} ) {
             next
-                if ($batch_size->{$i} < $Batch_Threshold
+                if ($batch_size->{$i} < $batch_threshold
                 and $Tachikoma::Right_Now - $batch_timestamp->{$i}
-                < $Batch_Interval );
+                < $batch_interval );
             my $broker_id = $partitions->[$i];
             my $persist   = $responses->{$i} ? TM_PERSIST : 0;
             my $message   = Tachikoma::Message->new;
@@ -154,6 +157,9 @@ sub fire {
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = join q(:), $i, $batch_offset->{$i};
             $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
+            $self->stderr( "DEBUG: FILL $broker_id ",
+                $batch_size->{$i}, ' bytes' )
+                if ( $self->{debug_state} and $self->{debug_state} >= 3 );
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
             $batch_responses->{$i} //= [];
@@ -178,24 +184,26 @@ sub fire {
         $message->[FROM]    = $self->{name};
         $message->[TO]      = $self->{broker_path};
         $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
+        $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
         $self->{sink}->fill($message);
         $self->{last_check} = $Tachikoma::Right_Now;
     }
     if ( keys %{$batch} ) {
-        $self->set_timer( $Batch_Interval * 1000 )
-            if ( not $self->{timer_interval} );
+        $self->set_timer( $batch_interval * 1000 )
+            if ( $self->{timer_interval} != $batch_interval * 1000 );
     }
-    elsif ( defined $self->{timer_interval} ) {
-        $self->set_timer;
+    elsif ( $self->{timer_interval} != $self->{poll_interval} * 1000 ) {
+        $self->set_timer( $self->{poll_interval} * 1000 );
     }
     return;
 }
 
 sub handle_response {
-    my ( $self, $message ) = @_;
-    my ( $i, $last_commit_offset ) = split m{:}, $message->[ID], 2;
+    my ( $self, $message )            = @_;
+    my ( $i,    $last_commit_offset ) = split m{:}, $message->[ID], 2;
     my $batch_responses = $self->{batch_responses}->{$i} // [];
-    my $responses = $batch_responses->[0];
+    my $responses       = $batch_responses->[0];
     if (    $responses
         and $responses->{last_commit_offset} == $last_commit_offset )
     {
@@ -253,38 +261,40 @@ sub batch_message {
         $i = $message->[TO];
         $message->[TO] = q();
     }
-    elsif ( $message->[STREAM] ) {
+    elsif ( length $message->[STREAM] ) {
         $i += $_ for ( unpack 'C*', md5( $message->[STREAM] ) );
         $i %= scalar @{$partitions};
     }
     else {
         $i = $self->{next_partition};
-        $self->{next_partition} = ( $i + 1 ) % @{$partitions};
     }
     my $packed = $message->packed;
-    $self->{batch}->{$i}           //= [];
-    $self->{batch_offset}->{$i}    //= 0;
-    $self->{batch_size}->{$i}      //= 0;
-    $self->{batch_timestamp}->{$i} //= $Tachikoma::Right_Now;
+    if ( not exists $self->{batch}->{$i} ) {
+        $self->{batch}->{$i}           = [];
+        $self->{batch_offset}->{$i}    = 0;
+        $self->{batch_size}->{$i}      = 0;
+        $self->{batch_timestamp}->{$i} = $Tachikoma::Right_Now;
+        $self->{responses}->{$i}       = [];
+    }
     push @{ $self->{batch}->{$i} }, ${$packed};
     $self->{batch_offset}->{$i}++;
     $self->{batch_size}->{$i} += length ${$packed};
+    $self->{counter}++;
 
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $self->{responses}->{$i} //= [];
         $message->[PAYLOAD] = q();
         push @{ $self->{responses}->{$i} }, $message;
     }
-    if ( $self->{batch_size}->{$i} > $Batch_Threshold ) {
+    if ( $self->{batch_size}->{$i} >= $self->{batch_threshold} ) {
+        $self->{next_partition} = ( $i + 1 ) % @{$partitions};
         $self->set_timer(0)
-            if (
-            not defined $self->{timer_interval}
-            or ( defined $self->{timer_interval}
-                and $self->{timer_interval} != 0 )
-            );
+            if ( not defined $self->{timer_interval}
+            or $self->{timer_interval} != 0 );
     }
-    elsif ( not defined $self->{timer_interval} ) {
-        $self->set_timer( $Batch_Interval * 1000 );
+    elsif ( not defined $self->{timer_interval}
+        or $self->{timer_interval} > $self->{batch_interval} * 1000 )
+    {
+        $self->set_timer( $self->{batch_interval} * 1000 );
     }
     return;
 }
@@ -301,9 +311,17 @@ sub update_partitions {
         my $node = $Tachikoma::Nodes{$broker_id};
         if ( not $node ) {
             my ( $host, $port ) = split m{:}, $broker_id, 2;
-            $node =
-                inet_client_async Tachikoma::Nodes::Socket( $host, $port,
-                $broker_id );
+            if ( $self->flags & TK_SYNC ) {
+                $node = Tachikoma::Nodes::Socket->inet_client( $host, $port,
+                    TK_SYNC );
+            }
+            else {
+                $node =
+                    Tachikoma::Nodes::Socket->inet_client_async( $host,
+                    $port );
+            }
+            $node->name($broker_id);
+            $node->debug_state( $self->debug_state );
             $node->on_EOF('reconnect');
             $node->sink( $self->sink );
         }
@@ -338,6 +356,8 @@ sub reset_topic {
     $self->{batch_timestamp} = {};
     $self->{responses}       = {};
     $self->{batch_responses} = {};
+    $self->{set_state}       = {};
+    $self->notify( 'RESET' => $self->{name} );
     return;
 }
 
@@ -359,6 +379,134 @@ sub is_broker_path {
         $self->{valid_broker_paths} = $paths;
     }
     return $paths->{$path};
+}
+
+sub topic {
+    my $self = shift;
+    if (@_) {
+        $self->{topic} = shift;
+    }
+    return $self->{topic};
+}
+
+sub flags {
+    my $self = shift;
+    if (@_) {
+        $self->{flags} = shift;
+    }
+    return $self->{flags};
+}
+
+sub broker_path {
+    my $self = shift;
+    if (@_) {
+        $self->{broker_path} = shift;
+    }
+    return $self->{broker_path};
+}
+
+sub partitions {
+    my $self = shift;
+    if (@_) {
+        $self->{partitions} = shift;
+    }
+    return $self->{partitions};
+}
+
+sub batch_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_interval} = shift;
+    }
+    return $self->{batch_interval};
+}
+
+sub batch_threshold {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_threshold} = shift;
+    }
+    return $self->{batch_threshold};
+}
+
+sub poll_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{poll_interval} = shift;
+    }
+    return $self->{poll_interval};
+}
+
+sub next_partition {
+    my $self = shift;
+    if (@_) {
+        $self->{next_partition} = shift;
+    }
+    return $self->{next_partition};
+}
+
+sub last_check {
+    my $self = shift;
+    if (@_) {
+        $self->{last_check} = shift;
+    }
+    return $self->{last_check};
+}
+
+sub batch {
+    my $self = shift;
+    if (@_) {
+        $self->{batch} = shift;
+    }
+    return $self->{batch};
+}
+
+sub batch_offset {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_offset} = shift;
+    }
+    return $self->{batch_offset};
+}
+
+sub batch_size {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_size} = shift;
+    }
+    return $self->{batch_size};
+}
+
+sub batch_timestamp {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_timestamp} = shift;
+    }
+    return $self->{batch_timestamp};
+}
+
+sub responses {
+    my $self = shift;
+    if (@_) {
+        $self->{responses} = shift;
+    }
+    return $self->{responses};
+}
+
+sub batch_responses {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_responses} = shift;
+    }
+    return $self->{batch_responses};
+}
+
+sub valid_broker_paths {
+    my $self = shift;
+    if (@_) {
+        $self->{valid_broker_paths} = shift;
+    }
+    return $self->{valid_broker_paths};
 }
 
 ########################
@@ -395,7 +543,7 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
         sub {
-            if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
+            if    ( $_[0]->[TYPE] & TM_RESPONSE )    { $expecting = 0; }
             elsif ( $_[0]->[TYPE] & TM_ERROR )       { die $_[0]->[PAYLOAD]; }
             elsif ( $_[0]->[TYPE] & TM_EOF )         { $expecting = -1; }
             elsif ( not $_[0]->[TYPE] & TM_REQUEST ) { die $_[0]->[PAYLOAD]; }
@@ -464,7 +612,7 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     $message->[PAYLOAD] = join q(), map ${$_}, @buffer;
     $target->callback(
         sub {
-            if ( $_[0]->[TYPE] & TM_RESPONSE ) { $expecting = 0; }
+            if    ( $_[0]->[TYPE] & TM_RESPONSE )    { $expecting = 0; }
             elsif ( $_[0]->[TYPE] & TM_ERROR )       { die $_[0]->[PAYLOAD]; }
             elsif ( $_[0]->[TYPE] & TM_EOF )         { $expecting = -1; }
             elsif ( not $_[0]->[TYPE] & TM_REQUEST ) { die $_[0]->[PAYLOAD]; }
@@ -667,113 +815,6 @@ sub remove_target {
     return;
 }
 
-# async and sync support
-sub topic {
-    my $self = shift;
-    if (@_) {
-        $self->{topic} = shift;
-    }
-    return $self->{topic};
-}
-
-sub partitions {
-    my $self = shift;
-    if (@_) {
-        $self->{partitions} = shift;
-    }
-    return $self->{partitions};
-}
-
-sub poll_interval {
-    my $self = shift;
-    if (@_) {
-        $self->{poll_interval} = shift;
-    }
-    return $self->{poll_interval};
-}
-
-# async support
-sub broker_path {
-    my $self = shift;
-    if (@_) {
-        $self->{broker_path} = shift;
-    }
-    return $self->{broker_path};
-}
-
-sub next_partition {
-    my $self = shift;
-    if (@_) {
-        $self->{next_partition} = shift;
-    }
-    return $self->{next_partition};
-}
-
-sub last_check {
-    my $self = shift;
-    if (@_) {
-        $self->{last_check} = shift;
-    }
-    return $self->{last_check};
-}
-
-sub batch {
-    my $self = shift;
-    if (@_) {
-        $self->{batch} = shift;
-    }
-    return $self->{batch};
-}
-
-sub batch_offset {
-    my $self = shift;
-    if (@_) {
-        $self->{batch_offset} = shift;
-    }
-    return $self->{batch_offset};
-}
-
-sub batch_size {
-    my $self = shift;
-    if (@_) {
-        $self->{batch_size} = shift;
-    }
-    return $self->{batch_size};
-}
-
-sub batch_timestamp {
-    my $self = shift;
-    if (@_) {
-        $self->{batch_timestamp} = shift;
-    }
-    return $self->{batch_timestamp};
-}
-
-sub responses {
-    my $self = shift;
-    if (@_) {
-        $self->{responses} = shift;
-    }
-    return $self->{responses};
-}
-
-sub batch_responses {
-    my $self = shift;
-    if (@_) {
-        $self->{batch_responses} = shift;
-    }
-    return $self->{batch_responses};
-}
-
-sub valid_broker_paths {
-    my $self = shift;
-    if (@_) {
-        $self->{valid_broker_paths} = shift;
-    }
-    return $self->{valid_broker_paths};
-}
-
-# sync support
 sub broker_ids {
     my $self = shift;
     if (@_) {

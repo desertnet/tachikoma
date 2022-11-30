@@ -3,8 +3,6 @@
 # Accessories::Nodes::TestStream
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Accessories::Nodes::TestStream;
 use strict;

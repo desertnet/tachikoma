@@ -3,13 +3,10 @@
 # Tachikoma::Nodes::CommandInterpreter
 # ----------------------------------------------------------------------
 #
-# $Id: CommandInterpreter.pm 40980 2021-09-02 07:41:09Z chris $
-#
 
 package Tachikoma::Nodes::CommandInterpreter;
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
@@ -21,8 +18,6 @@ use Tachikoma::Message qw(
 use Tachikoma::Command;
 use Tachikoma::Crypto;
 use Tachikoma::Nodes::Shell2;
-use Tachikoma::Nodes::Socket;
-use Tachikoma::Nodes::STDIO;
 use Data::Dumper;
 use Getopt::Long qw( GetOptionsFromString );
 use POSIX qw( strftime SIGHUP );
@@ -33,16 +28,25 @@ use parent qw( Tachikoma::Node Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.280');
 
+use constant DEFAULT_PORT => 4230;
+use constant TK_R         => 000001;    #    1
+use constant TK_W         => 000002;    #    2
+use constant TK_SYNC      => 000004;    #    4
+
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
 $Data::Dumper::Useperl  = 1;
 
 Getopt::Long::Configure('bundling');
 
-my $HELP             = Tachikoma->configuration->help;
-my %C                = ();
-my %H                = ();
-my %L                = ();
+my %H        = ();
+my %L        = ();
+my %C        = ();
+my %DISABLED = (
+    1 => { map { $_ => 1 } qw( config func make_node remote_env slurp var ) },
+    2 => { map { $_ => 1 } qw( command_node ) },
+    3 => { map { $_ => 1 } qw( connect_node ) },
+);
 my @CONFIG_VARIABLES = qw(
     prefix
     log_dir
@@ -70,6 +74,7 @@ sub new {
     $self->{help_topics} = \%H;
     $self->{help_links}  = \%L;
     $self->{patron}      = undef;
+    $self->disabled( \%DISABLED );
     bless $self, $class;
     return $self;
 }
@@ -83,16 +88,21 @@ sub fill {
             and not $message->[TYPE] & TM_RESPONSE
             and not $message->[TYPE] & TM_ERROR )
         {
-            return $self->interpret($message);
+            $self->interpret($message) if ( not Tachikoma->shutting_down );
+            return;
         }
         elsif ( $message->[TYPE] & TM_PING ) {
             $message->[TO] = $message->[FROM];
         }
         elsif ( $message->[TYPE] & TM_EOF ) {
-            return
-                if ($message->[FROM] !~ m{/}
-                and $message->[FROM] ne '_responder' );
-            $message->[TO] = $message->[FROM];
+            if (   $message->[FROM] =~ m{/}
+                or $message->[FROM] eq '_responder' )
+            {
+                $message->[TO] = $message->[FROM];
+            }
+            else {
+                return;
+            }
         }
     }
     return $self->drop_message( $message, 'no sink' )
@@ -217,7 +227,7 @@ sub send_response {
     my $message  = shift;
     my $response = shift or return;
     return $response if ( not ref $response );
-    if ( $message->[TYPE] & TM_NOREPLY or not $self->{sink} ) {
+    if ( $message->[TYPE] & TM_NOREPLY ) {
         my $payload = $response->[PAYLOAD];
         $payload = Tachikoma::Command->new($payload)->{payload}
             if ( $response->[TYPE] & TM_COMMAND );
@@ -242,15 +252,26 @@ sub send_response {
 }
 
 sub topical_help {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $glob     = $command->arguments;
-    my $config   = $self->configuration;
-    my $h        = $self->help_topics;
-    my $l        = $self->help_links;
-    if ( $HELP->{$glob} ) {
-        return $self->response( $envelope, join q(), @{ $HELP->{$glob} } );
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $glob      = $command->arguments;
+    my $config    = $self->configuration;
+    my $s         = {};
+    my $f         = $config->help;
+    my $h         = $self->help_topics;
+    my $l         = $self->help_links;
+    my $responder = $Tachikoma::Nodes{_responder};
+
+    if ($responder) {
+        my $shell = $responder->shell;
+        $s = $shell->help_topics if ($shell);
+    }
+    if ( $s->{$glob} ) {
+        return $self->response( $envelope, join q(), @{ $s->{$glob} } );
+    }
+    elsif ( $f->{$glob} ) {
+        return $self->response( $envelope, join q(), @{ $f->{$glob} } );
     }
     elsif ( $h->{$glob} ) {
         return $self->response( $envelope, join q(), @{ $h->{$glob} } );
@@ -258,7 +279,7 @@ sub topical_help {
     elsif ( $l->{$glob} ) {
         return $self->response( $envelope, join q(), @{ $l->{$glob} } );
     }
-    my $type = ( $glob =~ m{^([\w:]+)$} )[0];
+    my $type = ( $glob =~ m{^([\w\d:]+)$} )[0];
     if ($type) {
         my $class = undef;
         for my $prefix ( @{ $config->include_nodes }, 'Tachikoma::Nodes' ) {
@@ -276,13 +297,22 @@ sub topical_help {
     }
     my $output = undef;
     if ( $glob ne q() ) {
-        $output = $self->tabulate_help( $glob, $HELP, $h );
+        $output = $self->tabulate_help( $glob, $s, $f, $h );
     }
     else {
-        $output = join q(),
-            "### SHELL BUILTINS ###\n",
-            $self->tabulate_help( $glob, $HELP ),
-            "\n### SERVER COMMANDS ###\n",
+        $output = q();
+        if ( scalar keys %{$s} ) {
+            $output .= join q(),
+                "### SHELL BUILTINS ###\n",
+                $self->tabulate_help( $glob, $s ), "\n";
+        }
+        if ( scalar keys %{$f} ) {
+            $output .= join q(),
+                "### SERVER FUNCTIONS ###\n",
+                $self->tabulate_help( $glob, $f ), "\n";
+        }
+        $output .= join q(),
+            "### SERVER COMMANDS ###\n",
             $self->tabulate_help( $glob, $h );
     }
     if ($output) {
@@ -300,14 +330,9 @@ sub tabulate_help {
     my @topics   = ();
     my $row      = [];
     my $output   = q();
-    if ( $glob ne q() ) {
-        @unsorted = grep m{$glob}, keys %{$_} for (@groups);
-    }
-    else {
-        my $functions = $self->configuration->functions;
-        @unsorted = grep not( $functions->{$_} ), keys %{$_} for (@groups);
-    }
-    @topics = sort @unsorted;
+    push @unsorted, grep m{$glob}, keys %{$_} for (@groups);
+    @topics = sort grep length, @unsorted;
+
     for my $i ( 0 .. $#topics ) {
         push @{$row}, $topics[$i];
         next if ( ( $i + 1 ) % 4 );
@@ -318,6 +343,8 @@ sub tabulate_help {
     $output = $self->tabulate($table) if ( @{$table} > 1 );
     return $output;
 }
+
+$L{cd} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
 
 $H{list_nodes} = [
     "list_nodes [ -celos ] [ <node name> ]\n",
@@ -426,8 +453,8 @@ $C{list_fds} = sub {
     ];
     for my $fd ( sort { $a <=> $b } keys %{$nodes} ) {
         my $node   = $nodes->{$fd};
-        my $name   = $node->{name} || 'unknown';
-        my $type   = $node->{type} || 'unknown';
+        my $name   = $node->{name} // 'unknown';
+        my $type   = $node->{type} // 'unknown';
         my $sortby = $list_types ? $type : $name;
         next if ( $glob ne q() and $sortby !~ m{$glob} );
         push @{$response}, [ $fd, $node->{type}, $name ];
@@ -451,7 +478,7 @@ $C{list_ids} = sub {
     ];
     for my $id ( sort { $a <=> $b } keys %{$nodes} ) {
         my $node = $nodes->{$id};
-        my $name = $node->{name} || 'unknown';
+        my $name = $node->{name} // 'unknown';
         next if ( length $glob and $name !~ m{$glob} );
         my $is_active = $node->timer_is_active;
         my $interval  = $node->timer_interval;
@@ -474,19 +501,6 @@ $C{list_ids} = sub {
 
 $C{list_timers} = $C{list_ids};
 
-$C{list_pids} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $nodes    = Tachikoma->nodes_by_pid;
-    my $response = sprintf "%16s %s\n", 'PID', 'NAME';
-    for my $pid ( sort { $a <=> $b } keys %{$nodes} ) {
-        my $node = $nodes->{$pid};
-        $response .= sprintf "%16d %s\n", $pid, $node->{name} || 'unknown';
-    }
-    return $self->response( $envelope, $response );
-};
-
 $C{list_reconnecting} = sub {
     my $self     = shift;
     my $command  = shift;
@@ -494,6 +508,18 @@ $C{list_reconnecting} = sub {
     my $response = q();
     for my $node ( @{ Tachikoma->nodes_to_reconnect } ) {
         $response .= $node->{name} . "\n" if ( length $node->{name} );
+    }
+    return $self->response( $envelope, $response );
+};
+
+$C{list_disabled} = sub {
+    my $self         = shift;
+    my $command      = shift;
+    my $envelope     = shift;
+    my $response     = q();
+    my $secure_level = $self->configuration->secure_level;
+    for my $cmd_name ( sort keys %{ $self->disabled->{$secure_level} } ) {
+        $response .= "$cmd_name\n";
     }
     return $self->response( $envelope, $response );
 };
@@ -798,7 +824,7 @@ $C{dump_node} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -851,7 +877,7 @@ $C{dump_hex} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -894,7 +920,7 @@ $C{dump_dec} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $name, @keys ) = split q( ), $command->arguments;
-    my %want = map { $_ => 1 } @keys;
+    my %want     = map { $_ => 1 } @keys;
     my $response = q();
     if ( not length $name ) {
         return $self->error( $envelope, qq(no node specified\n) );
@@ -1011,15 +1037,20 @@ $C{listen_inet} = sub {
         for my $listen ( @{ $config->listen_sockets } ) {
             my $server_node = undef;
             if ( $listen->{Socket} ) {
+                require Tachikoma::Nodes::Socket;
                 $server_node =
-                    unix_server Tachikoma::Nodes::Socket( $listen->{Socket},
-                    '_listener' );
+                    Tachikoma::Nodes::Socket->unix_server(
+                    $listen->{Socket} );
+                $server_node->name('_listener');
             }
             else {
+                require Tachikoma::Nodes::Socket;
                 die qq(inet sockets disabled for keyless servers\n)
                     if ( not length $id );
                 $server_node =
-                    inet_server Tachikoma::Nodes::Socket( $listen->{Addr},
+                    Tachikoma::Nodes::Socket->inet_server( $listen->{Addr},
+                    $listen->{Port} );
+                $server_node->name( join q(:), $listen->{Addr},
                     $listen->{Port} );
             }
             $server_node->use_SSL( $listen->{use_SSL} );
@@ -1062,13 +1093,16 @@ $C{listen_inet} = sub {
     die qq(no address specified\n) if ( not $address );
     die qq(no port specified\n)    if ( not $port );
     if ($io_mode) {
-        $node = inet_server Tachikoma::Nodes::STDIO( $address, $port );
+        require Tachikoma::Nodes::STDIO;
+        $node = Tachikoma::Nodes::STDIO->inet_server( $address, $port );
     }
     else {
+        require Tachikoma::Nodes::Socket;
         die qq(inet sockets disabled for keyless servers\n)
             if ( not length $id );
-        $node = inet_server Tachikoma::Nodes::Socket( $address, $port );
+        $node = Tachikoma::Nodes::Socket->inet_server( $address, $port );
     }
+    $node->name( join q(:), $address, $port );
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
@@ -1140,17 +1174,18 @@ $C{listen_unix} = sub {
     die qq(no node name specified\n) if ( not length $name );
 
     if ($io_mode) {
+        require Tachikoma::Nodes::STDIO;
         $node =
-            unix_server Tachikoma::Nodes::STDIO( $filename, $name, $perms,
-            $gid );
+            Tachikoma::Nodes::STDIO->unix_server( $filename, $perms, $gid );
     }
     else {
+        require Tachikoma::Nodes::Socket;
         $node =
-            unix_server Tachikoma::Nodes::Socket( $filename, $name, $perms,
-            $gid );
+            Tachikoma::Nodes::Socket->unix_server( $filename, $perms, $gid );
     }
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
+    $node->name($name);
     $node->owner($owner) if ( length $owner );
     $node->use_SSL( $ssl_verify ? 'verify' : 'noverify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
@@ -1417,7 +1452,7 @@ $C{slurp_file} = sub {
         );
         $node->owner($owner) if ( length $owner );
         $node->sink($sink);
-        $node->on_EOF( length $sink_name ? 'close' : 'wait_to_close' );
+        $node->on_EOF('close');
         return 1;
     };
     if ( not $okay ) {
@@ -1475,7 +1510,7 @@ $C{tell_node} = sub {
     return $self->okay($envelope);
 };
 
-$L{tell} = $HELP->{tell_node};
+$L{tell} = [ "tell_node <path> <info>\n", "    alias: tell\n" ];
 
 $C{tell} = $C{tell_node};
 
@@ -1493,10 +1528,10 @@ $C{request_node} = sub {
     $message->to($path);
     $message->payload($arguments) if ( defined $arguments );
     $self->sink->fill($message);
-    return $self->okay($envelope);
+    return;
 };
 
-$L{request} = $HELP->{request_node};
+$L{request} = [ "request_node <path> <request>\n", "    alias: request\n" ];
 
 $C{request} = $C{request_node};
 
@@ -1513,10 +1548,11 @@ $C{send_node} = sub {
     $message->from( $envelope->from );
     $message->to($path);
     $message->payload("$arguments\n") if ( defined $arguments );
-    return $self->sink->fill($message);
+    $self->sink->fill($message);
+    return;
 };
 
-$L{send} = $HELP->{send_node};
+$L{send} = [ "send_node <path> <bytes>\n", "    alias: send\n" ];
 
 $C{send} = $C{send_node};
 
@@ -1527,7 +1563,7 @@ $C{send_hex} = sub {
     my $command  = shift;
     my $envelope = shift;
     my ( $path, $arguments ) = split q( ), $command->arguments, 2;
-    die qq(no path specified\n) if ( not $path );
+    die qq(no path specified\n)       if ( not $path );
     die qq(no hex values specified\n) if ( not defined $arguments );
     my $name = ( split m{/}, $path, 2 )[0];
     die qq(can't find node "$name"\n) if ( not $Tachikoma::Nodes{$name} );
@@ -1578,7 +1614,6 @@ $C{reply_to} = sub {
     return;
 };
 
-# XXX: this exists for backward compatibility with the old Shell:
 $C{command_node} = sub {
     my $self     = shift;
     my $command  = shift;
@@ -1599,8 +1634,11 @@ $C{command_node} = sub {
     return;
 };
 
-$L{command} = $HELP->{command_node};
-$L{cmd}     = $HELP->{command_node};
+$L{command} = [
+    "command_node <path> <command> [ <arguments> ]\n",
+    "    alias: command, cmd\n"
+];
+$L{cmd} = $L{command};
 
 $C{command} = $C{command_node};
 $C{cmd}     = $C{command_node};
@@ -1636,6 +1674,20 @@ $C{on} = sub {
     return $self->okay($envelope);
 };
 
+$H{debug_state} = ["debug_state <node name> [ <level> ]\n"];
+
+$C{debug_state} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my ( $name, $level ) = split q( ), $command->arguments, 2;
+    die qq(no node specified\n) if ( not length $name );
+    my $node = $Tachikoma::Nodes{$name};
+    die qq(can't find node "$name"\n) if ( not $node );
+    $node->debug_state( $level // not $node->debug_state );
+    return $self->okay($envelope);
+};
+
 $H{reset} = ["reset <node name>\n"];
 
 $C{reset} = sub {
@@ -1658,7 +1710,7 @@ $C{stats} = sub {
     my $envelope = shift;
     my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
-    my $response = [
+    my $response     = [
         [   [ 'NAME'       => 'left' ],
             [ 'COUNT'      => 'right' ],
             [ 'BUF_SIZE'   => 'right' ],
@@ -1716,7 +1768,7 @@ $C{dump_config} = sub {
             $skip{$name} = 1;
             next;
         }
-        if (   $name eq 'command_interpreter'
+        if (   $name eq '_command_interpreter'
             or $name eq '_parent'
             or not $node->{sink}
             or not $node->{sink}->{name}
@@ -1743,7 +1795,7 @@ $C{dump_config} = sub {
     for my $name ( sort keys %Tachikoma::Nodes ) {
         next if ( $skip{$name} );
         my $node = $Tachikoma::Nodes{$name};
-        if ( $node->{sink}->{name} ne 'command_interpreter' ) {
+        if ( $node->{sink}->{name} ne '_command_interpreter' ) {
             $response .= "connect_sink $name $node->{sink}->{name}\n";
         }
         if ( $node->{edge} ) {
@@ -1898,16 +1950,16 @@ $C{remote_var} = sub {
     my $var = $self->configuration->var;
     if ( length $value ) {
         my $v = $var->{$key};
-        $v = [] if ( not defined $v or not length $v );
+        $v = []   if ( not defined $v or not length $v );
         $v = [$v] if ( not ref $v );
-        if ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ); }
-        if ( $op eq q(=) ) { $v = [$value]; }
-        elsif ( $op eq q(.=) ) { push @{$v}, $value; }
-        elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $value; }
-        elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $value; }
-        elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $value; }
-        elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $value; }
-        elsif ( $op eq q(//=) and not @{$v} ) { $v = [$value]; }
+        if    ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ); }
+        if    ( $op eq q(=) )            { $v = [$value]; }
+        elsif ( $op eq q(.=) )           { push @{$v}, $value; }
+        elsif ( $op eq q(+=) )           { $v->[0] //= 0; $v->[0] += $value; }
+        elsif ( $op eq q(-=) )           { $v->[0] //= 0; $v->[0] -= $value; }
+        elsif ( $op eq q(*=) )           { $v->[0] //= 0; $v->[0] *= $value; }
+        elsif ( $op eq q(/=) )           { $v->[0] //= 0; $v->[0] /= $value; }
+        elsif ( $op eq q(//=) and not @{$v} )           { $v = [$value]; }
         elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = [$value]; }
         else { return $self->error("invalid operator: $op"); }
 
@@ -1991,7 +2043,7 @@ $C{list_callbacks} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _responder\n" if ( not $responder );
     my $callbacks = $responder->shell->callbacks;
-    my $response = join q(), map "$_\n", sort keys %{$callbacks};
+    my $response  = join q(), map "$_\n", sort keys %{$callbacks};
     return $self->response( $envelope, $response );
 };
 
@@ -2211,15 +2263,19 @@ $C{disable_profiling} = sub {
 $H{secure} = ["secure [ <level> ]\n"];
 
 $C{secure} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
-    my $num       = $command->arguments;
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $num      = $command->arguments;
+
+    # The shell likes to cache its prompt commands.  Clear the cache
+    # of any unsigned prompt command so that a new one can be made.
     my $responder = $Tachikoma::Nodes{_responder};
     if ($responder) {
         my $shell = $responder->shell;
         $shell->{last_prompt} = 0 if ($shell);
     }
+
     my $config       = $self->configuration;
     my $secure_level = $config->secure_level;
     if ( length $num ) {
@@ -2245,23 +2301,29 @@ $C{secure} = sub {
     elsif ( $secure_level < 3 ) {
         $config->secure_level( $secure_level + 1 );
     }
+    $Tachikoma::Nodes{_router}->fire_cb;
     return $self->okay($envelope);
 };
 
 $C{insecure} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+
+    # The shell likes to cache its prompt commands.  Clear the cache
+    # of any unsigned prompt command so that a new one can be made.
     my $responder = $Tachikoma::Nodes{_responder};
     if ($responder) {
         my $shell = $responder->shell;
         $shell->{last_prompt} = 0 if ($shell);
     }
+
     my $config = $self->configuration;
     die "ERROR: process already secured\n"
-        if ( defined $config->secure_level
-        and $config->secure_level > 0 );
+        if ( $config->secure_level > 0 );
     $config->secure_level(-1);
+
+    $Tachikoma::Nodes{_router}->fire_cb;
     return $self->okay($envelope);
 };
 
@@ -2277,7 +2339,7 @@ $C{initialize} = sub {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: can't find _router\n"    if ( not $router );
     die "ERROR: can't find _responder\n" if ( not $responder );
-    die "ERROR: already initialized\n"   if ( $router->type ne 'router' );
+    die "ERROR: already initialized\n"   if ( $router->type ne 'tachikoma' );
     my $interval = $router->timer_interval;
     $router->stop_timer;
     my $node = $responder->sink;
@@ -2288,19 +2350,19 @@ $C{initialize} = sub {
     }
     Tachikoma->event_framework->close_filehandle($node);
     delete( Tachikoma->nodes_by_fd->{ $node->fd } );
-    $responder->client(undef);
-    $responder->sink(undef);
-    $responder->edge(undef);
+    $responder->owner(q());
+    $responder->sink($router);
     my $okay = eval {
         Tachikoma->initialize( $name, $daemonize );
         return 1;
     };
     if ( not $okay ) {
         print {*STDERR} $@ || "ERROR: initialize: unknown error\n";
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
         exit 1;
     }
     $router->type('root');
-    $router->register_router_node;
     $router->set_timer($interval);
     return;
 };
@@ -2309,13 +2371,128 @@ $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
 $C{daemonize} = $C{initialize};
 
+$H{set_timeout} = ["set_timeout <seconds>\n"];
+
+$C{set_timeout} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $router   = $Tachikoma::Nodes{_router};
+    die "ERROR: already initialized\n"
+        if ( $router->type ne 'tachikoma' );
+    my $okay = eval {
+        my $seconds = $command->arguments;
+        if ( $seconds and $seconds =~ m{^\d+$} ) {
+            require Tachikoma::Nodes::Timeout;
+            my $timeout   = Tachikoma::Nodes::Timeout->new;
+            my $responder = $Tachikoma::Nodes{_responder};
+            my $dumper    = $responder->sink;
+            my $shutdown  = $dumper->sink;
+            $timeout->arguments( $seconds * 1000 );
+            $timeout->sink($shutdown);
+            $dumper->sink($timeout);
+        }
+        else {
+            die qq(ERROR: bad arguments for set_timeout\n);
+        }
+        return 1;
+    };
+    if ( not $okay ) {
+        warn $@;
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
+        exit 1;
+    }
+    return;
+};
+
+$H{pivot_client} = [
+    "pivot_client <hostname>[:<port>] [ <node name> ]\n",
+    "pivot_client --host <host>                     \\\n",
+    "             --port <port>                     \\\n",
+    "             --socket <file>                   \\\n",
+    "             --use-ssl\n"
+];
+
+$C{pivot_client} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $router   = $Tachikoma::Nodes{_router};
+    die "ERROR: already initialized\n"
+        if ( $router->type ne 'tachikoma' );
+    my $okay = eval {
+        my $host      = undef;
+        my $port      = undef;
+        my $socket    = undef;
+        my $use_SSL   = undef;
+        my $tachikoma = undef;
+        my ( $r, $argv ) = GetOptionsFromString(
+            $command->arguments,
+            'host=s'   => \$host,
+            'port=i'   => \$port,
+            'socket=s' => \$socket,
+            'use-ssl'  => \$use_SSL,
+        );
+        die qq(invalid option\n) if ( not $r );
+
+        if ( not $host ) {
+            my $host_port = shift @{$argv} // q();
+            my ( $host_part, $port_part ) = split m{:}, $host_port, 2;
+            $host = $host_part if ( length $host_part );
+            $port = $port_part if ( length $port_part );
+        }
+        $host //= 'localhost';
+        $port //= DEFAULT_PORT;
+
+        my $config = $self->configuration;
+        die "ERROR: secure level already defined\n"
+            if ( $config->secure_level != 0 );
+        $config->secure_level(3);
+
+        require Tachikoma::Nodes::Socket;
+        if ( length $socket ) {
+            $tachikoma =
+                Tachikoma::Nodes::Socket->unix_client( $socket, TK_SYNC,
+                $use_SSL );
+        }
+        else {
+            $tachikoma =
+                Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
+                $use_SSL );
+        }
+
+        # The shell likes to cache its prompt commands.  Clear the cache
+        # of any unsigned prompt command so that a new one can be made.
+        my $responder = $Tachikoma::Nodes{_responder};
+        my $shell     = $responder->shell;
+        $shell->{last_prompt} = 0 if ( $shell->can('last_prompt') );
+        $shell->sink($tachikoma);
+        $tachikoma->name('_socket');
+        $tachikoma->on_EOF('die');
+        $tachikoma->sink( $Tachikoma::Nodes{_router} );
+        $self->remove_node;
+        return 1;
+    };
+    if ( not $okay ) {
+        warn $@;
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
+        exit 1;
+    }
+    return;
+};
+
+$L{pivot} = $H{pivot_client};
+
+$C{pivot} = $C{pivot_client};
+
 $H{shutdown} = ["shutdown\n"];
 
 $C{shutdown} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->stderr('shutting down - received command');
     $self->shutdown_all_nodes;
     return;
 };
@@ -2357,7 +2534,7 @@ sub verify_command {
             $message->[FROM], ' failed: ', $id, ' not in authorized_keys' );
         return;
     }
-    $self->verify_key( $message, [ 'command', 'meta' ], $command->{name} )
+    $self->verify_key( $message, ['command'], $command->{name} )
         or return;
     my $response = undef;
     my $signed   = join q(:),
@@ -2410,28 +2587,23 @@ sub verify_key {
         if ( not $entry );
     return 1 if ( $id eq $my_id and $secure_level < 1 );
 
-    if ( $cmd_name and $entry->{allow_commands}->{$cmd_name} ) {
-        my %disabled = (
-            1 => { make_node => 1 },
-            2 => {
-                make_node    => 1,
-                command_node => 1
-            },
-            3 => {
-                make_node    => 1,
-                command_node => 1,
-                connect_node => 1
-            },
-        );
-        return 1 if ( not $disabled{$secure_level}->{$cmd_name} );
-    }
+    my $allow_tag = 1;
     for my $tag ( @{$tags} ) {
-        next if ( $secure_level > 0 and $tag eq 'meta' );
-        return 1 if ( $entry->{allow}->{$tag} );
+        next if ( $tag eq 'meta' and $id eq $my_id );
+        $allow_tag = undef if ( not $entry->{allow}->{$tag} );
+    }
+    if ( $allow_tag or $secure_level < 0 ) {
+        if ($cmd_name) {
+            return 1 if ( not $self->disabled->{$secure_level}->{$cmd_name} );
+        }
+        else {
+            return 1;
+        }
     }
     $self->stderr(
-        'ERROR: verification failed:',
-        " $id not allowed to ",
+        'ERROR: verification of message from ',
+        $message->[FROM], ' failed: ', $id,
+        ' not allowed to ',
         $cmd_name || $tags->[0]
     );
     return;
@@ -2443,12 +2615,9 @@ sub verify_startup {
     my $id           = shift;
     my $secure_level = shift;
     return 1
-        if (
-        ( not length $id and not $secure_level )
-        or (    defined $secure_level
-            and $secure_level == 0
-            and $message->[FROM] =~ m{^(_parent/)*_responder$} )
-        );
+        if (defined $secure_level
+        and $secure_level == 0
+        and $message->[FROM] =~ m{^(_parent/)*_responder$} );
     return;
 }
 
@@ -2466,7 +2635,7 @@ sub log_command {
     if ( $cmd_name ne 'prompt'
         and not( $message->[TYPE] & TM_COMPLETION and $comp{$cmd_name} ) )
     {
-        my $node = $self->patron || $self;
+        my $node          = $self->patron || $self;
         my $cmd_arguments = $command->{arguments};
         $cmd_arguments =~ s{\n}{\\n}g;
         $node->stderr( join q( ), 'FROM:', $message->[FROM], 'ID:',
@@ -2501,7 +2670,7 @@ sub make_node {
         my $class_path = $class;
         $class_path =~ s{::}{/}g;
         $class_path .= '.pm';
-        $rv = eval { require $class_path };
+        $rv    = eval { require $class_path };
         $error = $@
             if ( not $rv
             and ( not $error or $error =~ m{^Can't locate \S*$path} ) );
@@ -2544,15 +2713,18 @@ sub connect_inet {
     my $connection = undef;
 
     if ( $mode eq 'message' ) {
-        $port ||= 4230;
+        require Tachikoma::Nodes::Socket;
+        $port ||= DEFAULT_PORT;
         $reconnect //= 'true';
         $connection =
-            inet_client_async Tachikoma::Nodes::Socket( $host, $port, $name );
+            Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
     }
     else {
+        require Tachikoma::Nodes::STDIO;
         $connection =
-            inet_client_async Tachikoma::Nodes::STDIO( $host, $port, $name );
+            Tachikoma::Nodes::STDIO->inet_client_async( $host, $port );
     }
+    $connection->name($name);
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2562,7 +2734,7 @@ sub connect_inet {
     }
     $connection->use_SSL( $options{use_SSL} );
     $connection->scheme( $options{scheme} ) if ( $options{scheme} );
-    $connection->owner($owner) if ( length $owner );
+    $connection->owner($owner)              if ( length $owner );
     $connection->sink($self);
     return;
 }
@@ -2581,14 +2753,15 @@ sub connect_unix {
     my $connection = undef;
 
     if ( $mode eq 'message' ) {
+        require Tachikoma::Nodes::Socket;
         $reconnect //= 'true';
-        $connection =
-            unix_client_async Tachikoma::Nodes::Socket( $filename, $name );
+        $connection = Tachikoma::Nodes::Socket->unix_client_async($filename);
     }
     else {
-        $connection =
-            unix_client_async Tachikoma::Nodes::STDIO( $filename, $name );
+        require Tachikoma::Nodes::STDIO;
+        $connection = Tachikoma::Nodes::STDIO->unix_client_async($filename);
     }
+    $connection->name($name);
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2748,6 +2921,7 @@ sub tabulate {
     my @format     = ();
     my $show_title = ref $header->[0];
     for my $col ( 0 .. $#{$header} ) {
+        $max[$col] = 0;
         $max[$col] = length $header->[$col]->[0]
             if ( $show_title
             and length $header->[$col]->[0] > ( $max[$col] || 0 ) );
@@ -2822,19 +2996,19 @@ sub name {
     return $self->SUPER::name(@_);
 }
 
+sub owner {
+    my $self = shift;
+    if (@_) {
+        die "ERROR: owner is not used by CommandInterpreter\n";
+    }
+    return q();
+}
+
 sub remove_node {
     my $self = shift;
     $self->{patron} = undef;
     $self->SUPER::remove_node;
     return;
-}
-
-sub commands {
-    my $self = shift;
-    if (@_) {
-        $self->{commands} = shift;
-    }
-    return $self->{commands};
 }
 
 sub help_topics {
@@ -2851,6 +3025,29 @@ sub help_links {
         $self->{help_links} = shift;
     }
     return $self->{help_links};
+}
+
+sub commands {
+    my $self = shift;
+    if (@_) {
+        $self->{commands} = shift;
+    }
+    return $self->{commands};
+}
+
+sub disabled {
+    my $self = shift;
+    if (@_) {
+        my $disabled = shift;
+        for my $cmd_name ( keys %{ $disabled->{1} } ) {
+            $disabled->{2}->{$cmd_name} = $disabled->{1}->{$cmd_name};
+        }
+        for my $cmd_name ( keys %{ $disabled->{2} } ) {
+            $disabled->{3}->{$cmd_name} = $disabled->{2}->{$cmd_name};
+        }
+        $self->{disabled} = $disabled;
+    }
+    return $self->{disabled};
 }
 
 sub patron {

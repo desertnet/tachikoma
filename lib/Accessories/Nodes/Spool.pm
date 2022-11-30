@@ -3,8 +3,6 @@
 # Accessories::Nodes::Spool
 # ----------------------------------------------------------------------
 #
-# $Id: Spool.pm 536 2009-01-04 00:43:07Z chris $
-#
 
 package Accessories::Nodes::Spool;
 use strict;

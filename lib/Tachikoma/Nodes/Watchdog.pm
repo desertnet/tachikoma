@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Watchdog
 # ----------------------------------------------------------------------
 #
-# $Id: Watchdog.pm 12579 2012-01-11 04:10:56Z chris $
-#
 
 package Tachikoma::Nodes::Watchdog;
 use strict;
@@ -29,7 +27,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $gate, $timeout ) = split q( ), $self->{arguments}, 2;
-        $self->{gate} = $gate;
+        $self->{gate}    = $gate;
         $self->{timeout} = $timeout || $Default_Timeout;
         $self->set_timer( $self->{timeout} * 1000 );
     }

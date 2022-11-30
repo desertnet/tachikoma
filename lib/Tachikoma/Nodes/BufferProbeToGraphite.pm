@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::BufferProbeToGraphite
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::BufferProbeToGraphite;
 use strict;
@@ -56,10 +54,10 @@ sub fill {
     my $prefix    = $self->{prefix};
     my $timestamp = $message->[TIMESTAMP];
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $buffer = { map { split m{:}, $_, 2 } split q( ), $line };
-        my $hostname  = $buffer->{hostname}  or next;
+        my $buffer    = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $hostname  = $buffer->{hostname} or next;
         my $buff_name = $buffer->{buff_name} or next;
-        $hostname =~ s{[.].*}{};
+        $hostname  =~ s{[.].*}{};
         $buff_name =~ s{[^\w\d]+}{_}g;
         for my $field (@Fields) {
             my $key = join q(.),

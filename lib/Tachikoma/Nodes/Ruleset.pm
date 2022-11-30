@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Ruleset
 # ----------------------------------------------------------------------
 #
-# $Id: Ruleset.pm 4142 2010-01-21 23:17:02Z chris $
-#
 
 package Tachikoma::Nodes::Ruleset;
 use strict;
@@ -19,8 +17,9 @@ use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my %C = ();
-my %Exclude_To = map { $_ => 1 } qw( copy redirect rewrite );
+my %C          = ();
+my %DISABLED   = ( 3 => { map { $_ => 1 } qw( update_rules ) } );
+my %EXCLUDE_TO = map { $_ => 1 } qw( copy redirect rewrite );
 
 sub new {
     my $class = shift;
@@ -29,6 +28,7 @@ sub new {
     $self->{interpreter} = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
+    $self->{interpreter}->disabled( \%DISABLED );
     bless $self, $class;
     return $self;
 }
@@ -56,11 +56,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             if (
             ( $field and $field == PAYLOAD and $message_type & TM_STORABLE )
             or ( defined $from and $message_from !~ m{$from} )
-            or (    not $Exclude_To{$type}
+            or (    not $EXCLUDE_TO{$type}
                 and defined $to
                 and $message_to !~ m{$to} )
             );
-        my $copy = Tachikoma::Message->unpacked($packed);
+        my $copy    = Tachikoma::Message->unpacked($packed);
         my @matches = $field ? $copy->[$field] =~ m{$re} : ();
         next if ( $field and not @matches );
         if ( $type eq 'deny' ) {
@@ -206,8 +206,8 @@ $C{add_rule} = sub {
     if ( not exists $self->patron->rules->{$id} ) {
         $self->patron->rules->{$id} = [
             $type,
-            defined $from ? qr{$from} : undef,
-            ( not $Exclude_To{$type} and defined $to ) ? qr{$to} : $to,
+            defined $from                              ? qr{$from} : undef,
+            ( not $EXCLUDE_TO{$type} and defined $to ) ? qr{$to}   : $to,
             $field_id      ? $enum{$field_id} : undef,
             defined $regex ? qr{$regex}       : undef
         ];

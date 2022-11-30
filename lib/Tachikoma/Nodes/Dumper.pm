@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Dumper
 # ----------------------------------------------------------------------
 #
-# $Id: Dumper.pm 40348 2021-05-15 22:12:24Z chris $
-#
 
 package Tachikoma::Nodes::Dumper;
 use strict;
@@ -28,9 +26,6 @@ $Data::Dumper::Useperl  = 1;
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{debug}   = undef;
-    $self->{stdin}   = undef;
-    $self->{client}  = undef;
     $self->{newline} = 1;
     bless $self, $class;
     return $self;
@@ -40,7 +35,6 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{debug}     = $self->{arguments};
     }
     return $self->{arguments};
 }
@@ -50,7 +44,9 @@ sub fill {
     my $message      = shift;
     my $type         = undef;
     my $use_readline = undef;
-    $use_readline = $self->{stdin}->use_readline if ( $self->{stdin} );
+    my $stdin        = $Tachikoma::Nodes{_stdin};
+    $use_readline = $stdin->use_readline
+        if ( $stdin and $stdin->isa('Tachikoma::Nodes::TTY') );
     if ( $message->[TYPE] & TM_STORABLE ) {
         $type = $self->dump_storable($message);
     }
@@ -63,14 +59,18 @@ sub fill {
     elsif ( $message->[TYPE] & TM_COMMAND ) {
         $type = $self->dump_command($message);
     }
-    elsif ($message->[TYPE] & TM_INFO
+    elsif (
+           $message->[TYPE] & TM_INFO
         or $message->[TYPE] & TM_REQUEST
         or $message->[TYPE] & TM_BATCH
-        or ( $message->[TYPE] & TM_EOF and $self->{debug} ) )
+        or (    $message->[TYPE] & TM_EOF
+            and $self->{configuration}->{debug_level} )
+        )
     {
         $type = TM_BYTESTREAM;
     }
-    $self->dump_message($message) if ( $self->{debug} );
+    $self->dump_message($message)
+        if ( $self->{configuration}->{debug_level} );
     $message->[TYPE] = $type if ($type);
     $self->add_style( $message, $use_readline )
         if ( $message->[TYPE] & TM_BYTESTREAM );
@@ -83,7 +83,9 @@ sub fill {
 sub dump_storable {
     my $self    = shift;
     my $message = shift;
-    if ( $self->{debug} and $self->{debug} >= 2 ) {
+    if (    $self->{configuration}->{debug_level}
+        and $self->{configuration}->{debug_level} >= 2 )
+    {
         $message->payload;
     }
     else {
@@ -96,7 +98,9 @@ sub dump_storable {
 sub dump_ping {
     my $self    = shift;
     my $message = shift;
-    if ( not $self->{debug} or $self->{debug} <= 1 ) {
+    if ( not $self->{configuration}->{debug_level}
+        or $self->{configuration}->{debug_level} <= 1 )
+    {
         my $rtt = sprintf '%.2f',
             ( $Tachikoma::Right_Now - $message->payload ) * 1000;
         $message->payload("round trip time: $rtt ms\n");
@@ -110,7 +114,7 @@ sub dump_response {
     my $use_readline = shift;
     my $type         = $message->[TYPE];
     my $command;
-    return if ( $type & TM_COMPLETION and $type & TM_ERROR );
+    return               if ( $type & TM_COMPLETION and $type & TM_ERROR );
     return TM_BYTESTREAM if ( not $type & TM_COMMAND );
     $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;
@@ -124,16 +128,18 @@ sub dump_response {
                 $prompt .= '> ' if ( $prompt !~ m{> $} );
             }
             $self->{newline} = 1;
-            $self->{stdin}->prompt($prompt);
+            $Tachikoma::Nodes{_stdin}->prompt($prompt);
             return;
         }
         elsif ( $type & TM_COMPLETION ) {
-            $self->{stdin}
+            $Tachikoma::Nodes{_stdin}
                 ->set_completions( $command->{name}, $command->{payload} );
             return;    # TLDNR
         }
     }
-    if ( $self->{debug} and $self->{debug} >= 2 ) {
+    if (    $self->{configuration}->{debug_level}
+        and $self->{configuration}->{debug_level} >= 2 )
+    {
         $message->payload($command);
     }
     else {
@@ -148,7 +154,9 @@ sub dump_command {
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     my ( $id, $signature ) = split m{\n}, $command->{signature}, 2;
     $command->{signature} = $id;
-    if ( $self->{debug} and $self->{debug} >= 2 ) {
+    if (    $self->{configuration}->{debug_level}
+        and $self->{configuration}->{debug_level} >= 2 )
+    {
         $message->[PAYLOAD] = $command;
     }
     else {
@@ -160,7 +168,7 @@ sub dump_command {
 sub dump_message {
     my $self    = shift;
     my $message = shift;
-    if ( $self->{debug} > 1 ) {
+    if ( $self->{configuration}->{debug_level} > 1 ) {
         $message->[PAYLOAD] = $message->as_string;
     }
     else {
@@ -178,22 +186,14 @@ sub add_style {
     return if ( not length $message->[PAYLOAD] );
     if ( $use_readline and $self->{newline} ) {
         my $clear  = q();
-        my $length = $self->{stdin}->line_length;
-        my $width  = $self->{stdin}->width;
+        my $length = $Tachikoma::Nodes{_stdin}->line_length;
+        my $width  = $Tachikoma::Nodes{_stdin}->width;
         if ( $length > $width ) {
             my $lines = $length / $width;
             $clear .= "\e[A" x int $lines;
         }
         $clear .= "\r\e[J";
         $message->[PAYLOAD] = join q(), $clear, $message->[PAYLOAD];
-    }
-    elsif ( $self->{client} and $self->{client} eq 'SILCbot' ) {
-        my $payload = q();
-        for my $line ( split m{^}, $message->[PAYLOAD] ) {
-            chomp $line;
-            $payload .= join q(), "\e[31m", $line, "\e[0m\n";
-        }
-        $message->[PAYLOAD] = $payload;
     }
     return;
 }
@@ -205,36 +205,12 @@ sub update_prompt {
     return if ( not $use_readline );
     if ( $message->[PAYLOAD] =~ m{\n$} ) {
         $self->{newline} = 1;
-        $self->{stdin}->prompt;
+        $Tachikoma::Nodes{_stdin}->prompt;
     }
     else {
         $self->{newline} = undef;
     }
     return;
-}
-
-sub debug {
-    my $self = shift;
-    if (@_) {
-        $self->{debug} = shift;
-    }
-    return $self->{debug};
-}
-
-sub stdin {
-    my $self = shift;
-    if (@_) {
-        $self->{stdin} = shift;
-    }
-    return $self->{stdin};
-}
-
-sub client {
-    my $self = shift;
-    if (@_) {
-        $self->{client} = shift;
-    }
-    return $self->{client};
 }
 
 sub newline {

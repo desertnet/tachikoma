@@ -3,30 +3,12 @@
 # Tachikoma
 # ----------------------------------------------------------------------
 #
-# $Id: Tachikoma.pm 39768 2021-01-18 21:19:30Z chris $
-#
 
 package Tachikoma;
 use strict;
 use warnings;
-use Tachikoma::Node;
-use Tachikoma::Message qw(
-    TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_PERSIST TM_RESPONSE TM_EOF
-    VECTOR_SIZE
-);
 use Tachikoma::Config qw( load_module include_conf );
-use Tachikoma::Crypto;
-use Tachikoma::Nodes::Callback;
-use Digest::MD5 qw( md5 );
-use IO::Socket::SSL;
-use POSIX qw( setsid dup2 F_SETFL O_NONBLOCK EAGAIN );
-use Socket qw(
-    PF_UNIX PF_INET SOCK_STREAM inet_aton pack_sockaddr_in pack_sockaddr_un
-    SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE
-);
-use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Node Tachikoma::Crypto );
+use POSIX qw( setsid );
 
 use version; our $VERSION = qv('v2.0.101');
 
@@ -35,6 +17,9 @@ use constant {
     DEFAULT_TIMEOUT => 900,
     MAX_INT         => 2**32,
     BUFSIZ          => 262144,
+    TK_R            => 000001,    #    1
+    TK_W            => 000002,    #    2
+    TK_SYNC         => 000004,    #    4
 };
 
 $Tachikoma::Max_Int         = MAX_INT;
@@ -44,7 +29,6 @@ $Tachikoma::Event_Framework = undef;
 %Tachikoma::Nodes           = ();
 $Tachikoma::Nodes_By_ID     = {};
 $Tachikoma::Nodes_By_FD     = {};
-$Tachikoma::Nodes_By_PID    = {};
 @Tachikoma::Closing         = ();
 
 my $COUNTER            = 0;
@@ -56,449 +40,145 @@ my @RECENT_LOG         = ();
 my %RECENT_LOG_TIMERS  = ();
 my $SHUTTING_DOWN      = undef;
 
-sub unix_client {
-    my $class    = shift;
-    my $filename = shift;
-    my $socket;
-    srand;
-    socket $socket, PF_UNIX, SOCK_STREAM, 0 or die "socket: $!";
-    setsockopts($socket);
-    connect $socket, pack_sockaddr_un($filename) or die "connect: $!\n";
-    my $node = $class->new($socket);
-    $node->reply_to_server_challenge;
-    $node->auth_server_response;
-    return $node;
-}
-
 sub inet_client {
-    my $class    = shift;
-    my $hostname = shift || 'localhost';
-    my $port     = shift || DEFAULT_PORT;
-    my $use_ssl  = shift;
-    my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
-    my $proto    = getprotobyname 'tcp';
-    my $socket;
-    srand;
-    socket $socket, PF_INET, SOCK_STREAM, $proto or die "socket: $!";
-    setsockopts($socket);
-    connect $socket, pack_sockaddr_in( $port, $iaddr )
-        or die "connect: $!\n";
-
-    if ($use_ssl) {
-        my $config     = Tachikoma->configuration;
-        my $ssl_socket = IO::Socket::SSL->start_SSL(
-            $socket,
-            SSL_key_file       => $config->ssl_client_key_file,
-            SSL_cert_file      => $config->ssl_client_cert_file,
-            SSL_ca_file        => $config->ssl_client_ca_file,
-            SSL_startHandshake => 1,
-            SSL_use_cert       => 1,
-
-            # SSL_cipher_list     => $config->ssl_ciphers,
-            SSL_version         => $config->ssl_version,
-            SSL_verify_callback => sub {
-                my $okay  = $_[0];
-                my $error = $_[3];
-                return 1 if ($okay);
-                $error =~ s{^error:}{};
-                print {*STDERR} "ERROR: SSL verification failed: $error\n";
-                return 0;
-            },
-        );
-        if ( not $ssl_socket or not ref $ssl_socket ) {
-            my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
-            $ssl_error =~ s{(error)(error)}{$1: $2};
-            die join q(: ),
-                q(ERROR: couldn't start_SSL),
-                grep {$_} $!, $ssl_error;
-        }
-        $socket = $ssl_socket;
-    }
-    my $node = $class->new($socket);
-    $node->hostname($hostname);
-    $node->port($port);
-    $node->use_SSL($use_ssl);
-    $node->reply_to_server_challenge;
-    $node->auth_server_response;
-    return $node;
+    my ( $class, $host, $port, $use_SSL ) = @_;
+    $host ||= 'localhost';
+    $port ||= DEFAULT_PORT;
+    require Tachikoma::EventFrameworks::Select;
+    require Tachikoma::Nodes::Router;
+    require Tachikoma::Nodes::Callback;
+    require Tachikoma::Nodes::Socket;
+    my $self = $class->new;
+    $self->{this_framework} = Tachikoma::EventFrameworks::Select->new;
+    $self->set_framework;
+    $self->{sink} = Tachikoma::Nodes::Router->new;
+    $self->{connector} =
+        Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
+        $use_SSL );
+    $self->restore_framework;
+    return $self;
 }
 
 sub new {
-    my $class        = shift;
-    my $fh           = shift;
-    my $input_buffer = q();
-    my $self         = $class->SUPER::new;
-    $self->{name}           = $$;
-    $self->{fh}             = $fh;
-    $self->{hostname}       = undef;
-    $self->{port}           = undef;
-    $self->{auth_challenge} = undef;
-    $self->{auth_timestamp} = undef;
-    $self->{input_buffer}   = \$input_buffer;
-    $self->{timeout}        = DEFAULT_TIMEOUT;
+    my $class = shift;
+    my $self  = {
+        parent_framework => undef,
+        this_framework   => undef,
+        connector        => undef,
+        sink             => undef,
+        fh               => undef,
+        timeout          => DEFAULT_TIMEOUT,
+    };
     bless $self, $class;
     return $self;
 }
 
-sub setsockopts {
-    my $socket = shift;
-    my $config = Tachikoma->configuration;
-    if ( $config->buffer_size ) {
-        setsockopt $socket, SOL_SOCKET, SO_SNDBUF, $config->buffer_size
-            or die "FAILED: setsockopt: $!";
-        setsockopt $socket, SOL_SOCKET, SO_RCVBUF, $config->buffer_size
-            or die "FAILED: setsockopt: $!";
-    }
-    if ( $config->low_water_mark ) {
-        setsockopt $socket, SOL_SOCKET, SO_SNDLOWAT, $config->low_water_mark
-            or die "FAILED: setsockopt: $!";
-    }
-    if ( $config->keep_alive ) {
-        setsockopt $socket, SOL_SOCKET, SO_KEEPALIVE, 1
-            or die "FAILED: setsockopt: $!";
-    }
-    return;
-}
-
-sub reply_to_server_challenge {
-    my $self = shift;
-    my ( $got, $message ) = $self->read_block;
-    return if ( not $message );
-    my $version = $message->[ID];
-    my $config  = Tachikoma->configuration;
-    if ( not $version or $version ne $config->wire_version ) {
-        die "ERROR: reply_to_server_challenge failed: version mismatch\n";
-    }
-    my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-    if ( $command->{arguments} ne 'client' ) {
-        die "ERROR: reply_to_server_challenge failed: wrong challenge type\n";
-    }
-    elsif ( length $config->id ) {
-        exit 1
-            if (
-            not $self->verify_signature( 'server', $message, $command ) );
-    }
-    $command->sign( $self->scheme, $message->timestamp );
-    $message->payload( $command->packed );
-    $self->{counter}++;
-    $self->{auth_challenge} = rand;
-    my $response =
-        $self->command( 'challenge', 'server',
-        md5( $self->{auth_challenge} ) );
-    $response->[ID] = $config->wire_version;
-    $self->{auth_timestamp} = $response->[TIMESTAMP];
-    my $wrote = syswrite $self->{fh},
-        ${ $message->packed } . ${ $response->packed };
-    die "ERROR: reply_to_server_challenge couldn't write: $!\n"
-        if ( not $wrote or $! );
-
-    if ( $got > 0 ) {
-        print {*STDERR}
-            "WARNING: discarding $got excess bytes from server challenge.\n";
-        my $new_buffer = q();
-        $self->{input_buffer} = \$new_buffer;
-    }
-    return;
-}
-
-sub auth_server_response {
-    my $self = shift;
-    my ( $got, $message ) = $self->read_block;
-    my $config = Tachikoma->configuration;
-    return if ( not $message or not $config->id );
-    my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-    if ( $command->{arguments} ne 'server' ) {
-        die "ERROR: auth_server_response failed: wrong challenge type\n";
-    }
-    elsif ( length $config->id ) {
-        exit 1
-            if (
-            not $self->verify_signature( 'server', $message, $command ) );
-    }
-    elsif ( $message->[TIMESTAMP] ne $self->{auth_timestamp} ) {
-        die "ERROR: auth_server_response failed: incorrect timestamp\n";
-    }
-    elsif ( $command->{payload} ne md5( $self->{auth_challenge} ) ) {
-        die "ERROR: auth_server_response failed: incorrect response\n";
-    }
-    $self->{counter}++;
-    $self->{auth_challenge} = undef;
-    return;
-}
-
-sub read_block {
-    my $self = shift;
-    my ( $buffer, $got, $read, $size ) = $self->read_buffer;
-    if ( $size > BUFSIZ ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
-        die "ERROR: $caller failed: size $size > BUFSIZ\n";
-    }
-    if ( $got >= $size and $size > 0 ) {
-        my $message =
-            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
-        $got -= $size;
-        return ( $got, $message );
-    }
-    if ( not defined $read ) {
-        my $caller = ( split m{::}, ( caller 1 )[3] )[-1];
-        die "ERROR: $caller couldn't read: $!\n";
-    }
+sub callback {
+    my ( $self, $callback ) = @_;
+    my $node = Tachikoma::Nodes::Callback->new(
+        sub {
+            $self->{sink}->stop if ( not &{$callback}(@_) );
+            return;
+        }
+    );
+    $self->{connector}->sink($node);
     return;
 }
 
 sub drain {
-    my $self    = shift;
-    my $buffer  = $self->{input_buffer};
-    my $fh      = $self->{fh} or return;
-    my $timeout = $self->{timeout};
-    my $got     = length ${$buffer};
-    while ($fh) {
-        my $read = undef;
-        my $okay = eval {
-            local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-            alarm $timeout if ($timeout);
-            $read = sysread $fh, ${$buffer}, BUFSIZ, $got;
-            die "$!\n" if ( not defined $read );
-            alarm 0 if ($timeout);
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            die "ERROR: couldn't read: $error\n" if ( $error ne "alarm\n" );
-            $got = 0;
-        }
-        $got += $read if ( defined $read );
-
-        # XXX:M
-        # my $size =
-        #     $got > VECTOR_SIZE
-        #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
-        #     : 0;
-        my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-        while ( $got >= $size and $size > 0 ) {
-            my $message = Tachikoma::Message->unpacked( \substr ${$buffer},
-                0, $size, q() );
-            $got -= $size;
-
-            # XXX:M
-            # $size =
-            #     $got > VECTOR_SIZE
-            #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
-            #     : 0;
-            $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-            $fh = undef if ( not defined $self->{sink}->fill($message) );
-        }
-        if ( not defined $read or $read < 1 ) {
-            $self->close_filehandle;
-            $fh = undef;
-            my $message = Tachikoma::Message->new;
-            $message->[TYPE] = TM_EOF;
-            $self->{sink}->fill($message);
-        }
-    }
+    my ($self) = @_;
+    alarm $self->{timeout} if ( $self->{timeout} );
+    local $SIG{ALRM} = sub { die "TIMEOUT\n" };
+    $self->set_framework;
+    $self->{sink}->drain;
+    $self->restore_framework;
+    alarm 0 if ( $self->{timeout} );
     return;
-}
-
-sub drain_cycle {
-    my $self = shift;
-    fcntl $self->{fh}, F_SETFL, O_NONBLOCK or die "fcntl: $!";
-    my ( $buffer, $got, $read, $size ) = $self->read_buffer;
-    fcntl $self->{fh}, F_SETFL, 0 or die "fcntl: $!";
-    my $rv = 1;
-    while ( $got >= $size and $size > 0 ) {
-        my $message =
-            Tachikoma::Message->unpacked( \substr ${$buffer}, 0, $size, q() );
-        $got -= $size;
-
-        # XXX:M
-        # $size =
-        #     $got > VECTOR_SIZE
-        #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
-        #     : 0;
-        $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-        $self->{sink}->fill($message);
-    }
-    if ( ( not defined $read or $read < 1 ) and $! != EAGAIN ) {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_EOF;
-        $self->{sink}->fill($message);
-        $self->close_filehandle;
-        $rv = undef;
-    }
-    return $rv;
-}
-
-sub read_buffer {
-    my $self   = shift;
-    my $buffer = $self->{input_buffer};
-    my $fh     = $self->{fh} or return ( $buffer, 0, undef, 0 );
-    my $got    = length ${$buffer};
-    my $read   = undef;
-    my $okay   = eval {
-        local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-        alarm $self->{timeout} if ( $self->{timeout} );
-        $read = sysread $fh, ${$buffer}, BUFSIZ, $got;
-        alarm 0 if ( $self->{timeout} );
-        return 1;
-    };
-    if ( not $okay ) {
-        my $error = $@ || 'unknown error';
-        die "ERROR: couldn't read: $error\n" if ( $error ne "alarm\n" );
-        $got = 0;
-    }
-    $got += $read if ( defined $read );
-
-    # XXX:M
-    # my $size =
-    #     $got > VECTOR_SIZE
-    #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
-    #     : 0;
-    my $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-    return ( $buffer, $got, $read, $size );
 }
 
 sub fill {
-    my $self        = shift;
-    my $message     = shift;
-    my $fh          = $self->{fh} or return;
-    my $wrote       = 0;
-    my $packed      = $message->packed;
-    my $packed_size = length ${$packed};
-    while ( $wrote < $packed_size ) {
-        my $rv = syswrite $fh, ${$packed}, $packed_size - $wrote, $wrote;
-        last if ( not $rv or $rv < 1 );
-        $wrote += $rv;
-    }
-    die "ERROR: wrote $wrote < $packed_size\n"
-        if ( $wrote and $wrote != $packed_size );
-    die "ERROR: couldn't write: $!\n" if ($!);
-    return $wrote;
-}
-
-sub reconnect {
-    my $self      = shift;
-    my $hostname  = shift;
-    my $port      = shift;
-    my $use_ssl   = shift;
-    my $tachikoma = undef;
-    $hostname = $self->hostname if ( not $hostname and ref $self );
-    $port     = $self->port     if ( not $port     and ref $self );
-    $use_ssl  = $self->use_SSL  if ( not $use_ssl  and ref $self );
-    do {
-        $tachikoma =
-            eval { Tachikoma->inet_client( $hostname, $port, $use_ssl ) };
-        if ( not $tachikoma ) {
-            print {*STDERR} $@;
-            sleep 1;
-        }
-    } while ( not $tachikoma );
-    if ( ref $self ) {
-        $tachikoma->timeout( $self->{timeout} );
-    }
-    return $tachikoma;
-}
-
-sub answer {
     my ( $self, $message ) = @_;
-    return if ( not $message->[TYPE] & TM_PERSIST );
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
-    $response->[TO]      = $message->[FROM] or return;
-    $response->[ID]      = $message->[ID];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = 'answer';
-    return $self->fill($response);
-}
-
-sub cancel {
-    my ( $self, $message ) = @_;
-    return if ( not $message->[TYPE] & TM_PERSIST );
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
-    $response->[TO]      = $message->[FROM] or return;
-    $response->[ID]      = $message->[ID];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = 'cancel';
-    return $self->fill($response);
-}
-
-sub close_filehandle {
-    my $self = shift;
-    if ( $self->{fh} ) {
-        close $self->{fh} or die "ERROR: couldn't close: $!\n";
-    }
-    $self->{fh} = undef;
+    $self->set_framework;
+    $self->{connector}->fill($message);
+    $self->restore_framework;
     return;
 }
 
-sub callback {
+sub command {
+    my ( $self, $name, $arguments ) = @_;
+    return $self->{connector}->command( $name, $arguments );
+}
+
+sub close_filehandle {
+    my ($self) = @_;
+    $self->{sink}->remove_node;
+    $self->{sink} = undef;
+    $self->{connector}->remove_node;
+    $self->{connector} = undef;
+    $self->{fh}        = undef;
+    return;
+}
+
+sub set_framework {
+    my ($self) = @_;
+    $self->{parent_framework}   = $Tachikoma::Event_Framework;
+    $Tachikoma::Event_Framework = $self->{this_framework};
+    $self->{fh}                 = $self->{connector}->{fh};
+    return;
+}
+
+sub restore_framework {
+    my ($self) = @_;
+    $Tachikoma::Event_Framework = $self->{parent_framework};
+    $self->{fh} = $self->{connector}->{fh};
+    return;
+}
+
+sub parent_framework {
     my $self = shift;
     if (@_) {
-        my $node = $self->{callback};
-        if ( not $node ) {
-            $node             = Tachikoma::Nodes::Callback->new;
-            $self->{callback} = $node;
-            $self->{sink}     = $node;
-        }
-        $node->{callback} = shift;
+        $self->{parent_framework} = shift;
     }
-    return $self->{callback};
+    return $self->{parent_framework};
+}
+
+sub this_framework {
+    my $self = shift;
+    if (@_) {
+        $self->{this_framework} = shift;
+    }
+    return $self->{this_framework};
+}
+
+sub connector {
+    my $self = shift;
+    if (@_) {
+        $self->{connector} = shift;
+    }
+    return $self->{connector};
+}
+
+sub sink {
+    my $self = shift;
+    if (@_) {
+        $self->{sink} = shift;
+    }
+    return $self->{sink};
 }
 
 sub fh {
-    my $self = shift;
-    if (@_) {
-        $self->{fh} = shift;
-    }
-    return $self->{fh};
+    my ( $self, @args ) = shift;
+    return $self->{connector}->fh(@args);
 }
 
-sub hostname {
+sub debug_state {
     my $self = shift;
     if (@_) {
-        $self->{hostname} = shift;
+        $self->{debug_state} = shift;
+        $self->{connector}->debug_state( $self->{debug_state} );
+        $self->{sink}->debug_state( $self->{debug_state} );
     }
-    return $self->{hostname};
-}
-
-sub port {
-    my $self = shift;
-    if (@_) {
-        $self->{port} = shift;
-    }
-    return $self->{port};
-}
-
-sub use_SSL {
-    my $self = shift;
-    if (@_) {
-        $self->{use_SSL} = shift;
-    }
-    return $self->{use_SSL};
-}
-
-sub auth_challenge {
-    my $self = shift;
-    if (@_) {
-        $self->{auth_challenge} = shift;
-    }
-    return $self->{auth_challenge};
-}
-
-sub auth_timestamp {
-    my $self = shift;
-    if (@_) {
-        $self->{auth_timestamp} = shift;
-    }
-    return $self->{auth_timestamp};
-}
-
-sub input_buffer {
-    my $self = shift;
-    if (@_) {
-        $self->{input_buffer} = shift;
-    }
-    return $self->{input_buffer};
+    return $self->{debug_state};
 }
 
 sub timeout {
@@ -540,7 +220,7 @@ sub check_pid {
 
 sub daemonize {    # from perlipc manpage
     my $self = shift;
-    open STDIN, '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
+    open STDIN,  '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
     open STDOUT, '>', '/dev/null'
         or die "ERROR: couldn't write /dev/null: $!";
     defined( my $pid = fork ) or die "ERROR: couldn't fork: $!";
@@ -563,7 +243,7 @@ sub reset_signal_handlers {
 
 sub open_log_file {
     my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
     chdir q(/) or die "ERROR: couldn't chdir /: $!";
     open $LOG_FILE_HANDLE, '>>', $log
         or die "ERROR: couldn't open log file $log: $!\n";
@@ -606,7 +286,7 @@ sub load_event_framework {
 
 sub touch_log_file {
     my $self = shift;
-    my $log = $self->log_file or die "ERROR: no log file specified\n";
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
     $self->close_log_file;
     $self->open_log_file;
     utime $Tachikoma::Now, $Tachikoma::Now, $log
@@ -713,10 +393,6 @@ sub nodes_by_fd {
     return $Tachikoma::Nodes_By_FD;
 }
 
-sub nodes_by_pid {
-    return $Tachikoma::Nodes_By_PID;
-}
-
 sub closing {
     my $self = shift;
     if (@_) {
@@ -724,11 +400,6 @@ sub closing {
         @Tachikoma::Closing = @{$closing};
     }
     return \@Tachikoma::Closing;
-}
-
-sub configuration {
-    my $self = shift;
-    return Tachikoma::Config->global;
 }
 
 sub counter {
@@ -766,6 +437,41 @@ sub shutting_down {
         $SHUTTING_DOWN = shift;
     }
     return $SHUTTING_DOWN;
+}
+
+sub shutdown_all_nodes {
+    my ( $self, @args ) = @_;
+    return Tachikoma::Node->shutdown_all_nodes(@args);
+}
+
+sub print_least_often {
+    my ( $self, @args ) = @_;
+    return Tachikoma::Node->print_less_often(@args);
+}
+
+sub print_less_often {
+    my ( $self, @args ) = @_;
+    return Tachikoma::Node->print_less_often(@args);
+}
+
+sub stderr {
+    my ( $self, @args ) = @_;
+    return Tachikoma::Node->stderr(@args);
+}
+
+sub log_prefix {
+    my ( $self, @args ) = @_;
+    return Tachikoma::Node->log_prefix(@args);
+}
+
+sub configuration {
+    my $self = shift;
+    return Tachikoma::Config->global;
+}
+
+sub scheme {
+    my ( $self, @args ) = @_;
+    return $self->configuration->scheme(@args);
 }
 
 sub TIEHANDLE {

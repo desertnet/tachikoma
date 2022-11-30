@@ -7,8 +7,6 @@
 # If Tachikoma had a single edge, this module would be it.
 #   - on_EOF: close, send, ignore, reconnect
 #
-# $Id: STDIO.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::STDIO;
 use strict;
@@ -19,7 +17,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
-use IO::Socket::SSL qw( SSL_WANT_WRITE );
 use POSIX qw( EAGAIN );
 use vars qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
@@ -166,6 +163,7 @@ sub fill_fh_sync {
     my $packed      = \$message->[PAYLOAD];
     my $packed_size = length ${$packed};
     my $wrote       = 0;
+    return if ( not $message->[TYPE] & TM_BYTESTREAM );
     while ( $wrote < $packed_size ) {
         my $rv = syswrite $fh, ${$packed}, $packed_size - $wrote, $wrote;
         $rv = 0 if ( not defined $rv );
@@ -213,7 +211,7 @@ sub fill_fh {
         }
     }
     $self->{output_cursor} = $cursor;
-    $self->{last_fill} = @{$buffer} ? $Tachikoma::Now : 0
+    $self->{last_fill}     = @{$buffer} ? $Tachikoma::Now : 0
         if ( defined $self->{last_fill} );
     $self->cancel($_) for (@cancel);
     $self->unregister_writer_node if ( not @{$buffer} );
@@ -222,8 +220,7 @@ sub fill_fh {
 }
 
 sub handle_EOF {
-    my $self   = shift;
-    my $on_EOF = $self->{on_EOF};
+    my $self = shift;
     $self->{got_EOF} = undef;
     $self->SUPER::handle_EOF;
     return;

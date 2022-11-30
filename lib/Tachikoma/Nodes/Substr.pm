@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Substr
 # ----------------------------------------------------------------------
 #
-# $Id: Substr.pm 11165 2011-08-03 03:11:07Z chris $
-#
 
 package Tachikoma::Nodes::Substr;
 use strict;
@@ -48,7 +46,7 @@ sub fill {
     my @matches = $payload =~ m{$self->{pattern}};
     return $self->cancel($message) if ( not @matches );
     my $newline = substr( $payload, -1, 1 ) eq "\n" ? 1 : undef;
-    my $copy = bless [ @{$message} ], ref $message;
+    my $copy    = bless [ @{$message} ], ref $message;
     $payload = join q(), @matches;
     $payload .= "\n" if ( $newline and substr( $payload, -1, 1 ) ne "\n" );
     $copy->[PAYLOAD] = $payload;

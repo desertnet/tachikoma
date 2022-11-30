@@ -3,8 +3,6 @@
 # Accessories::Jobs::APlay
 # ----------------------------------------------------------------------
 #
-# $Id: APlay.pm 415 2008-12-24 21:08:33Z chris $
-#
 
 package Accessories::Jobs::APlay;
 use strict;

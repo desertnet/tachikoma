@@ -4,9 +4,7 @@
 # ----------------------------------------------------------------------
 #
 # Tachikomatic IPC - send and receive messages over filehandles
-#                  - on_EOF: close, send, ignore
-#
-# $Id: FileHandle.pm 39768 2021-01-18 21:19:30Z chris $
+#                  - on_EOF: close, send, ignore, shutdown, die
 #
 
 package Tachikoma::Nodes::FileHandle;
@@ -265,12 +263,23 @@ sub null_cb {
 sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
+    if ( $on_EOF ne 'send' ) {
+        $self->unregister_reader_node;
+    }
     if ( $on_EOF eq 'close' ) {
         $self->send_EOF;
         $self->remove_node;
     }
     elsif ( $on_EOF eq 'send' ) {
         $self->send_EOF;
+    }
+    elsif ( $on_EOF eq 'shutdown' ) {
+        $self->close_filehandle;
+        $self->send_EOF;
+        Tachikoma->shutdown_all_nodes;
+    }
+    elsif ( $on_EOF eq 'die' ) {
+        die join q(), 'ERROR: ', $! || 'got EOF', "\n";
     }
     return;
 }
@@ -290,7 +299,7 @@ sub remove_node {
     $self->{drain_fh} = \&null_cb;
     $self->{fill_fh}  = \&null_cb;
     $self->{fill}     = \&null_cb;
-    $self->on_EOF('ignore');
+    $self->{on_EOF}   = 'ignore';
     push @Tachikoma::Closing, sub {
         $self->close_filehandle_and_remove_node;
     };

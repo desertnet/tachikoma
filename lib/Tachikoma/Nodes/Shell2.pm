@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Shell2
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Shell2;
 use strict;
@@ -17,6 +15,7 @@ use Tachikoma::Message qw(
     TM_INFO TM_REQUEST TM_COMPLETION TM_NOREPLY
 );
 use Tachikoma::Command;
+use Carp;
 use Data::Dumper qw( Dumper );
 use Storable qw( nfreeze );
 my $USE_JSON;
@@ -30,7 +29,7 @@ BEGIN {
         return 1;
     };
 }
-use parent qw( Tachikoma::Node );
+use parent qw( Tachikoma::Nodes::Shell );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -46,7 +45,7 @@ my $logical_re = qr{ !~ | =~ | !=? | <=? | >=? | == }x;
 my %TOKENS = (
     whitespace => qr{\s+},
     number     => qr{-?(?:\d+(?:[.]\d+)?|[.]\d+)},
-    ident      => qr{(?: [.+\-*/]* $ident_re $not_op_re | \\. )+}x,
+    ident      => qr{(?: [.+\-*/]* $ident_re $not_op_re )+}x,
     logical    => qr{(?: [.](?:[.]|(?!\=)) | $math_re | $logical_re )}x,
     op         => qr{(?: [.]= | [+][+] | -- | [|][|]=
                        | //=? | [+]=   | -= | [*]= | /= | = )}x,
@@ -143,32 +142,19 @@ for my $type (@TOKEN_TYPES) {
         die "internal parser error - unexpected $type\n";
     };
 }
-my $COUNTER = 0;
+my $MSG_COUNTER = 0;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{cwd}           = undef;
-    $self->{path}          = undef;
-    $self->{prefix}        = undef;
-    $self->{mode}          = 'command';
-    $self->{isa_tty}       = undef;
-    $self->{want_reply}    = undef;
-    $self->{stdin}         = undef;
-    $self->{dumper}        = undef;
-    $self->{responder}     = undef;
-    $self->{validate}      = undef;
-    $self->{errors}        = 0;
-    $self->{parse_buffer}  = q();
-    $self->{callbacks}     = {};
-    $self->{message_id}    = undef;
-    $self->{dirty}         = undef;
-    $self->{prompt}        = undef;
-    $self->{last_prompt}   = 0;
-    $self->{show_parse}    = undef;
-    $self->{show_commands} = undef;
+    $self->{callbacks}    = {};
+    $self->{cwd}          = undef;
+    $self->{dirty}        = undef;
+    $self->{errors}       = 0;
+    $self->{message_id}   = undef;
+    $self->{parse_buffer} = q();
+    $self->{show_parse}   = undef;
     bless $self, $class;
-    $self->{configuration}->{help}->{$_} //= $H{$_} for ( keys %H );
     return $self;
 }
 
@@ -183,76 +169,98 @@ sub new_func {
     return;
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
-    my $self      = shift;
-    my $message   = shift;
-    my $responder = $self->{responder}->{name};
-    $message->[FROM] = $responder if ($responder);
-    if ( $self->mode eq 'command' ) {
-        if ( $message->type & TM_EOF ) {
-            $self->stderr('ERROR: got EOF while waiting for tokens')
-                if ( $self->parse_buffer );
-            return $self->shutdown_all_nodes
-                if ( $self->{errors} and not $self->{isa_tty} );
-            return $self->sink->fill($message);
-        }
-        $self->{counter}++;
-        my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
-        my $parse_tree = undef;
-        $self->parse_buffer(q());
-        local $SIG{INT} = sub { die "^C\n" }
-            if ( $self->{isa_tty} );
-        my $okay = eval {
-            $parse_tree = $self->parse($parse_buffer);
-            return 1;
-        };
-
-        if ( not $okay ) {
-            my $error = $@ || 'parse failed: unknown error';
-            $self->report_error($error);
-        }
-        elsif ($parse_tree) {
-            $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
-            if ( not $self->{validate} ) {
-                $okay = eval {
-                    $self->send_command($parse_tree);
-                    return 1;
-                };
-                if ( not $okay ) {
-                    my $error = $@ || 'send_command failed: unknown error';
-                    $self->report_error($error);
-                }
-            }
-        }
-        elsif ( $parse_buffer =~ m{\S} and $parse_buffer !~ m{^\s*#} ) {
-            $self->parse_buffer($parse_buffer);
-            return;
-        }
-        if ( $self->{isa_tty} ) {
-            $self->get_completions if ( $self->dirty );
-            $self->prompt if ( $self->mode eq 'command' );
-        }
+sub fill {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->[FROM] eq '_stdin' ) {
+        $message->[FROM] = '_responder';
     }
     else {
-        if ( $message->type & TM_EOF ) {
-            $message->from(q());
-            $self->sink->fill($message);
-            $self->path( $self->cwd );
-            $self->cwd(undef);
-            $self->mode('command');
-            $self->prompt if ( $self->isa_tty );
+        $self->stderr( 'ERROR: invalid shell input: ', $message->as_string );
+        $Tachikoma::Nodes{_stdin}->close_filehandle
+            if ( $Tachikoma::Nodes{_stdin} );
+        exit 1;
+    }
+    if ( $self->mode eq 'command' ) {
+        $self->process_command($message);
+    }
+    else {
+        $self->process_bytestream($message);
+    }
+    return;
+}
+
+sub process_command {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->type & TM_EOF ) {
+        $self->stderr('ERROR: got EOF while waiting for tokens')
+            if ( $self->parse_buffer );
+        return $self->shutdown_all_nodes
+            if ( $self->{errors} and not $self->{isa_tty} );
+        $message->to( $self->path );
+        return $self->sink->fill($message);
+    }
+    $self->{counter}++;
+    my $parse_buffer = join q(), $self->parse_buffer, $message->payload;
+    my $parse_tree   = undef;
+    $self->parse_buffer(q());
+    local $SIG{INT} = sub { die "^C\n" }
+        if ( $self->{isa_tty} );
+    my $okay = eval {
+        $parse_tree = $self->parse($parse_buffer);
+        return 1;
+    };
+
+    if ( not $okay ) {
+        my $error = $@ || 'parse failed: unknown error';
+        $self->report_error($error);
+    }
+    elsif ($parse_tree) {
+        $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
+        if ( not $self->{validate} ) {
+            $okay = eval {
+                $self->send_command($parse_tree);
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ || 'send_command failed: unknown error';
+                $self->report_error($error);
+            }
         }
-        elsif ( $message->payload eq ".\n" ) {
-            $self->path( $self->cwd );
-            $self->cwd(undef);
-            $self->mode('command');
-            $self->prompt if ( $self->isa_tty );
-        }
-        else {
-            $message->to( $self->path );
-            $message->stream( $LOCAL{'message.stream'} );
-            $self->sink->fill($message);
-        }
+    }
+    elsif ( $parse_buffer =~ m{\S} and $parse_buffer !~ m{^\s*#} ) {
+        $self->parse_buffer($parse_buffer);
+        return;
+    }
+    if ( $self->{isa_tty} ) {
+        $self->get_completions if ( $self->dirty );
+        $self->prompt          if ( $self->mode eq 'command' );
+    }
+    return;
+}
+
+sub process_bytestream {
+    my $self    = shift;
+    my $message = shift;
+    if ( $message->type & TM_EOF ) {
+        $message->from(q());
+        $self->sink->fill($message);
+        $self->path( $self->cwd );
+        $self->cwd(undef);
+        $self->mode('command');
+        $self->prompt if ( $self->isa_tty );
+    }
+    elsif ( $message->payload eq ".\n" ) {
+        $self->path( $self->cwd );
+        $self->cwd(undef);
+        $self->mode('command');
+        $self->prompt if ( $self->isa_tty );
+    }
+    else {
+        $message->to( $self->path );
+        $message->stream( $LOCAL{'message.stream'} );
+        $self->sink->fill($message);
     }
     return;
 }
@@ -276,7 +284,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
                 return $parse_tree;
             }
             elsif ( $tok->{type} eq 'eos' ) {
-                $self->stdin->prompt( $PROMPTS{$expecting} )
+                $Tachikoma::Nodes{_stdin}->prompt( $PROMPTS{$expecting} )
                     if ( $self->{isa_tty} );
                 return;
             }
@@ -319,7 +327,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $self->unexpected_tok($tok);
         }
         elsif ( $tok->{type} eq 'newline' ) {
-            $self->stdin->prompt( $PROMPTS{ $tok->{type} } )
+            $Tachikoma::Nodes{_stdin}->prompt( $PROMPTS{ $tok->{type} } )
                 if ( $self->{isa_tty} );
             return;
         }
@@ -328,7 +336,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
                 return $parse_tree;
             }
             else {
-                $self->stdin->prompt( $expecting . '> ' )
+                $Tachikoma::Nodes{_stdin}->prompt( $expecting . '> ' )
                     if ( $self->{isa_tty} );
                 return;
             }
@@ -575,7 +583,7 @@ $EVALUATORS{'and'} = sub {
                 ? $branch
                 : $self->fake_tree( 'open_paren', $branch->{value} )
             );
-            shift @{$rv} while ( @{$rv} and $rv->[0] !~ m{\S} );
+            shift @{$rv} while ( @{$rv} and $rv->[0]  !~ m{\S} );
             pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
             my $test = join q(), @{$rv};
             $test =~ s{\s+}{}g;
@@ -595,7 +603,7 @@ $EVALUATORS{'or'} = sub {
             ? $branch
             : $self->fake_tree( 'open_paren', $branch->{value} )
         );
-        shift @{$rv} while ( @{$rv} and $rv->[0] !~ m{\S} );
+        shift @{$rv} while ( @{$rv} and $rv->[0]  !~ m{\S} );
         pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
         my $test = join q(), @{$rv};
         $test =~ s{\s+}{}g;
@@ -695,10 +703,10 @@ $BUILTINS{'read'} = sub {
     $name = join q(), @{ $self->evaluate($name_tree) } if ($name_tree);
     $self->fatal_parse_error('bad arguments for read')
         if ( @{ $parse_tree->{value} } > 2 );
-    $self->stdin->pause if ( $self->{isa_tty} );
+    $Tachikoma::Nodes{_stdin}->pause if ( $self->{isa_tty} );
     my $line = eval {<STDIN>};
-    $self->stdin->resume if ( $self->{isa_tty} );
-    die $@ if ( not defined $line );
+    $Tachikoma::Nodes{_stdin}->resume if ( $self->{isa_tty} );
+    die $@                            if ( not defined $line );
 
     if ($name) {
         chomp $line;
@@ -719,7 +727,7 @@ $BUILTINS{'print'} = sub {
     $self->fatal_parse_error('bad arguments for print')
         if ( @{ $parse_tree->{value} } > 2 );
     my $argument_tree = $parse_tree->{value}->[1];
-    my $output = join q(), @{ $self->evaluate($argument_tree) };
+    my $output        = join q(), @{ $self->evaluate($argument_tree) };
     syswrite STDOUT, $output or die if ( length $output );
     return [];
 };
@@ -904,7 +912,7 @@ $BUILTINS{'if'} = sub {
     if ( @{ $parse_tree->{value} } > 3 ) {
         my $i = 3;
         while ( $i <= $#{ $parse_tree->{value} } - 1 ) {
-            my $cane = $parse_tree->{value}->[ $i++ ];
+            my $cane  = $parse_tree->{value}->[ $i++ ];
             my $sugar = join q(), @{ $self->evaluate($cane) };
             if ( $sugar eq 'elsif' ) {
                 my $elsif = $parse_tree->{value}->[ $i++ ];
@@ -1113,6 +1121,7 @@ $BUILTINS{'include'} = sub {
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = '_stdin';
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }
@@ -1199,6 +1208,21 @@ $BUILTINS{'die'} = sub {
     die "DIE:$value\n";
 };
 
+$H{'confess'} = ["confess <value>\n"];
+
+$BUILTINS{'confess'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    my $value_tree = $parse_tree->{value}->[1];
+    $self->fatal_parse_error('bad arguments for confess')
+        if ( @{ $parse_tree->{value} } > 2 );
+    delete $self->callbacks->{ $self->message_id }
+        if ( $self->{message_id} );
+    my $value = join q(), @{ $self->evaluate($value_tree) };
+    confess "CONFESS:$value\n";
+};
+
 $H{'on'} = ["on <node> <event> <commands>\n"];
 
 $BUILTINS{'on'} = sub {
@@ -1222,12 +1246,28 @@ $BUILTINS{'on'} = sub {
     my $event_tree = shift @values;
     shift @values if ( $values[0]->{type} eq 'whitespace' );
     my $func_tree = $self->fake_tree( 'open_brace', \@values );
-    my $name  = join q(), @{ $self->evaluate($name_tree) };
-    my $event = join q(), @{ $self->evaluate($event_tree) };
+    my $name      = join q(), @{ $self->evaluate($name_tree) };
+    my $event     = join q(), @{ $self->evaluate($event_tree) };
     $self->_send_command( 'on', "$name $event", nfreeze($func_tree) )
         if ( not $self->{validate} );
     return [];
 };
+
+$H{'chdir'} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
+
+$BUILTINS{'chdir'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    $line =~ s{\s*$}{};
+    my ( $proto, $path ) = split q( ), $line, 2;
+    my $cwd = $self->path;
+    $self->path( $self->cd( $cwd, $path ) );
+    $self->get_completions;
+    return [];
+};
+
+$BUILTINS{'cd'} = $BUILTINS{'chdir'};
 
 $H{'command_node'} = [
     "command_node <path> <command> [ <arguments> ]\n",
@@ -1275,7 +1315,7 @@ $BUILTINS{'tell_node'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_INFO);
-    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
+    $message->from( $LOCAL{'message.from'}     // '_responder' );
     $message->stream( $LOCAL{'message.stream'} // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
@@ -1294,7 +1334,7 @@ $BUILTINS{'request_node'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_REQUEST);
-    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
+    $message->from( $LOCAL{'message.from'}     // '_responder' );
     $message->stream( $LOCAL{'message.stream'} // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
@@ -1322,13 +1362,13 @@ $BUILTINS{'send_node'} = sub {
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     $self->fatal_parse_error('bad arguments for send_node')
         if ( $i > $#{$values} );
-    my $path = join q(), @{ $self->evaluate($path_tree) };
+    my $path       = join q(), @{ $self->evaluate($path_tree) };
     my $payload_rv = [];
     $self->evaluate_splice( $values, $payload_rv, $i );
     my $payload = join q(), @{$payload_rv};
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
-    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
+    $message->from( $LOCAL{'message.from'} // '_responder' );
     $message->stream( $LOCAL{'message.stream'} );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
@@ -1337,7 +1377,7 @@ $BUILTINS{'send_node'} = sub {
 
 $BUILTINS{'send'} = $BUILTINS{'send_node'};
 
-$H{'send_hash'} = [ "send_hash <path> [ <name> <value> ... ]\n", ];
+$H{'send_hash'} = [ "send_hash <path> <json>\n", ];
 
 $BUILTINS{'send_hash'} = sub {
     my $self     = shift;
@@ -1348,7 +1388,7 @@ $BUILTINS{'send_hash'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_STORABLE);
-    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
+    $message->from( $LOCAL{'message.from'} // '_responder' );
     $message->stream( $LOCAL{'message.stream'} );
     $message->to( $self->prefix($path) );
     $message->payload( $json->decode($payload) );
@@ -1383,24 +1423,32 @@ $BUILTINS{'ping'} = sub {
     my ( $proto, $path ) = split q( ), $line, 2;
     my $message = Tachikoma::Message->new;
     $message->type(TM_PING);
-    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name} );
+    $message->from( $LOCAL{'message.from'} // '_responder' );
     $message->to( $self->prefix($path) );
     $message->payload($Tachikoma::Right_Now);
     return [ $self->sink->fill($message) ];
 };
 
-$H{'debug'} = [ "debug [ <level> ]\n", "    levels: 0, 1, 2\n" ];
+$H{'pwd'} = ["pwd\n"];
 
-$BUILTINS{'debug'} = sub {
+$BUILTINS{'pwd'} = sub {
+    my $self = shift;
+    $self->_send_command( 'pwd', $self->path );
+    return [];
+};
+
+$H{'debug_level'} = [ "debug_level [ <level> ]\n", "    levels: 0, 1, 2\n" ];
+
+$BUILTINS{'debug_level'} = sub {
     my $self       = shift;
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     my $level_tree = $parse_tree->{value}->[1];
-    my $level      = not $self->dumper->debug;
+    my $level      = not $self->configuration->debug_level;
     $level = join q(), @{ $self->evaluate($level_tree) } if ($level_tree);
-    $self->fatal_parse_error('bad arguments for debug')
+    $self->fatal_parse_error('bad arguments for debug_level')
         if ( @{ $parse_tree->{value} } > 2 );
-    $self->dumper->debug($level) if ( $self->dumper );
+    $self->configuration->debug_level($level);
     return [];
 };
 
@@ -1434,6 +1482,21 @@ $BUILTINS{'show_commands'} = sub {
     return [];
 };
 
+$H{'want_reply'} = [ "want_reply [ <value> ]\n", "    values: 0, 1\n" ];
+
+$BUILTINS{'want_reply'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    my $value_tree = $parse_tree->{value}->[1];
+    my $value      = not $self->want_reply;
+    $value = join q(), @{ $self->evaluate($value_tree) } if ($value_tree);
+    $self->fatal_parse_error('bad arguments for want_reply')
+        if ( @{ $parse_tree->{value} } > 2 );
+    $self->want_reply($value);
+    return [];
+};
+
 $H{'respond'} = ["respond\n"];
 
 $BUILTINS{'respond'} = sub {
@@ -1442,7 +1505,7 @@ $BUILTINS{'respond'} = sub {
     my $parse_tree = $self->trim($raw_tree);
     $self->fatal_parse_error('bad arguments for respond')
         if ( @{ $parse_tree->{value} } > 1 );
-    $self->responder->ignore(undef);
+    Tachikoma->nodes->{_responder}->ignore(undef);
     return [];
 };
 
@@ -1454,31 +1517,7 @@ $BUILTINS{'ignore'} = sub {
     my $parse_tree = $self->trim($raw_tree);
     $self->fatal_parse_error('bad arguments for ignore')
         if ( @{ $parse_tree->{value} } > 1 );
-    $self->responder->ignore('true');
-    return [];
-};
-
-$H{'chdir'} = [ "chdir [ <path> ]\n", "    alias: cd\n" ];
-
-$BUILTINS{'chdir'} = sub {
-    my $self     = shift;
-    my $raw_tree = shift;
-    my $line     = join q(), @{ $self->evaluate($raw_tree) };
-    $line =~ s{\s*$}{};
-    my ( $proto, $path ) = split q( ), $line, 2;
-    my $cwd = $self->path;
-    $self->path( $self->cd( $cwd, $path ) );
-    $self->get_completions;
-    return [];
-};
-
-$BUILTINS{'cd'} = $BUILTINS{'chdir'};
-
-$H{'pwd'} = ["pwd\n"];
-
-$BUILTINS{'pwd'} = sub {
-    my $self = shift;
-    $self->_send_command( 'pwd', $self->path );
+    Tachikoma->nodes->{_responder}->ignore('true');
     return [];
 };
 
@@ -1494,6 +1533,38 @@ $BUILTINS{'sleep'} = sub {
         if ( $seconds =~ m{\D} );
     sleep $seconds;
     return [];
+};
+
+$H{'shell'} = ["shell\n"];
+
+$BUILTINS{'shell'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    $line =~ s{\s*$}{};
+    my ( $proto, $args ) = split q( ), $line, 2;
+    $self->fatal_parse_error(qq(bad arguments for shell: "$args"))
+        if ( length $args );
+    $self->is_attached('true');
+    return [];
+};
+
+$H{'exit'} = ["exit [ <value> ]\n"];
+
+$BUILTINS{'exit'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    $line =~ s{\s*$}{};
+    my ( $proto, $value ) = split q( ), $line, 2;
+    $value ||= 0;
+    if ( $value =~ m{\D} ) {
+        $self->stderr(qq(ERROR: bad arguments for exit: "$value"));
+        $value = 1;
+    }
+    $Tachikoma::Nodes{_stdin}->close_filehandle
+        if ( $Tachikoma::Nodes{_stdin} );
+    exit $value;
 };
 
 $OPERATORS{'lt'} = sub { $_[0] lt $_[1] };
@@ -1522,7 +1593,7 @@ sub fake_tree {
     return {
         type  => $type,
         value => [
-            {   type => ref $first ? $first->{type} : 'ident',
+            {   type  => ref $first ? $first->{type} : 'ident',
                 value => [ @{$values}[ $i .. $#{$values} ] ]
             }
         ]
@@ -1647,7 +1718,7 @@ sub assignment {
         if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-    my $op = join q(), @{ $self->evaluate($op_tree) };
+    my $op         = join q(), @{ $self->evaluate($op_tree) };
 
     if ( exists $LOCAL{$key} ) {
         $self->operate( \%LOCAL, $key, $op, $value_tree );
@@ -1678,7 +1749,7 @@ sub operate {
     elsif ( length $op ) {
         my $v = $hash->{$key};
         $v = $v->[0] if ( ref $v );
-        $v = 0 if ( not defined $v or not length $v );
+        $v = 0       if ( not defined $v or not length $v );
         if    ( $op eq q(=) )  { delete $hash->{$key}; }
         elsif ( $op eq q(++) ) { $v++; $hash->{$key} = $v; }
         elsif ( $op eq q(--) ) { $v--; $hash->{$key} = $v; }
@@ -1701,7 +1772,7 @@ sub operate_env {
     elsif ( length $op ) {
         my $v = $hash->{$key};
         $v = $v->[0] if ( ref $v );
-        $v = 0 if ( not defined $v or not length $v );
+        $v = 0       if ( not defined $v or not length $v );
         if    ( $op eq q(=) )  { delete $hash->{$key}; }
         elsif ( $op eq q(++) ) { $v++; $hash->{$key} = $v; }
         elsif ( $op eq q(--) ) { $v--; $hash->{$key} = $v; }
@@ -1717,14 +1788,14 @@ sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
     my ( $self, $hash, $key, $op, $value_tree ) = @_;
     my $result = $self->evaluate($value_tree);
     my $v      = $hash->{$key};
-    $v = [] if ( not defined $v or not length $v );
+    $v = []   if ( not defined $v or not length $v );
     $v = [$v] if ( not ref $v );
-    shift @{$result} if ( @{$result} and $result->[0] =~ m{^\s+$} );
+    shift @{$result} if ( @{$result} and $result->[0]  =~ m{^\s+$} );
     pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
     my $joined = join q(), @{$result};
-    if ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
-    if ( $op eq q(=) ) { $v = $result; }
-    elsif ( $op eq q(.=) ) { push @{$v}, @{$result}; }
+    if    ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
+    if    ( $op eq q(=) )            { $v = $result; }
+    elsif ( $op eq q(.=) )           { push @{$v}, @{$result}; }
     elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
     elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
     elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
@@ -1800,9 +1871,9 @@ sub _send_command {
     my $payload   = shift;
     my $path      = shift;
     my $message   = $self->command( $name, $arguments, $payload );
-    $message->type( TM_COMMAND | TM_NOREPLY ) if ( not $self->want_reply );
-    $message->from( $LOCAL{'message.from'} // $self->{responder}->{name}
-            // q() );
+    $message->type( TM_COMMAND | TM_NOREPLY )
+        if ( not $LOCAL{'message.from'} and not $self->{want_reply} );
+    $message->from( $LOCAL{'message.from'} // '_responder' );
     $message->to( $self->prefix($path) );
     $message->id( $self->message_id );
     $self->dirty($name);
@@ -1851,39 +1922,20 @@ sub callback {
     return $rv;
 }
 
-sub cd {
-    my $self = shift;
-    my $cwd  = shift || q();
-    my $path = shift || q();
-    if ( $path =~ m{^/} ) {
-        $cwd = $path;
-    }
-    elsif ( $path =~ m{^[.][.]/?} ) {
-        $cwd =~ s{/?[^/]+$}{};
-        $path =~ s{^[.][.]/?}{};
-        $cwd = $self->cd( $cwd, $path );
-    }
-    elsif ($path) {
-        $cwd .= "/$path";
-    }
-    $cwd =~ s{(^/|/$)}{}g if ($cwd);
-    return $cwd;
-}
-
 sub get_completions {
     my $self = shift;
     return
-        if ( not $self->stdin
-        or not $self->stdin->isa('Tachikoma::Nodes::TTY')
-        or not $self->stdin->use_readline );
+        if ( not $Tachikoma::Nodes{_stdin}
+        or not $Tachikoma::Nodes{_stdin}->isa('Tachikoma::Nodes::TTY')
+        or not $Tachikoma::Nodes{_stdin}->use_readline );
     my $message = $self->command('help');
     $message->[TYPE] |= TM_COMPLETION;
-    $message->[FROM] = $self->responder->name;
+    $message->[FROM] = '_responder';
     $message->[TO]   = $self->path;
     $self->sink->fill($message);
     $message = $self->command( 'ls', '-a' );
     $message->[TYPE] |= TM_COMPLETION;
-    $message->[FROM] = $self->responder->name;
+    $message->[FROM] = '_responder';
     $message->[TO]   = $self->path;
     $self->sink->fill($message);
     $self->dirty(undef);
@@ -1905,103 +1957,6 @@ sub restore_local {
     return;
 }
 
-sub callbacks {
-    my $self = shift;
-    if (@_) {
-        $self->{callbacks} = shift;
-    }
-    return $self->{callbacks};
-}
-
-sub message_id {
-    my $self = shift;
-    my $rv   = undef;
-    if (@_) {
-        $self->{message_id} = shift;
-    }
-    else {
-        $rv = $self->{message_id};
-        $self->{message_id} = undef;
-    }
-    return $rv;
-}
-
-sub name {
-    my $self = shift;
-    if (@_) {
-        die "ERROR: named Shell nodes are not allowed\n";
-    }
-    return $self->{name};
-}
-
-sub remove_node {
-    my $self = shift;
-    $self->stdin(undef);
-    $self->dumper(undef);
-    $self->responder(undef);
-    $self->SUPER::remove_node;
-    return;
-}
-
-sub cwd {
-    my $self = shift;
-    if (@_) {
-        $self->{cwd} = shift;
-    }
-    return $self->{cwd};
-}
-
-sub path {
-    my $self = shift;
-    if (@_) {
-        $self->{path} = shift;
-    }
-    return $self->{path};
-}
-
-sub prefix {
-    my $self  = shift;
-    my $path  = shift;
-    my @paths = ();
-    push @paths, $self->{prefix} if ( length $self->{prefix} );
-    push @paths, $self->{path}   if ( length $self->{path} );
-    push @paths, $path           if ( length $path );
-    return join q(/), @paths;
-}
-
-sub set_prefix {
-    my $self = shift;
-    if (@_) {
-        $self->{prefix} = shift;
-    }
-    return $self->{prefix};
-}
-
-sub mode {
-    my $self = shift;
-    if (@_) {
-        $self->{mode} = shift;
-        if ( $self->stdin ) {
-            if ( $self->{mode} ne 'bytestream' ) {
-
-                # print STDERR "un-ignoring EOF\n";
-                $self->stdin->on_EOF('close');
-            }
-            else {
-                # print STDERR "ignoring EOF\n";
-                $self->stdin->on_EOF('send');
-            }
-        }
-    }
-    return $self->{mode};
-}
-
-sub msg_counter {
-    my $self = shift;
-    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
-}
-
 sub report_error {
     my $self = shift;
     if (@_) {
@@ -2016,76 +1971,34 @@ sub report_error {
     return;
 }
 
-sub isa_tty {
+sub name {
     my $self = shift;
     if (@_) {
-        $self->{isa_tty} = shift;
-        Tachikoma::EventFrameworks::Select::register_router_node()
-            if ( $self->{isa_tty} );
+        die "ERROR: named Shell nodes are not allowed\n";
     }
-    return $self->{isa_tty};
+    return $self->{name};
 }
 
-sub want_reply {
+sub callbacks {
     my $self = shift;
     if (@_) {
-        $self->{want_reply} = shift;
+        $self->{callbacks} = shift;
     }
-    return $self->{want_reply} // $LOCAL{'message.from'};
+    return $self->{callbacks};
 }
 
-sub stdin {
+sub cwd {
     my $self = shift;
     if (@_) {
-        $self->{stdin} = shift;
+        $self->{cwd} = shift;
     }
-    return $self->{stdin};
-}
-
-sub dumper {
-    my $self = shift;
-    if (@_) {
-        $self->{dumper} = shift;
-    }
-    return $self->{dumper};
-}
-
-sub responder {
-    my $self = shift;
-    if (@_) {
-        $self->{responder} = shift;
-    }
-    return $self->{responder};
-}
-
-sub validate {
-    my $self = shift;
-    if (@_) {
-        $self->{validate} = shift;
-    }
-    return $self->{validate};
-}
-
-sub errors {
-    my $self = shift;
-    if (@_) {
-        $self->{errors} = shift;
-    }
-    return $self->{errors};
-}
-
-sub parse_buffer {
-    my $self = shift;
-    if (@_) {
-        $self->{parse_buffer} = shift;
-    }
-    return $self->{parse_buffer};
+    return $self->{cwd};
 }
 
 sub dirty {
     my $self = shift;
     if (@_) {
-        my $name = shift;
+        my $name  = shift;
         my %dirty = map { $_ => 1 } qw(
             listen_inet listen_unix
             connect_inet disconnect_inet
@@ -2106,24 +2019,44 @@ sub dirty {
     return $self->{dirty};
 }
 
-sub prompt {
-    my $self = shift;
-    if ( $Tachikoma::Now - $self->{last_prompt} > 60 ) {
-        $self->{prompt}      = $self->command('prompt');
-        $self->{last_prompt} = $Tachikoma::Now;
-    }
-    my $message = $self->{prompt};
-    $message->from( $self->{responder}->{name} );
-    $message->to( $self->path );
-    return $self->sink->fill($message);
-}
-
-sub last_prompt {
+sub mode {
     my $self = shift;
     if (@_) {
-        $self->{last_prompt} = shift;
+        $self->{mode} = shift;
+        if ( $Tachikoma::Nodes{_stdin} ) {
+            if ( $self->{mode} ne 'bytestream' ) {
+
+                # print STDERR "un-ignoring EOF\n";
+                $Tachikoma::Nodes{_stdin}->on_EOF('close');
+            }
+            else {
+                # print STDERR "ignoring EOF\n";
+                $Tachikoma::Nodes{_stdin}->on_EOF('send');
+            }
+        }
     }
-    return $self->{last_prompt};
+    return $self->{mode};
+}
+
+sub message_id {
+    my $self = shift;
+    my $rv   = undef;
+    if (@_) {
+        $self->{message_id} = shift;
+    }
+    else {
+        $rv = $self->{message_id};
+        $self->{message_id} = undef;
+    }
+    return $rv;
+}
+
+sub parse_buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{parse_buffer} = shift;
+    }
+    return $self->{parse_buffer};
 }
 
 sub show_parse {
@@ -2134,16 +2067,18 @@ sub show_parse {
     return $self->{show_parse};
 }
 
-sub show_commands {
-    my $self = shift;
-    if (@_) {
-        $self->{show_commands} = shift;
-    }
-    return $self->{show_commands};
+sub help_topics {
+    return \%H;
 }
 
 sub builtins {
     return \%BUILTINS;
+}
+
+sub msg_counter {
+    my $self = shift;
+    $MSG_COUNTER = ( $MSG_COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
 }
 
 sub TIEHASH {

@@ -3,8 +3,6 @@
 # Tachikoma::EventFrameworks::KQueue
 # ----------------------------------------------------------------------
 #
-# $Id: KQueue.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::EventFrameworks::KQueue;
 use strict;
@@ -26,19 +24,10 @@ my %TIMERS = ();
 
 sub new {
     my $class = shift;
-    my $self = { handle_signal => \&handle_signal, };
+    my $self  = { handle_signal => \&handle_signal, };
     $KQUEUE = IO::KQueue->new;
     bless $self, $class;
     return $self;
-}
-
-sub register_router_node {
-    my ( $self, $this ) = @_;
-    $KQUEUE->EV_SET( SIGINT,  EVFILT_SIGNAL, EV_ADD );
-    $KQUEUE->EV_SET( SIGTERM, EVFILT_SIGNAL, EV_ADD );
-    $KQUEUE->EV_SET( SIGHUP,  EVFILT_SIGNAL, EV_ADD );
-    $KQUEUE->EV_SET( SIGUSR1, EVFILT_SIGNAL, EV_ADD );
-    return $this;
 }
 
 sub register_server_node {
@@ -92,19 +81,17 @@ sub register_watcher_node {
 }
 
 sub drain {
-    my ( $self, $this, $connector ) = @_;
+    my ( $self, $router ) = @_;
     my $evfilt_read   = EVFILT_READ;
     my $evfilt_write  = EVFILT_WRITE;
     my $evfilt_timer  = EVFILT_TIMER;
     my $evfilt_vnode  = EVFILT_VNODE;
-    my $evfilt_proc   = EVFILT_PROC;
     my $evfilt_signal = EVFILT_SIGNAL;
     my %index         = (
         $evfilt_read   => $Tachikoma::Nodes_By_FD,
         $evfilt_write  => $Tachikoma::Nodes_By_FD,
         $evfilt_timer  => $Tachikoma::Nodes_By_ID,
         $evfilt_vnode  => $Tachikoma::Nodes_By_FD,
-        $evfilt_proc   => $Tachikoma::Nodes_By_PID,
         $evfilt_signal => { map { $_ => $self } 1 .. 31 },
     );
     my %methods = (
@@ -112,11 +99,14 @@ sub drain {
         $evfilt_write  => 'fill_fh',
         $evfilt_timer  => 'fire_cb',
         $evfilt_vnode  => 'note_fh',
-        $evfilt_proc   => 'note_fh',
         $evfilt_signal => 'handle_signal',
     );
+    $KQUEUE->EV_SET( SIGINT,  EVFILT_SIGNAL, EV_ADD );
+    $KQUEUE->EV_SET( SIGTERM, EVFILT_SIGNAL, EV_ADD );
+    $KQUEUE->EV_SET( SIGHUP,  EVFILT_SIGNAL, EV_ADD );
+    $KQUEUE->EV_SET( SIGUSR1, EVFILT_SIGNAL, EV_ADD );
 
-    while ( $connector ? $connector->{fh} : $this->{name} ) {
+    while ( $router->{is_active} ) {
         my @events = $KQUEUE->kevent( keys %TIMERS ? 100 : 60000 );
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
@@ -164,7 +154,7 @@ sub handle_signal {
         Tachikoma->reload_config;
     }
     else {
-        Tachikoma->stderr('shutting down - received signal');
+        Tachikoma->stderr('received signal');
         Tachikoma->shutdown_all_nodes;
     }
     return;
@@ -173,9 +163,6 @@ sub handle_signal {
 sub close_filehandle {
     my ( $self, $this ) = @_;
     delete $TIMERS{ $this->{id} } if ( defined $this->{id} );
-    ## no critic (RequireCheckingReturnValueOfEval)
-    eval { $KQUEUE->EV_SET( $this->{pid}, EVFILT_PROC, EV_DELETE ) }
-        if ( defined $this->{pid} );
     return;
 }
 
@@ -200,12 +187,6 @@ sub unregister_watcher_node {
     ## no critic (RequireCheckingReturnValueOfEval)
     eval { $KQUEUE->EV_SET( $this->{fd}, EVFILT_VNODE, EV_DELETE ) }
         if ( defined $this->{fd} );
-    return;
-}
-
-sub watch_for_signal {
-    my ( $self, $signal ) = @_;
-    $KQUEUE->EV_SET( $signal, EVFILT_SIGNAL, EV_ADD );
     return;
 }
 

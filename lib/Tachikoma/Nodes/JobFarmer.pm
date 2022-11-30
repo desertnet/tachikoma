@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::JobFarmer
 # ----------------------------------------------------------------------
 #
-# $Id: JobFarmer.pm 39973 2021-03-09 06:28:12Z chris $
-#
 
 package Tachikoma::Nodes::JobFarmer;
 use strict;
@@ -149,12 +147,10 @@ sub fire {
 
 sub handle_response {
     my ( $self, $message, $next, $from ) = @_;
-    if ( $message->[TYPE] & TM_RESPONSE ) {
-        $self->{load_balancer}->handle_response($message);
-    }
-    elsif ( not length $message->[TO] ) {
+    if ( not $message->[TYPE] & TM_RESPONSE and not length $message->[TO] ) {
         $message->[TO] = $self->{owner};
     }
+    $self->{load_balancer}->handle_response($message);
     if ( $self->{autokill} ) {
         $self->stamp_message( $message, $self->{name} );
     }
@@ -166,20 +162,18 @@ sub handle_response {
 }
 
 sub handle_EOF {
-    my ( $self, $message, $next ) = @_;
-    if ( $message->[STREAM] ) {
+    my ( $self, $message ) = @_;
+    if ( length $message->[STREAM] ) {
 
         # some EOF being delivered to job
         $self->{counter}++;
         $self->{load_balancer}->fill($message);
     }
-    elsif ($next) {
+    else {
 
         # echo EOF back to command-line
-        $self->{interpreter}->fill($message);
+        $self->{sink}->fill($message);
     }
-
-    # else: EOF is from job shutdown
     return;
 }
 
@@ -264,13 +258,13 @@ $C{restart_job} = sub {
 
         for my $name ( keys %{$jobs} ) {
             $self->disconnect_node( $load_balancer->name, $name );
-            $self->disconnect_node( $tee->name, $name ) if ($tee);
+            $self->disconnect_node( $tee->name,           $name ) if ($tee);
             $jobc->stop_job($name);
         }
     }
     elsif ( $jobs->{$name} ) {
         $self->disconnect_node( $load_balancer->name, $name );
-        $self->disconnect_node( $tee->name, $name ) if ($tee);
+        $self->disconnect_node( $tee->name,           $name ) if ($tee);
         $jobc->stop_job($name);
     }
     else {
@@ -428,7 +422,7 @@ sub start_job {
         }
     );
     push @{ $self->{load_balancer}->{owner} }, $job_name;
-    push @{ $self->{tee}->{owner} }, $job_name if ( $self->{tee} );
+    push @{ $self->{tee}->{owner} },           $job_name if ( $self->{tee} );
     return;
 }
 

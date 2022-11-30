@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Shell
 # ----------------------------------------------------------------------
 #
-# $Id: Shell.pm 39959 2021-03-09 05:43:22Z chris $
-#
 
 package Tachikoma::Jobs::Shell;
 use strict;
@@ -30,7 +28,7 @@ sub initialize_graph {
     ## no critic (RequireLocalizedPunctuationVars)
     $SIG{PIPE} = sub { die "got sigpipe: $!" };
     my $timer = Tachikoma::Nodes::Timer->new;
-    $timer->name('Timer');
+    $timer->name('_timer');
     $timer->sink($self);
     $timer->set_timer( $Check_Proc_Interval * 1000 );
     $self->initialize_shell_graph;
@@ -51,11 +49,12 @@ sub initialize_shell_graph {
         Tachikoma::Nodes::STDIO->filehandle( $child_out, TK_R );
     my $shell_stderr =
         Tachikoma::Nodes::STDIO->filehandle( $child_err, TK_R );
-    $shell_stdin->name('shell:stdin');
+    $shell_stdin->name('_shell:stdin');
     $shell_stdin->sink( $self->router );
-    $shell_stdout->name('shell:stdout');
+    $shell_stdout->name('_shell:stdout');
+    $shell_stdout->buffer_mode('line-buffered');
     $shell_stdout->sink($self);
-    $shell_stderr->name('shell:stderr');
+    $shell_stderr->name('_shell:stderr');
     $shell_stderr->buffer_mode('line-buffered');
     $shell_stderr->sink($self);
     $self->shell_stdin($shell_stdin);
@@ -72,6 +71,8 @@ sub fill {
     return if ( not $type & TM_BYTESTREAM and not $type & TM_EOF );
     if ( $from =~ m{^_parent} ) {
         if ( $type & TM_EOF ) {
+            ## no critic (RequireLocalizedPunctuationVars)
+            $SIG{PIPE} = undef;
             ## no critic (RequireCheckedSyscalls)
             kill SIGINT, $self->{shell_pid};
             return;
@@ -88,11 +89,11 @@ sub fill {
             $self->{sink}->fill($response);
         }
     }
-    elsif ( $from eq 'shell:stdout' ) {
+    elsif ( $from eq '_shell:stdout' ) {
         if ( $type & TM_EOF ) {
             if ( kill 0, $self->{shell_pid} ) {
                 my $pid = waitpid -1, WNOHANG;
-                my $rv = $? >> 8;
+                my $rv  = $? >> 8;
                 $self->stderr("ERROR: shell exited with value: $rv")
                     if ( $pid > 0 and $rv );
             }
@@ -101,13 +102,13 @@ sub fill {
         }
         $self->SUPER::fill($message);
     }
-    elsif ( $from eq 'shell:stderr' ) {
+    elsif ( $from eq '_shell:stderr' ) {
         return if ( $type & TM_EOF );
         $self->stderr( $message->payload );
         $message->type(TM_ERROR);
         $self->SUPER::fill($message);
     }
-    elsif ( $from eq 'Timer' ) {
+    elsif ( $from eq '_timer' ) {
         do { } while ( waitpid( -1, WNOHANG ) > 0 );
         if ( not kill 0, $self->{shell_pid}
             and $! ne 'Operation not permitted' )

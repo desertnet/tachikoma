@@ -3,8 +3,6 @@
 # Accessories::Nodes::SFESerLCD
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Accessories::Nodes::SFESerLCD;
 use strict;

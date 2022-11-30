@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Echo
 # ----------------------------------------------------------------------
 #
-# $Id: Echo.pm 34412 2018-07-06 14:19:52Z chris $
-#
 
 package Tachikoma::Jobs::Echo;
 use strict;

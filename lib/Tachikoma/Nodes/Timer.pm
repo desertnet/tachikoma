@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Timer
 # ----------------------------------------------------------------------
 #
-# $Id: Timer.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::Timer;
 use strict;
@@ -68,8 +66,9 @@ sub set_timer {
     my $self    = shift;
     my $time    = shift;
     my $oneshot = shift;
-    die "ERROR: invalid time requested by $self->{name}\n"
-        if ( defined $time and $time =~ m{[^\d.]} );
+
+    # die "ERROR: invalid time requested by $self->{name}\n"
+    #     if ( defined $time and $time =~ m{[^\d.]} );
     if ( not $self->{id} ) {
         do {
             $self->{id} = Tachikoma->counter;
@@ -85,7 +84,7 @@ sub set_timer {
     else {
         die "ERROR: can't oneshot without a time\n";
     }
-    $self->{timer_interval} = $time;
+    $self->{timer_interval}  = $time;
     $self->{timer_is_active} = $oneshot ? 'once' : 'forever';
     return;
 }

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Table
 # ----------------------------------------------------------------------
 #
-# $Id: Table.pm 31247 2017-11-06 05:42:49Z chris $
-#
 
 package Tachikoma::Nodes::Table;
 use strict;
@@ -14,7 +12,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST TM_ERROR TM_EOF
 );
-use Tachikoma;
 use Digest::MD5 qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
 use parent qw( Tachikoma::Nodes::Timer );
@@ -334,7 +331,7 @@ sub send_stats {
         my @cache_stats = ();
         for my $b ( 0 .. $self->num_buckets - 1 ) {
             my $bucket = $cache->[$b] // {};
-            my $count = $bucket ? scalar keys %{$bucket} : 0;
+            my $count  = $bucket ? scalar keys %{$bucket} : 0;
             push @cache_stats, sprintf '%6d', $count;
             $total += $count;
         }
@@ -365,7 +362,7 @@ sub get_keys {
 sub on_load_window {
     my ( $self, $i, $stored ) = @_;
     my $next_window = $self->{next_window}->[$i] // 0;
-    my $timestamp   = $stored->{timestamp} // 0;
+    my $timestamp   = $stored->{timestamp}       // 0;
     $self->{caches}->[$i] ||= [];
     if ( $timestamp > $next_window ) {
         my $cache = $self->{caches}->[$i];
@@ -420,8 +417,10 @@ sub on_save_snapshot {
 sub new_cache {
     my ( $self, $i ) = @_;
     if ( defined $i ) {
-        $self->{caches}->[$i]      = [];
-        $self->{next_window}->[$i] = 0;
+        if ( $i < $self->{num_partitions} ) {
+            $self->{caches}->[$i]      = [];
+            $self->{next_window}->[$i] = 0;
+        }
     }
     else {
         $self->{caches}      = [];

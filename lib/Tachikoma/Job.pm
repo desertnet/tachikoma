@@ -3,8 +3,6 @@
 # Tachikoma::Job
 # ----------------------------------------------------------------------
 #
-# $Id: Job.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Job;
 use strict;
@@ -119,14 +117,13 @@ sub spawn {
         return;
     }
     else {
-        my $location = $self->configuration->prefix || '/usr/local/bin';
+        my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
         my $type          = ( $options->{type} =~ m{^([\w:]+)$} )[0];
         my $username      = ( $options->{username} =~ m{^(\S*)$} )[0];
         my $config_file   = ( $options->{config_file} =~ m{^(\S*)$} )[0];
         my $name          = ( $options->{name} =~ m{^(\S*)$} )[0];
         my $arguments     = ( $options->{arguments} =~ m{^(.*)$}s )[0];
-        my $owner         = ( $options->{owner} =~ m{^(\S*)$} )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -140,7 +137,7 @@ sub spawn {
             push @command, $SUDO, '-u', $username, '-C', FD_5 + 1;
         }
         push @command, $tachikoma_job, $config_file, $class, $name,
-            $arguments, $owner;
+            $arguments;
         exec @command or $self->stderr("ERROR: couldn't exec: $!");
         exit 1;
     }
@@ -279,7 +276,7 @@ sub fill {
     my $rv      = undef;
     $message->[TO] = '_parent' if ( not length $message->[TO] );
     $self->{counter}++;
-    $rv = $self->{router}->fill($message)
+    $rv = $self->{sink}->fill($message)
         if ( not $message->[TYPE] & TM_EOF
         or $message->[FROM] ne '_parent' );
     return $rv;

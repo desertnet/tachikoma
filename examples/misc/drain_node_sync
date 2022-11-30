@@ -1,0 +1,58 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma;
+use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
+use Getopt::Long qw( GetOptions );
+
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = undef;
+my $port        = undef;
+my $use_SSL     = undef;
+my $help        = undef;
+
+my $r = GetOptions(
+    'config=s' => \$config_file,
+    'host=s'   => \$host,
+    'port=i'   => \$port,
+    'use-ssl'  => \$use_SSL,
+    'help'     => \$help,
+);
+my $node_name = $ARGV[0];
+
+usage() if ( $help or not $r or ( not $port and not $node_name ) );
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
+
+my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
+$tachikoma->timeout(undef);
+$tachikoma->callback(
+    sub {
+        my $message = shift;
+        syswrite STDOUT, $message->[PAYLOAD]
+            if ( $message->[TYPE] & TM_BYTESTREAM );
+        $tachikoma->cancel($message);
+        return 1;
+    }
+);
+if ($node_name) {
+    my $command = $tachikoma->command( 'connect_node', $node_name );
+    $tachikoma->fill($command);
+}
+$tachikoma->drain;
+
+sub usage {
+    print "Usage:\n"
+        . "drain_node [ --config=<path> ]\n"
+        . "           [ --host=<host>   ]\n"
+        . "           [ --port=<port>   ]\n"
+        . "           [ --use-ssl       ]\n"
+        . "           [ --help          ]\n"
+        . "           [ <node name>     ]\n";
+    exit 1;
+}

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::HTTP_Auth
 # ----------------------------------------------------------------------
 #
-# $Id: HTTP_Auth.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::HTTP_Auth;
 use strict;
@@ -66,7 +64,7 @@ sub fill {
             $self->stderr("authorization failed for $user");
         }
     }
-    my $realm = $self->{realm} || $request->{headers}->{host} || 'default';
+    my $realm    = $self->{realm} || $request->{headers}->{host} || 'default';
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
@@ -240,7 +238,7 @@ sub apache_md5_crypt {
 }
 
 sub random_md5_salt {
-    my ($len) = shift || $max_salt_length;
+    my ($len)  = shift || $max_salt_length;
     my ($salt) = q();
     $len = $max_salt_length
         if ( ( $len < 1 ) or ( $len > $max_salt_length ) );

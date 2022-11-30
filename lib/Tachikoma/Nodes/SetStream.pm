@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::SetStream
 # ----------------------------------------------------------------------
 #
-# $Id: SetStream.pm 9709 2011-01-12 00:01:13Z chris $
-#
 
 package Tachikoma::Nodes::SetStream;
 use strict;

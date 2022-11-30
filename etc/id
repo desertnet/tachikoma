@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# $Id$
+# tachikoma server rsa keypair
 # ----------------------------------------------------------------------
+#
 
 use strict;
 use warnings;
@@ -24,9 +25,6 @@ $config->public_keys->{ $config->id } = {
         client
         server
     )},
-    # allow_commands => {map {$_=>1} qw(
-    #     connect_node
-    # )},
     public_key =>
 q(-----BEGIN RSA PUBLIC KEY-----
 ...

@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::StdErr
 # ----------------------------------------------------------------------
 #
-# $Id: StdErr.pm 12579 2012-01-11 04:10:56Z chris $
-#
 
 package Tachikoma::Nodes::StdErr;
 use strict;
@@ -25,6 +23,7 @@ EOF
 sub fill {
     my $self    = shift;
     my $message = shift;
+    $self->{counter}++;
     $self->stderr( $message->payload )
         if ( $message->type & TM_BYTESTREAM );
     return;

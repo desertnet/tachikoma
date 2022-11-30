@@ -4,7 +4,6 @@ include services/daemonize.tsl
 
 connect_hub
 
-
 make_node Topic server_log <broker>
 
 func start_indexer {
@@ -27,15 +26,17 @@ func start_indexer {
         remote_var indexer=<indexer>;
         on server_log.<field> READY {
             connect_node server_log:consumer <indexer>/server_log.<field>;
-            secure 3;
         };
+        on server_log.<field> RESET {
+            disconnect_node server_log:consumer;
+        };
+        secure 2;
     cd ..;
 }
 insecure;
 start_indexer timestamp IndexByTimestamp
 start_indexer hostname  IndexByHostname
 start_indexer process   IndexByProcess
-
 
 topic_probe
 

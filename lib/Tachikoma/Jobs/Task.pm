@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Task
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Jobs::Task;
 use strict;

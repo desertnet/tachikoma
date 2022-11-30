@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::Inet_AtoN
 # ----------------------------------------------------------------------
 #
-# $Id: Inet_AtoN.pm 35958 2018-11-29 01:37:07Z chris $
-#
 
 package Tachikoma::Jobs::Inet_AtoN;
 use strict;
@@ -27,19 +25,10 @@ sub initialize_graph {
     my $self = shift;
     $self->connector->sink($self);
     $self->sink( $self->router );
-    if ( $self->owner ) {
-        my $message = Tachikoma::Message->new;
-        $message->type(TM_BYTESTREAM);
-        $message->payload( $self->arguments );
-        $self->fill($message);
-        $self->remove_node;
-    }
-    else {
-        $self->timer( Tachikoma::Nodes::Timer->new );
-        $self->timer->name('Timer');
-        $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
-        $self->timer->sink($self);
-    }
+    $self->timer( Tachikoma::Nodes::Timer->new );
+    $self->timer->name('_timer');
+    $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
+    $self->timer->sink($self);
     return;
 }
 
@@ -49,7 +38,7 @@ sub fill {
     return if ( $message->[TYPE] & TM_EOF );
 
     # timeout, send a TM_KILLME request
-    if ( $message->[FROM] eq 'Timer' ) {
+    if ( $message->[FROM] eq '_timer' ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE] = TM_KILLME;
         $self->timer->stop_timer;

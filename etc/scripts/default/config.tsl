@@ -112,7 +112,7 @@ func start_service {
     local service = <1>;
     command jobs  start_job Shell <service>:job <services_dir>/<service>.tsl;
     command hosts connect_inet localhost:[var "tachikoma.<service>.port"] <service>:service;
-    command tails add_tail <home>/.tachikoma/log/<service>.log server_log:link;
+    command tails add_tail <home>/.tachikoma/log/<service>.log _parent/server_log:link;
     connect_node <service>:job null;
 }
 

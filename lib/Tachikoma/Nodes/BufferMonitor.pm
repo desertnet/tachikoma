@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::BufferMonitor
 # ----------------------------------------------------------------------
 #
-# $Id: BufferMonitor.pm 12689 2012-02-01 01:24:14Z chris $
-#
 
 package Tachikoma::Nodes::BufferMonitor;
 use strict;
@@ -45,7 +43,6 @@ sub new {
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
     bless $self, $class;
-    $self->set_timer( $Timer_Interval * 1000 );
     return $self;
 }
 
@@ -56,17 +53,15 @@ sub arguments {
         $self->{buffers}      = {};
         $self->{email_alerts} = {};
         $self->{trap_alerts}  = {};
+        $self->set_timer( $Timer_Interval * 1000 );
     }
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
-        return
-            if ($message->[TYPE] & TM_EOF
-            and $message->[FROM] =~ m{^(?:_parent/)?[^/]+$} );
         return $self->interpreter->fill($message);
     }
     if ( $message->[TYPE] & TM_INFO ) {
@@ -78,8 +73,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $buffers     = $self->{buffers};
     my $new_buffers = {};
 LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
-        my $buffer = { map { split m{:}, $_, 2 } split q( ), $line };
-        my $buffer_id = join q(:), $buffer->{hostname}, $buffer->{buff_name};
+        my $buffer     = { map { split m{:}, $_, 2 } split q( ), $line };
+        my $buffer_id  = join q(:), $buffer->{hostname}, $buffer->{buff_name};
         my $old_buffer = $buffers->{$buffer_id};
         $new_buffers->{$buffer_id} = $buffer;
         $buffer->{id}              = $buffer_id;
@@ -334,7 +329,7 @@ sub get_alerts {
             $chunk .= $subject . "\n";
         }
         delete $alerts->{$id} if ( not keys %{$subjects} );
-        next if ( not $chunk );
+        next                  if ( not $chunk );
         $chunk .= $self->get_details($buffer) . "\n\n"
             if ( $type eq 'email' );
         $body .= $chunk;

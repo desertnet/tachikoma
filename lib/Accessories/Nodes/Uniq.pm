@@ -1,12 +1,10 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::Uniq
+# Accessories::Nodes::Uniq
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
-package Tachikoma::Nodes::Uniq;
+package Accessories::Nodes::Uniq;
 use strict;
 use warnings;
 use Tachikoma::Node;

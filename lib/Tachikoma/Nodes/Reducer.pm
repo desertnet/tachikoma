@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Reducer
 # ----------------------------------------------------------------------
 #
-# $Id: Reducer.pm 4031 2009-12-30 22:56:38Z chris $
-#
 
 package Tachikoma::Nodes::Reducer;
 use strict;
@@ -34,7 +32,7 @@ sub arguments {
         my ( $timeout, $interval ) = split q( ), $self->{arguments}, 2;
         $timeout  ||= $Default_Timeout;
         $interval ||= $timeout / 60;
-        $self->timeout($timeout);
+        $self->{timeout} = $timeout;
         $self->set_timer( $interval * 1000 );
     }
     return $self->{arguments};

@@ -1,20 +1,19 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Jobs::TailForks
+# Tachikoma::Jobs::Tails
 # ----------------------------------------------------------------------
 #
-# $Id: TailForks.pm 3651 2009-10-20 18:23:28Z chris $
-#
 
-package Tachikoma::Jobs::TailForks;
+package Tachikoma::Jobs::Tails;
 use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::CommandInterpreter;
-use Tachikoma::Nodes::JobController;
-use Tachikoma::Nodes::LoadController;
+use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Responder;
 use Tachikoma::Nodes::FileWatcher;
 use Tachikoma::Nodes::Timer;
+use Tachikoma::Nodes::Tail;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF
@@ -25,39 +24,35 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home          = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir        = "$Home/.tachikoma/tails";
-my $Max_Forking   = 8;
-my $Scan_Interval = 15;
-my $Last_Cache    = 0;
+my $Home   = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_Dir = "$Home/.tachikoma/tails";
+my $Offset_Interval = 1;      # write offsets this often
+my $Scan_Interval   = 15;     # check files this often
+my $Startup_Delay   = -10;    # offset from scan interval
+my $Default_Timeout = 300;    # message timeout for tails
 
 sub initialize_graph {
-    my $self            = shift;
-    my $name            = $self->name;
-    my $interpreter     = Tachikoma::Nodes::CommandInterpreter->new;
-    my $job_controller  = Tachikoma::Nodes::JobController->new;
-    my $load_controller = Tachikoma::Nodes::LoadController->new;
-    my $file_watcher    = Tachikoma::Nodes::FileWatcher->new;
-    my $arguments       = $self->arguments;
-    my @destinations    = split q( ), $arguments;
+    my $self         = shift;
+    my $name         = $self->name;
+    my $interpreter  = Tachikoma::Nodes::CommandInterpreter->new;
+    my $shell        = Tachikoma::Nodes::Shell2->new;
+    my $responder    = Tachikoma::Nodes::Responder->new;
+    my $file_watcher = Tachikoma::Nodes::FileWatcher->new;
     $self->connector->sink($interpreter);
-    $interpreter->name('command_interpreter');
+    $shell->sink($interpreter);
+    $interpreter->name('_command_interpreter');
+    $responder->name('_responder');
+    $responder->shell($shell);
+    $responder->sink( $self->router );
     $self->interpreter($interpreter);
-    $job_controller->name('jobs');
-    $job_controller->sink($interpreter);
-    $self->job_controller($job_controller);
-    $load_controller->name('LoadController');
-    $load_controller->sink($self);
-    $self->load_controller($load_controller);
-    $file_watcher->name('FileWatcher');
+    $file_watcher->name('_file_watcher');
     $file_watcher->sink($self);
     $self->file_watcher($file_watcher);
-    $self->connect_list( \@destinations );
-    $self->tails(   {} );
-    $self->files(   {} );
-    $self->forking( {} );
+    $self->tails( {} );
+    $self->files( {} );
     $self->sink( $self->router );
-    $self->timer->set_timer( $Scan_Interval * 1000 );
+    $self->timer->set_timer( $Offset_Interval * 1000 );
+    $self->last_scan( $Tachikoma::Now + $Startup_Delay );
     $interpreter->sink($self);
     $interpreter->commands->{'add_tail'} = sub {
         my $this     = shift;
@@ -85,7 +80,7 @@ sub initialize_graph {
             my $path = $files->{$file}->[0];
             next if ( $path !~ m{$regex} );
             delete $self->files->{$file};
-            $self->finish_file( $file, 'delete' );
+            $self->finish_file($file);
             delete $self->file_watcher->files->{$path};
             $found = 1;
         }
@@ -96,7 +91,8 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        $self->timer->set_timer(0);
+        $self->timer->set_timer( $Offset_Interval * 1000 );
+        $self->last_scan( $Tachikoma::Now + $Startup_Delay );
         return $this->okay($envelope);
     };
     $interpreter->commands->{'stop_tail'} = sub {
@@ -108,8 +104,7 @@ sub initialize_graph {
             my $watcher = $Tachikoma::Nodes{"$file:watcher"};
             $watcher->remove_node if ($watcher);
         }
-        $self->timer->remove_node if ( $self->{timer} );
-        $self->{timer} = undef;
+        $self->timer->stop_timer;
         return $this->okay($envelope);
     };
     $interpreter->commands->{'list_files'} = sub {
@@ -146,18 +141,14 @@ sub fill {
     my $message = shift;
     my $type    = $message->[TYPE];
     $self->{counter}++;
-    if ( $message->[FROM] eq 'Timer' ) {
-        $self->rescan_files;
-        return;
-    }
-    elsif ( $message->from eq 'FileWatcher' ) {
+    if ( $message->from eq '_file_watcher' ) {
         my $events = qr{(created|inode changed|missing)};
         my $event  = undef;
-        if ( $message->[PAYLOAD] =~ m{^FileWatcher: file (.*) $events$} ) {
+        if ( $message->[PAYLOAD] =~ m{^_file_watcher: file (.*) $events$} ) {
             my $file = $1;
             $event = $2;
             $file =~ s{/}{:}g;
-            $self->finish_file( $file, 'rename' );
+            $self->finish_file($file);
         }
         else {
             $self->stderr( 'WARNING: unexpected message from ',
@@ -166,26 +157,19 @@ sub fill {
         $self->rescan_files if ( $event and $event ne 'missing' );
         return;
     }
-    elsif ( $message->[FROM] =~ m{^(.*):tail$} ) {
-        my $file = $1;
-        return $self->{sink}->fill($message) if ( length $message->[TO] );
-        my $forking = $self->{forking};
-        $self->position( $file, $message->[ID] ) if ( length $message->[ID] );
-        $message->[STREAM] = $file;
-        if ( $type & TM_EOF ) {
-            delete $self->{tails}->{$file};
-            return;
+    elsif ( $message->from eq '_timer' ) {
+        my $tiedhash = $self->tiedhash;
+        my $files    = $self->{files};
+        if ( $Tachikoma::Now - $self->{last_scan} >= $Scan_Interval ) {
+            $self->rescan_files;
         }
-        elsif ( keys( %{$forking} ) >= $Max_Forking ) {
-            $self->timer->set_timer(10);
+        for my $file ( keys %{$files} ) {
+            next if ( not $files->{$file} );
+            my $node = $Tachikoma::Nodes{"$file:tail"};
+            if ( $node and $node->{bytes_answered} != $tiedhash->{$file} ) {
+                $tiedhash->{$file} = $node->{bytes_answered};
+            }
         }
-        delete $forking->{$file};
-        return;
-    }
-    elsif ( $message->[FROM] =~ m{^(.*):tail-\d+$} ) {
-        my $file = $1;
-        $message->[STREAM] = $file;
-        return if ( $type & TM_EOF );
         return;
     }
     return $self->{sink}->fill($message);
@@ -194,33 +178,28 @@ sub fill {
 sub rescan_files {
     my $self = shift;
     return if ( not $self->{timer} );
-    my $tails   = $self->{tails};
-    my $files   = $self->{files};
-    my $forking = $self->{forking};
+    my $tails = $self->{tails};
+    my $files = $self->{files};
     for my $file ( keys %{$files} ) {
         my $path = $files->{$file}->[0];
         next if ( not -e $path );
         if ( not $Tachikoma::Nodes{"$file:tail"} ) {
-            next
-                if ( not $forking->{$file}
-                and keys( %{$forking} ) >= $Max_Forking );
-            my $tiedhash    = $self->tiedhash;
-            my $filepos     = $tiedhash->{$file} || 0;
-            my $destination = $self->get_destination($file);
-            my $node_path   = $files->{$file}->[1];
-            my $stream      = $files->{$file}->[2];
-            next if ( not $destination );
+            my $tiedhash  = $self->tiedhash;
+            my $filepos   = $tiedhash->{$file} || 0;
+            my $node_path = $files->{$file}->[1];
+            my $stream    = $files->{$file}->[2];
             $tiedhash->{$file} = 0 if ( not $filepos );
             $tails->{$file}    = 1;
-            $forking->{$file}  = 1;
             my $arguments = "--filename=$path --offset=$filepos";
             $arguments .= " --stream=$stream" if ( length $stream );
-            $self->{job_controller}->start_job(
-                {   type      => 'TailFork',
-                    name      => "$file:tail",
-                    arguments => "$destination $node_path $arguments"
-                }
-            );
+            my $tail = Tachikoma::Nodes::Tail->new;
+            $tail->name("$file:tail");
+            $tail->arguments($arguments);
+            $tail->buffer_mode('line-buffered');
+            $tail->max_unanswered(256);
+            $tail->timeout($Default_Timeout);
+            $tail->owner($node_path);
+            $tail->sink( $self->router );
             my $message = Tachikoma::Message->new;
             $message->type(TM_BYTESTREAM);
             $message->payload($path);
@@ -232,110 +211,32 @@ sub rescan_files {
         delete $tiedhash->{$file} if ( not $files->{$file} );
     }
     tied( %{$tiedhash} )->db_sync;
-    $self->timer->set_timer( $Scan_Interval * 1000 );
-    return;
-}
-
-sub connect_list {
-    my $self = shift;
-    if (@_) {
-        $self->{connect_list} = shift;
-        for my $host_port ( @{ $self->{connect_list} } ) {
-            my ( $host, $port, $use_SSL ) = split m{:}, $host_port, 3;
-            my $connection =
-                Tachikoma::Nodes::Socket->inet_client( $host, $port, undef,
-                $use_SSL );
-            $connection->on_EOF('reconnect');
-            $connection->sink($self);
-            $self->load_controller->add_connector( id => $connection->name );
-        }
-    }
-    return $self->{connect_list};
-}
-
-sub get_destination {
-    my $self         = shift;
-    my $file         = shift;
-    my $connect_list = $self->{connect_list};
-    my $online       = $self->{load_controller}->{connectors};
-    my $offline      = $self->{load_controller}->{offline};
-    my @destinations = ();
-    for my $destination ( @{ $self->{connect_list} } ) {
-        my $host = $destination;
-        $host =~ s{:ssl$}{};
-        next if ( exists $offline->{$host} );
-        push @destinations, $destination;
-    }
-    return if ( not @destinations );
-    my $i = 0;
-    $i += $_ for ( unpack 'C*', md5($file) );
-    return $destinations[ $i % @destinations ];
-}
-
-sub position {
-    my $self     = shift;
-    my $file     = shift;
-    my $position = shift;
-    my $tiedhash = $self->tiedhash;
-    $tiedhash->{$file} = $position;
     return;
 }
 
 sub close_tail {
-    my $self           = shift;
-    my $file           = shift;
-    my $tails          = $self->tails;
-    my $job_controller = $self->job_controller;
+    my $self  = shift;
+    my $file  = shift;
+    my $tails = $self->tails;
     if ( $tails->{$file} ) {
-        $job_controller->stop_job("$file:tail");
+        my $node = $Tachikoma::Nodes{"$file:tail"};
+        $node->remove_node if ($node);
         delete $tails->{$file};
     }
-
-    # $self->stderr("closed $file");
     return;
 }
 
 sub finish_file {
     my $self  = shift;
     my $file  = shift;
-    my $event = shift;
     my $tails = $self->tails;
-
-    # $self->stderr((caller(1))[3] . " called finish");
     if ( $tails->{$file} ) {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_BYTESTREAM;
-        $message->[TO]      = "$file:tail";
-        $message->[PAYLOAD] = "$event\n";
-        $self->{sink}->fill($message);
+        my $node = $Tachikoma::Nodes{"$file:tail"};
+        $node->on_EOF('close') if ($node);
         delete $tails->{$file};
-        my $old_name = "$file:tail";
-        my $new_name = sprintf '%s-%06d',
-            $old_name, $self->job_controller->job_counter;
-        my $okay = eval {
-            $self->job_controller->rename_job( $old_name, $new_name );
-            return 1;
-        };
-        $self->stderr("ERROR: $@") if ( not $okay );
         delete $self->tiedhash->{$file};
     }
     return;
-}
-
-sub job_controller {
-    my $self = shift;
-    if (@_) {
-        $self->{job_controller} = shift;
-    }
-    return $self->{job_controller};
-}
-
-sub load_controller {
-    my $self = shift;
-    if (@_) {
-        $self->{load_controller} = shift;
-    }
-    return $self->{load_controller};
 }
 
 sub file_watcher {
@@ -362,14 +263,6 @@ sub files {
     return $self->{files};
 }
 
-sub forking {
-    my $self = shift;
-    if (@_) {
-        $self->{forking} = shift;
-    }
-    return $self->{forking};
-}
-
 sub tiedhash {
     my $self = shift;
     if (@_) {
@@ -389,7 +282,7 @@ sub tiedhash {
                 -Mode     => 0600
                 or warn "couldn't tie $path: $!";
             %copy = %h;
-            untie %h or warn "couldn't untie $path: $!";
+            untie %h     or warn "couldn't untie $path: $!";
             unlink $path or warn "couldn't unlink $path: $!";
         }
         tie %h, 'BerkeleyDB::Btree',
@@ -429,11 +322,19 @@ sub timer {
     }
     if ( not defined $self->{timer} ) {
         my $timer = Tachikoma::Nodes::Timer->new;
-        $timer->name('Timer');
+        $timer->name('_timer');
         $timer->sink($self);
         $self->{timer} = $timer;
     }
     return $self->{timer};
+}
+
+sub last_scan {
+    my $self = shift;
+    if (@_) {
+        $self->{last_scan} = shift;
+    }
+    return $self->{last_scan};
 }
 
 1;

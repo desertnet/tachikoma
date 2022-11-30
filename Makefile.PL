@@ -1,12 +1,7 @@
 #!/usr/bin/env perl
-#
+# ----------------------------------------------------------------------
 # Makefile.PL
-#
-# Makefile for tachikoma
-#
-# Copyright (c) 2020 DesertNet
-#
-# $Id: Makefile.PL 38453 2020-01-28 18:48:24Z chris $
+# ----------------------------------------------------------------------
 #
 
 use strict;
@@ -38,8 +33,10 @@ WriteMakefile(
     EXE_FILES   => [
         qw(
             bin/buffer_top
+            bin/consume_topic
             bin/drain_node
             bin/fill_node
+            bin/produce_topic
             bin/set_tachikoma_hz
             bin/tachikoma
             bin/tachikoma-client

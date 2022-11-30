@@ -3,11 +3,10 @@
 # tachikoma job tests
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
-use Test::More tests => 52;
+use Test::More tests => 48;
 
 sub test_construction {
     my $class = shift;
@@ -25,7 +24,6 @@ $tachikoma->event_framework(
 
 my @jobs = qw(
     Tachikoma::Job
-    Tachikoma::Jobs::BShell
     Tachikoma::Jobs::CGI
     Tachikoma::Jobs::CommandInterpreter
     Tachikoma::Jobs::DirCheck
@@ -40,8 +38,7 @@ my @jobs = qw(
     Tachikoma::Jobs::Shell
     Tachikoma::Jobs::SQL
     Tachikoma::Jobs::Tail
-    Tachikoma::Jobs::TailFork
-    Tachikoma::Jobs::TailForks
+    Tachikoma::Jobs::Tails
     Tachikoma::Jobs::Task
     Accessories::Jobs::APlay
     Accessories::Jobs::Delay

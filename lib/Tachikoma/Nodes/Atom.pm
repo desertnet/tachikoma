@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Atom
 # ----------------------------------------------------------------------
 #
-# $Id: Atom.pm 536 2009-01-04 00:43:07Z chris $
-#
 
 package Tachikoma::Nodes::Atom;
 use strict;
@@ -39,7 +37,7 @@ sub arguments {
         my ( $tmp_dir, $path ) = split q( ), $self->{arguments}, 2;
         die "ERROR: bad arguments for Atom\n" if ( not $tmp_dir );
         $self->{tmp_dir} = ( $tmp_dir =~ m{^(\S+)$} )[0];
-        $self->{path}    = ( $path =~ m{^(\S+)$} )[0];
+        $self->{path}    = ( $path    =~ m{^(\S+)$} )[0];
         $self->make_dirs( $self->{tmp_dir} )
             or die "couldn't make tmp dir: $!";
     }

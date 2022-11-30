@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::Topic;
-use Time::HiRes qw( time );
+use Time::HiRes;
 use Getopt::Long qw( GetOptions );
 use Digest::MD5 qw( md5 );
 
@@ -50,6 +50,7 @@ if ( $mode eq 'keys' ) {
         if ( @{ $buf[$i] } > $batch_size ) {
             my %batch = ();
             $batch{$_} = [1] for ( @{ $buf[$i] } );
+            $Tachikoma::Now = time;
             $broker->send_kv( $i, \%batch )
                 or die $broker->sync_error;
             $buf[$i] = [];
@@ -74,18 +75,19 @@ else {
     while (1) {
         my $line = <STDIN>;
         push( @lines, $line ) if ( defined $line );
-        my $time = time;
+        $Tachikoma::Right_Now = Time::HiRes::time;
         next
             if (defined $line
             and @lines < $batch_size
-            and $time - $last < 1 );
+            and $Tachikoma::Right_Now - $last < 1 );
+        $Tachikoma::Now = int $Tachikoma::Right_Now;
         while ( @lines and not $broker->send_messages( $i, \@lines ) ) {
             print STDERR $broker->sync_error;
             sleep 1;
         }
         last if ( not defined $line or not @lines );
         @lines = ();
-        $last  = $time;
+        $last  = $Tachikoma::Right_Now;
         $i     = 0 if ( $partition < 0 and $i++ >= $#$partitions );
     }
 }

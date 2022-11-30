@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::JobController
 # ----------------------------------------------------------------------
 #
-# $Id: JobController.pm 39257 2020-07-26 09:33:43Z chris $
-#
 
 package Tachikoma::Nodes::JobController;
 use strict;
@@ -17,7 +15,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX qw( SIGCHLD SIGKILL );
+use POSIX qw( SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -36,13 +34,13 @@ sub new {
     $self->{restart}       = {};
     $self->{username}      = undef;
     $self->{config_file}   = undef;
+    $self->{on_EOF}        = 'ignore';
     $self->{shutdown_mode} = 'wait';
     $self->{shutting_down} = undef;
     $self->{interpreter}   = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
     bless $self, $class;
-    Tachikoma->event_framework->watch_for_signal(SIGCHLD);
     return $self;
 }
 
@@ -68,7 +66,7 @@ sub fill {
     return if ( $self->{shutting_down} );
     if ( $type & TM_KILLME ) {
         my $name = ( split m{/}, $message->[FROM], 2 )[0];
-        my $job = $self->{jobs}->{$name};
+        my $job  = $self->{jobs}->{$name};
         return $self->stderr("ERROR: TM_KILLME from unknown $name")
             if ( not $job );
         $job->{connector}->fill($message);
@@ -78,7 +76,7 @@ sub fill {
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
-        my $to        = $message->[TO] // q();
+        my $to        = $message->[TO]             // q();
         my $job_owner = $job->{connector}->{owner} // q();
         $message->[FROM] = $from
             if ($next
@@ -87,7 +85,7 @@ sub fill {
         return $self->handle_EOF( $message, $name, $job )
             if ( not $next and $to eq $job_owner and $type & TM_EOF );
     }
-    return $self->{interpreter}->fill($message);
+    return $self->{sink}->fill($message);
 }
 
 sub fire {
@@ -141,10 +139,13 @@ sub handle_EOF {
         # but if it's from shutdown, we need to remove the connector:
         $job->remove_node;
     }
+    if ( $self->{on_EOF} eq 'send' ) {
 
-    # This is mainly to notify custom jobs like TailForks.
-    # CommandInterpreter will drop this message:
-    return $self->{sink}->fill($message);
+        # This is mainly to notify custom jobs that might use JobController.
+        # CommandInterpreter will drop this message:
+        $self->{sink}->fill($message);
+    }
+    return;
 }
 
 $C{help} = sub {
@@ -401,7 +402,7 @@ sub start_job {
     $options->{name} ||= $options->{type};
     $options->{arguments} //= q();
     $options->{owner}     //= q();
-    $options->{username}    = $self->username // q();
+    $options->{username}    = $self->username    // q();
     $options->{config_file} = $self->config_file // q();
     my $name = $options->{name};
 
@@ -540,7 +541,7 @@ sub dump_config {
             $response .= "$line\n";
         }
         for my $name ( sort keys %{$jobs} ) {
-            my $job = $jobs->{$name};
+            my $job   = $jobs->{$name};
             my $owner = $job->{connector}->{owner} or next;
             $response .= ("connect_node $name $owner\n");
         }
@@ -618,6 +619,14 @@ sub config_file {
         }
     }
     return $config_file;
+}
+
+sub on_EOF {
+    my $self = shift;
+    if (@_) {
+        $self->{on_EOF} = shift;
+    }
+    return $self->{on_EOF};
 }
 
 sub shutdown_mode {

@@ -1,7 +1,30 @@
-#!/bin/sh
-socket="/tmp/tachikoma.socket"
-if [ -e $socket ] ; then
-    exec /usr/local/bin/tachikoma --socket $socket --verbose $@
-else
-    exec /usr/local/bin/tachikoma --host localhost --verbose $@
-fi
+#!/usr/bin/env /usr/local/bin/tachikoma
+if (<_C> > 0) {
+    for i (1 .. <_C>) {
+        if ([var <i>] =~ '^--([^=]+)=(.*)$') {
+            var <_1> = <_2>
+        }
+        elsif ([var <i>] =~ '^--([^=]+)$') {
+            var <_1> = 1
+        }
+        else {
+            var startup = [var <i>]
+        }
+    }
+}
+var args
+if ([var socket])  { args .= --socket=<socket>     }
+if ([var host])    { args .= --host=<host>         }
+if ([var port])    { args .= --port=<port>         }
+if ([var use-ssl]) { args .= --use-ssl             }
+if ([var scheme])  { scheme <scheme>               }
+if ([var timeout]) { set_timeout <timeout>         }
+pivot_client <args>
+if ([var debug])   { debug_level <debug>           }
+if ([var verbose]) { show_commands 1; want_reply 1 }
+if ([var path])    { cd <path>                     }
+if ([var startup]) {
+    include <startup>
+} else {
+    shell
+}

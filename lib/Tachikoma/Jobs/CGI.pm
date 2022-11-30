@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::CGI
 # ----------------------------------------------------------------------
 #
-# $Id: CGI.pm 3033 2009-09-15 08:02:14Z chris $
-#
 
 package Tachikoma::Jobs::CGI;
 use strict;
@@ -20,7 +18,6 @@ sub initialize_graph {
     my $self = shift;
     my $cgi  = Tachikoma::Nodes::CGI->new;
     $self->connector->sink($cgi);
-    $cgi->name('CGI');
     $cgi->arguments( $self->arguments );
     $cgi->sink($self);
     $self->sink( $self->router );

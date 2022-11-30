@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::SQL
 # ----------------------------------------------------------------------
 #
-# $Id: SQL.pm 35512 2018-10-22 08:27:21Z chris $
-#
 
 package Tachikoma::Jobs::SQL;
 use strict;

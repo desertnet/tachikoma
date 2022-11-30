@@ -3,8 +3,6 @@
 # Tachikoma::Jobs::LWP
 # ----------------------------------------------------------------------
 #
-# $Id: LWP.pm 3033 2009-09-15 08:02:14Z chris $
-#
 
 package Tachikoma::Jobs::LWP;
 use strict;
@@ -20,8 +18,7 @@ sub initialize_graph {
     my $self = shift;
     my $lwp  = Tachikoma::Nodes::LWP->new;
     $self->connector->sink($lwp);
-    $lwp->name('LWP');
-    if ( $self->owner ) {
+    if ( $self->arguments =~ m{^https?://} ) {
         $lwp->arguments(90);
         $lwp->sink($self);
         $self->sink( $self->router );
@@ -30,7 +27,7 @@ sub initialize_graph {
         $message->from('_parent');
         $message->payload( $self->arguments );
         $lwp->fill($message);
-        $self->remove_node;
+        $self->shutdown_all_nodes;
     }
     else {
         $lwp->arguments( $self->arguments );

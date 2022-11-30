@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Queue
 # ----------------------------------------------------------------------
 #
-# $Id: Queue.pm 21099 2014-11-19 02:21:55Z chris $
-#
 
 package Tachikoma::Nodes::Queue;
 use strict;
@@ -23,13 +21,12 @@ use parent qw( Tachikoma::Nodes::Buffer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Clear_Interval       = 900;
-my $Default_Timeout      = 900;
-my $Default_Times_Expire = 300;
-my $Timer_Interval       = 15;
-my $Home   = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir = "$Home/.tachikoma/queues";
-my %C      = ();
+my $Clear_Interval  = 900;
+my $Default_Timeout = 900;
+my $Timer_Interval  = 15;
+my $Home            = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_Dir          = "$Home/.tachikoma/queues";
+my %C               = ();
 
 sub new {
     my $class = shift;
@@ -79,8 +76,6 @@ sub fill {
     my $unanswered     = keys %{ $self->{msg_unanswered} };
     my $max_unanswered = $self->{max_unanswered};
     my $copy           = bless [ @{$message} ], ref $message;
-    $self->set_timer(0)
-        if ( $self->{owner} and $unanswered < $max_unanswered );
     return $self->stderr( 'ERROR: unexpected ',
         $message->type_as_string, ' from ', $message->from )
         if (not $type & TM_BYTESTREAM
@@ -112,7 +107,7 @@ sub fill {
         $self->{buffer_size}++;
     }
     $sth = $dbh->prepare('INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    $sth->execute( $Tachikoma::Right_Now + $self->{delay},
+    $sth->execute( $Tachikoma::Now + $self->{delay},
         0, $copy->[TYPE], $copy->[ID], $copy->[STREAM],
         $copy->[TIMESTAMP], $copy->[PAYLOAD], $message_key );
     $self->{buffer_fills}++;
@@ -129,6 +124,8 @@ sub fill {
     elsif ( $type & TM_PERSIST ) {
         $self->cancel($message);
     }
+    $self->set_timer(0)
+        if ( $self->{owner} and $unanswered < $max_unanswered );
     return 1;
 }
 
@@ -139,20 +136,14 @@ sub handle_response {
     my $payload    = $response->[PAYLOAD];
     return if ( not $message_id );
     my $msg_unanswered = $self->{msg_unanswered};
-    if ( $msg_unanswered->{$message_id} ) {
-        my $times = $self->{trip_times};
-        $times->{$Tachikoma::Right_Now} ||= [];
-        push @{ $times->{$Tachikoma::Right_Now} },
-            $message_id,
-            $Tachikoma::Right_Now - $msg_unanswered->{$message_id};
-    }
-    my $dbh = $self->dbh;
+    my $dbh            = $self->dbh;
     my $sth =
         $dbh->prepare('SELECT message_type FROM queue WHERE message_id=?');
     $sth->execute($message_id);
-    my $row = $sth->fetchrow_arrayref;
+    my $row  = $sth->fetchrow_arrayref;
     my $type = $row ? $row->[0] : 0;
     $payload = 'cancel' if ( $payload eq 'answer' and $type & TM_ERROR );
+
     if ( $payload eq 'cancel' ) {
         my $buffer_size = $self->{buffer_size} // $self->get_buffer_size;
         $buffer_size-- if ( $buffer_size > 0 and $type );
@@ -176,24 +167,11 @@ sub handle_response {
     return 1;
 }
 
-sub fire {    ## no critic (ProhibitExcessComplexity)
+sub fire {
     my $self = shift;
     $self->set_timer( $Timer_Interval * 1000 );
 
     # maintain stats
-    my $times = $self->{trip_times};
-    if ( $Tachikoma::Now - $self->{last_fire_time} > $Timer_Interval ) {
-        my $times_expire = $self->{times_expire};
-        for my $timestamp ( sort { $a <=> $b } keys %{$times} ) {
-            if ( $Tachikoma::Now - $timestamp > $times_expire ) {
-                delete $times->{$timestamp};
-            }
-            else {
-                last;
-            }
-        }
-        $self->{last_fire_time} = $Tachikoma::Now;
-    }
     if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
         $self->{responders}       = {};
         $self->{last_expire_time} = $Tachikoma::Now;
@@ -216,13 +194,11 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         }
     }
     if ( not $self->{owner} ) {
-        $self->stop_timer
-            if ( not keys %{$times} and not keys %{$msg_unanswered} );
+        $self->stop_timer if ( not keys %{$msg_unanswered} );
         return;
     }
 
     # refill the run queue
-    my $dbh      = $self->{dbh} // $self->dbh;
     my $is_empty = undef;
     my $i        = keys %{$msg_unanswered};
     while ( $i < $max_unanswered ) {
@@ -231,18 +207,19 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
 
             # buffer is empty (this is the easiest place to detect it)
             # untie and unlink and create a fresh buffer:
-            if ( $Tachikoma::Now - $self->{last_clear_time} > $Clear_Interval
-                and $i == 1
-                and not $self->get_buffer_size )
-            {
-                if ($dbh) {
-                    $dbh->disconnect;
-                    unlink $self->filename or warn;
-                    $self->dbh(undef);
+            if ( $i == 1 and not $self->get_buffer_size ) {
+                if ( $Tachikoma::Now - $self->{last_clear_time}
+                    > $Clear_Interval )
+                {
+                    if ( $self->{dbh} ) {
+                        $self->{dbh}->disconnect;
+                        unlink $self->filename or warn;
+                        $self->dbh(undef);
+                    }
+                    $self->{cache}           = undef;
+                    $self->{last_clear_time} = $Tachikoma::Now;
                 }
-                $self->{cache}           = undef;
-                $self->{last_clear_time} = $Tachikoma::Now;
-                $is_empty                = 'true';
+                $is_empty = 'true';
             }
             last;
         }
@@ -250,10 +227,7 @@ sub fire {    ## no critic (ProhibitExcessComplexity)
         $self->refill($key);
     }
     $self->{is_active} = 1;
-    $self->stop_timer
-        if ($is_empty
-        and not keys %{$times}
-        and not keys %{$msg_unanswered} );
+    $self->stop_timer if ( $is_empty and not keys %{$msg_unanswered} );
     return;
 }
 
@@ -297,7 +271,7 @@ sub refill {
     return if ( $msg_unanswered->{$key} or not defined $value );
     my ( $next_attempt, $attempts, $type, $id, $stream, $timestamp, $payload )
         = @{$value};
-    my $span    = ( $next_attempt - $Tachikoma::Right_Now ) * 1000;
+    my $span    = ( $next_attempt - $Tachikoma::Now ) * 1000;
     my $timeout = $self->{timeout};
     my $to      = $self->{owner};
 
@@ -308,15 +282,14 @@ sub refill {
     if ( $max_attempts and $attempts >= $max_attempts ) {
         my $path = $self->{on_max_attempts};
         my $name = ( split m{/}, $path, 2 )[0];
-        if ( $Tachikoma::Nodes{$name} ) {
+        if ( $Tachikoma::Nodes{$name} and $name ne $self->{name} ) {
+            $self->print_less_often(
+                "$key has failed $attempts attempts - sending to $name");
             $to = $path;
         }
         elsif ( $path eq 'drop' ) {
-            my $message = Tachikoma::Message->new;
-            $message->[TYPE] = $type;
             $self->stderr(
-                "ERROR: $key has failed $attempts attempts - dropping",
-                ' - type: ' . $message->type_as_string );
+                "ERROR: $key has failed $attempts attempts - dropping");
             $self->{buffer_size}-- if ( $self->{buffer_size} );
             delete $msg_unanswered->{$key};
             $sth = $dbh->prepare('DELETE FROM queue WHERE message_id=?');
@@ -625,7 +598,6 @@ sub dump_config {
     my $last_buffer     = $self->{last_buffer};
     my $delay           = $self->{delay};
     my $timeout         = $self->{timeout};
-    my $times_expire    = $self->{times_expire};
     my $key_regex       = $self->{key_regex};
     my $check_payload   = $self->{check_payload};
     my $check_stream    = $self->{check_stream};
@@ -642,8 +614,6 @@ sub dump_config {
     $settings .= "  set_delay $delay\n" if ($delay);
     $settings .= "  set_timeout $timeout\n"
         if ( $timeout ne $Default_Timeout );
-    $settings .= "  set_times_expire $times_expire\n"
-        if ( $times_expire ne $Default_Times_Expire );
     $settings .= "  set_key_regex $key_regex\n" if ($key_regex);
     $settings .= "  check_payload\n"            if ($check_payload);
     $settings .= "  check_stream\n"             if ($check_stream);

@@ -40,6 +40,7 @@ sudo apt install libperl-critic-perl
 # To quickly get up and running with the example server,
 # run this from the distribution directory:
 bin/install_tachikoma
+bin/install_tachikoma_user
 
 
 
@@ -90,8 +91,7 @@ bin/gen_server_key ~/.tachikoma/id 4096
 # IF USING THE EXAMPLE SERVER
 # ---------------------------
 
-sudo cp etc/Transforms/LogColor.conf /usr/local/etc/tachikoma/
-sudo cp etc/Devel/CGI.conf           /usr/local/etc/tachikoma/
+sudo cp etc/Devel/CGI.conf /usr/local/etc/tachikoma/
 cp cgi-bin/* ~/Sites/cgi-bin/
 
 # install the default startup.txt file from etc/scripts:

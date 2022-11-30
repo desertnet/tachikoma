@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::LoadBalancer
 # ----------------------------------------------------------------------
 #
-# $Id: LoadBalancer.pm 39963 2021-03-09 06:02:38Z chris $
-#
 
 package Tachikoma::Nodes::LoadBalancer;
 use strict;
@@ -65,14 +63,17 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
-    my $to      = $message->[TO];
     if ( $type & TM_COMMAND or ( $type & TM_EOF and not $message->[STREAM] ) )
     {
         $self->interpreter->fill($message);
     }
-    elsif ( $type & TM_RESPONSE ) {
+    elsif ( length $message->[TO] ) {
         $self->handle_response($message);
         $self->{sink}->fill($message);
+    }
+    elsif ( $type & TM_RESPONSE ) {
+        return $self->print_less_often( 'WARNING: unexpected response from ',
+            $message->[FROM] );
     }
     elsif ( $type != TM_ERROR ) {
         my $owner = $self->get_stream_owner($message);
@@ -87,7 +88,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        $message->[TO] = length $to ? join q(/), $owner, $to : $owner;
+        $message->[TO] = $owner;
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -242,7 +243,7 @@ $C{kick} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->patron->streams(        {} );
+    $self->patron->streams( {} );
     $self->patron->msg_unanswered( {} );
     return $self->okay($envelope);
 };
@@ -326,7 +327,7 @@ sub get_next_owner {
         my $pointer = $self->{pointer};
         $pointer = ( $pointer + 1 ) % $Tachikoma::Max_Int;
         $self->{pointer} = $pointer;
-        my $count = ( sort { $a <=> $b } keys %by_count )[0];
+        my $count      = ( sort { $a <=> $b } keys %by_count )[0];
         my $num_owners = scalar @{ $by_count{$count} };
         $owner = $by_count{$count}->[ $pointer % $num_owners ];
     }

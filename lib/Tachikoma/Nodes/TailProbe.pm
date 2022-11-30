@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::TailProbe
 # ----------------------------------------------------------------------
 #
-# $Id: TailProbe.pm 9044 2010-12-05 01:38:21Z chris $
-#
 
 package Tachikoma::Nodes::TailProbe;
 use strict;
@@ -67,10 +65,11 @@ sub fire {
         my $tiedhash = $node->tiedhash;
         my $files    = $node->files;
         for my $name ( sort keys %{$tiedhash} ) {
-            my $filename = $files->{$name}->[0];
+            next if ( not exists $files->{$name} );
+            my $filename  = $files->{$name}->[0];
             my $tail_name = join q(/), $self->{prefix}, $name;
             $tail_name =~ s{:}{_}g;
-            $filename =~ s{:}{_}g;
+            $filename  =~ s{:}{_}g;
             $out .= join q(),
                 'hostname:'        => $self->{my_hostname},
                 ' tail_name:'      => $tail_name,

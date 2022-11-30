@@ -3,11 +3,10 @@
 # tachikoma node tests
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
-use Test::More tests => 3180;
+use Test::More tests => 3262;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -53,7 +52,7 @@ my %nodes = (
     'Tachikoma::Nodes::DirWatcher'            => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
     'Tachikoma::Nodes::Echo'                  => q(),
-    'Tachikoma::Nodes::ErrorMonitor'          => q(),
+    'Tachikoma::Nodes::EmailAlert'            => q(),
     'Tachikoma::Nodes::FileController'        => q(),
     'Tachikoma::Nodes::FileReceiver'          => q(),
     'Tachikoma::Nodes::FileSender'            => q(),
@@ -86,6 +85,7 @@ my %nodes = (
     'Tachikoma::Nodes::MemorySieve'       => q(),
     'Tachikoma::Nodes::Null'              => q(),
     'Tachikoma::Nodes::Partition'         => qq(--filename=$t/partition),
+    'Tachikoma::Nodes::PayloadTimeout'    => qq(),
     'Tachikoma::Nodes::PidWatcher'        => q(),
     'Tachikoma::Nodes::QueryEngine'       => q(),
     'Tachikoma::Nodes::Queue'             => qq($t/queue.q),
@@ -116,9 +116,9 @@ my %nodes = (
     'Tachikoma::Nodes::Timestamp'         => q(),
     'Tachikoma::Nodes::Topic'             => q(broker),
     'Tachikoma::Nodes::TopicProbe'        => q(1),
-    'Tachikoma::Nodes::Uniq'              => q(),
     'Tachikoma::Nodes::Watchdog'          => q(),
     'Accessories::Nodes::Bucket'          => qq($t/bucket),
+    'Accessories::Nodes::Clock'           => q(),
     'Accessories::Nodes::IndexByHostname' => q(),
     'Accessories::Nodes::IndexByProcess'  => q(),
     'Accessories::Nodes::LogColor'        => q(),
@@ -126,15 +126,17 @@ my %nodes = (
     'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::Spool'           => qq($t/spool),
     'Accessories::Nodes::TestStream'      => qq(),
+    'Accessories::Nodes::Uniq'            => q(),
 );
 
 my %skip_owner_test = (
-    'Tachikoma::Nodes::JobController' => 1,
-    'Tachikoma::Nodes::HTTP_Route'    => 1,
-    'Tachikoma::Nodes::LoadBalancer'  => 1,
-    'Tachikoma::Nodes::Queue'         => 1,
-    'Tachikoma::Nodes::RegexTee'      => 1,
-    'Tachikoma::Nodes::Tee'           => 1,
+    'Tachikoma::Nodes::CommandInterpreter' => 1,
+    'Tachikoma::Nodes::JobController'      => 1,
+    'Tachikoma::Nodes::HTTP_Route'         => 1,
+    'Tachikoma::Nodes::LoadBalancer'       => 1,
+    'Tachikoma::Nodes::Queue'              => 1,
+    'Tachikoma::Nodes::RegexTee'           => 1,
+    'Tachikoma::Nodes::Tee'                => 1,
 );
 
 my %skip_error_test = ( 'Tachikoma::Nodes::MemorySieve' => 1, );
@@ -154,7 +156,6 @@ my %skip_all_tests = (
     'Tachikoma::Nodes::StorableToJSON' => 1,
     'Tachikoma::Nodes::TailTop'        => 1,
     'Tachikoma::Nodes::TopicTop'       => 1,
-    'Accessories::Nodes::Watcher'      => 1,
 );
 
 my $router    = test_construction('Tachikoma::Nodes::Router');

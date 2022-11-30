@@ -3,8 +3,6 @@
 # Accessories::Jobs::Delay
 # ----------------------------------------------------------------------
 #
-# $Id: Delay.pm 2371 2009-07-03 08:24:35Z chris $
-#
 
 package Accessories::Jobs::Delay;
 use strict;

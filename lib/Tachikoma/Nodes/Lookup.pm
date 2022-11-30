@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Lookup
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::Lookup;
 use strict;

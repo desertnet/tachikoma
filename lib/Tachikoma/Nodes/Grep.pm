@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::Grep
 # ----------------------------------------------------------------------
 #
-# $Id: Grep.pm 38201 2019-11-28 03:48:21Z chris $
-#
 
 package Tachikoma::Nodes::Grep;
 use strict;

@@ -3,8 +3,6 @@
 # Accessories::Jobs::DNS
 # ----------------------------------------------------------------------
 #
-# $Id: DNS.pm 415 2008-12-24 21:08:33Z chris $
-#
 
 package Accessories::Jobs::DNS;
 use strict;
@@ -19,13 +17,11 @@ sub initialize_graph {
     my $self = shift;
     $self->connector->sink($self);
     $self->sink( $self->router );
-    if ( $self->owner ) {
-        my $message = Tachikoma::Message->new;
-        $message->type(TM_BYTESTREAM);
-        $message->payload( $self->arguments );
-        $self->fill($message);
-        $self->remove_node;
-    }
+    my $message = Tachikoma::Message->new;
+    $message->type(TM_BYTESTREAM);
+    $message->payload( $self->arguments );
+    $self->fill($message);
+    $self->shutdown_all_nodes;
     return;
 }
 

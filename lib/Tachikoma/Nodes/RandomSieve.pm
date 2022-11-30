@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::RandomSieve
 # ----------------------------------------------------------------------
 #
-# $Id: RandomSieve.pm 5634 2010-05-14 23:48:15Z chris $
-#
 
 package Tachikoma::Nodes::RandomSieve;
 use strict;
@@ -33,7 +31,7 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        $self->{arguments} = shift;
+        $self->{arguments}   = shift;
         $self->{probability} = $self->{arguments} || 50;
     }
     return $self->{arguments};

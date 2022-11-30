@@ -3,8 +3,6 @@
 # Tachikoma::Nodes::FileSender
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
 
 package Tachikoma::Nodes::FileSender;
 use strict;
@@ -57,10 +55,10 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         else {
             return $self->stderr("ERROR: bad path: $tail->{filename}");
         }
-        $message->[TO] = $self->{receiver};
+        $message->[TO]     = $self->{receiver};
         $message->[STREAM] = join q(:), 'update', $filename;
         if ( $type & TM_EOF ) {
-            $message->[TYPE] = TM_EOF | TM_PERSIST;
+            $message->[TYPE]    = TM_EOF | TM_PERSIST;
             $message->[PAYLOAD] = join q(:), lstat $tail->{filename};
             $tail->{msg_unanswered}++;
             $tail->{on_EOF} = 'ignore';
@@ -136,7 +134,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         @paths = split $Separator, $path, 2 if ( @paths > 2 );
         my ( $from_path, $to_path ) = @paths;
         $from_path =~ s{(?:^|/)[.][.](?=/)}{}g if ($from_path);
-        $to_path =~ s{(?:^|/)[.][.](?=/)}{}g   if ($to_path);
+        $to_path   =~ s{(?:^|/)[.][.](?=/)}{}g if ($to_path);
         my $from_relative = undef;
         my $to_relative   = undef;
         if ( $from_path =~ m{^$prefix/(.*)$} ) {
@@ -196,7 +194,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                         offset         => 0,
                         max_unanswered => 8,
                         on_EOF         => 'send',
-                        on_ENOENT      => 'die',
+                        on_ENOENT      => 'remove',
                         on_timeout     => 'die',
                     }
                 );
@@ -225,7 +223,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->{sink}->fill($event);
 
             # send EOF now if the file is empty
-            $node->on_EOF('send_and_wait');
+            $node->on_EOF('send');
 
             # wait for response to beginning-of-file message
             $node->{msg_unanswered}++;

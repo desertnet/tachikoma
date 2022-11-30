@@ -3,16 +3,14 @@
 # BufferTop client
 # ----------------------------------------------------------------------
 #
-# $Id$
-#
+
 use strict;
 use warnings;
-use Tachikoma;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
+use Tachikoma::Nodes::Callback;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO qw( TK_R TK_SYNC );
-use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Nodes::BufferTop;
 use Tachikoma::Message qw( PAYLOAD );
 use Getopt::Long qw( GetOptions );
@@ -68,9 +66,9 @@ my $stdin     = Tachikoma::Nodes::STDIO->filehandle( *STDIN, TK_R );
 my $get_input = Tachikoma::Nodes::Callback->new;
 my $tachikoma =
     Tachikoma::Nodes::Socket->inet_client( $host, $port, undef, $use_SSL );
-my $shutdown = Tachikoma::Nodes::Shutdown->new;
 my $stdout = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
 
+$stdin->sink($get_input);
 $get_input->callback(
     sub {
         my $message = shift;
@@ -87,25 +85,26 @@ $get_input->callback(
         return;
     }
 );
-$stdin->sink($get_input);
-$tachikoma->sink($shutdown);
-$shutdown->sink($buffer_top);
-$buffer_top->sink($stdout);
-$buffer_top->name('buffer_top');
+$tachikoma->on_EOF('die');
+$tachikoma->sink($buffer_top);
 
+$buffer_top->name('_buffer_top');
 for my $field ( keys %width ) {
     $buffer_top->fields->{$field}->{size} = $width{$field};
 }
-
 $buffer_top->select_fields($select_fields);
 $buffer_top->where( \%where );
 $buffer_top->where_not( \%where_not );
 $buffer_top->sort_by($sort);
 $buffer_top->threshold($threshold);
 $buffer_top->delay($delay);
+$buffer_top->sink($stdout);
+
+$stdout->on_EOF('ignore');
 
 system( '/bin/stty', '-echo', 'cbreak' );
-$router->drain($tachikoma);
+$router->name('_router');
+$router->drain;
 
 sub list_fields {
     print join( ' ', sort keys %{ $buffer_top->fields } ), "\n";
