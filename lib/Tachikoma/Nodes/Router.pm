@@ -37,10 +37,13 @@ sub new {
 
 sub drain {
     my $self = shift;
-    if ( Tachikoma->shutting_down and defined $self->{is_active} ) {
-        die "ERROR: drain() called during shutdown\n";
+    if ( Tachikoma->shutting_down ) {
+        die "ERROR: drain() called during shutdown\n"
+            if ( defined $self->is_active );
     }
-    Tachikoma->event_framework->drain( $self->start );
+    else {
+        Tachikoma->event_framework->drain( $self->start );
+    }
     while ( my $close_cb = shift @Tachikoma::Closing ) {
         &{$close_cb}();
     }
