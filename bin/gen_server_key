@@ -9,10 +9,10 @@ use Crypt::OpenSSL::RSA;
 
 umask 0077 or die "couldn't umask: $!";
 
-my $home     = ( getpwuid $< )[7];
-my $id_file  = $ARGV[0] || "$home/.tachikoma/id";
-my $bits     = $ARGV[1] || 4096;
-my $force    = $ARGV[2];
+my $home    = ( getpwuid $< )[7];
+my $id_file = $ARGV[0] || "$home/.tachikoma/id";
+my $bits    = $ARGV[1] || 4096;
+my $force   = $ARGV[2];
 if ( -e $id_file ) {
     if ( not $force ) {
         die "$id_file exists!";
