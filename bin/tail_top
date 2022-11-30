@@ -15,6 +15,8 @@ use Tachikoma::Nodes::TailTop;
 use Tachikoma::Message qw( PAYLOAD );
 use Getopt::Long qw( GetOptions );
 
+use version; our $VERSION = qv('v2.1.12');
+
 my $home = ( getpwuid $< )[7];
 Tachikoma->configuration->load_config_file(
     "$home/.tachikoma/etc/tachikoma.conf",
@@ -23,12 +25,10 @@ Tachikoma->configuration->load_config_file(
 
 my $help          = undef;
 my $list_fields   = undef;
-my $select_fields = join(
-    ',', qw(
-        hostname filename file_size
-        recv_rate direction2 send_rate
-        distance eta
-        )
+my $select_fields = join q(,), qw(
+    hostname filename file_size
+    recv_rate direction2 send_rate
+    distance eta
 );
 my $host      = 'localhost';
 my $port      = 4392;
@@ -79,7 +79,7 @@ $get_input->callback(
             $router->shutdown_all_nodes;
             return;
         }
-        elsif ( $key =~ m(\d) ) {
+        elsif ( $key =~ m{\d} ) {
             $tail_top->delay( $key || 10 );
             return;
         }
@@ -104,12 +104,13 @@ $tail_top->sink($stdout);
 
 $stdout->on_EOF('ignore');
 
-system( '/bin/stty', '-echo', 'cbreak' );
+## no critic (RequireCheckedSyscalls)
+system '/bin/stty', '-echo', 'cbreak';
 $router->name('_router');
 $router->drain;
 
 sub list_fields {
-    print join( ' ', sort keys %{ $tail_top->fields } ), "\n";
+    print join( q( ), sort keys %{ $tail_top->fields } ), "\n";
     exit 1;
 }
 

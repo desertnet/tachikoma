@@ -7,6 +7,8 @@ use strict;
 use warnings;
 use Crypt::OpenSSL::RSA;
 
+use version; our $VERSION = qv('v2.1.12');
+
 umask 0077 or die "couldn't umask: $!";
 
 my $home    = ( getpwuid $< )[7];
