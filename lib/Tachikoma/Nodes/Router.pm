@@ -37,7 +37,7 @@ sub new {
 
 sub drain {
     my $self = shift;
-    if ( Tachikoma->shutting_down ) {
+    if ( Tachikoma->shutting_down and defined $self->{is_active} ) {
         die "ERROR: drain() called during shutdown\n";
     }
     Tachikoma->event_framework->drain( $self->start );
@@ -301,7 +301,7 @@ sub start {
 
 sub stop {
     my $self = shift;
-    $self->is_active(undef);
+    $self->is_active(0);
     if ( $self->type eq 'root' or $self->debug_state ) {
         $self->stderr('shutting down');
     }

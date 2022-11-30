@@ -18,7 +18,7 @@ sub initialize_graph {
     my $self = shift;
     my $lwp  = Tachikoma::Nodes::LWP->new;
     $self->connector->sink($lwp);
-    if ( $self->owner ) {
+    if ( $self->arguments =~ m{^https?://} ) {
         $lwp->arguments(90);
         $lwp->sink($self);
         $self->sink( $self->router );
@@ -27,7 +27,7 @@ sub initialize_graph {
         $message->from('_parent');
         $message->payload( $self->arguments );
         $lwp->fill($message);
-        $self->remove_node;
+        $self->shutdown_all_nodes;
     }
     else {
         $lwp->arguments( $self->arguments );

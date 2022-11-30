@@ -25,19 +25,10 @@ sub initialize_graph {
     my $self = shift;
     $self->connector->sink($self);
     $self->sink( $self->router );
-    if ( $self->owner ) {
-        my $message = Tachikoma::Message->new;
-        $message->type(TM_BYTESTREAM);
-        $message->payload( $self->arguments );
-        $self->fill($message);
-        $self->remove_node;
-    }
-    else {
-        $self->timer( Tachikoma::Nodes::Timer->new );
-        $self->timer->name('_timer');
-        $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
-        $self->timer->sink($self);
-    }
+    $self->timer( Tachikoma::Nodes::Timer->new );
+    $self->timer->name('_timer');
+    $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
+    $self->timer->sink($self);
     return;
 }
 
