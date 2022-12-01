@@ -1165,7 +1165,7 @@ sub sink {
         and not length $self->{filename} )
     {
         if ( $self->{name} ) {
-            $self->dns_lookup;
+            $self->dns_lookup if ( $self->{sink} );
         }
         else {
             $self->stderr('ERROR: async connections must be named');
