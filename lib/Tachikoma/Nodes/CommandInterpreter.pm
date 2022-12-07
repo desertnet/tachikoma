@@ -2470,7 +2470,7 @@ $C{pivot_client} = sub {
         $shell->sink($tachikoma);
         $tachikoma->name('_socket');
         $tachikoma->on_EOF('die');
-        $tachikoma->sink( $Tachikoma::Nodes{_router} );
+        $tachikoma->sink($responder);
         $self->remove_node;
         return 1;
     };
