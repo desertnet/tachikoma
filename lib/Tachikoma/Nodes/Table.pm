@@ -256,7 +256,7 @@ sub roll_count {
 sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
     return 1 if ( not length $value );
-    my $bucket = $self->get_bucket( $i, $timestamp );
+    my $bucket = $self->get_bucket($i);
     $bucket->{$key} = $value if ($bucket);
     return;
 }
@@ -275,7 +275,7 @@ sub get_bucket {
     my ( $self, $i, $timestamp ) = @_;
     my $cache = $self->{caches}->[$i];
     my $j     = 0;
-    if ( $self->{window_size} ) {
+    if ( $timestamp and $self->{window_size} ) {
         my $span = $self->{next_window}->[$i] - $timestamp;
         $j = int $span / $self->{window_size};
         $j = 0 if ( $j < 0 );
