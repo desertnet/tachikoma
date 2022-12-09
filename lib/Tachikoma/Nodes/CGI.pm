@@ -18,7 +18,7 @@ use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Max_Requests = 500;
+my $MAX_REQUESTS = 500;
 
 sub new {
     my $class = shift;
@@ -257,8 +257,8 @@ FIND_SCRIPT: while ($test_path) {
     $response->[STREAM] = $message->[STREAM];
     $self->{sink}->fill($response);
 
-    # see if we've hit $Max_Requests
-    if ( $dirty or $Max_Requests and $self->{counter} > $Max_Requests ) {
+    # see if we've hit $MAX_REQUESTS
+    if ( $dirty or $MAX_REQUESTS and $self->{counter} > $MAX_REQUESTS ) {
         my $shutdown = Tachikoma::Message->new;
         $shutdown->[TYPE] = TM_KILLME;
         $shutdown->[TO]   = '_parent';

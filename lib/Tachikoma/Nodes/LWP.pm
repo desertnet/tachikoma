@@ -15,7 +15,7 @@ use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Default_Timeout = 900;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $class = shift;
@@ -32,7 +32,7 @@ sub arguments {
         my $timeout = $self->{arguments};
         my $ua      = LWP::UserAgent->new;
         $ua->agent('Tachikoma (DesertNet LWP::UserAgent/2.0)');
-        $ua->timeout( $timeout || $Default_Timeout );
+        $ua->timeout( $timeout || $DEFAULT_TIMEOUT );
         $self->{user_agent} = $ua;
     }
     return $self->{arguments};

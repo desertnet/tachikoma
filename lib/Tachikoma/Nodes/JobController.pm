@@ -20,8 +20,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Throttle_Delay = 60;
-my $Job_Counter    = 0;
+my $THROTTLE_DELAY = 60;
+my $JOB_COUNTER    = 0;
 my %C              = ();
 
 sub new {
@@ -102,7 +102,7 @@ sub fire {
             next;
         }
         my $since_last = $Tachikoma::Now - $job->{last_restart};
-        my $delay      = $Throttle_Delay - $since_last;
+        my $delay      = $THROTTLE_DELAY - $since_last;
         if (    $delay < 1
             and not kill 0, $job->{pid}
             and $! ne 'Operation not permitted' )
@@ -552,9 +552,9 @@ sub dump_config {
 sub job_counter {
     my $self = shift;
     if (@_) {
-        $Job_Counter = shift;
+        $JOB_COUNTER = shift;
     }
-    return $Job_Counter++;
+    return $JOB_COUNTER++;
 }
 
 sub jobs {

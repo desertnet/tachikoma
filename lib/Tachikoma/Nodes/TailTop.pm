@@ -15,10 +15,8 @@ use parent qw( Tachikoma::Nodes::TopicTop );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Tail_Timeout            = 60;
-my $Default_Output_Interval = 4.0;                                 # seconds
-my $Numeric                 = qr{^-?(?:\d+(?:[.]\d*)?|[.]\d+)$};
-my $Winch                   = undef;
+my $TAIL_TIMEOUT            = 60;
+my $DEFAULT_OUTPUT_INTERVAL = 4.0;    # seconds
 
 sub new {
     my $class = shift;
@@ -29,7 +27,7 @@ sub new {
     $self->{height}    = undef;
     $self->{width}     = undef;
     $self->{threshold} = 1;
-    $self->{delay}     = $Default_Output_Interval;
+    $self->{delay}     = $DEFAULT_OUTPUT_INTERVAL;
     $self->{fields}    = {
         hostname       => { label => 'HOSTNAME',  size => '16',  pad => 0 },
         tail_name      => { label => 'TAIL_NAME', size => '-16', pad => 0 },
@@ -49,7 +47,7 @@ sub new {
     $self->{fields}->{filename}->{dynamic}  = 'true';
     $self->{tails}                          = {};
     bless $self, $class;
-    $self->set_timer( $Default_Output_Interval * 1000 );
+    $self->set_timer( $DEFAULT_OUTPUT_INTERVAL * 1000 );
     return $self;
 }
 
@@ -141,7 +139,7 @@ COLLECT: for my $tail_id ( keys %{$tails} ) {
         my $tail = $tails->{$tail_id};
         $tail->{lag} = sprintf '%.1f',
             $tail->{last_update} - $tail->{timestamp};
-        if ( $Tachikoma::Right_Now - $tail->{last_update} > $Tail_Timeout ) {
+        if ( $Tachikoma::Right_Now - $tail->{last_update} > $TAIL_TIMEOUT ) {
             delete $tails->{$tail_id};
             next COLLECT;
         }

@@ -21,11 +21,11 @@ use parent qw( Tachikoma::Nodes::Buffer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Clear_Interval  = 900;
-my $Default_Timeout = 900;
-my $Timer_Interval  = 15;
-my $Home            = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir          = "$Home/.tachikoma/queues";
+my $CLEAR_INTERVAL  = 900;
+my $DEFAULT_TIMEOUT = 900;
+my $TIMER_INTERVAL  = 15;
+my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR          = "$HOME/.tachikoma/queues";
 my %C               = ();
 
 sub new {
@@ -169,7 +169,7 @@ sub handle_response {
 
 sub fire {
     my $self = shift;
-    $self->set_timer( $Timer_Interval * 1000 );
+    $self->set_timer( $TIMER_INTERVAL * 1000 );
 
     # maintain stats
     if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
@@ -209,7 +209,7 @@ sub fire {
             # untie and unlink and create a fresh buffer:
             if ( $i == 1 and not $self->get_buffer_size ) {
                 if ( $Tachikoma::Now - $self->{last_clear_time}
-                    > $Clear_Interval )
+                    > $CLEAR_INTERVAL )
                 {
                     if ( $self->{dbh} ) {
                         $self->{dbh}->disconnect;
@@ -613,7 +613,7 @@ sub dump_config {
         if ( $buffer_mode ne 'normal' );
     $settings .= "  set_delay $delay\n" if ($delay);
     $settings .= "  set_timeout $timeout\n"
-        if ( $timeout ne $Default_Timeout );
+        if ( $timeout ne $DEFAULT_TIMEOUT );
     $settings .= "  set_key_regex $key_regex\n" if ($key_regex);
     $settings .= "  check_payload\n"            if ($check_payload);
     $settings .= "  check_stream\n"             if ($check_stream);
@@ -709,9 +709,9 @@ sub key_regex {
 sub db_dir {
     my $self = shift;
     if (@_) {
-        $DB_Dir = shift;
+        $DB_DIR = shift;
     }
-    return $DB_Dir;
+    return $DB_DIR;
 }
 
 sub remove_node {

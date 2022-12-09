@@ -16,9 +16,9 @@ use parent qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.768');
 
 # simple regex for what characters can be displayed
-my $Chars = '[A-Za-z0-9\s-]';
+my $CHARS = '[A-Za-z0-9\s-]';
 
-my %cmds = (
+my %CMDS = (
     'wtf'        => 0x0A,
     'cls'        => 0x76,
     'dots'       => 0x77,
@@ -34,7 +34,7 @@ my %cmds = (
     'factreset'  => 0x81,
 );
 
-my %dot_bits = (
+my %DOT_BITS = (
     'decp1'  => 1,
     'decp2'  => 1 << 1,
     'decp3'  => 1 << 2,
@@ -146,10 +146,10 @@ sub fill {
     }
 
     ## no critic (ProhibitComplexRegexes)
-    if ($string =~ m{ ^ ($Chars) ([.]?)
-                        ($Chars) ([.]?)    (:?)
-                        ($Chars) ([.]?)   (['°]?)
-                        ($Chars) ([.]?)           $}x
+    if ($string =~ m{ ^ ($CHARS) ([.]?)
+                        ($CHARS) ([.]?)    (:?)
+                        ($CHARS) ([.]?)   (['°]?)
+                        ($CHARS) ([.]?)           $}x
         )
     {
         $chunk->{char1}  = $1 if ( length $1 );
@@ -286,10 +286,10 @@ sub brightness {
     else {
         return;
     }
-    foreach my $cmd ( keys %cmds ) {
-        return if ( chr $level eq chr $cmds{$cmd} );
+    foreach my $cmd ( keys %CMDS ) {
+        return if ( chr $level eq chr $CMDS{$cmd} );
     }
-    return chr( $cmds{brightness} ) . chr $level;
+    return chr( $CMDS{brightness} ) . chr $level;
 }
 
 sub cls {
@@ -300,19 +300,19 @@ sub cls {
     foreach my $dot ( keys %{ $self->{dots} } ) {
         $self->{dots}->{$dot} = 0;
     }
-    return chr( $cmds{dots} ) . chr(0x00) . chr $cmds{cls};
+    return chr( $CMDS{dots} ) . chr(0x00) . chr $CMDS{cls};
 }
 
 sub dots {
     my $self  = shift;
     my $chunk = shift;
     my $dots  = 0;
-    foreach my $dot ( keys %dot_bits ) {
+    foreach my $dot ( keys %DOT_BITS ) {
         $self->verbose($dot) if ( $chunk->{$dot} );
-        $dots += $dot_bits{$dot} if ( $chunk->{$dot} );
+        $dots += $DOT_BITS{$dot} if ( $chunk->{$dot} );
     }
     if ( $dots > 0 ) {
-        return chr( $cmds{dots} ) . chr $dots;
+        return chr( $CMDS{dots} ) . chr $dots;
     }
     else {
         return;

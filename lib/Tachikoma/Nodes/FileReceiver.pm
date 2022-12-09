@@ -17,17 +17,17 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $Filehandle_Timeout = 300;
-my $Expire_Interval    = 60;
+my $FILEHANDLE_TIMEOUT = 300;
+my $EXPIRE_INTERVAL    = 60;
 
-# my $Separator          = chr(0);
-my $Separator = join q(), chr 30, ' -> ', chr 30;
+# my $SEPARATOR          = chr(0);
+my $SEPARATOR = join q(), chr 30, ' -> ', chr 30;
 
 sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->set_timer( $Expire_Interval * 1000 );
+        $self->set_timer( $EXPIRE_INTERVAL * 1000 );
         $self->filehandles( {} );
     }
     return $self->{arguments};
@@ -148,7 +148,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
     elsif ( $op eq 'rename' ) {
         my $new_relative = undef;
-        ( $relative, $new_relative ) = split $Separator, $relative, 2;
+        ( $relative, $new_relative ) = split $SEPARATOR, $relative, 2;
         $relative     =~ s{(?:^|/)[.][.](?=/)}{}g if ($relative);
         $new_relative =~ s{(?:^|/)[.][.](?=/)}{}g if ($new_relative);
         $path = join q(/), $prefix, $relative;
@@ -179,7 +179,7 @@ sub fire {
     my $filehandles = $self->{filehandles};
     for my $key ( keys %{$filehandles} ) {
         if ( $Tachikoma::Now - $filehandles->{$key}->[2]
-            > $Filehandle_Timeout )
+            > $FILEHANDLE_TIMEOUT )
         {
             my $path = $filehandles->{$key}->[1];
             close $filehandles->{$key}->[0]

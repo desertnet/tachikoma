@@ -28,15 +28,15 @@ use constant {
     BUFSIZ     => 131072,
 };
 
-my $Default_Num_Segments     = 2;
-my $Default_Segment_Size     = 128 * 1024 * 1024;
-my $Default_Segment_Lifespan = 7 * 86400;
-my $Touch_Interval           = 3600;
-my $Num_Offsets              = 100;
-my $Get_Timeout              = 300;
-my $Offset                   = LAST_MSG_FIELD + 1;
-my %Leader_Commands = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK EMPTY );
-my %Follower_Commands =
+my $DEFAULT_NUM_SEGMENTS     = 2;
+my $DEFAULT_SEGMENT_SIZE     = 128 * 1024 * 1024;
+my $DEFAULT_SEGMENT_LIFESPAN = 7 * 86400;
+my $TOUCH_INTERVAL           = 3600;
+my $NUM_OFFSETS              = 100;
+my $GET_TIMEOUT              = 300;
+my $OFFSET                   = LAST_MSG_FIELD + 1;
+my %LEADER_COMMANDS = map { $_ => 1 } qw( GET_VALID_OFFSETS GET ACK EMPTY );
+my %FOLLOWER_COMMANDS =
     map { $_ => 1 } qw( VALID_OFFSETS UPDATE DELETE EMPTY );
 
 sub help {
@@ -56,9 +56,9 @@ sub arguments {
         my $arguments    = shift;
         my $filename     = undef;
         my $path         = undef;
-        my $num_segments = $Default_Num_Segments;
-        my $segment_size = $Default_Segment_Size;
-        my $max_lifespan = $Default_Segment_Lifespan;
+        my $num_segments = $DEFAULT_NUM_SEGMENTS;
+        my $segment_size = $DEFAULT_SEGMENT_SIZE;
+        my $max_lifespan = $DEFAULT_SEGMENT_LIFESPAN;
         my $leader       = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -126,8 +126,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         chomp $payload;
         my ( $command, $offset, $args ) = split q( ), $payload, 3;
         if ( $self->{leader} ) {
-            if ( not $Follower_Commands{$command} ) {
-                if ( $Leader_Commands{$command} ) {
+            if ( not $FOLLOWER_COMMANDS{$command} ) {
+                if ( $LEADER_COMMANDS{$command} ) {
                     return $self->send_error( $message, "NOT_LEADER\n" );
                 }
                 else {
@@ -135,8 +135,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 }
             }
         }
-        elsif ( not $Leader_Commands{$command} ) {
-            if ( $Follower_Commands{$command} ) {
+        elsif ( not $LEADER_COMMANDS{$command} ) {
+            if ( $FOLLOWER_COMMANDS{$command} ) {
                 return $self->send_error( $message, "NOT_FOLLOWER\n" );
             }
             else {
@@ -240,7 +240,7 @@ sub fire {
         $self->{counter}     += @{$batch};
         for my $message ( @{$batch} ) {
             next if ( not $message->[TYPE] & TM_PERSIST );
-            $message->[$Offset] = $self->{offset};
+            $message->[$OFFSET] = $self->{offset};
             $message->[PAYLOAD] = q();
             push @{$responses}, $message;
         }
@@ -265,7 +265,7 @@ sub fire {
     }
     if ( $self->{leader} ) {
         if ( $self->{expecting} ) {
-            if ( $Tachikoma::Now - $self->{expecting} > $Get_Timeout ) {
+            if ( $Tachikoma::Now - $self->{expecting} > $GET_TIMEOUT ) {
                 $self->stderr('WARNING: GET timeout - retrying');
                 $self->{expecting} = undef;
             }
@@ -441,7 +441,7 @@ sub process_ack {
         my $responses = $self->{responses};
         $self->write_offset($offset);
         while ( @{$responses} ) {
-            last if ( $responses->[0]->[$Offset] > $offset );
+            last if ( $responses->[0]->[$OFFSET] > $offset );
             $self->cancel( shift @{$responses} );
         }
     }
@@ -478,7 +478,7 @@ sub process_delete {
     if ( @{$segments} ) {
         my $last_modified = ( stat $segments->[-1]->[LOG_FH] )[9];
         $self->touch_files
-            if ( $Tachikoma::Now - $last_modified > $Touch_Interval );
+            if ( $Tachikoma::Now - $last_modified > $TOUCH_INTERVAL );
     }
     else {
         $self->stderr('WARNING: process_delete removed all segments');
@@ -552,7 +552,7 @@ sub update_offsets {
     my @offsets = sort { $a <=> $b } grep m{^[^.]}, readdir $dh;
     closedir $dh or die "ERROR: couldn't closedir $offsets_dir: $!";
 
-    while ( @offsets > $Num_Offsets
+    while ( @offsets > $NUM_OFFSETS
         or ( @offsets and $offsets[0] < $lowest_offset ) )
     {
         my $old_offset  = shift @offsets;

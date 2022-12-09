@@ -13,7 +13,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Default_Timeout = 30;
+my $DEFAULT_TIMEOUT = 30;
 
 sub help {
     my $self = shift;
@@ -28,7 +28,7 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $gate, $timeout ) = split q( ), $self->{arguments}, 2;
         $self->{gate}    = $gate;
-        $self->{timeout} = $timeout || $Default_Timeout;
+        $self->{timeout} = $timeout || $DEFAULT_TIMEOUT;
         $self->set_timer( $self->{timeout} * 1000 );
     }
     return $self->{arguments};

@@ -16,8 +16,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $Default_Timeout = 840;
-my %Exclusive       = map { $_ => 1 } qw(
+my $DEFAULT_TIMEOUT = 840;
+my %EXCLUSIVE       = map { $_ => 1 } qw(
     rmdir
     rename
 );
@@ -58,7 +58,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         my $last_op = $self->{op};
         $self->{op} = $op;
-        if ( not $last_op or ( $op eq $last_op and not $Exclusive{$op} ) ) {
+        if ( not $last_op or ( $op eq $last_op and not $EXCLUSIVE{$op} ) ) {
             $pools->[0] ||= {};
             if ( @{$pools} == 1 ) {
 
@@ -88,7 +88,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             # different or exclusive operations require new pools
             push @{$pools}, { $payload => $message };
         }
-        $self->set_timer( $Default_Timeout * 1000 )
+        $self->set_timer( $DEFAULT_TIMEOUT * 1000 )
             if ( not $self->{timer_is_active} );
     }
     elsif ( $type & TM_RESPONSE ) {
@@ -107,7 +107,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             $self->send_payload($_) for ( keys %{ $pools->[0] } );
         }
-        $self->set_timer( $Default_Timeout * 1000 );
+        $self->set_timer( $DEFAULT_TIMEOUT * 1000 );
     }
     return;
 }

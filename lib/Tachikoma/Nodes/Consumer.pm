@@ -21,14 +21,13 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 5;             # wait at least this long on startup
-my $Timeout         = 900;           # default message timeout
-my $Expire_Interval = 15;            # check message timeouts
-my $Commit_Interval = 60;            # commit offsets
-my $Hub_Timeout     = 300;           # timeout waiting for hub
-my $Cache_Type      = 'snapshot';    # save complete state
-my %Targets         = ();
+my $POLL_INTERVAL   = 1;             # poll for new messages this often
+my $STARTUP_DELAY   = 5;             # wait at least this long on startup
+my $DEFAULT_TIMEOUT = 900;           # default message timeout
+my $EXPIRE_INTERVAL = 15;            # check message timeouts
+my $COMMIT_INTERVAL = 60;            # commit offsets
+my $HUB_TIMEOUT     = 300;           # timeout waiting for hub
+my $CACHE_TYPE      = 'snapshot';    # save complete state
 
 sub new {
     my $class      = shift;
@@ -41,13 +40,13 @@ sub new {
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
     $self->{buffer}          = \$new_buffer;
-    $self->{poll_interval}   = $Poll_Interval;
-    $self->{hub_timeout}     = $Hub_Timeout;
+    $self->{poll_interval}   = $POLL_INTERVAL;
+    $self->{hub_timeout}     = $HUB_TIMEOUT;
     $self->{last_receive}    = Time::HiRes::time;
     $self->{cache}           = undef;
-    $self->{cache_type}      = $Cache_Type;
+    $self->{cache_type}      = $CACHE_TYPE;
     $self->{last_cache_size} = undef;
-    $self->{auto_commit}     = $self->{offsetlog} ? $Commit_Interval : undef;
+    $self->{auto_commit}     = $self->{offsetlog} ? $COMMIT_INTERVAL : undef;
     $self->{default_offset}  = 'end';
     $self->{last_commit}     = 0;
     $self->{last_commit_offset}      = -1;
@@ -57,7 +56,7 @@ sub new {
     $self->{last_expire}             = $Tachikoma::Now;
     $self->{msg_unanswered}          = 0;
     $self->{max_unanswered}          = 1;
-    $self->{timeout}                 = $Timeout;
+    $self->{timeout}                 = $DEFAULT_TIMEOUT;
     $self->{startup_delay}           = 0;
     $self->{status}                  = $self->{offsetlog} ? 'INIT' : 'ACTIVE';
     $self->{registrations}->{ACTIVE} = {};
@@ -126,13 +125,13 @@ sub arguments {
         $self->{buffer}             = \$new_buffer;
         $self->{msg_unanswered}     = 0;
         $self->{max_unanswered}     = $max_unanswered // 1;
-        $self->{timeout}            = $timeout || $Timeout;
-        $self->{poll_interval}      = $poll_interval || $Poll_Interval;
-        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
+        $self->{timeout}            = $timeout || $DEFAULT_TIMEOUT;
+        $self->{poll_interval}      = $poll_interval || $POLL_INTERVAL;
+        $self->{hub_timeout}        = $hub_timeout || $HUB_TIMEOUT;
         $self->{last_receive}       = $Tachikoma::Now;
-        $self->{cache_type}         = $cache_type // $Cache_Type;
+        $self->{cache_type}         = $cache_type // $CACHE_TYPE;
         $self->{last_cache_size}    = undef;
-        $self->{auto_commit}        = $auto_commit // $Commit_Interval;
+        $self->{auto_commit}        = $auto_commit // $COMMIT_INTERVAL;
         $self->{auto_commit}        = undef if ( not $offsetlog );
         $self->{default_offset}     = $default_offset // 'end';
         $self->{last_commit}        = 0;
@@ -141,7 +140,7 @@ sub arguments {
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
-        $self->{startup_delay}      = $startup_delay // $Startup_Delay;
+        $self->{startup_delay}      = $startup_delay // $STARTUP_DELAY;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
         $self->{set_state}          = {};
     }
@@ -284,7 +283,7 @@ sub fire {
         return;
     }
     if (    $self->{status} eq 'ACTIVE'
-        and $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval )
+        and $Tachikoma::Now - $self->{last_expire} >= $EXPIRE_INTERVAL )
     {
         $self->expire_messages or return;
     }

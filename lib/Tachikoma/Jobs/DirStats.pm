@@ -20,18 +20,18 @@ use parent qw( Exporter Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Router_Timeout    = 900;
-my $Default_Max_Files = 64;
-my $Default_Port      = 5600;
+my $ROUTER_TIMEOUT    = 900;
+my $DEFAULT_MAX_FILES = 64;
+my $DEFAULT_PORT      = 5600;
 
-# my $Separator         = chr 0;
-my $Separator = join q(), chr 30, q( -> ), chr 30;
-my %Dot_Include = map { $_ => 1 } qw(
+# my $SEPARATOR         = chr 0;
+my $SEPARATOR = join q(), chr 30, q( -> ), chr 30;
+my %DOT_INCLUDE = map { $_ => 1 } qw(
     .htaccess
     .svn
     .git
 );
-my %SVN_Include = map { $_ => 1 } qw(
+my %SVN_INCLUDE = map { $_ => 1 } qw(
     entries
     wc.db
 );
@@ -44,8 +44,8 @@ sub initialize_graph {
     $prefix ||= q();
     $prefix =~ s{^'|'$}{}g;
     $host      ||= 'localhost';
-    $port      ||= $Default_Port;
-    $max_files ||= $Default_Max_Files;
+    $port      ||= $DEFAULT_PORT;
+    $max_files ||= $DEFAULT_MAX_FILES;
     $self->prefix($prefix);
     $self->target_host($host);
     $self->target_port($port);
@@ -232,8 +232,8 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
     my @directories = ();
     for my $entry (@entries) {
         next
-            if ( ( $entry =~ m{^[.]} and not $Dot_Include{$entry} )
-            or ( $is_svn and not $pedantic and not $SVN_Include{$entry} ) );
+            if ( ( $entry =~ m{^[.]} and not $DOT_INCLUDE{$entry} )
+            or ( $is_svn and not $pedantic and not $SVN_INCLUDE{$entry} ) );
         if ( $entry =~ m{[\r\n]} ) {
             $entry =~ s{\n}{\\n}g;
             $entry =~ s{\r}{\\r}g;
@@ -258,7 +258,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             close $fh
                 or die "ERROR: couldn't close $path_entry: $!";
         }
-        $entry = join q(), $entry, $Separator, readlink $path_entry
+        $entry = join q(), $entry, $SEPARATOR, readlink $path_entry
             if ( $stat eq 'L' );
         push @out,
             join( q( ),
@@ -286,7 +286,7 @@ sub target {
         $self->{target} =
             Tachikoma->inet_client( $self->{target_host},
             $self->{target_port} );
-        $self->{target}->timeout($Router_Timeout);
+        $self->{target}->timeout($ROUTER_TIMEOUT);
     }
     return $self->{target};
 }

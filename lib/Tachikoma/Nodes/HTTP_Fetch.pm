@@ -20,7 +20,7 @@ use parent qw( Tachikoma::Node );
 use version; our $VERSION = qv('v2.0.314');
 
 # TODO: configurate mime types
-my %Types = (
+my %TYPES = (
     gif  => 'image/gif',
     jpg  => 'image/jpeg',
     png  => 'image/png',
@@ -117,7 +117,7 @@ sub fill {
         "Server: Tachikoma\n",
         "Connection: close\n",
         'Content-Type: ',
-        $Types{$type} || $Types{'json'},
+        $TYPES{$type} || $TYPES{'json'},
         "\n",
         'Content-Length: ',
         length($value),

@@ -24,12 +24,12 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home   = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir = "$Home/.tachikoma/tails";
-my $Offset_Interval = 1;      # write offsets this often
-my $Scan_Interval   = 15;     # check files this often
-my $Startup_Delay   = -10;    # offset from scan interval
-my $Default_Timeout = 180;    # message timeout for tails
+my $HOME   = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR = "$HOME/.tachikoma/tails";
+my $OFFSET_INTERVAL = 1;      # write offsets this often
+my $SCAN_INTERVAL   = 15;     # check files this often
+my $STARTUP_DELAY   = -10;    # offset from scan interval
+my $DEFAULT_TIMEOUT = 180;    # message timeout for tails
 
 sub initialize_graph {
     my $self         = shift;
@@ -51,8 +51,8 @@ sub initialize_graph {
     $self->tails( {} );
     $self->files( {} );
     $self->sink( $self->router );
-    $self->timer->set_timer( $Offset_Interval * 1000 );
-    $self->last_scan( $Tachikoma::Now + $Startup_Delay );
+    $self->timer->set_timer( $OFFSET_INTERVAL * 1000 );
+    $self->last_scan( $Tachikoma::Now + $STARTUP_DELAY );
     $interpreter->sink($self);
     $interpreter->commands->{'add_tail'} = sub {
         my $this     = shift;
@@ -91,8 +91,8 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        $self->timer->set_timer( $Offset_Interval * 1000 );
-        $self->last_scan( $Tachikoma::Now + $Startup_Delay );
+        $self->timer->set_timer( $OFFSET_INTERVAL * 1000 );
+        $self->last_scan( $Tachikoma::Now + $STARTUP_DELAY );
         return $this->okay($envelope);
     };
     $interpreter->commands->{'stop_tail'} = sub {
@@ -160,7 +160,7 @@ sub fill {
     elsif ( $message->from eq '_timer' ) {
         my $tiedhash = $self->tiedhash;
         my $files    = $self->{files};
-        if ( $Tachikoma::Now - $self->{last_scan} >= $Scan_Interval ) {
+        if ( $Tachikoma::Now - $self->{last_scan} >= $SCAN_INTERVAL ) {
             $self->rescan_files;
         }
         for my $file ( keys %{$files} ) {
@@ -197,7 +197,7 @@ sub rescan_files {
             $tail->arguments($arguments);
             $tail->buffer_mode('line-buffered');
             $tail->max_unanswered(256);
-            $tail->timeout($Default_Timeout);
+            $tail->timeout($DEFAULT_TIMEOUT);
             $tail->owner($node_path);
             $tail->sink( $self->router );
             my $message = Tachikoma::Message->new;
@@ -299,9 +299,9 @@ sub tiedhash {
 sub db_dir {
     my $self = shift;
     if (@_) {
-        $DB_Dir = shift;
+        $DB_DIR = shift;
     }
-    return $DB_Dir;
+    return $DB_DIR;
 }
 
 sub filename {

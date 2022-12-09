@@ -23,13 +23,13 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Check_Interval  = 2;             # check partition map this often
-my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 5;             # wait at least this long on startup
-my $Commit_Interval = 60;            # commit offsets
-my $Timeout         = 900;           # default message timeout
-my $Hub_Timeout     = 300;           # timeout waiting for hub
-my $Cache_Type      = 'snapshot';    # save complete state
+my $CHECK_INTERVAL  = 2;             # check partition map this often
+my $POLL_INTERVAL   = 1;             # poll for new messages this often
+my $STARTUP_DELAY   = 5;             # wait at least this long on startup
+my $COMMIT_INTERVAL = 60;            # commit offsets
+my $DEFAULT_TIMEOUT = 900;           # default message timeout
+my $HUB_TIMEOUT     = 300;           # timeout waiting for hub
+my $CACHE_TYPE      = 'snapshot';    # save complete state
 
 sub new {
     my $class = shift;
@@ -39,10 +39,10 @@ sub new {
     $self->{flags}          = 0;
     $self->{consumers}      = {};
     $self->{check_interval} = 0;
-    $self->{poll_interval}  = $Poll_Interval;
-    $self->{hub_timeout}    = $Hub_Timeout;
-    $self->{cache_type}     = $Cache_Type;
-    $self->{auto_commit}    = $self->{group} ? $Commit_Interval : undef;
+    $self->{poll_interval}  = $POLL_INTERVAL;
+    $self->{hub_timeout}    = $HUB_TIMEOUT;
+    $self->{cache_type}     = $CACHE_TYPE;
+    $self->{auto_commit}    = $self->{group} ? $COMMIT_INTERVAL : undef;
     $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
     $self->{default_offset} = 'end';
     $self->{last_check}     = 0;
@@ -50,7 +50,7 @@ sub new {
     $self->{broker_path}    = undef;
     $self->{leader_path}    = undef;
     $self->{max_unanswered} = undef;
-    $self->{timeout}        = $Timeout;
+    $self->{timeout}        = $DEFAULT_TIMEOUT;
     $self->{startup_delay}  = 0;
     $self->{registrations}->{READY} = {};
 
@@ -122,15 +122,15 @@ sub arguments {
         $self->{group}          = $group;
         $self->{partition_id}   = $partition_id;
         $self->{max_unanswered} = $max_unanswered // 1;
-        $self->{timeout}        = $timeout || $Timeout;
+        $self->{timeout}        = $timeout || $DEFAULT_TIMEOUT;
         $self->{check_interval} = 0;
-        $self->{poll_interval}  = $poll_interval || $Poll_Interval;
-        $self->{hub_timeout}    = $hub_timeout || $Hub_Timeout;
-        $self->{startup_delay}  = $startup_delay // $Startup_Delay;
+        $self->{poll_interval}  = $poll_interval || $POLL_INTERVAL;
+        $self->{hub_timeout}    = $hub_timeout || $HUB_TIMEOUT;
+        $self->{startup_delay}  = $startup_delay // $STARTUP_DELAY;
 
         if ($group) {
-            $self->{cache_type}  = $cache_type  // $Cache_Type;
-            $self->{auto_commit} = $auto_commit // $Commit_Interval;
+            $self->{cache_type}  = $cache_type  // $CACHE_TYPE;
+            $self->{auto_commit} = $auto_commit // $COMMIT_INTERVAL;
             if ( $self->{cache_type} eq 'window' ) {
                 $self->{auto_commit} = undef;
                 $self->{auto_offset} = 1;
@@ -253,7 +253,7 @@ sub update_graph {
     my $self       = shift;
     my $message    = shift;
     my $partitions = $message->payload;
-    my $ready      = $self->{check_interval} != $Check_Interval;
+    my $ready      = $self->{check_interval} != $CHECK_INTERVAL;
     if ( ref $partitions eq 'ARRAY' ) {
         my %mapping = ();
         my $i       = 0;
@@ -295,7 +295,7 @@ sub update_graph {
     }
     if ($ready) {
         $self->stderr('DEBUG: GRAPH_COMPLETE') if ( $self->debug_state );
-        $self->{check_interval} = $Check_Interval;
+        $self->{check_interval} = $CHECK_INTERVAL;
     }
     return;
 }
@@ -650,7 +650,7 @@ sub get_partitions {
     my $self = shift;
     $self->{sync_error} = undef;
     if ( not $self->{partitions}
-        or time - $self->{last_check} > $Check_Interval )
+        or time - $self->{last_check} > $CHECK_INTERVAL )
     {
         my $partitions = undef;
         if ( $self->group ) {

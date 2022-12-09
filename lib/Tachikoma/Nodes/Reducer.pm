@@ -13,12 +13,12 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $Default_Timeout = 900;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{timeout}    = $Default_Timeout;
+    $self->{timeout}    = $DEFAULT_TIMEOUT;
     $self->{messages}   = {};
     $self->{timestamps} = {};
     bless $self, $class;
@@ -30,7 +30,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $timeout, $interval ) = split q( ), $self->{arguments}, 2;
-        $timeout  ||= $Default_Timeout;
+        $timeout  ||= $DEFAULT_TIMEOUT;
         $interval ||= $timeout / 60;
         $self->{timeout} = $timeout;
         $self->set_timer( $interval * 1000 );

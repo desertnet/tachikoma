@@ -22,11 +22,11 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Batch_Interval  = 0.25;     # how long to wait if below threshold
-my $Batch_Threshold = 65536;    # low water mark before sending batches
-my $Poll_Interval   = 1;        # delay between polls
-my $Startup_Delay   = 0;        # offset from poll interval
-my $Hub_Timeout     = 60;       # synchronous timeout waiting for hub
+my $BATCH_INTERVAL  = 0.25;     # how long to wait if below threshold
+my $BATCH_THRESHOLD = 65536;    # low water mark before sending batches
+my $POLL_INTERVAL   = 1;        # delay between polls
+my $STARTUP_DELAY   = 0;        # offset from poll interval
+my $HUB_TIMEOUT     = 60;       # synchronous timeout waiting for hub
 
 sub new {
     my $class = shift;
@@ -35,9 +35,9 @@ sub new {
     $self->{flags}                  = 0;
     $self->{broker_path}            = undef;
     $self->{partitions}             = undef;
-    $self->{batch_interval}         = $Batch_Interval;
-    $self->{batch_threshold}        = $Batch_Threshold;
-    $self->{poll_interval}          = $Poll_Interval;
+    $self->{batch_interval}         = $BATCH_INTERVAL;
+    $self->{batch_threshold}        = $BATCH_THRESHOLD;
+    $self->{poll_interval}          = $POLL_INTERVAL;
     $self->{next_partition}         = 0;
     $self->{last_check}             = 0;
     $self->{batch}                  = {};
@@ -54,7 +54,7 @@ sub new {
     if ( length $self->{topic} ) {
         $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
         $self->{persist}     = 'cancel';
-        $self->{hub_timeout} = $Hub_Timeout;
+        $self->{hub_timeout} = $HUB_TIMEOUT;
         $self->{targets}     = {};
         $self->{sync_error}  = undef;
     }
@@ -80,7 +80,7 @@ sub arguments {
         $self->{topic}           = $topic // $self->{name};
         $self->{partitions}      = undef;
         $self->{next_partition}  = 0;
-        $self->{last_check}      = $Tachikoma::Now + $Startup_Delay;
+        $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
         $self->{batch_size}      = {};
@@ -349,7 +349,7 @@ sub reset_topic {
     my $self = shift;
     $self->{partitions}      = undef;
     $self->{next_partition}  = 0;
-    $self->{last_check}      = $Tachikoma::Now + $Startup_Delay;
+    $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
     $self->{batch}           = {};
     $self->{batch_offset}    = {};
     $self->{batch_size}      = {};

@@ -18,8 +18,8 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Job_Timeout = 5;     # seconds
-my $DNS_Timeout = 30;    # seconds
+my $JOB_TIMEOUT = 5;     # seconds
+my $DNS_TIMEOUT = 30;    # seconds
 
 sub initialize_graph {
     my $self = shift;
@@ -27,7 +27,7 @@ sub initialize_graph {
     $self->sink( $self->router );
     $self->timer( Tachikoma::Nodes::Timer->new );
     $self->timer->name('_timer');
-    $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
+    $self->timer->set_timer( $JOB_TIMEOUT * 1000, 'oneshot' );
     $self->timer->sink($self);
     return;
 }
@@ -51,7 +51,7 @@ sub fill {
 
     # otherwise make sure it's a TM_BYTESTREAM
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' )
+    $self->timer->set_timer( $JOB_TIMEOUT * 1000, 'oneshot' )
         if ( $self->timer );
 
     my $arguments = $message->[PAYLOAD];
@@ -59,7 +59,7 @@ sub fill {
     my $number = undef;
     my $okay   = eval {
         local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-        alarm $DNS_Timeout;
+        alarm $DNS_TIMEOUT;
         $number = inet_aton($arguments);
         alarm 0;
         return 1;

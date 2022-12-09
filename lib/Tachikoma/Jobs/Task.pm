@@ -22,8 +22,6 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Check_Proc_Interval = 15;
-
 sub fill {
     my $self    = shift;
     my $message = shift;

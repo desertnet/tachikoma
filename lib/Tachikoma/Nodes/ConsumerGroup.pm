@@ -18,7 +18,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Consumer_Timeout = 900;    # wait before abandoning ConsumerBroker
+my $CONSUMER_TIMEOUT = 900;    # wait before abandoning ConsumerBroker
 
 sub new {
     my $class = shift;
@@ -164,7 +164,7 @@ sub check_timestamps {
     my $timestamps = shift;
     my $rebalance  = undef;
     for my $consumer ( keys %{$timestamps} ) {
-        if ( $Tachikoma::Now - $timestamps->{$consumer} > $Consumer_Timeout )
+        if ( $Tachikoma::Now - $timestamps->{$consumer} > $CONSUMER_TIMEOUT )
         {
             delete $timestamps->{$consumer};
             $rebalance = 1;

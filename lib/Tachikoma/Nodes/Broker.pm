@@ -24,46 +24,46 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.165');
 
-my $Path                = '/tmp/topics';
-my $Rebalance_Interval  = 0.2;            # timer during rebalance
-my $Heartbeat_Interval  = 1;              # ping timer
-my $Heartbeat_Timeout   = 900;            # keep this less than LCO timeout
-my $Halt_Time           = 1;              # wait to catch up
-my $Reset_Time          = 1;              # wait after tear down
-my $Delete_Interval     = 60;             # delete old logs this often
-my $Check_Interval      = 1800;           # look for better balance this often
-my $Save_Interval       = 3600;           # re-save topic configs this often
-my $Rebalance_Threshold = 0.90;           # have 90% of our share of leaders
-my $Election_Short      = 5;              # wait if everyone is online
-my $Election_Long       = 120;            # wait if a broker is offline
-my $Election_Timeout   = 300;    # how long to wait before starting over
-my $LCO_Send_Interval  = 15;     # how often to send last commit offsets
-my $LCO_Timeout        = 3600;   # how long to wait before expiring cached LCO
-my $Last_LCO_Send      = 0;      # time we last sent LCO
-my $Default_Cache_Size = 1;      # config for cache partitions
-my $Num_Cache_Segments = 2;
+my $PATH                = '/tmp/topics';
+my $REBALANCE_INTERVAL  = 0.2;            # timer during rebalance
+my $HEARTBEAT_INTERVAL  = 1;              # ping timer
+my $HEARTBEAT_TIMEOUT   = 900;            # keep this less than LCO timeout
+my $HALT_TIME           = 1;              # wait to catch up
+my $RESET_TIME          = 1;              # wait after tear down
+my $DELETE_INTERVAL     = 60;             # delete old logs this often
+my $CHECK_INTERVAL      = 1800;           # look for better balance this often
+my $SAVE_INTERVAL       = 3600;           # re-save topic configs this often
+my $REBALANCE_THRESHOLD = 0.90;           # have 90% of our share of leaders
+my $ELECTION_SHORT      = 5;              # wait if everyone is online
+my $ELECTION_LONG       = 120;            # wait if a broker is offline
+my $ELECTION_TIMEOUT   = 300;    # how long to wait before starting over
+my $LCO_SEND_INTERVAL  = 15;     # how often to send last commit offsets
+my $LCO_TIMEOUT        = 3600;   # how long to wait before expiring cached LCO
+my $LAST_LCO_SEND      = 0;      # time we last sent LCO
+my $DEFAULT_CACHE_SIZE = 1;      # config for cache partitions
+my $NUM_CACHE_SEGMENTS = 2;
 my %C                  = ();
 
-die 'ERROR: data will be lost if Heartbeat_Timeout < LCO_Send_Interval'
-    if ( $Heartbeat_Timeout < $LCO_Send_Interval );
+die 'ERROR: data will be lost if HEARTBEAT_TIMEOUT < LCO_SEND_INTERVAL'
+    if ( $HEARTBEAT_TIMEOUT < $LCO_SEND_INTERVAL );
 
-die 'ERROR: data will be lost if Heartbeat_Timeout >= LCO_Timeout'
-    if ( $Heartbeat_Timeout >= $LCO_Timeout );
+die 'ERROR: data will be lost if HEARTBEAT_TIMEOUT >= LCO_TIMEOUT'
+    if ( $HEARTBEAT_TIMEOUT >= $LCO_TIMEOUT );
 
-my %Broker_Commands = map { uc $_ => $_ } qw(
+my %BROKER_COMMANDS = map { uc $_ => $_ } qw(
     empty_topics
     empty_groups
     purge_topics
     purge_groups
 );
 
-my %Controller_Commands = map { uc $_ => $_ } qw(
+my %CONTROLLER_COMMANDS = map { uc $_ => $_ } qw(
     add_broker
     add_topic
     add_consumer_group
 );
 
-my %Broker_Requests = map { uc $_ => $_ } qw(
+my %BROKER_REQUESTS = map { uc $_ => $_ } qw(
     get_controller
     get_leader
     get_topics
@@ -139,7 +139,7 @@ sub arguments {
         die "ERROR: Broker node requires a <host>:<port>\n"
             if ( not $arguments );
         my ( $broker_id, $path, $stick ) = split q( ), $arguments, 3;
-        $path //= $Path;
+        $path //= $PATH;
         $self->{arguments}   = $arguments;
         $self->{broker_id}   = $broker_id;
         $self->{path}        = $path;
@@ -314,30 +314,30 @@ sub fire {
     elsif ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
         $self->process_rebalance( $total, $online );
     }
-    elsif ( $Tachikoma::Right_Now - $Last_LCO_Send > $LCO_Send_Interval ) {
+    elsif ( $Tachikoma::Right_Now - $LAST_LCO_SEND > $LCO_SEND_INTERVAL ) {
         $self->send_lco;
-        $Last_LCO_Send = $Tachikoma::Right_Now;
+        $LAST_LCO_SEND = $Tachikoma::Right_Now;
     }
     if (    $self->{is_controller}
         and defined $self->{last_check}
-        and $Tachikoma::Now - $self->{last_check} > $Check_Interval )
+        and $Tachikoma::Now - $self->{last_check} > $CHECK_INTERVAL )
     {
         $self->check_mapping;
     }
-    elsif ( $Tachikoma::Now - $self->{last_delete} > $Delete_Interval ) {
+    elsif ( $Tachikoma::Now - $self->{last_delete} > $DELETE_INTERVAL ) {
         $self->process_delete;
     }
-    elsif ( $Tachikoma::Now - $self->{last_save} > $Save_Interval ) {
+    elsif ( $Tachikoma::Now - $self->{last_save} > $SAVE_INTERVAL ) {
         $self->save_topic_states;
     }
     if ( $self->{stage} eq 'COMPLETE' ) {
-        $self->set_timer( $Heartbeat_Interval * 1000 )
-            if ( $self->{timer_interval} != $Heartbeat_Interval * 1000 );
+        $self->set_timer( $HEARTBEAT_INTERVAL * 1000 )
+            if ( $self->{timer_interval} != $HEARTBEAT_INTERVAL * 1000 );
     }
     elsif ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
-        $self->set_timer( $Rebalance_Interval * 1000 )
+        $self->set_timer( $REBALANCE_INTERVAL * 1000 )
             if ( not $self->{timer_is_active}
-            or $self->{timer_interval} != $Rebalance_Interval * 1000 );
+            or $self->{timer_interval} != $REBALANCE_INTERVAL * 1000 );
     }
     return;
 }
@@ -389,15 +389,15 @@ sub process_command {
     if ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
         $self->send_error( $message, "REBALANCING_PARTITIONS\n" );
     }
-    elsif ( $Broker_Commands{$cmd} ) {
-        my $method = $Broker_Commands{$cmd};
+    elsif ( $BROKER_COMMANDS{$cmd} ) {
+        my $method = $BROKER_COMMANDS{$cmd};
         $self->$method( $args, $message );
     }
     elsif ( $self->{status} ne 'CONTROLLER' ) {
         $self->send_error( $message, "NOT_CONTROLLER\n" );
     }
-    elsif ( $Controller_Commands{$cmd} ) {
-        my $method = $Controller_Commands{$cmd};
+    elsif ( $CONTROLLER_COMMANDS{$cmd} ) {
+        my $method = $CONTROLLER_COMMANDS{$cmd};
         $self->$method( $args, $message );
     }
     else {
@@ -415,8 +415,8 @@ sub process_request {
     if ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
         $self->send_error( $message, "REBALANCING_PARTITIONS\n" );
     }
-    elsif ( $Broker_Requests{$cmd} ) {
-        my $method = $Broker_Requests{$cmd};
+    elsif ( $BROKER_REQUESTS{$cmd} ) {
+        my $method = $BROKER_REQUESTS{$cmd};
         $self->$method( $args, $message );
     }
     else {
@@ -478,7 +478,7 @@ sub send_heartbeat {
         my $broker = $self->{brokers}->{$broker_id};
         next
             if ( $Tachikoma::Right_Now - $broker->{last_ping}
-            < $Heartbeat_Interval );
+            < $HEARTBEAT_INTERVAL );
         if ( $broker_id eq $self->{broker_id} ) {
             $broker->{last_heartbeat} = $Tachikoma::Right_Now;
             $broker->{last_ping}      = $Tachikoma::Right_Now;
@@ -505,7 +505,7 @@ sub receive_heartbeat {
     return $self->stderr( 'ERROR: bad ping: ', $message->[STREAM] )
         if ( not $broker );
     return $self->stderr( 'ERROR: stale ping: ', $message->[STREAM] )
-        if ( $Tachikoma::Now - $message->[TIMESTAMP] > $Heartbeat_Timeout );
+        if ( $Tachikoma::Now - $message->[TIMESTAMP] > $HEARTBEAT_TIMEOUT );
     $broker->{last_heartbeat} = $Tachikoma::Right_Now;
     return
         if ($self->{stage} ne 'INIT'
@@ -526,7 +526,7 @@ sub receive_heartbeat {
         if ( $other->{pool} eq $broker->{pool} ) {
             $total++;
             $online++
-                if ( $now - $other->{is_online} < $Heartbeat_Timeout );
+                if ( $now - $other->{is_online} < $HEARTBEAT_TIMEOUT );
         }
     }
     if ( $total and $online == $total ) {
@@ -622,7 +622,7 @@ sub check_heartbeats {
         my $broker = $self->{brokers}->{$broker_id};
         $self->offline($broker_id)
             if ( $Tachikoma::Right_Now - $broker->{last_heartbeat}
-            > $Heartbeat_Timeout );
+            > $HEARTBEAT_TIMEOUT );
         $offline{ $broker->{pool} } = 1
             if ( not $broker->{is_online} );
     }
@@ -675,7 +675,7 @@ sub rebalance_partitions {
     $self->{waiting_for_map}   = {};
     $self->{last_election}     = $Tachikoma::Now;
     $self->inform_brokers("REBALANCE_PARTITIONS\n") if ($inform_brokers);
-    $self->set_timer( $Rebalance_Interval * 1000 )
+    $self->set_timer( $REBALANCE_INTERVAL * 1000 )
         if ( not $self->{starting_up} );
     return;
 }
@@ -685,7 +685,7 @@ sub process_rebalance {
     my $total  = shift;
     my $online = shift;
     my $span   = $Tachikoma::Now - $self->{last_election};
-    my $wait   = $total == $online ? $Election_Short : $Election_Long;
+    my $wait   = $total == $online ? $ELECTION_SHORT : $ELECTION_LONG;
     if ( $span > $wait ) {
         $self->{starting_up} = undef;
         if ( $self->{is_controller} ) {
@@ -749,9 +749,9 @@ sub halt_partitions {
 sub wait_for_halt {
     my $self = shift;
     return $self->rebalance_partitions('inform_brokers')
-        if ( $Tachikoma::Now - $self->{last_election} > $Election_Timeout );
+        if ( $Tachikoma::Now - $self->{last_election} > $ELECTION_TIMEOUT );
     if ( not keys %{ $self->{waiting_for_halt} }
-        and $Tachikoma::Right_Now - $self->{last_halt} > $Halt_Time )
+        and $Tachikoma::Right_Now - $self->{last_halt} > $HALT_TIME )
     {
         $self->stderr( $self->{stage} . ' HALT_COMPLETE' );
         $self->{stage} = 'RESET';
@@ -842,9 +842,9 @@ sub reset_partitions {
 sub wait_for_reset {
     my $self = shift;
     return $self->rebalance_partitions('inform_brokers')
-        if ( $Tachikoma::Now - $self->{last_election} > $Election_Timeout );
+        if ( $Tachikoma::Now - $self->{last_election} > $ELECTION_TIMEOUT );
     if ( not keys %{ $self->{waiting_for_reset} }
-        and $Tachikoma::Right_Now - $self->{last_reset} > $Reset_Time )
+        and $Tachikoma::Right_Now - $self->{last_reset} > $RESET_TIME )
     {
         $self->stderr( $self->{stage} . ' RESET_COMPLETE' );
         $self->{stage} = 'MAP';
@@ -950,7 +950,7 @@ sub check_mapping {
         $ratio = 1.0               if ( $ideal - $current <= 1 );
         $self->stderr( sprintf 'CHECK_MAPPING: %.2f%% optimal',
             $ratio * 100 );
-        if ( $ratio < $Rebalance_Threshold ) {
+        if ( $ratio < $REBALANCE_THRESHOLD ) {
             $self->rebalance_partitions('inform_brokers');
             $self->{last_check} = $Tachikoma::Now;
         }
@@ -1235,7 +1235,7 @@ sub apply_mapping {
                 }
                 $node->arguments(q());
                 $node->filename("$path/$topic_name/cache/$group_name/$i");
-                $node->num_segments($Num_Cache_Segments);
+                $node->num_segments($NUM_CACHE_SEGMENTS);
                 $node->segment_size( $cache->{segment_size} );
                 $node->max_lifespan( $cache->{max_lifespan} );
                 $node->replication_factor( $topic->{replication_factor} );
@@ -1266,7 +1266,7 @@ sub apply_mapping {
 sub wait_for_responses {
     my $self = shift;
     return $self->rebalance_partitions('inform_brokers')
-        if ( $Tachikoma::Now - $self->{last_election} > $Election_Timeout );
+        if ( $Tachikoma::Now - $self->{last_election} > $ELECTION_TIMEOUT );
     $self->{stage} = 'FINISH' if ( not keys %{ $self->{waiting_for_map} } );
     return;
 }
@@ -1379,7 +1379,7 @@ sub process_delete {
     for my $log_name ( keys %{$broker_lco} ) {
         next if ( $Tachikoma::Nodes{$log_name} );
         my $log = $broker_lco->{$log_name} or next;
-        if ( $now - $log->{is_active} >= $LCO_Timeout ) {
+        if ( $now - $log->{is_active} >= $LCO_TIMEOUT ) {
             delete $broker_lco->{$log_name};
         }
     }
@@ -1396,7 +1396,7 @@ sub purge_stale_logs {
     my $broker_id = $self->{broker_id};
     my $this_pool = $self->{brokers}->{$broker_id}->{pool};
     my $now       = time;
-    if ( $now - $self->{broker_pools}->{$this_pool} < $Heartbeat_Timeout ) {
+    if ( $now - $self->{broker_pools}->{$this_pool} < $HEARTBEAT_TIMEOUT ) {
         my $brokers            = $self->{brokers};
         my $topics             = $self->{topics};
         my %logs_for_this_pool = ();
@@ -1408,7 +1408,7 @@ sub purge_stale_logs {
             for my $log_name ( keys %{$lco} ) {
                 my $log = $lco->{$log_name} or next;
                 $logs_for_this_pool{$log_name} = 1
-                    if ( $now - $log->{is_active} < $LCO_Timeout );
+                    if ( $now - $log->{is_active} < $LCO_TIMEOUT );
             }
         }
         for my $id ( keys %{ $self->{last_commit_offsets} } ) {
@@ -1578,7 +1578,7 @@ sub add_consumer_group {
         'max_lifespan=i' => \$max_lifespan,
     );
     $group_name //= shift @{$argv};
-    $segment_size ||= $Default_Cache_Size;
+    $segment_size ||= $DEFAULT_CACHE_SIZE;
     $max_lifespan //= 0;
     return $self->stderr(
         "ERROR: bad arguments: ADD_CONSUMER_GROUP $arguments")
@@ -2082,7 +2082,7 @@ $C{list_partitions} = sub {
             $is_active = q(*)
                 if ($log->{is_active}
                 and $Tachikoma::Now - $log->{is_active}
-                < $LCO_Send_Interval * 2 );
+                < $LCO_SEND_INTERVAL * 2 );
             next if ( not $glob and ( not $is_active or not $is_online ) );
 
             if ($by_partition) {
@@ -2229,7 +2229,7 @@ $C{start_broker} = sub {
     $self->patron->last_delete($Tachikoma::Now);
     $self->patron->last_save($Tachikoma::Now);
     $self->patron->last_election($Tachikoma::Now);
-    $self->patron->set_timer( $Rebalance_Interval * 1000 );
+    $self->patron->set_timer( $REBALANCE_INTERVAL * 1000 );
     return $self->okay($envelope);
 };
 

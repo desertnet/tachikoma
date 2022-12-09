@@ -22,7 +22,7 @@ use parent qw( Tachikoma::Nodes::FileHandle );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Timeout = 900;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $class = shift;
@@ -43,7 +43,7 @@ sub new {
     $self->{on_EOF}          = 'ignore';
     $self->{on_ENOENT}       = 'retry';
     $self->{on_timeout}      = 'expire';
-    $self->{timeout}         = $Default_Timeout;
+    $self->{timeout}         = $DEFAULT_TIMEOUT;
     $self->{sent_EOF}        = undef;
     $self->{reattempt}       = undef;
     $self->{msg_timer}       = undef;

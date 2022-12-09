@@ -24,7 +24,7 @@ use parent qw( Tachikoma::Nodes::Socket );
 
 use version; our $VERSION = qv('v2.0.195');
 
-my $Default_Timeout = 900;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $proto = shift;

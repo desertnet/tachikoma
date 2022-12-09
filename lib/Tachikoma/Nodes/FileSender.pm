@@ -17,20 +17,18 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $Request_Timeout = 600;
-my $Expire_Interval = 60;
-my $Respawn_Timeout = 300;
-my $Shutting_Down   = undef;
+my $REQUEST_TIMEOUT = 600;
+my $EXPIRE_INTERVAL = 60;
 
-# my $Separator       = chr 0;
-my $Separator = join q(), chr 30, ' -> ', chr 30;
+# my $SEPARATOR       = chr 0;
+my $SEPARATOR = join q(), chr 30, ' -> ', chr 30;
 
 sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
         my ( $prefix, $receiver ) = split q( ), $self->{arguments}, 2;
-        $self->set_timer( $Expire_Interval * 1000 );
+        $self->set_timer( $EXPIRE_INTERVAL * 1000 );
         $self->prefix($prefix);
         $self->receiver($receiver);
         $self->requests( {} );
@@ -131,7 +129,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     }
     else {
         my @paths = split q( ), $path;
-        @paths = split $Separator, $path, 2 if ( @paths > 2 );
+        @paths = split $SEPARATOR, $path, 2 if ( @paths > 2 );
         my ( $from_path, $to_path ) = @paths;
         $from_path =~ s{(?:^|/)[.][.](?=/)}{}g if ($from_path);
         $to_path   =~ s{(?:^|/)[.][.](?=/)}{}g if ($to_path);
@@ -151,7 +149,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->stderr(qq(ERROR: bad "to" path: $to_path from $from));
             return $self->cancel($message);
         }
-        $relative = join $Separator, $from_relative, $to_relative;
+        $relative = join $SEPARATOR, $from_relative, $to_relative;
     }
     $stream = join q(:), $op, $relative;
     my $requests = $self->{requests};
@@ -262,7 +260,7 @@ sub fire {
     my $requests = $self->{requests};
     for my $stream ( keys %{$requests} ) {
         if ( $Tachikoma::Now - $requests->{$stream}->{timestamp}
-            > $Request_Timeout )
+            > $REQUEST_TIMEOUT )
         {
             my $name = $requests->{$stream}->{name};
             my $tail = $Tachikoma::Nodes{$name};

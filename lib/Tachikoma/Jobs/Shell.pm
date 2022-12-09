@@ -21,7 +21,7 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Check_Proc_Interval = 15;
+my $CHECK_PROC_INTERVAL = 15;
 
 sub initialize_graph {
     my $self = shift;
@@ -30,7 +30,7 @@ sub initialize_graph {
     my $timer = Tachikoma::Nodes::Timer->new;
     $timer->name('_timer');
     $timer->sink($self);
-    $timer->set_timer( $Check_Proc_Interval * 1000 );
+    $timer->set_timer( $CHECK_PROC_INTERVAL * 1000 );
     $self->initialize_shell_graph;
     $self->connector->sink($self);
     $self->sink( $self->router );

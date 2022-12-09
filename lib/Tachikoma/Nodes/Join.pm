@@ -17,8 +17,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Default_Interval = 1000;
-my $Default_Size     = 65536;
+my $DEFAULT_INTERVAL = 1000;
+my $DEFAULT_SIZE     = 65536;
 
 sub new {
     my $class = shift;
@@ -27,7 +27,7 @@ sub new {
     $self->{offset}    = undef;
     $self->{stream}    = undef;
     $self->{count}     = 0;
-    $self->{max_size}  = $Default_Size;
+    $self->{max_size}  = $DEFAULT_SIZE;
     $self->{max_count} = undef;
     bless $self, $class;
     return $self;
@@ -55,7 +55,7 @@ sub arguments {
         );
         if ( not $interval and not $size and not $count ) {
             ( $interval, $size, $count ) = @{$argv};
-            $size ||= $Default_Size;
+            $size ||= $DEFAULT_SIZE;
         }
         die "ERROR: invalid option\n" if ( not $r );
         $self->{arguments} = $arguments;
@@ -65,7 +65,7 @@ sub arguments {
         $self->{count}     = 0;
         $self->{max_size}  = $size;
         $self->{max_count} = $count;
-        $self->set_timer( $interval || $Default_Interval );
+        $self->set_timer( $interval || $DEFAULT_INTERVAL );
     }
     return $self->{arguments};
 }

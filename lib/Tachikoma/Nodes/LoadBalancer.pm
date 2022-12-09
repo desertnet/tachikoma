@@ -18,7 +18,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Timeout = 3600;
+my $DEFAULT_TIMEOUT = 3600;
 my %C               = ();
 
 sub new {
@@ -29,7 +29,7 @@ sub new {
     $self->{streams}        = {};
     $self->{msg_unanswered} = {};
     $self->{max_unanswered} = 0;
-    $self->{timeout}        = $Default_Timeout;
+    $self->{timeout}        = $DEFAULT_TIMEOUT;
     $self->{method}         = 'round-robin';
     $self->{mode}           = 'persistent';
     $self->{hash}           = q();
@@ -54,7 +54,7 @@ sub arguments {
         my ( $max_unanswered, $timeout ) =
             split q( ), $self->{arguments}, 2;
         $self->{max_unanswered} = $max_unanswered || 0;
-        $self->{timeout}        = $timeout        || $Default_Timeout;
+        $self->{timeout}        = $timeout        || $DEFAULT_TIMEOUT;
     }
     return $self->{arguments};
 }
@@ -359,7 +359,7 @@ sub dump_config {
     my $mode           = $self->{mode};
     $response = "make_node LoadBalancer $self->{name}";
     $response .= " $max_unanswered"       if ($max_unanswered);
-    $response .= " $timeout"              if ( $timeout ne $Default_Timeout );
+    $response .= " $timeout"              if ( $timeout ne $DEFAULT_TIMEOUT );
     $response .= "\n";
     $settings .= "  set_method $method\n" if ( $method ne 'round-robin' );
     $settings .= "  set_mode $mode\n"     if ( $mode ne 'persistent' );

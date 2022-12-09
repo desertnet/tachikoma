@@ -19,10 +19,10 @@ use parent qw( Tachikoma::Nodes::Table );
 
 use version; our $VERSION = qv('v2.0.197');
 
-my $Default_Num_Partitions = 1;
-my $Default_Window_Size    = 900;
-my $Default_Num_Buckets    = 4;
-my $Default_Limit          = 0;
+my $DEFAULT_NUM_PARTITIONS = 1;
+my $DEFAULT_WINDOW_SIZE    = 900;
+my $DEFAULT_NUM_BUCKETS    = 4;
+my $DEFAULT_LIMIT          = 0;
 
 sub help {
     my $self = shift;
@@ -49,10 +49,10 @@ sub arguments {
         die "ERROR: invalid option\n" if ( not $r );
         $self->{arguments}      = $arguments;
         $self->{caches}         = [];
-        $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
-        $self->{window_size}    = $window_size // $Default_Window_Size;
-        $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
-        $self->{limit}          = $limit || $Default_Limit;
+        $self->{num_partitions} = $num_partitions // $DEFAULT_NUM_PARTITIONS;
+        $self->{window_size}    = $window_size // $DEFAULT_WINDOW_SIZE;
+        $self->{num_buckets}    = $num_buckets // $DEFAULT_NUM_BUCKETS;
+        $self->{limit}          = $limit || $DEFAULT_LIMIT;
         $self->{next_window}    = [];
     }
     return $self->{arguments};

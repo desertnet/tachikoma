@@ -16,8 +16,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Timeout = 3600;
-my $Counter         = 0;
+my $DEFAULT_TIMEOUT = 3600;
+my $COUNTER         = 0;
 
 sub new {
     my $class = shift;
@@ -135,7 +135,7 @@ sub fire {
     }
 
     # expire messages
-    my $timeout = $self->{arguments} || $Default_Timeout;
+    my $timeout = $self->{arguments} || $DEFAULT_TIMEOUT;
     for my $message_id ( keys %{$messages} ) {
         my $timestamp = $messages->{$message_id}->{timestamp};
         delete $messages->{$message_id}
@@ -178,8 +178,8 @@ sub messages {
 
 sub msg_counter {
     my $self = shift;
-    $Counter = ( $Counter + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $Counter;
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
 }
 
 1;

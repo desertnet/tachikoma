@@ -13,12 +13,12 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $Fortune = undef;
+my $FORTUNE = undef;
 if ( -f '/opt/local/bin/fortune' ) {
-    $Fortune = '/opt/local/bin/fortune';
+    $FORTUNE = '/opt/local/bin/fortune';
 }
 else {
-    $Fortune = '/usr/games/fortune';
+    $FORTUNE = '/usr/games/fortune';
 }
 
 sub initialize_graph {
@@ -38,7 +38,7 @@ sub fill {
     my $message = shift;
     return if ( not $message->type & TM_BYTESTREAM );
     my $arguments = $message->payload;
-    my $fortune   = $self->execute( $Fortune, $arguments );
+    my $fortune   = $self->execute( $FORTUNE, $arguments );
     my @canned    = ();
     return if ( not $fortune );
     $fortune =~ s{^%% [(].*?[)]\s*}{}g;

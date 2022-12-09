@@ -15,7 +15,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Default_Interval = 5;    # seconds
+my $DEFAULT_INTERVAL = 5;    # seconds
 
 sub new {
     my $class = shift;
@@ -41,7 +41,7 @@ sub arguments {
         my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
         die "ERROR: bad arguments for TailProbe\n"
             if ( $seconds and $seconds =~ m{\D} );
-        $seconds ||= $Default_Interval;
+        $seconds ||= $DEFAULT_INTERVAL;
         $self->set_timer( $seconds * 1000 );
         $self->prefix( $prefix || $0 );
     }

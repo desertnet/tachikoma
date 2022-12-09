@@ -34,8 +34,8 @@ my $disabled_file =
 my $Upper = 64;
 my $Lower = $Upper / 2;
 
-# my $Separator = chr(0);
-my $Separator       = join q(), chr 30, ' -> ', chr 30;
+# my $SEPARATOR = chr(0);
+my $SEPARATOR       = join q(), chr 30, ' -> ', chr 30;
 my $home            = ( getpwuid $< )[7];
 my @default_configs = (
     "$home/.tachikoma/etc/tachikoma.conf",

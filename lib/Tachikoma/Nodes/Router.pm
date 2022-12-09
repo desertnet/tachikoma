@@ -21,6 +21,9 @@ my $PROFILES           = undef;
 my @STACK              = ();
 my $LAST_UTIME         = 0;
 my $HEARTBEAT_INTERVAL = 15;      # seconds
+my $SHUTDOWN_TIMEOUT   = 300;
+my $LOG_TIMEOUT        = 300;
+my $TOUCH_INTERVAL     = 300;
 
 sub new {
     my $class = shift;
@@ -50,7 +53,7 @@ sub drain {
     if ( $self->type eq 'root' ) {
         $self->stderr('waiting for child processes...');
     }
-    alarm 300;
+    alarm $SHUTDOWN_TIMEOUT;
     local $SIG{ALRM} = sub { die "timeout\n" };
     my $okay = eval {
         do { }
@@ -207,9 +210,12 @@ sub update_logs {
     my $recent_log_timers = Tachikoma->recent_log_timers;
     for my $text ( keys %{$recent_log_timers} ) {
         delete $recent_log_timers->{$text}
-            if ( $Tachikoma::Now - $recent_log_timers->{$text}->[0] > 300 );
+            if ( $Tachikoma::Now - $recent_log_timers->{$text}->[0]
+            > $LOG_TIMEOUT );
     }
-    if ( $self->{type} eq 'root' and $Tachikoma::Now - $LAST_UTIME > 300 ) {
+    if (    $self->{type} eq 'root'
+        and $Tachikoma::Now - $LAST_UTIME > $TOUCH_INTERVAL )
+    {
         Tachikoma->touch_log_file;
         $LAST_UTIME = $Tachikoma::Now;
     }

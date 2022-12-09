@@ -16,7 +16,7 @@ use parent qw( Tachikoma::Nodes::Index );
 
 use version; our $VERSION = qv('v2.0.197');
 
-my %Operators = ();
+my %OPERATORS = ();
 
 sub help {
     my $self = shift;
@@ -75,18 +75,18 @@ sub execute {
     my ( $self, $query ) = @_;
     my $results = undef;
     if ( ref $query eq 'ARRAY' ) {
-        $results = &{ $Operators{'and'} }( $self, { q => $query } );
+        $results = &{ $OPERATORS{'and'} }( $self, { q => $query } );
     }
     elsif ( ref $query eq 'HASH' ) {
         my $op = $query->{op};
-        die qq("$op" is not a valid operator\n) if ( not $Operators{$op} );
-        $results = &{ $Operators{$op} }( $self, $query );
+        die qq("$op" is not a valid operator\n) if ( not $OPERATORS{$op} );
+        $results = &{ $OPERATORS{$op} }( $self, $query );
     }
     $results //= {};
     return $results;
 }
 
-$Operators{'and'} = sub {
+$OPERATORS{'and'} = sub {
     my ( $self, $query ) = @_;
     my %rv = ();
     for my $subquery ( @{ $query->{q} } ) {
@@ -96,7 +96,7 @@ $Operators{'and'} = sub {
     return \%rv;
 };
 
-$Operators{'or'} = sub {
+$OPERATORS{'or'} = sub {
     my ( $self, $query ) = @_;
     my %rv = ();
     for my $subquery ( @{ $query->{q} } ) {
@@ -106,42 +106,42 @@ $Operators{'or'} = sub {
     return \%rv;
 };
 
-$Operators{'eq'} = sub {
+$OPERATORS{'eq'} = sub {
     my ( $self, $query ) = @_;
     return $self->lookup( $query->{field}, $query->{key} );
 };
 
-$Operators{'ne'} = sub {
+$OPERATORS{'ne'} = sub {
     my ( $self, $query ) = @_;
     return $self->lookup( $query->{field}, $query->{key}, 'negate' );
 };
 
-$Operators{'re'} = sub {
+$OPERATORS{'re'} = sub {
     my ( $self, $query ) = @_;
     return $self->search( $query->{field}, $query->{key} );
 };
 
-$Operators{'nr'} = sub {
+$OPERATORS{'nr'} = sub {
     my ( $self, $query ) = @_;
     return $self->search( $query->{field}, $query->{key}, 'negate' );
 };
 
-$Operators{'ge'} = sub {
+$OPERATORS{'ge'} = sub {
     my ( $self, $query ) = @_;
     return $self->range( $query->{field}, $query->{key}, undef );
 };
 
-$Operators{'le'} = sub {
+$OPERATORS{'le'} = sub {
     my ( $self, $query ) = @_;
     return $self->range( $query->{field}, undef, $query->{key} );
 };
 
-$Operators{'range'} = sub {
+$OPERATORS{'range'} = sub {
     my ( $self, $query ) = @_;
     return $self->range( $query->{field}, $query->{from}, $query->{to} );
 };
 
-$Operators{'keys'} = sub {
+$OPERATORS{'keys'} = sub {
     my ( $self, $query ) = @_;
     return $self->get_keys( $query->{field} );
 };

@@ -21,10 +21,10 @@ use parent qw( Exporter Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.314');
 
-my $Time_String     = undef;
-my $Last_Time       = 0;
-my $Log_Time_String = undef;
-my $Log_Last_Time   = 0;
+my $TIME_STRING     = undef;
+my $LAST_TIME       = 0;
+my $LOG_TIME_STRING = undef;
+my $LOG_LAST_TIME   = 0;
 
 sub new {
     my $class = shift;
@@ -237,21 +237,21 @@ sub log_entry {
 }
 
 sub cached_log_strftime {
-    if ( $Tachikoma::Now > $Log_Last_Time ) {
-        $Log_Time_String =
+    if ( $Tachikoma::Now > $LOG_LAST_TIME ) {
+        $LOG_TIME_STRING =
             strftime( '%d/%b/%Y:%T %z', localtime $Tachikoma::Now );
-        $Log_Last_Time = $Tachikoma::Now;
+        $LOG_LAST_TIME = $Tachikoma::Now;
     }
-    return $Log_Time_String;
+    return $LOG_TIME_STRING;
 }
 
 sub cached_strftime {
-    if ( $Tachikoma::Now > $Last_Time ) {
-        $Time_String =
+    if ( $Tachikoma::Now > $LAST_TIME ) {
+        $TIME_STRING =
             strftime( '%a, %d %b %Y %T GMT', gmtime $Tachikoma::Now );
-        $Last_Time = $Tachikoma::Now;
+        $LAST_TIME = $Tachikoma::Now;
     }
-    return $Time_String;
+    return $TIME_STRING;
 }
 
 sub payloads {
