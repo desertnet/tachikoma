@@ -703,35 +703,39 @@ $C{remove_node} = sub {
     if ( not $glob ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
-    if ( not $list_matches and not $Tachikoma::Nodes{$glob} ) {
-        return $self->error( $envelope, qq(can't find node "$glob"\n) );
-    }
     my @names = (
         $list_matches
         ? grep m{^$glob$},
         sort keys %Tachikoma::Nodes
-        : $glob
+        : ( split q( ), $glob )
     );
-    my $out = q();
+    my $out    = q();
+    my @errors = ();
     for my $name (@names) {
+        if ( not $Tachikoma::Nodes{$name} ) {
+            push @errors, qq(can't find node "$name"\n);
+            next;
+        }
         my $node = $Tachikoma::Nodes{$name};
         my $sink = $node->{sink};
         if ( $sink and $sink->isa('Tachikoma::Nodes::JobController') ) {
-            return $self->error( $envelope,
-                      $out
-                    . qq(ERROR: "$name" is a job,)
-                    . qq( use "cmd $sink->{name} stop $name"\n) );
+            push @errors, qq(ERROR: "$name" is a job,)
+                . qq( use "cmd $sink->{name} stop $name"\n);
+            next;
         }
         else {
             if ( $node eq $self ) {
-                return $self->error( $envelope,
-                    $out . qq(ERROR: refusing to destroy interpreter\n) );
+                push @errors, qq(ERROR: refusing to destroy interpreter\n);
+                next;
             }
             $node->remove_node;
             $out .= "removed $name\n";
         }
     }
-    if ($list_matches) {
+    if (@errors) {
+        return $self->error( $envelope, join q(), $out, @errors );
+    }
+    if ( $list_matches or @names > 1 ) {
         if ($out) {
             $out .= "ok\n";
             return $self->response( $envelope, $out );
