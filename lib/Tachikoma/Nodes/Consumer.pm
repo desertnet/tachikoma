@@ -260,12 +260,12 @@ sub handle_EOF {
         $self->load_cache_complete;
         $self->next_offset( $self->{saved_offset} );
         $self->set_timer(0) if ( $self->{timer_interval} );
-        $self->set_state( 'ACTIVE' => $self->{partition_id} )
-            if ( not $self->{set_state}->{ACTIVE} );
+        $self->set_state( 'ACTIVE' => $self->{partition} )
+            if ( not length $self->{set_state}->{ACTIVE} );
     }
     else {
         $self->{next_offset} = $offset;
-        $self->set_state( 'READY' => $self->{partition_id} )
+        $self->set_state( 'READY' => $self->{partition} )
             if ( not length $self->{set_state}->{READY} );
     }
     return;
