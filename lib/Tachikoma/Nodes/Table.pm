@@ -273,18 +273,16 @@ sub get_partition_id {
 
 sub get_bucket {
     my ( $self, $i, $timestamp ) = @_;
-    my $cache  = $self->{caches}->[$i];
-    my $bucket = undef;
-    my $j      = 0;
+    my $cache = $self->{caches}->[$i];
+    my $j     = 0;
     if ( $self->{window_size} ) {
         my $span = $self->{next_window}->[$i] - $timestamp;
         $j = int $span / $self->{window_size};
+        $j = 0 if ( $j < 0 );
+        $j = $self->{num_buckets} - 1 if ( $j >= $self->{num_buckets} );
     }
-    if ( $j >= 0 and $j < $self->{num_buckets} ) {
-        $cache->[$j] ||= {};
-        $bucket = $cache->[$j];
-    }
-    return $bucket;
+    $cache->[$j] ||= {};
+    return $cache->[$j];
 }
 
 sub remove_entry {
