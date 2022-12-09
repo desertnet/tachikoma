@@ -382,14 +382,6 @@ sub on_load_window {
     return;
 }
 
-sub on_load_window_complete {
-    my ( $self, $i ) = @_;
-    my $next_window = $self->{next_window}->[$i] // 0;
-    $self->roll_window( $i, $Tachikoma::Now )
-        if ( $Tachikoma::Now >= $next_window );
-    return;
-}
-
 sub on_save_window {
     my $self = shift;
     if (@_) {
