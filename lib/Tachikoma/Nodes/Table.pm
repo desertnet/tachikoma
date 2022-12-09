@@ -18,20 +18,23 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.197');
 
-my $Default_Num_Partitions = 1;
-my $Default_Num_Buckets    = 2;
-my $Default_Window_Size    = 300;
+my $DEFAULT_NUM_PARTITIONS = 1;
+my $DEFAULT_NUM_BUCKETS    = 2;
+my $DEFAULT_WINDOW_SIZE    = 300;
+my $MIN_DELAY              = 1;
+my $MAX_DELAY              = 60;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{caches}         = [];
     $self->{on_save_window} = [];
-    $self->{num_partitions} = $Default_Num_Partitions;
-    $self->{num_buckets}    = $Default_Num_Buckets;
+    $self->{num_partitions} = $DEFAULT_NUM_PARTITIONS;
+    $self->{num_buckets}    = $DEFAULT_NUM_BUCKETS;
     $self->{window_size}    = undef;
     $self->{bucket_size}    = undef;
     $self->{next_window}    = [];
+    $self->{queue}          = undef;
     $self->{host}           = undef;
     $self->{port}           = undef;
     $self->{field}          = undef;
@@ -46,7 +49,8 @@ sub help {
 make_node Table <node name> --num_partitions=<int> \
                             --num_buckets=<int>    \
                             --window_size=<int>    \
-                            --bucket_size=<int>
+                            --bucket_size=<int>    \
+                            --queue
 EOF
 }
 
@@ -54,13 +58,16 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $num_partitions, $num_buckets, $window_size, $bucket_size );
+        my ($num_partitions, $num_buckets, $window_size,
+            $bucket_size,    $should_queue
+        );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'num_partitions=i' => \$num_partitions,
             'num_buckets=i'    => \$num_buckets,
             'window_size=i'    => \$window_size,
             'bucket_size=i'    => \$bucket_size,
+            'queue'            => \$should_queue,
         );
         die "ERROR: invalid option\n" if ( not $r );
         die "ERROR: num_partitions must be greater than or equal to 1\n"
@@ -76,16 +83,17 @@ sub arguments {
             if ( $window_size and $bucket_size );
         $self->{arguments}      = $arguments;
         $self->{caches}         = [];
-        $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
-        $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
+        $self->{num_partitions} = $num_partitions // $DEFAULT_NUM_PARTITIONS;
+        $self->{num_buckets}    = $num_buckets // $DEFAULT_NUM_BUCKETS;
 
         if ($bucket_size) {
             $self->{bucket_size} = $bucket_size;
         }
         else {
-            $self->{window_size} = $window_size // $Default_Window_Size;
+            $self->{window_size} = $window_size // $DEFAULT_WINDOW_SIZE;
         }
         $self->{next_window} = [];
+        $self->{queue}       = [] if ($should_queue);
     }
     return $self->{arguments};
 }
@@ -136,6 +144,22 @@ sub fire {
             my $next_window = $self->{next_window}->[$i] // 0;
             $self->roll_window( $i, $Tachikoma::Now )
                 if ( $Tachikoma::Now >= $next_window );
+        }
+    }
+    if ( $self->{queue} ) {
+        my $queue = $self->{queue};
+        while ( @{$queue} ) {
+            my $delay = $self->{window_size} / 2;
+            $delay = $MIN_DELAY if ( $delay < $MIN_DELAY );
+            $delay = $MAX_DELAY if ( $delay > $MAX_DELAY );
+            if ( $Tachikoma::Now - $queue->[0]->{timestamp} > $delay ) {
+                &{ $queue->[0]->{send_cb} }()
+                    if ( $queue->[0] and $queue->[0]->{send_cb} );
+                shift @{$queue};
+            }
+            else {
+                last;
+            }
         }
     }
     return;
@@ -241,8 +265,14 @@ sub roll_count {
     my $save_cb = $self->{on_save_window}->[$i];
     if ($timestamp) {
         &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
-        $self->send_bucket( $i, $timestamp, $cache->[0] )
-            if ( $self->{edge} );
+        if ( $self->{edge} ) {
+            my $bucket = $cache->[0];
+            $self->queue(
+                sub {
+                    $self->send_bucket( $i, $timestamp, $bucket );
+                }
+            );
+        }
     }
     for ( 0 .. $count ) {
         unshift @{$cache}, {};
@@ -256,7 +286,7 @@ sub roll_count {
 sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
     return 1 if ( not length $value );
-    my $bucket = $self->get_bucket($i);
+    my $bucket = $self->get_bucket( $i, $timestamp );
     $bucket->{$key} = $value if ($bucket);
     return;
 }
@@ -373,11 +403,11 @@ sub on_load_window {
             }
         }
         unshift @{$cache}, $stored->{cache};
-        $self->{next_window}->[$i] = $timestamp
-            if ( $self->{window_size} );
         while ( @{$cache} > $self->{num_buckets} ) {
             pop @{$cache};
         }
+        $self->{next_window}->[$i] = $timestamp
+            if ( $self->{window_size} );
     }
     return;
 }
@@ -417,6 +447,30 @@ sub new_cache {
         $self->{next_window} = [];
     }
     return;
+}
+
+sub queue {
+    my $self = shift;
+    if (@_) {
+        my $send_cb = shift;
+        if ( $self->{queue} ) {
+            my $queue = $self->{queue};
+            push @{$queue},
+                {
+                timestamp => $Tachikoma::Now,
+                send_cb   => $send_cb,
+                };
+            while ( @{$queue} > $self->{num_buckets} ) {
+                &{ $queue->[0]->{send_cb} }()
+                    if ( $queue->[0] and $queue->[0]->{send_cb} );
+                shift @{$queue};
+            }
+        }
+        else {
+            &{$send_cb}();
+        }
+    }
+    return $self->{queue};
 }
 
 ########################

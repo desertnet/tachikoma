@@ -16,7 +16,7 @@ sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
     chomp $value;
     return 1 if ( not length $value );
-    my $bucket = $self->get_bucket($i);
+    my $bucket = $self->get_bucket( $i, $timestamp );
     if ( not $bucket or not defined $bucket->{$key} ) {
         $self->SUPER::collect( $i, $timestamp, $key, $value );
     }
