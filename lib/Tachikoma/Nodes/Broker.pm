@@ -1784,8 +1784,8 @@ sub purge_broker_config {
     my $topic_name = shift;
     my $path       = $self->{path};
     ## no critic (RequireCheckedSyscalls)
-    unlink "$path/$topic_name/config.tmp";
-    unlink "$path/$topic_name/config";
+    unlink "$path/$topic_name/.config.tmp";
+    unlink "$path/$topic_name/.config";
     rmdir "$path/$topic_name/brokers";
     rmdir "$path/$topic_name/partition";
     rmdir "$path/$topic_name";
