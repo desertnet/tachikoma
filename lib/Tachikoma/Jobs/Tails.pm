@@ -29,7 +29,7 @@ my $DB_Dir = "$Home/.tachikoma/tails";
 my $Offset_Interval = 1;      # write offsets this often
 my $Scan_Interval   = 15;     # check files this often
 my $Startup_Delay   = -10;    # offset from scan interval
-my $Default_Timeout = 300;    # message timeout for tails
+my $Default_Timeout = 180;    # message timeout for tails
 
 sub initialize_graph {
     my $self         = shift;
