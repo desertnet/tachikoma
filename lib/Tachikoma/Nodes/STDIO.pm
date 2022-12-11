@@ -142,7 +142,8 @@ sub fill_buffer {
     my $self    = shift;
     my $message = shift;
     my $size    = length $message->[PAYLOAD];
-    return if ( not $message->[TYPE] & TM_BYTESTREAM or not $size );
+    return $self->cancel($message)
+        if ( not $message->[TYPE] & TM_BYTESTREAM or not $size );
     $self->{counter}++;
     my $buffer = $self->{output_buffer};
     push @{$buffer}, $message;
@@ -205,9 +206,6 @@ sub fill_fh {
             @{$buffer} = ();
             $cursor = 0;
             $eof    = 1;
-        }
-        elsif ( $size == 0 ) {
-            push @cancel, $message if ( $message->[TYPE] & TM_PERSIST );
         }
         else {
             last;
