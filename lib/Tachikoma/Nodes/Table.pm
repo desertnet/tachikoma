@@ -21,8 +21,6 @@ use version; our $VERSION = qv('v2.0.197');
 my $DEFAULT_NUM_PARTITIONS = 1;
 my $DEFAULT_NUM_BUCKETS    = 2;
 my $DEFAULT_WINDOW_SIZE    = 300;
-my $MIN_DELAY              = 1;
-my $MAX_DELAY              = 60;
 
 sub new {
     my $class = shift;
@@ -123,9 +121,10 @@ sub fill {
         }
     }
     elsif ( $message->[TYPE] & TM_INFO ) {
+        my $payload = $message->[PAYLOAD];
+        chomp $payload;
         $self->set_timer
-            if ( $message->[STREAM] eq 'READY'
-            and not $self->{timer_is_active} );
+            if ( $payload eq 'READY' and not $self->{timer_is_active} );
     }
     elsif ( not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF )
@@ -149,12 +148,10 @@ sub fire {
     if ( $self->{queue} ) {
         my $queue = $self->{queue};
         while ( @{$queue} ) {
-            my $delay = $self->{window_size} / 2;
-            $delay = $MIN_DELAY if ( $delay < $MIN_DELAY );
-            $delay = $MAX_DELAY if ( $delay > $MAX_DELAY );
-            if ( $Tachikoma::Now - $queue->[0]->{timestamp} > $delay ) {
-                &{ $queue->[0]->{send_cb} }()
-                    if ( $queue->[0] and $queue->[0]->{send_cb} );
+            if ( $Tachikoma::Now - $queue->[0]->{timestamp}
+                > $queue->[0]->{delay} )
+            {
+                &{ $queue->[0]->{send_cb} }();
                 shift @{$queue};
             }
             else {
@@ -261,25 +258,34 @@ sub roll_window {
 
 sub roll_count {
     my ( $self, $i, $timestamp, $count ) = @_;
-    my $cache   = $self->{caches}->[$i];
-    my $save_cb = $self->{on_save_window}->[$i];
-    if ($timestamp) {
-        &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
-        if ( $self->{edge} ) {
-            my $bucket = $cache->[0];
-            $self->queue(
-                sub {
-                    $self->send_bucket( $i, $timestamp, $bucket );
-                }
-            );
-        }
-    }
+    $self->{caches}->[$i] ||= [];
+    my $cache = $self->{caches}->[$i];
     for ( 0 .. $count ) {
-        unshift @{$cache}, {};
+        $self->roll( $i, $timestamp );
+        $timestamp += $self->{window_size}
+            if ( $timestamp and $self->{window_size} );
     }
     while ( @{$cache} > $self->{num_buckets} ) {
         pop @{$cache};
     }
+    return;
+}
+
+sub roll {
+    my ( $self, $i, $timestamp ) = @_;
+    my $cache = $self->{caches}->[$i];
+    if ($timestamp) {
+        my $save_cb = $self->{on_save_window}->[$i];
+        my $bucket  = $cache->[0];
+        $self->queue(
+            $timestamp => sub {
+                $self->send_bucket( $i, $timestamp, $bucket )
+                    if ( $self->{edge} );
+                &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
+            }
+        );
+    }
+    unshift @{$cache}, {};
     return;
 }
 
@@ -452,12 +458,18 @@ sub new_cache {
 sub queue {
     my $self = shift;
     if (@_) {
-        my $send_cb = shift;
+        my $timestamp = shift;
+        my $send_cb   = shift;
         if ( $self->{queue} ) {
             my $queue = $self->{queue};
+            my $delay = $Tachikoma::Now - $timestamp;
+            $delay = 1 if ( $delay < 1 );
+            $delay = $self->{window_size}
+                if ( $delay > $self->{window_size} );
             push @{$queue},
                 {
                 timestamp => $Tachikoma::Now,
+                delay     => $delay,
                 send_cb   => $send_cb,
                 };
             while ( @{$queue} > $self->{num_buckets} ) {
@@ -471,6 +483,13 @@ sub queue {
         }
     }
     return $self->{queue};
+}
+
+sub remove_node {
+    my $self = shift;
+    $self->{queue} = undef;
+    $self->SUPER::remove_node;
+    return;
 }
 
 ########################
