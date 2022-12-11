@@ -245,7 +245,7 @@ sub update_state {
         $state = undef
             if ( not exists $consumers->{$i}->{set_state}->{$event} );
     }
-    $self->set_state( $event ) if ($state);
+    $self->set_state($event) if ($state);
     return;
 }
 
