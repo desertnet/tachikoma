@@ -7,6 +7,10 @@
 package Tachikoma;
 use strict;
 use warnings;
+use Tachikoma::Message qw(
+    TYPE FROM TO ID STREAM PAYLOAD
+    TM_PERSIST TM_RESPONSE
+);
 use Tachikoma::Config qw( load_module include_conf );
 use POSIX qw( setsid );
 
@@ -77,7 +81,9 @@ sub callback {
     my ( $self, $callback ) = @_;
     my $node = Tachikoma::Nodes::Callback->new(
         sub {
-            $self->{sink}->stop if ( not &{$callback}(@_) );
+            my $message = shift;
+            $message->[FROM] =~ s{^\d+/}{};
+            $self->{sink}->stop if ( not &{$callback}($message) );
             return;
         }
     );
@@ -164,6 +170,32 @@ sub sink {
         $self->{sink} = shift;
     }
     return $self->{sink};
+}
+
+sub answer {
+    my ( $self, $message ) = @_;
+    return if ( not $message->[TYPE] & TM_PERSIST );
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
+    $response->[TO]      = $message->[FROM] or return;
+    $response->[ID]      = $message->[ID];
+    $response->[STREAM]  = $message->[STREAM];
+    $response->[PAYLOAD] = 'answer';
+    $self->{connector}->fill($response);
+    return;
+}
+
+sub cancel {
+    my ( $self, $message ) = @_;
+    return if ( not $message->[TYPE] & TM_PERSIST );
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
+    $response->[TO]      = $message->[FROM] or return;
+    $response->[ID]      = $message->[ID];
+    $response->[STREAM]  = $message->[STREAM];
+    $response->[PAYLOAD] = 'cancel';
+    $self->{connector}->fill($response);
+    return;
 }
 
 sub fh {

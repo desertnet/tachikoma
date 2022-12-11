@@ -41,6 +41,7 @@ $tachikoma->callback(
             $recv = 0;
         }
         $tachikoma->cancel($message);
+        return 1;
     }
 );
 
