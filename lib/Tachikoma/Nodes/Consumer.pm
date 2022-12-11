@@ -259,12 +259,12 @@ sub handle_EOF {
         $self->load_cache_complete;
         $self->next_offset( $self->{saved_offset} );
         $self->set_timer(0) if ( $self->{timer_interval} );
-        $self->set_state( 'ACTIVE' => $self->{partition} )
+        $self->set_state('ACTIVE')
             if ( not length $self->{set_state}->{ACTIVE} );
     }
     else {
         $self->{next_offset} = $offset;
-        $self->set_state( 'READY' => $self->{partition} )
+        $self->set_state('READY')
             if ( not length $self->{set_state}->{READY} );
     }
     return;
@@ -616,7 +616,7 @@ sub owner {
         $self->{owner} = shift;
         $self->last_receive($Tachikoma::Now);
         $self->set_timer( $self->{startup_delay} * 1000 );
-        $self->set_state( 'ACTIVE' => $self->{partition} )
+        $self->set_state('ACTIVE')
             if (not $self->{offsetlog}
             and not $self->{set_state}->{ACTIVE} );
     }
@@ -638,7 +638,7 @@ sub edge {
                 $edge->new_cache if ( $edge->can('new_cache') );
             }
             $self->set_timer( $self->{startup_delay} * 1000 );
-            $self->set_state( 'ACTIVE' => $self->{partition} )
+            $self->set_state('ACTIVE')
                 if (not $self->{offsetlog}
                 and not $self->{set_state}->{ACTIVE} );
         }

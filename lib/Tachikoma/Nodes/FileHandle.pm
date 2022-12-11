@@ -50,23 +50,24 @@ sub new {
     my $flags        = shift || 0;
     my $self         = $class->SUPER::new;
     my $input_buffer = q();
-    $self->{type}             = 'filehandle';
-    $self->{flags}            = $flags;
-    $self->{on_EOF}           = 'close';
-    $self->{drain_fh}         = \&drain_fh;
-    $self->{drain_buffer}     = \&drain_buffer_normal;
-    $self->{fill_fh}          = \&fill_fh;
-    $self->{input_buffer}     = \$input_buffer;
-    $self->{output_buffer}    = [];
-    $self->{output_cursor}    = undef;
-    $self->{id}               = undef;
-    $self->{fd}               = undef;
-    $self->{fh}               = undef;
-    $self->{bytes_read}       = 0;
-    $self->{bytes_written}    = 0;
-    $self->{high_water_mark}  = 0;
-    $self->{largest_msg_sent} = 0;
-    $self->{fill_modes}       = {
+    $self->{type}                 = 'filehandle';
+    $self->{flags}                = $flags;
+    $self->{on_EOF}               = 'close';
+    $self->{drain_fh}             = \&drain_fh;
+    $self->{drain_buffer}         = \&drain_buffer_normal;
+    $self->{fill_fh}              = \&fill_fh;
+    $self->{input_buffer}         = \$input_buffer;
+    $self->{output_buffer}        = [];
+    $self->{output_cursor}        = undef;
+    $self->{id}                   = undef;
+    $self->{fd}                   = undef;
+    $self->{fh}                   = undef;
+    $self->{bytes_read}           = 0;
+    $self->{bytes_written}        = 0;
+    $self->{high_water_mark}      = 0;
+    $self->{largest_msg_sent}     = 0;
+    $self->{registrations}->{EOF} = {};
+    $self->{fill_modes}           = {
         null => \&null_cb,
         fill => $flags & TK_SYNC ? \&fill_fh_sync : \&fill_buffer
     };
@@ -265,6 +266,7 @@ sub handle_EOF {
     my $on_EOF = $self->{on_EOF};
     if ( $on_EOF ne 'send' ) {
         $self->unregister_reader_node;
+        $self->set_state('EOF');
     }
     if ( $on_EOF eq 'close' ) {
         $self->send_EOF;

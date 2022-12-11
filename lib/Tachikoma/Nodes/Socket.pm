@@ -225,7 +225,6 @@ sub new {
     $self->{registrations}->{CONNECTED}     = {};
     $self->{registrations}->{AUTHENTICATED} = {};
     $self->{registrations}->{RECONNECT}     = {};
-    $self->{registrations}->{EOF}           = {};
     $self->{fill_modes}                     = {
         null            => \&Tachikoma::Nodes::FileHandle::null_cb,
         unauthenticated => \&do_not_enter,
@@ -531,7 +530,9 @@ sub init_connect {
         $self->{drain_fh} = \&reply_to_server_challenge;
         $self->{fill_fh}  = \&Tachikoma::Nodes::FileHandle::null_cb;
     }
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    delete $self->{set_state}->{EOF};
+    delete $self->{set_state}->{RECONNECT};
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -547,7 +548,7 @@ sub init_accept {
     $self->{auth_timestamp} = $message->[TIMESTAMP];
     push @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -601,7 +602,7 @@ sub reply_to_client_challenge {
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
     $self->{auth_complete} = $Tachikoma::Now;
-    $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    $self->set_state('AUTHENTICATED');
     $self->{fill} = $self->{fill_modes}->{fill};
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
@@ -615,7 +616,7 @@ sub auth_server_response {
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
     $self->{auth_complete} = $Tachikoma::Now;
-    $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    $self->set_state('AUTHENTICATED');
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
@@ -935,13 +936,9 @@ sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
     if ( $on_EOF eq 'reconnect' ) {
-        $self->notify( 'RECONNECT' => $self->{name} );
         push @Tachikoma::Closing, sub {
             $self->close_filehandle('reconnect');
         };
-    }
-    else {
-        $self->set_state( 'EOF' => $self->{name} );
     }
     $self->SUPER::handle_EOF;
     return;
@@ -958,12 +955,14 @@ sub close_filehandle {
         $self->{last_upbeat}   = $Tachikoma::Now;
         $self->{last_downbeat} = $Tachikoma::Now;
     }
+    delete $self->{set_state}->{CONNECTED};
+    delete $self->{set_state}->{AUTHENTICATED};
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
         my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
+        $self->set_state('RECONNECT');
     }
-    $self->{set_state} = {};
     return;
 }
 

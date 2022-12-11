@@ -50,7 +50,9 @@ sub init_connect {
     $self->{fill_fh}   = \&fill_fh;
     $self->{drain_fh}  = \&drain_fh;
     $self->{last_fill} = 0;
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    delete $self->{set_state}->{EOF};
+    delete $self->{set_state}->{RECONNECT};
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -59,7 +61,7 @@ sub init_accept {
     $self->{fill_fh}   = \&fill_fh;
     $self->{drain_fh}  = \&drain_fh;
     $self->{last_fill} = 0;
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    $self->set_state('CONNECTED');
     return;
 }
 

@@ -13,28 +13,28 @@ connect_sink 127.0.0.1:5000 null;
 connect_sink 127.0.0.1:6000 null;
 
 on 127.0.0.1:5001 AUTHENTICATED {
-    make_node Null <1>:timer 0 512 100;
-    connect_sink <1>:timer <1>;
+    make_node Null <response.from>:timer 0 512 100;
+    connect_sink <response.from>:timer <response.from>;
 };
-on 127.0.0.1:5001 EOF rm <1>:timer;
+on 127.0.0.1:5001 EOF rm <response.from>:timer;
 
 on 127.0.0.1:5002 AUTHENTICATED {
-    make_node Null <1>:timer 0 16 65000;
-    connect_sink <1>:timer <1>;
+    make_node Null <response.from>:timer 0 16 65000;
+    connect_sink <response.from>:timer <response.from>;
 };
-on 127.0.0.1:5002 EOF rm <1>:timer;
+on 127.0.0.1:5002 EOF rm <response.from>:timer;
 
 on 127.0.0.1:6001 CONNECTED {
-    make_node Null <1>:timer 0 512 100;
-    connect_sink <1>:timer <1>;
+    make_node Null <response.from>:timer 0 512 100;
+    connect_sink <response.from>:timer <response.from>;
 };
-on 127.0.0.1:6001 EOF rm <1>:timer;
+on 127.0.0.1:6001 EOF rm <response.from>:timer;
 
 on 127.0.0.1:6002 CONNECTED {
-    make_node Null <1>:timer 0 16 65000;
-    connect_sink <1>:timer <1>;
+    make_node Null <response.from>:timer 0 16 65000;
+    connect_sink <response.from>:timer <response.from>;
 };
-on 127.0.0.1:6002 EOF rm <1>:timer;
+on 127.0.0.1:6002 EOF rm <response.from>:timer;
 
 listen_inet localhost:<root_port>
 insecure

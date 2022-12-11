@@ -635,10 +635,6 @@ sub add_connector {
     }
     $self->connectors->{$id} = $Tachikoma::Now;
     $self->offline->{$id}    = undef;
-    $self->note_reconnect($id)
-        if ( $connection->{set_state}->{RECONNECT} );
-    $self->note_authenticated($id)
-        if ( $connection->{set_state}->{AUTHENTICATED} );
     my $tester = (
           $self->{circuit_tester}
         ? $Tachikoma::Nodes{ $self->{circuit_tester} }
