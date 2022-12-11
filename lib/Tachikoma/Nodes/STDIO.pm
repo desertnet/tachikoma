@@ -206,6 +206,9 @@ sub fill_fh {
             $cursor = 0;
             $eof    = 1;
         }
+        elsif ( $size == 0 ) {
+            push @cancel, $message if ( $message->[TYPE] & TM_PERSIST );
+        }
         else {
             last;
         }
