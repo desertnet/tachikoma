@@ -93,7 +93,8 @@ sub respond {
 sub remove_node {
     my $self = shift;
     $self->dbh->disconnect if ( $self->dbh );
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub dbh {

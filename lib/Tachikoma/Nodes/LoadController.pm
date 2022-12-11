@@ -701,7 +701,8 @@ sub remove_node {
         $Tachikoma::Nodes{$name}->unregister( 'AUTHENTICATED' => $self->name )
             if ( $Tachikoma::Nodes{$name} );
     }
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub dump_config {

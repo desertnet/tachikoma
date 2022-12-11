@@ -658,7 +658,8 @@ sub remove_node {
             $self->{edge}->new_cache;
         }
     }
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub dump_config {

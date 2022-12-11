@@ -718,7 +718,8 @@ sub remove_node {
     my $self = shift;
     $self->close_db if ( $self->{filename} );
     $self->{filename} = undef;
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 1;

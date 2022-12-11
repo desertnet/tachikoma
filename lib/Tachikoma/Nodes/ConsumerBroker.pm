@@ -245,7 +245,7 @@ sub update_state {
         $state = undef
             if ( not exists $consumers->{$i}->{set_state}->{$event} );
     }
-    $self->set_state( $event => $state ) if ($state);
+    $self->set_state( $event ) if ($state);
     return;
 }
 
@@ -416,7 +416,8 @@ sub remove_node {
             $self->sink->fill($message) if ( $self->sink );
         }
     }
-    return $self->SUPER::remove_node;
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub topic {

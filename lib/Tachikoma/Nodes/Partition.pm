@@ -878,7 +878,8 @@ sub remove_node {
     my $self = shift;
     $self->close_segments if ( $self->{segments} );
     $self->{filename} = undef;
-    return $self->SUPER::remove_node;
+    $self->SUPER::remove_node;
+    return;
 }
 
 # follower support
