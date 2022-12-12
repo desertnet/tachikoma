@@ -1,0 +1,112 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::EventFrameworks::Select;
+use Tachikoma::Nodes::Router;
+use Tachikoma::Nodes::Tail;
+use Tachikoma::Nodes::Shutdown;
+use Tachikoma::Nodes::Topic;
+use Tachikoma::Nodes::Socket qw( TK_R TK_SYNC );
+use Getopt::Long qw( GetOptions );
+
+use version; our $VERSION = qv('v2.0.929');
+
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = 'localhost';
+my $port        = 5501;
+my $use_SSL     = undef;
+my $topic_name  = undef;
+my $stream      = undef;
+my $partition   = undef;
+my $throttle    = undef;
+my $debug       = undef;
+my $help        = undef;
+
+my $r = GetOptions(
+    'config=s'    => \$config_file,
+    'host=s'      => \$host,
+    'port=i'      => \$port,
+    'use-ssl'     => \$use_SSL,
+    'topic=s'     => \$topic_name,
+    'stream=s'    => \$stream,
+    'partition=i' => \$partition,
+    'throttle:i'  => \$throttle,
+    'debug:i'     => \$debug,
+    'help'        => \$help,
+);
+$topic_name //= $ARGV[0];
+$throttle = defined $throttle ? 1024 : 0 if ( not $throttle );
+$debug    = 1                            if ( defined $debug and not $debug );
+
+usage() if ( $help or not $r or not $topic_name );
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
+Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
+
+my $router   = Tachikoma::Nodes::Router->new;
+my $tail     = Tachikoma::Nodes::Tail->filehandle(*STDIN);
+my $shutdown = Tachikoma::Nodes::Shutdown->new;
+my $topic    = Tachikoma::Nodes::Topic->new;
+my $socket   = undef;
+my $waiting  = undef;
+
+$tail->name('_stdin');
+$tail->buffer_mode('line-buffered');
+$tail->max_unanswered($throttle);
+$tail->stream($stream);
+$tail->debug_state($debug);
+$tail->on_EOF('close');
+$tail->sink($shutdown);
+$shutdown->sink($router);
+
+$topic->name('_topic');
+$topic->flags(TK_SYNC);
+$topic->broker_path('_socket/broker');
+$topic->topic($topic_name);
+$topic->debug_state($debug);
+$topic->set_timer(100);
+$topic->sink($router);
+
+$topic->register(
+    'READY',
+    sub {
+        if ( length $partition ) {
+            $tail->owner("_topic/$partition");
+        }
+        else {
+            $tail->owner('_topic');
+        }
+        return 1;
+    }
+);
+
+$router->name('_router');
+$router->debug_state($debug);
+$socket =
+    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
+$socket->name('_socket');
+$socket->debug_state($debug);
+$socket->on_EOF('reconnect');
+$socket->sink($router);
+$router->drain;
+
+sub usage {
+    print "Usage:\n"
+        . "produce_topic [ --config=<path>   ]\n"
+        . "              [ --host=<host>     ]\n"
+        . "              [ --port=<port>     ]\n"
+        . "              [ --use-ssl         ]\n"
+        . "              [ --topic=<topic>   ]\n"
+        . "              [ --stream=<stream> ]\n"
+        . "              [ --partition=<int> ]\n"
+        . "              [ --throttle        ]\n"
+        . "              [ --debug           ]\n"
+        . "              [ --help            ]\n"
+        . "              <node path>\n";
+    exit 1;
+}
