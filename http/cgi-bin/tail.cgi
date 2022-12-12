@@ -7,7 +7,7 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
-use Tachikoma::Message qw( TIMESTAMP );
+use Tachikoma::Message qw( ID TIMESTAMP );
 use CGI;
 use JSON -support_by_pp;
 
@@ -86,7 +86,10 @@ if ($partitions) {
 }
 
 if ( $location eq 'last' ) {
-    @messages = sort { $a->[TIMESTAMP] <=> $b->[TIMESTAMP] } @messages;
+    @messages = sort {
+        join( q(:), $a->[TIMESTAMP], $a->[ID] ) cmp
+            join( q(:), $b->[TIMESTAMP], $b->[ID] )
+    } @messages;
     shift @messages while ( @messages > $count );
 }
 
