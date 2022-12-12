@@ -280,7 +280,7 @@ sub roll {
             $window => sub {
                 $self->send_bucket( $i, $window, $bucket )
                     if ( $self->{edge} );
-                &{$save_cb}( $window, $cache->[0] ) if ($save_cb);
+                &{$save_cb}( $window, $bucket ) if ($save_cb);
             }
         );
     }
