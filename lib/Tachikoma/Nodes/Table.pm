@@ -462,7 +462,8 @@ sub queue {
         if ( $self->{queue} ) {
             my $queue = $self->{queue};
             my $delay = $Tachikoma::Now - $window;
-            $delay = 1 if ( $delay < 1 );
+            $delay = $self->{window_size} / 2
+                if ( $delay < $self->{window_size} / 2 );
             $delay = $self->{window_size}
                 if ( $delay > $self->{window_size} );
             push @{$queue},
@@ -471,7 +472,8 @@ sub queue {
                 delay     => $delay,
                 send_cb   => $send_cb,
                 };
-            while ( @{$queue} > $self->{num_buckets} ) {
+            my $max_queue = $self->{num_partitions} * $self->{num_buckets};
+            while ( @{$queue} > $max_queue ) {
                 &{ $queue->[0]->{send_cb} }()
                     if ( $queue->[0] and $queue->[0]->{send_cb} );
                 shift @{$queue};
