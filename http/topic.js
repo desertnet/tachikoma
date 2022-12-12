@@ -69,7 +69,7 @@ function start_partition(partition) {
 
 function update_table(msg) {
     if (msg.payload.length) {
-        output.unshift(msg.payload.join(''));
+        output.unshift(msg.payload.reverse().join(''));
     }
     while (output.length > count) {
         output.pop();

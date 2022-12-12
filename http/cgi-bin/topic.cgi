@@ -7,6 +7,7 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
+use Tachikoma::Message qw( ID TIMESTAMP );
 use CGI;
 use JSON -support_by_pp;
 
@@ -28,13 +29,8 @@ $path =~ s(^/)();
 my ( $topic, $partition, $location, $count ) = split q(/), $path, 4;
 my $offset = undef;
 if ($location) {
-
-    if ( $location eq 'last' ) {
-        $offset = 'recent';
-    }
-    else {
-        $offset = $location;
-    }
+    $location = 'recent' if ( $location eq 'last' );
+    $offset   = $location;
 }
 die "no topic\n" if ( not $topic );
 $partition ||= 0;
@@ -63,17 +59,24 @@ if ($consumer) {
     else {
         $consumer->default_offset($offset);
     }
-    if ( $location eq 'last' ) {
-        do {
-            push @messages, @{ $consumer->fetch };
-            shift @messages while ( @messages > $count );
-        } while ( not $consumer->eos );
+    if ( $location eq 'recent' ) {
+        do { push @messages, @{ $consumer->fetch } }
+            while ( not $consumer->eos );
     }
     else {
         do { push @messages, @{ $consumer->fetch } }
             while ( @messages < $count and not $consumer->eos );
     }
 }
+
+@messages = sort {
+    join( q(:), $a->[TIMESTAMP], $a->[ID] ) cmp
+        join( q(:), $b->[TIMESTAMP], $b->[ID] )
+} @messages;
+if ( $location eq 'recent' ) {
+    shift @messages while ( @messages > $count );
+}
+
 if ( not $consumer or $consumer->sync_error ) {
     print STDERR $consumer->sync_error if ($consumer);
     my $next_url = $cgi->url( -path_info => 1, -query => 1 );

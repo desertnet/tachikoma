@@ -29,13 +29,8 @@ $path =~ s(^/)();
 my ( $topic, $location, $count ) = split m{/}, $path, 3;
 my $offset_string = undef;
 if ($location) {
-
-    if ( $location eq 'last' ) {
-        $offset_string = 'recent';
-    }
-    else {
-        $offset_string = $location;
-    }
+    $location      = 'recent' if ( $location eq 'last' );
+    $offset_string = $location;
 }
 die "no topic\n" if ( not $topic );
 $offset_string ||= 'start';
@@ -73,10 +68,9 @@ if ($partitions) {
         else {
             $consumer->default_offset($offset);
         }
-        if ( $location eq 'last' ) {
-            do {
-                push @messages, @{ $consumer->fetch };
-            } while ( not $consumer->eos );
+        if ( $location eq 'recent' ) {
+            do { push @messages, @{ $consumer->fetch } }
+                while ( not $consumer->eos );
         }
         else {
             do { push @messages, @{ $consumer->fetch } }
@@ -85,11 +79,11 @@ if ($partitions) {
     }
 }
 
-if ( $location eq 'last' ) {
-    @messages = sort {
-        join( q(:), $a->[TIMESTAMP], $a->[ID] ) cmp
-            join( q(:), $b->[TIMESTAMP], $b->[ID] )
-    } @messages;
+@messages = sort {
+    join( q(:), $a->[TIMESTAMP], $a->[ID] ) cmp
+        join( q(:), $b->[TIMESTAMP], $b->[ID] )
+} @messages;
+if ( $location eq 'recent' ) {
     shift @messages while ( @messages > $count );
 }
 
