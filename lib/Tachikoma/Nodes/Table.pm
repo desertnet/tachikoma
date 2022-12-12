@@ -257,13 +257,13 @@ sub roll_window {
 }
 
 sub roll_count {
-    my ( $self, $i, $timestamp, $count ) = @_;
+    my ( $self, $i, $window, $count ) = @_;
     $self->{caches}->[$i] ||= [];
     my $cache = $self->{caches}->[$i];
     for ( 0 .. $count ) {
-        $self->roll( $i, $timestamp );
-        $timestamp += $self->{window_size}
-            if ( $timestamp and $self->{window_size} );
+        $self->roll( $i, $window );
+        $window += $self->{window_size}
+            if ( $window and $self->{window_size} );
     }
     while ( @{$cache} > $self->{num_buckets} ) {
         pop @{$cache};
@@ -272,16 +272,16 @@ sub roll_count {
 }
 
 sub roll {
-    my ( $self, $i, $timestamp ) = @_;
+    my ( $self, $i, $window ) = @_;
     my $cache = $self->{caches}->[$i];
-    if ($timestamp) {
+    if ($window) {
         my $save_cb = $self->{on_save_window}->[$i];
         my $bucket  = $cache->[0];
         $self->queue(
-            $timestamp => sub {
-                $self->send_bucket( $i, $timestamp, $bucket )
+            $window => sub {
+                $self->send_bucket( $i, $window, $bucket )
                     if ( $self->{edge} );
-                &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
+                &{$save_cb}( $window, $cache->[0] ) if ($save_cb);
             }
         );
     }
@@ -345,12 +345,12 @@ sub send_entry {
 }
 
 sub send_bucket {
-    my ( $self, $i, $timestamp, $bucket ) = @_;
+    my ( $self, $i, $window, $bucket ) = @_;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]      = TM_STORABLE;
     $response->[FROM]      = $self->{name};
     $response->[STREAM]    = $i;
-    $response->[TIMESTAMP] = $timestamp;
+    $response->[TIMESTAMP] = $window;
     $response->[PAYLOAD]   = $bucket;
     $self->{edge}->fill($response);
     return;
@@ -458,11 +458,11 @@ sub new_cache {
 sub queue {
     my $self = shift;
     if (@_) {
-        my $timestamp = shift;
-        my $send_cb   = shift;
+        my $window  = shift;
+        my $send_cb = shift;
         if ( $self->{queue} ) {
             my $queue = $self->{queue};
-            my $delay = $Tachikoma::Now - $timestamp;
+            my $delay = $Tachikoma::Now - $window;
             $delay = 1 if ( $delay < 1 );
             $delay = $self->{window_size}
                 if ( $delay > $self->{window_size} );
