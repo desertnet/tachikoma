@@ -7,6 +7,7 @@
 use strict;
 use warnings;
 use Tachikoma::Nodes::ConsumerBroker;
+use Tachikoma::Message qw( TIMESTAMP );
 use CGI;
 use JSON -support_by_pp;
 
@@ -75,7 +76,6 @@ if ($partitions) {
         if ( $location eq 'last' ) {
             do {
                 push @messages, @{ $consumer->fetch };
-                shift @messages while ( @messages > $count );
             } while ( not $consumer->eos );
         }
         else {
@@ -84,6 +84,12 @@ if ($partitions) {
         }
     }
 }
+
+if ( $location eq 'last' ) {
+    @messages = sort { $a->[TIMESTAMP] <=> $b->[TIMESTAMP] } @messages;
+    shift @messages while ( @messages > $count );
+}
+
 if ( not $partitions or $group->sync_error ) {
     print STDERR $group->sync_error;
     my $next_url = $cgi->url( -path_info => 1, -query => 1 );
