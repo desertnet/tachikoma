@@ -141,7 +141,7 @@ sub fire {
     if ( $self->{window_size} ) {
         for my $i ( 0 .. $self->{num_partitions} - 1 ) {
             my $next_window = $self->{next_window}->[$i] // 0;
-            $self->roll_window( $i, $Tachikoma::Now )
+            $self->roll_window( $i, $Tachikoma::Now, $next_window )
                 if ( $Tachikoma::Now >= $next_window );
         }
     }
@@ -222,7 +222,7 @@ sub store {
     $self->{caches}->[$i] ||= [];
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
-        $self->roll_window( $i, $timestamp )
+        $self->roll_window( $i, $timestamp, $next_window )
             if ( $timestamp >= $next_window );
     }
     elsif ( $self->{bucket_size} ) {
@@ -241,10 +241,9 @@ sub store {
 }
 
 sub roll_window {
-    my ( $self, $i, $timestamp ) = @_;
-    my $next_window = $self->{next_window}->[$i] // 0;
-    my $span        = $timestamp - $next_window;
-    my $count       = int $span / $self->{window_size};
+    my ( $self, $i, $timestamp, $next_window ) = @_;
+    my $span  = $timestamp - $next_window;
+    my $count = int $span / $self->{window_size};
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
     $self->roll_count( $i, $next_window, $count );
     my $delay = $self->{window_size};
