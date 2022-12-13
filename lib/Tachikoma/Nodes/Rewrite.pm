@@ -48,7 +48,6 @@ sub fill {
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $pattern = $self->{pattern};
     my @output  = ();
-    my $dirty   = undef;
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
         chomp $line;
         my @matches = $line =~ m{$pattern};
@@ -56,18 +55,13 @@ sub fill {
             my $rewrite = $self->{rewrite};
             $rewrite =~ s{\$$_(?!\d)}{$matches[$_ - 1]}g
                 for ( 1 .. @matches );
-            $dirty = $line =~ s{$pattern}{$rewrite};
+            $line =~ s{$pattern}{$rewrite};
         }
         push @output, $line, "\n";
     }
-    if ($dirty) {
-        my $copy = bless [ @{$message} ], ref $message;
-        $copy->[PAYLOAD] = join q(), @output;
-        $self->SUPER::fill($copy);
-    }
-    else {
-        $self->cancel($message);
-    }
+    my $copy = bless [ @{$message} ], ref $message;
+    $copy->[PAYLOAD] = join q(), @output;
+    $self->SUPER::fill($copy);
     return;
 }
 
