@@ -272,7 +272,7 @@ sub handle_EOF {
 
 sub fire {
     my $self = shift;
-    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
         if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )

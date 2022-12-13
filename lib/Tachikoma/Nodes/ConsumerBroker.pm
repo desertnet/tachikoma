@@ -182,7 +182,7 @@ sub fill {
 sub fire {
     my $self      = shift;
     my $consumers = $self->{consumers};
-    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
         if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( $Tachikoma::Right_Now - $self->{last_check}
         >= $self->{check_interval} )

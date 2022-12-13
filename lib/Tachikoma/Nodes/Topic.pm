@@ -134,7 +134,7 @@ sub fire {
     my $partitions     = $self->{partitions};
     my $batch          = $self->{batch};
     my $batch_interval = $self->{batch_interval};
-    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
         if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ($partitions) {
         my $topic           = $self->{topic};
