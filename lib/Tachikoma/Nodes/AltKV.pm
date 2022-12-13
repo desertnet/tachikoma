@@ -10,7 +10,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_STORABLE
+    TM_BYTESTREAM TM_STORABLE TM_PERSIST
 );
 use parent qw( Tachikoma::Node );
 
@@ -53,6 +53,7 @@ sub fill {
     else {
         return;
     }
+    $response->[TYPE] |= TM_PERSIST if ( $message->[TYPE] & TM_PERSIST );
     return $self->SUPER::fill($response);
 }
 
