@@ -22,6 +22,9 @@ sub collect {
     }
     else {
         $bucket->{$key} += $value;
+        $self->stderr(
+            "DEBUG: SUM::COLLECT $i, $timestamp, $key => " . $bucket->{$key} )
+            if ( $self->{debug_state} and $self->{debug_state} >= 5 );
     }
     return;
 }
