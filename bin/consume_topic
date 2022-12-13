@@ -21,13 +21,13 @@ my ( $topic, $partition, $group, $offset, $batch, $help );
 my $mode  = 'values';
 my $total = 0;
 my ( $r, $argv ) = GetOptions(
-    'topic=s'  => \$topic,
+    'topic=s'     => \$topic,
     'partition=i' => \$partition,
-    'group=s'  => \$group,
-    'offset=s' => \$offset,
-    'batch'    => \$batch,
-    'mode=s'   => \$mode,
-    'help'     => \$help,
+    'group=s'     => \$group,
+    'offset=s'    => \$offset,
+    'batch'       => \$batch,
+    'mode=s'      => \$mode,
+    'help'        => \$help,
 );
 $topic //= $ARGV[0];
 usage() if ( $help or not $r or not $topic );
