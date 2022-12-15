@@ -485,7 +485,6 @@ sub queue {
             my $queue = $self->{queue};
             my $delay = $Tachikoma::Now - $window;
             if ( not @{$queue} and $delay < $self->{window_size} / 2 ) {
-                $self->{queue} = undef;
                 &{$send_cb}();
             }
             else {
