@@ -32,7 +32,7 @@ if ($location) {
     $location = 'recent' if ( $location eq 'last' );
     $offset   = $location;
 }
-die "no topic\n" if ( not $topic );
+die "no topic\n" if ( not length $topic );
 $partition ||= 0;
 $offset    ||= 'start';
 $count     ||= 1;

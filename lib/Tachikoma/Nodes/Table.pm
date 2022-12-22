@@ -130,7 +130,7 @@ sub fill {
     elsif ( not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF )
     {
-        $self->stderr( "DEBUG: FILL ", join q(, ), $message->[ID],
+        $self->stderr( 'DEBUG: FILL ', join q(, ), $message->[ID],
             $message->[TIMESTAMP], $message->[STREAM] )
             if ( $self->{debug_state} and $self->{debug_state} >= 4 );
         $self->store( $message->[TIMESTAMP], $message->[STREAM],

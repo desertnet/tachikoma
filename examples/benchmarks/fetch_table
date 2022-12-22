@@ -15,8 +15,8 @@ Tachikoma->configuration->load_config_file(
 );
 
 my ( $field, $key, $count ) = @ARGV;
-die "no field\n" if ( not $field );
-die "no key\n"   if ( not $key );
+die "no field\n" if ( not length $field );
+die "no key\n"   if ( not length $key );
 $count //= 1;
 my @keys = ();
 push @keys, $key for ( 1 .. $count );

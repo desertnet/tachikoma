@@ -32,7 +32,7 @@ if ($location) {
     $location      = 'recent' if ( $location eq 'last' );
     $offset_string = $location;
 }
-die "no topic\n" if ( not $topic );
+die "no topic\n" if ( not length $topic );
 $offset_string ||= 'start';
 $count         ||= 1;
 my $json = JSON->new;

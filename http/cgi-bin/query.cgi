@@ -28,7 +28,7 @@ $host_ports ||= ['localhost:5201'];
 my $cgi   = CGI->new;
 my $topic = $cgi->path_info;
 $topic =~ s(^/)();
-die "no topic\n" if ( not $topic );
+die "no topic\n" if ( not length $topic );
 my $postdata = $cgi->param('POSTDATA') or die "ERROR: wrong method\n";
 my $json     = JSON->new;
 my $query    = $json->decode($postdata);

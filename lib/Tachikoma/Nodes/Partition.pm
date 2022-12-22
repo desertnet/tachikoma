@@ -176,20 +176,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return;
     }
     elsif ( $message->[TYPE] & TM_EOF ) {
-
-        # only create new follower segments on message boundaries!
-        if ( $self->{leader} ) {
-            return $self->send_error( $message, "NOT_LEADER\n" )
-                if ( $message->[FROM] ne $self->{leader} );
-            return $self->reset_follower( $message->[ID] )
-                if ( $message->[ID] != $self->{offset} );
-            my $segment = $self->{segments}->[-1];
-            $self->create_segment
-                if ( $segment->[LOG_SIZE] >= $self->{segment_size} );
-            $self->{expecting} = undef;
-            $self->write_offset( $message->[ID] );
-            $self->send_ack( $message->[ID] );
-        }
+        $self->process_EOF($message);
         return;
     }
     elsif ( length $message->[TO] ) {
@@ -484,6 +471,25 @@ sub process_delete {
         $self->stderr('WARNING: process_delete removed all segments');
         $self->create_segment;
     }
+    return;
+}
+
+sub process_EOF {
+    my $self    = shift;
+    my $message = shift;
+
+    # only create new follower segments on message boundaries!
+    return if ( not $self->{leader} );
+    return $self->send_error( $message, "NOT_LEADER\n" )
+        if ( $message->[FROM] ne $self->{leader} );
+    return $self->reset_follower( $message->[ID] )
+        if ( $message->[ID] != $self->{offset} );
+    my $segment = $self->{segments}->[-1];
+    $self->create_segment
+        if ( $segment->[LOG_SIZE] >= $self->{segment_size} );
+    $self->{expecting} = undef;
+    $self->write_offset( $message->[ID] );
+    $self->send_ack( $message->[ID] );
     return;
 }
 

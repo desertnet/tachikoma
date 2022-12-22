@@ -17,8 +17,8 @@ Tachikoma->configuration->load_config_file(
 );
 
 my ( $topic, $field, $key ) = @ARGV;
-die "no topic\n" if ( not $topic );
-die "no field\n" if ( not $field );
+die "no topic\n" if ( not length $topic );
+die "no field\n" if ( not length $field );
 die "no key\n"   if ( not length $key );
 my $consumer = Tachikoma::Nodes::ConsumerBroker->new($topic);
 my $table    = Tachikoma::Nodes::Table->new;

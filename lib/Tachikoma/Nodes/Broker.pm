@@ -1495,7 +1495,7 @@ sub add_topic {
     );
     $topic_name //= shift @{$argv};
     return $self->stderr("ERROR: bad arguments: ADD_TOPIC $arguments")
-        if ( not $r or not $topic_name );
+        if ( not $r or not length $topic_name );
     my $default = $self->default_settings;
     $num_partitions     ||= $default->{num_partitions};
     $replication_factor ||= $default->{replication_factor};
@@ -1582,7 +1582,7 @@ sub add_consumer_group {
     $max_lifespan //= 0;
     return $self->stderr(
         "ERROR: bad arguments: ADD_CONSUMER_GROUP $arguments")
-        if ( not $r or not $topic_name );
+        if ( not $r or not length $topic_name );
     $self->consumer_groups->{$group_name} //= {
         broker_id => undef,
         topics    => {}

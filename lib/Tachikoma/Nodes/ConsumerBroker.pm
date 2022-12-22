@@ -113,7 +113,7 @@ sub arguments {
             'default_offset=s' => \$default_offset,
         );
         die "ERROR: bad arguments for ConsumerBroker\n" if ( not $r );
-        die "ERROR: no topic for ConsumerBroker\n"      if ( not $topic );
+        die "ERROR: no topic for ConsumerBroker\n" if ( not length $topic );
         die "ERROR: can't set auto_commit with window cache_type\n"
             if ( $auto_commit and $cache_type and $cache_type eq 'window' );
         $self->{arguments}      = $arguments;
