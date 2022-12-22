@@ -98,7 +98,7 @@ my $r = GetOptions(
 my $tachikoma = Tachikoma->inet_client( $host, $port );
 my $Dumper    = Tachikoma::Nodes::Dumper->new;
 my $self      = bless {};
-$tachikoma->sink($self);
+$tachikoma->connector->sink($self);
 $Dumper->sink($self);
 
 sub fill {
@@ -1315,9 +1315,9 @@ sub idle {
         $Wait_For_Response++;
     }
     my $r_in = IO::Select->new;
-    $r_in->add( $tachikoma->{fh} );
+    $r_in->add( $tachikoma->{connector}->{fh} );
     my ($read) = IO::Select->select( $r_in, undef, undef, 1 / $Frame_Rate );
-    $tachikoma->drain_cycle or exit 0 if ($read);
+    $tachikoma->{this_framework}->drain_cycle if ($read);
     if ( $now - $Animate >= 1 / $Frame_Rate ) {
         glutSetWindow($Parent_Window);
         glutPostRedisplay();
@@ -1523,5 +1523,29 @@ for my $i ( 0 .. 255 ) {
 # $Shader->Disable;
 
 glutMainLoop();
+
+package Tachikoma::EventFrameworks::Select;
+
+sub drain_cycle {
+    my $self          = shift;
+    my $reads         = $self->{reads};
+    my $writes        = $self->{writes};
+    my $timers        = $self->{timers};
+
+    my ( $reads_ready, $writes_ready, $errors ) =
+        IO::Select->select( $reads, $writes, $reads, 0 );
+    $Tachikoma::Right_Now = Time::HiRes::time;
+    $Tachikoma::Now       = int $Tachikoma::Right_Now;
+    for ( @{$reads_ready}, @{$errors} ) {
+        my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
+        &{ $node->{drain_fh} }($node);
+    }
+    for ( @{$writes_ready} ) {
+        my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
+        &{ $node->{fill_fh} }($node);
+    }
+    &{$_}() while ( $_ = shift @Tachikoma::Closing );
+    return;
+}
 
 1;
