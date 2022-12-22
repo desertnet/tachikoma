@@ -5,7 +5,8 @@ ARG TACHIKOMA_UID=1000
 
 RUN apt-get update && \
     apt-get install -y \
-        git build-essential \
+        build-essential \
+        git \
         libberkeleydb-perl \
         libcgi-pm-perl \
         libcrypt-openssl-rsa-perl \
@@ -18,7 +19,6 @@ RUN apt-get update && \
         libterm-readline-gnu-perl \
         libwww-perl \
     && rm -rf /var/lib/apt/lists/*
-        # vim less procps \
 
 RUN    useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma \
     && usermod -aG adm tachikoma

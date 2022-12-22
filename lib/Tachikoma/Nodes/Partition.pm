@@ -12,11 +12,10 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD LAST_MSG_FIELD
-    TM_BYTESTREAM TM_BATCH TM_REQUEST TM_PERSIST TM_ERROR TM_EOF
+    TM_BATCH TM_REQUEST TM_PERSIST TM_ERROR TM_EOF
 );
 use Fcntl qw( :flock SEEK_SET SEEK_END );
 use Getopt::Long qw( GetOptionsFromString );
-use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.165');

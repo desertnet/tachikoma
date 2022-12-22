@@ -59,6 +59,7 @@ sub inet_client {
     $self->{connector} =
         Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
         $use_SSL );
+    $self->{connector}->{sink} = $self->{sink};
     $self->restore_framework;
     return $self;
 }
