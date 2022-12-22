@@ -49,6 +49,7 @@ print $cgi->header(
     -charset => 'utf-8'
 );
 $engine{$topic}->query($query);
+print "[";
 my $comma = undef;
 while ( my $value = $engine{$topic}->fetchrow ) {
     my $output = undef;
@@ -68,8 +69,8 @@ while ( my $value = $engine{$topic}->fetchrow ) {
     if ( ref $output ) {
         my $json_output = undef;
         if ( not $comma ) {
-            $json_output = "[\n";
-            $comma       = 1;
+            $comma = 1;
+            $json_output = "\n";
         }
         else {
             $json_output = ",\n";
@@ -80,4 +81,4 @@ while ( my $value = $engine{$topic}->fetchrow ) {
     }
     print $output;
 }
-print "\n]\n" if ($comma);
+print "\n]\n";
