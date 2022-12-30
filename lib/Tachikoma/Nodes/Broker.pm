@@ -260,12 +260,19 @@ sub fill {
         $self->receive_heartbeat($message);
     }
     elsif ( $message->[TYPE] & TM_STORABLE ) {
-        my $type = $message->payload->{type};
-        if ( $type and $type eq 'LAST_COMMIT_OFFSETS' ) {
-            $self->update_lco($message);
+        my $payload = $message->payload;
+        if ($payload) {
+            if (    $payload->{type}
+                and $payload->{type} eq 'LAST_COMMIT_OFFSETS' )
+            {
+                $self->update_lco($message);
+            }
+            elsif ( $self->validate( $message, 'RESET' ) ) {
+                $self->update_mapping($message);
+            }
         }
-        elsif ( $self->validate( $message, 'RESET' ) ) {
-            $self->update_mapping($message);
+        else {
+            $self->drop_message( $message, 'empty payload' );
         }
     }
     elsif ( $self->{is_controller}
