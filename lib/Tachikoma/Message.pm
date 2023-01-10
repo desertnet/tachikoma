@@ -60,11 +60,11 @@ use constant {
     TM_REQUEST    => 040000,    # 16384
 };
 
-# XXX:M
 sub new {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     bless [ 0, q(), q(), q(), q(), $Tachikoma::Now || time, q(), 1 ], $_[0];
 }
 
+# XXX:M
 sub unpacked {    ## no critic (RequireArgUnpacking, RequireFinalReturn)
     bless [ unpack 'xxxx N n/a n/a n/a n/a N a*', ${ $_[1] } ], $_[0];
 }
