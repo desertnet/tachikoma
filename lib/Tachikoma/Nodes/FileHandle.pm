@@ -171,10 +171,7 @@ sub drain_buffer_normal {
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-        $message->[FROM] =
-            length $message->[FROM]
-            ? join q(/), $name, $message->[FROM]
-            : $name;
+        $message->[FROM] = join q(/), grep length, $name, $message->[FROM];
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
                 $self->drop_message( $message,
@@ -430,7 +427,6 @@ sub fh {
     if (@_) {
         my $fh = shift;
         my $fd = fileno $fh;
-        $self->{name} ||= $fd;
         $self->{fd} = $fd;
         $self->{fh} = $fh;
         if ( $self->{flags} & TK_SYNC ) {

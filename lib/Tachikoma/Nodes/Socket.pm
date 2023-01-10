@@ -286,7 +286,7 @@ sub accept_connection {
         );
         if ( not $ssl_client or not ref $ssl_client ) {
             $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
-                grep $_, $!, IO::Socket::SSL::errstr() );
+                grep length, $!, IO::Socket::SSL::errstr() );
             return;
         }
         $node->{type}     = 'accept';
@@ -397,12 +397,12 @@ sub start_SSL_connection {
         if ( $self->{flags} & TK_SYNC ) {
             die join q(: ),
                 q(ERROR: couldn't start_SSL),
-                grep $_, $!, $ssl_error, "\n";
+                grep length, $!, $ssl_error, "\n";
         }
         else {
             $self->print_less_often( join q(: ),
                 q(WARNING: couldn't start_SSL),
-                grep $_, $!, $ssl_error );
+                grep length, $!, $ssl_error );
             return;
         }
     }
@@ -506,14 +506,14 @@ sub log_SSL_error {
     my $names = undef;
     if ( $method eq 'connect_SSL' ) {
         $names = $self->{name};
-        Tachikoma->print_least_often( join q(: ), grep $_,
+        Tachikoma->print_least_often( join q(: ), grep length,
             $names, "WARNING: $method failed",
             $!,     $ssl_error );
     }
     else {
         $names = join q( -> ), $self->{parent},
             ( split m{:}, $self->{name}, 2 )[0];
-        Tachikoma->print_less_often( join q(: ), grep $_,
+        Tachikoma->print_less_often( join q(: ), grep length,
             $names, "WARNING: $method failed",
             $!,     $ssl_error );
     }
@@ -822,10 +822,7 @@ sub drain_buffer_normal {
             $self->reply_to_heartbeat($message);
             next;
         }
-        $message->[FROM] =
-            length $message->[FROM]
-            ? join q(/), $name, $message->[FROM]
-            : $name;
+        $message->[FROM] = join q(/), grep length, $name, $message->[FROM];
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
                 $self->drop_message( $message,
