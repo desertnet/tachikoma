@@ -700,7 +700,7 @@ $C{remove_node} = sub {
         or return $self->error("verification failed\n");
     my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
-    if ( not $glob ) {
+    if ( not length $glob ) {
         return $self->error( $envelope, qq(no node specified\n) );
     }
     my @names = (

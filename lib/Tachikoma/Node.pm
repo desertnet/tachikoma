@@ -88,7 +88,7 @@ sub remove_node {
     }
     $self->sink(undef);
     $self->edge(undef);
-    if ($name) {
+    if ( length $name ) {
         delete Tachikoma->nodes->{$name};
     }
     $self->{name} = undef;

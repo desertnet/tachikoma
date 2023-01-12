@@ -37,7 +37,7 @@ my $r = GetOptions(
 my $to = $ARGV[0];
 $debug = 1 if ( defined $debug and not $debug );
 
-usage() if ( $help or not $r or not $to );
+usage() if ( $help or not $r or not length $to );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );

@@ -25,9 +25,11 @@ sub fill {
     my $message = shift;
     my $owner   = $self->{owner};
     my $to      = $message->[TO];
-    return if ( $message->[TYPE] == TM_ERROR and not $to );
-    $message->[TO] = join q(/), $owner, $to if ( $owner     and $to );
-    $message->[TO] = $message->[FROM]       if ( not $owner and not $to );
+    return if ( $message->[TYPE] == TM_ERROR and not length $to );
+    $message->[TO] = join q(/), $owner, $to
+        if ( length $owner and length $to );
+    $message->[TO] = $message->[FROM]
+        if ( not length $owner and not length $to );
     return $self->SUPER::fill($message);
 }
 
