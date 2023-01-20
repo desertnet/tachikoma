@@ -22,7 +22,7 @@ my $broker_ids = undef;
 if ($Tachikoma::Nodes::CGI::Config) {
     $broker_ids = $Tachikoma::Nodes::CGI::Config->{broker_ids};
 }
-$broker_ids ||= [ 'localhost:5501', 'localhost:5502' ];
+$broker_ids ||= ['localhost:5501'];
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();

@@ -57,7 +57,7 @@ sub new {
     # sync support
     if ( length $self->{topic} ) {
         $self->{broker}      = undef;
-        $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
+        $self->{broker_ids}  = ['localhost:5501'];
         $self->{targets}     = {};
         $self->{partitions}  = undef;
         $self->{leader}      = undef;
