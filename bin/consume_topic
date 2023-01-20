@@ -49,6 +49,8 @@ elsif ($batch) {
     $consumer->default_offset('start');
 }
 $consumer->poll_interval(0.1);
+
+## no critic (RequireCheckedSyscalls)
 if ( $mode eq 'keys' ) {
     while (1) {
         my @output = ();
@@ -57,7 +59,7 @@ if ( $mode eq 'keys' ) {
             chomp $key;
             push @output, "$key\n";
         }
-        syswrite STDOUT, join q(), @output or die;
+        syswrite STDOUT, join q(), @output;
         last if check_status();
     }
 }
@@ -87,7 +89,7 @@ elsif ( $mode eq 'debug' ) {
                 $key,
                 $value;
         }
-        syswrite STDOUT, join q(), @output or die;
+        syswrite STDOUT, join q(), @output;
         last if check_status();
     }
 }
@@ -97,7 +99,7 @@ elsif ( $mode eq 'dump_message' ) {
         for my $message ( @{ $consumer->fetch } ) {
             push @output, $message->as_string;
         }
-        syswrite STDOUT, join q(), @output or die;
+        syswrite STDOUT, join q(), @output;
         last if check_status();
     }
 }
@@ -107,16 +109,15 @@ elsif ( $mode eq 'dump_payload' ) {
         for my $message ( @{ $consumer->fetch } ) {
             push @output, Dumper( $message->payload );
         }
-        syswrite STDOUT, join q(), @output or die;
+        syswrite STDOUT, join q(), @output;
         last if check_status();
     }
 }
 elsif ($batch) {
     while (1) {
-        syswrite STDOUT, join q(), map $_->[PAYLOAD], @{ $consumer->fetch }
-            or die;
+        syswrite STDOUT, join q(), map $_->[PAYLOAD], @{ $consumer->fetch };
         if ( $consumer->{sync_error} ) {
-            syswrite STDERR, $consumer->sync_error or die;
+            syswrite STDERR, $consumer->sync_error;
             exit 1 if ( $consumer->sync_error !~ m{^REBALANCING} );
         }
         last if ( $consumer->{eos} );
@@ -124,10 +125,8 @@ elsif ($batch) {
 }
 else {
     while (1) {
-        syswrite STDOUT, join q(), map $_->[PAYLOAD], @{ $consumer->fetch }
-            or die;
+        syswrite STDOUT, join q(), map $_->[PAYLOAD], @{ $consumer->fetch };
         syswrite STDERR, $consumer->sync_error
-            or die
             if ( $consumer->{sync_error} );
     }
 }
@@ -136,7 +135,7 @@ $consumer->commit_offset if ( $batch and $group );
 sub check_status {
     my $rv = undef;
     if ( $consumer->{sync_error} ) {
-        syswrite STDERR, $consumer->sync_error or die;
+        syswrite STDERR, $consumer->sync_error;
         exit 1 if ( $batch and $consumer->sync_error !~ m{^REBALANCING} );
     }
     $rv = 1 if ( $batch and $consumer->{eos} );
