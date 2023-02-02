@@ -205,11 +205,11 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 }
 
 sub fire {
-    my $self      = shift;
+    my $self = shift;
+    return if ( not $self->{filename} );
     my $batch     = $self->{batch};
     my $responses = $self->{responses};
-    my $segment   = $self->{segments}->[-1];
-    return if ( not $self->{filename} );
+    my $segment   = $self->get_segment(-1);
     if ( @{$batch} and $segment ) {
         my $fh    = $segment->[LOG_FH];
         my $wrote = 0;
@@ -296,7 +296,7 @@ sub write_offset {
         $self->restart_follower;
     }
     else {
-        # $self->{segments}->[-1]->[LOG_FH]->sync;
+        # $self->get_segment(-1)->[LOG_FH]->sync;
         if ( defined $lco and $lco != $self->{last_truncate_offset} ) {
             my $offset_file = join q(/), $self->{filename}, 'offsets', $lco;
             if ( -e $offset_file ) {
@@ -462,7 +462,7 @@ sub process_delete {
         $self->unlink_segment( shift @{$segments} );
     }
     if ( @{$segments} ) {
-        my $last_modified = ( stat $segments->[-1]->[LOG_FH] )[9];
+        my $last_modified = ( stat $self->get_segment(-1)->[LOG_FH] )[9];
         $self->touch_files
             if ( $Tachikoma::Now - $last_modified > $TOUCH_INTERVAL );
     }
@@ -510,7 +510,8 @@ sub empty_partition {
 
 sub should_delete {
     my ( $self, $delete, $segments ) = @_;
-    my $rv = undef;
+    my $path = $self->{filename} or return;
+    my $rv   = undef;
 
     # the most recent segment might be empty, so keeping at least
     # two guarantees cache partitions will always have data
@@ -518,7 +519,9 @@ sub should_delete {
         my $segment = $segments->[0];
         $rv = 1;
         if ( $self->{max_lifespan} ) {
-            my $last_modified = ( stat $segment->[LOG_FH] )[9];
+            my $log_file = join q(), $path, q(/), $segment->[LOG_OFFSET],
+                '.log';
+            my $last_modified = ( stat $log_file )[9];
             $rv = undef
                 if (
                 $Tachikoma::Now - $last_modified <= $self->{max_lifespan} );
@@ -534,9 +537,11 @@ sub unlink_segment {
     my $self    = shift;
     my $segment = shift;
     my $path    = $self->{filename} or return;
-    flock $segment->[LOG_FH], LOCK_UN or die "ERROR: couldn't unlock: $!";
-    if ( $segment->[LOG_FH] ) {
-        close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
+    if ( defined $segment->[LOG_FH] ) {
+        flock $segment->[LOG_FH], LOCK_UN or die "ERROR: couldn't unlock: $!";
+        if ( $segment->[LOG_FH] ) {
+            close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
+        }
     }
     my $log_file = join q(), $path, q(/), $segment->[LOG_OFFSET], '.log';
     if ( not unlink $log_file ) {
@@ -676,21 +681,22 @@ sub open_segments {
                 or die "ERROR: couldn't unlink $path/$file: $!";
             next;
         }
-        my $size = ( stat "$path/$file" )[7];
-        my $fh   = undef;
-        open $fh, '+<', "$path/$file"
-            or die "ERROR: couldn't open $path/$file: $!";
-        $self->get_lock($fh);
+        my $size     = ( stat "$path/$file" )[7];
         my $new_size = $last_commit_offset - $offset;
         if ( $new_size < $size ) {
+            my $fh = undef;
+            open $fh, '+<', "$path/$file"
+                or die "ERROR: couldn't open $path/$file: $!";
+            $self->get_lock($fh);
             $self->stderr(
                 'INFO: truncating ' . ( $size - $new_size ) . ' bytes' )
                 if ( not $self->{leader} );
             $size = $new_size;
             truncate $fh, $size or die "ERROR: couldn't truncate: $!";
             sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
+            close $fh or die "ERROR: couldn't close: $!";
         }
-        push @unsorted, [ $offset, $size, $fh ];
+        push @unsorted, [ $offset, $size, undef ];
     }
     closedir $dh or die "ERROR: couldn't closedir $path: $!";
     $self->{segments} = [ sort { $a->[0] <=> $b->[0] } @unsorted ];
@@ -713,11 +719,12 @@ sub open_segments {
 sub close_segments {
     my $self = shift;
     for my $segment ( @{ $self->{segments} } ) {
+        next if ( not defined $segment->[LOG_FH] );
         flock $segment->[LOG_FH], LOCK_UN
             or die "ERROR: couldn't unlock: $!";
         close $segment->[LOG_FH] or die "ERROR: couldn't close: $!";
+        $segment->[LOG_FH] = undef;
     }
-    $self->{segments} = [];
     return;
 }
 
@@ -726,6 +733,7 @@ sub create_segment {
     my $path   = $self->{filename};
     my $offset = $self->{offset};
     my $fh     = undef;
+    $self->close_segments;
     open $fh, '>', "$path/$offset.log"
         or die "ERROR: couldn't open $path/$offset.log: $!";
     close $fh
@@ -837,7 +845,8 @@ sub get_segment {
     my $segment = undef;
     if ( $offset < 0 ) {
         $segment = $self->{segments}->[-1];
-        if (    not $segment->[LOG_SIZE]
+        if (    $segment
+            and not $segment->[LOG_SIZE]
             and $offset < -1
             and @{ $self->{segments} } > 1 )
         {
@@ -852,6 +861,15 @@ sub get_segment {
             }
             $segment = $this;
         }
+    }
+    if ( $segment and not defined $segment->[LOG_FH] ) {
+        my $path       = $self->{filename} or return;
+        my $log_offset = $segment->[LOG_OFFSET];
+        my $fh         = undef;
+        open $fh, '+<', "$path/$log_offset.log"
+            or die "ERROR: couldn't open $path/$log_offset.log: $!";
+        $self->get_lock($fh);
+        $segment->[LOG_FH] = $fh;
     }
     return $segment;
 }
@@ -881,7 +899,8 @@ sub halt {
 
 sub remove_node {
     my $self = shift;
-    $self->close_segments if ( $self->{segments} );
+    $self->close_segments;
+    $self->{segments} = [];
     $self->{filename} = undef;
     $self->SUPER::remove_node;
     return;
