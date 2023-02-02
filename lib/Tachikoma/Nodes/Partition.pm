@@ -470,6 +470,7 @@ sub process_delete {
         $self->stderr('WARNING: process_delete removed all segments');
         $self->create_segment;
     }
+    $self->close_segments;
     return;
 }
 
