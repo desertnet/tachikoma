@@ -187,9 +187,6 @@ sub load_topics {
                 }
             }
         }
-        else {
-            $self->stderr("couldn't find $partitions_path");
-        }
     }
     $self->{last_commit_offsets}->{$broker_id} = $broker_lco;
     return;
