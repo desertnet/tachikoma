@@ -462,7 +462,9 @@ sub process_delete {
         $self->unlink_segment( shift @{$segments} );
     }
     if ( @{$segments} ) {
-        my $last_modified = ( stat $self->get_segment(-1)->[LOG_FH] )[9];
+        my $log_file = join q(), $path, q(/),
+            $self->{segments}->[-1]->[LOG_OFFSET], '.log';
+        my $last_modified = ( stat $log_file )[9];
         $self->touch_files
             if ( $Tachikoma::Now - $last_modified > $TOUCH_INTERVAL );
     }
