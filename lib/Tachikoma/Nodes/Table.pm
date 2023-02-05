@@ -124,8 +124,12 @@ sub fill {
     elsif ( $message->[TYPE] & TM_INFO ) {
         my $payload = $message->[PAYLOAD];
         chomp $payload;
-        $self->set_timer
-            if ( $payload eq 'READY' and not $self->{timer_is_active} );
+        if ( $payload eq 'READY' ) {
+            $self->set_timer if ( not $self->{timer_is_active} );
+        }
+        elsif ( $payload eq 'RESET' ) {
+            $self->stop_timer if ( $self->{timer_is_active} );
+        }
     }
     elsif ( not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF )
