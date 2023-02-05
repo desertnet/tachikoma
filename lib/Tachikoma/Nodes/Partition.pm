@@ -436,7 +436,7 @@ sub process_ack {
 
 sub process_delete {
     my ( $self, $delete ) = @_;
-    return if ( not $self->{filename} );
+    my $path     = $self->{filename} or return;
     my $segments = $self->{segments};
     my $i        = $#{$segments} - $self->{num_segments} + 1;
     my $keep     = $segments->[ $i > 0 ? $i : 0 ];
