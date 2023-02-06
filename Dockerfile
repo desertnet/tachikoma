@@ -26,7 +26,7 @@ RUN    useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma 
 COPY ./ /usr/src/tachikoma
 
 # NOTE: add your own configs to etc/scripts/local
-#       and use --build-arg CONFIG=local
+#       and use --env CONFIG=local
 
 WORKDIR /usr/src/tachikoma
 RUN    bin/install_tachikoma \
