@@ -31,10 +31,12 @@ cp etc/Devel/CGI.conf ~/.tachikoma/etc/
 cp -r http/* ~/.tachikoma/http/
 
 # init scripts
-cp -Tr etc/services ~/.tachikoma/services
 cp etc/scripts/$config/startup.txt ~/.tachikoma/
 if [ -f etc/scripts/$config/config.tsl ] ; then
     cp etc/scripts/$config/config.tsl  ~/.tachikoma/
+fi
+if [ -d etc/services ] ; then
+    cp -Tr etc/services ~/.tachikoma/services
 fi
 
 # authorized keys
