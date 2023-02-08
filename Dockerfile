@@ -6,11 +6,9 @@ ARG TACHIKOMA_UID=1000
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
-        git \
         libberkeleydb-perl \
         libcgi-pm-perl \
         libcrypt-openssl-rsa-perl \
-        libdevice-serialport-perl \
         libdbd-sqlite3-perl \
         libdbi-perl \
         libio-socket-ssl-perl \
@@ -19,18 +17,17 @@ RUN apt-get update && \
         libterm-readline-gnu-perl \
         libwww-perl \
     && rm -rf /var/lib/apt/lists/*
+#        libdevice-serialport-perl \
 
-RUN    useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma \
-    && usermod -aG adm tachikoma
-
-COPY ./ /usr/src/tachikoma
+RUN useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma
 
 # NOTE: add your own configs to etc/scripts/local
 #       and use --env CONFIG=local
 
-WORKDIR /usr/src/tachikoma
-RUN    bin/install_tachikoma \
-    && rm -f /home/tachikoma/.tachikoma/run/*
+COPY ./                     /usr/src/tachikoma
 COPY ./docker-entrypoint.sh /usr/local/bin/
+
+RUN    cd /usr/src/tachikoma \
+    && bin/install_tachikoma
 
 ENTRYPOINT ["docker-entrypoint.sh"]
