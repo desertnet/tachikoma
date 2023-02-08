@@ -16,6 +16,7 @@ To get started:
     sudo -u docker docker-compose exec -u tachikoma tachikoma1 tachikoma-client
 
 At the prompt, type "help" for a list of possible commands.
+
 The default config (etc/scripts/default/startup.txt) describes an in-memory
 key/value store with persistent storage.
 
