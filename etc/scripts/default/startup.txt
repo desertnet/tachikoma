@@ -16,7 +16,7 @@ cd hub
     make_node Broker broker localhost:5501 <home>/.tachikoma/pool
     cd broker
         set_broker localhost:5501 <home>/.tachikoma/pool
-        set_topic topic1 --num_partitions=1                          \
+        set_topic topic1 --num_partitions=1                              \
                          --replication_factor=1
         set_group cache  --topic=topic1
         start_broker
