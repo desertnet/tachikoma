@@ -7,17 +7,10 @@ services:
     build: .
     environment:
       CONFIG: default
-#      XDG_RUNTIME_DIR: /run/user/1000
-#      WAYLAND_DISPLAY: wayland-0
-#      DISPLAY: :0
 #    volumes:
 #      - /var/lib/tachikoma:/home/tachikoma/.tachikoma
-#      - /var/log:/var/log/local
-#      - /tmp/.X11-unix:/tmp/.X11-unix
-#      - /home/user/.Xauthority:/home/tachikoma/.Xauthority
-#      - /run/user/1000:/run/user/1000
-#    ports:
-#      - "127.0.0.1:4242:4242"
+    ports:
+      - "127.0.0.1:4242:4242"
     networks:
       - local
     restart: always
