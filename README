@@ -21,7 +21,7 @@ key/value store with persistent storage.
 
 In tachikoma-client, try the command:
 
-    connect access_log
+    connect access:log
 
 In a separate terminal, POST something to the server:
 
