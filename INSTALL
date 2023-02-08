@@ -120,4 +120,4 @@ cp etc/services/*.tsl ~/.tachikoma/services/
 # starting point.
 
 etc/authorized_keys/regenerate.pl
-cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+cp etc/authorized_keys/server.keys ~/.tachikoma/authorized_keys
