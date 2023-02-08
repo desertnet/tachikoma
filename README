@@ -8,15 +8,37 @@ the Apache Kafka-inspired hub able to handle millions of messages
 every second.  It is highly reliable and has been used in a
 production environment for over 10 years.
 
-To get started, follow the instructions in the file INSTALL.
+To get started:
 
-Then:
-
-  tachikoma-server
-  tachikoma-client
+    git clone https://github.com/datapoke/tachikoma
+    cd tachikoma
+    sudo -u docker docker-compose up -d
+    sudo -u docker docker-compose exec -u tachikoma tachikoma1 tachikoma-client
 
 At the prompt, type "help" for a list of possible commands.
-You might want to start with "connect server_log".
+The default config (etc/scripts/default/startup.txt) describes an in-memory
+key/value store with persistent storage.
+
+In tachikoma-client, try the command:
+
+    connect access_log
+
+In a separate terminal, POST something to the server:
+
+    curl --data-binary @Pictures/IMG001.JPG -X POST \
+        http://localhost:4242/store/topic1/IMG001.JPG
+
+Then you can fetch the value here:
+
+    http://localhost:4242/topic1:table/DSCN1032.JPG
+
+You can also get a list of keys in JSON format here:
+
+    http://localhost:4242/topic1:table
+
+Or a list of topics here:
+
+    http://localhost:4242/
 
 Unfortunately there is not yet much documentation, but some additional
 information is available in the following manual pages:
