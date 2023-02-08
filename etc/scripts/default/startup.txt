@@ -1,43 +1,57 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 
-# storage
+# STORE:
+# curl --data-binary @Pictures/DSCN1032.JPG -X POST \
+#     http://localhost:4242/store/topic1/DSCN1032.JPG
+
+# FETCH:
+# http://localhost:4242/topic1:table/DSCN1032.JPG
+
+
+# persistent storage
 var home = `echo ~`
-make_node Broker broker localhost:4230 <home>/.tachikoma/pool
-cd broker
-    set_broker localhost:4230 <home>/.tachikoma/pool
-    set_topic topic1 --num_partitions=1                          \
-                     --replication_factor=1
-    set_group cache  --topic=topic1
-    start_broker
+make JobController jobs
+command jobs start_job CommandInterpreter hub
+cd hub
+    make_node Broker broker localhost:5501 <home>/.tachikoma/pool
+    cd broker
+        set_broker localhost:5501 <home>/.tachikoma/pool
+        set_topic topic1 --num_partitions=1                          \
+                        --replication_factor=1
+        set_group cache  --topic=topic1
+        start_broker
+    cd ..
+    listen_inet 127.0.0.1:5501
+    secure 3
 cd ..
 
-# memory
-make_node ConsumerBroker topic1:consumer2 --broker=broker        \
-                                          --topic=topic1         \
-                                          --group=cache          \
-                                          --default_offset=start \
-                                          --max_unanswered=0
-make_node Table          topic1:table     --window_size=0        \
-                                          --num_buckets=1
-connect_node topic1:consumer2 topic1:table
-connect_edge topic1:consumer2 topic1:table
 
-# http
+# in-memory cache
+connect_inet localhost:5501 localhost:5501
+make_node ConsumerBroker topic1:consumer --broker=localhost:5501/broker \
+                                         --topic=topic1                 \
+                                         --group=cache                  \
+                                         --default_offset=start         \
+                                         --max_unanswered=0
+make_node Table          topic1:table    --window_size=0                \
+                                         --num_buckets=1
+connect_node topic1:consumer topic1:table
+connect_edge topic1:consumer topic1:table
+
+
+# http interface
 make_node HTTP_Responder http:responder /tmp/http 4242
 make_node HTTP_Timeout   http:timeout
 make_node Tee            access:log
 make_node HTTP_Route     root
 make_node HTTP_Fetch     root:dir       /         topic1:table
-make_node HTTP_Fetch     fetch:dir      /fetch    topic1:table
 make_node HTTP_Store     store:dir      /tmp/http /store topic1
-make_node Topic          topic1         broker
+make_node Topic          topic1         localhost:5501/broker
 command root add /      root:dir
-command root add /fetch fetch:dir
 command root add /store store:dir
 connect_node http:responder root
-listen_inet --io localhost:4242
-connect_sink localhost:4242 http:responder
+listen_inet --io 0.0.0.0:4242
+connect_sink 0.0.0.0:4242 http:responder
 
-listen_inet localhost:4230
 
-insecure
+secure 2
