@@ -1,75 +1,43 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
-include config.tsl
 
-make_node CommandInterpreter hosts
-make_node JobController      jobs
-make_node Tee                system_log:link
-make_node Tee                server_log:link
-make_node Ruleset            local_system_log:ruleset
-make_node Ruleset            server_log:ruleset
-make_node Ruleset            system_log:ruleset
-make_node LogColor           server_log:color
-make_node LogColor           system_log:color
-make_node Tee                server_log
-make_node Tee                system_log
-make_node Tee                http_log
-make_node Null               null
-make_node Echo               echo
-make_node Scheduler          scheduler
-
-cd server_log:ruleset:config
-    add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"
-    add 1000 allow
+# storage
+var home = `echo ~`
+make_node Broker broker localhost:4230 <home>/.tachikoma/pool
+cd broker
+    set_broker localhost:4230 <home>/.tachikoma/pool
+    set_topic topic1 --num_partitions=1                          \
+                     --replication_factor=1
+    set_group cache  --topic=topic1
+    start_broker
 cd ..
 
-cd local_system_log:ruleset:config
-    add 1000 allow
-cd ..
+# memory
+make_node ConsumerBroker topic1:consumer2 --broker=broker        \
+                                          --topic=topic1         \
+                                          --group=cache          \
+                                          --default_offset=start \
+                                          --max_unanswered=0
+make_node Table          topic1:table     --window_size=0        \
+                                          --num_buckets=1
+connect_node topic1:consumer2 topic1:table
+connect_edge topic1:consumer2 topic1:table
 
-cd system_log:ruleset:config
-    add 1000 allow
-cd ..
+# http
+make_node HTTP_Responder http:responder /tmp/http 4242
+make_node HTTP_Timeout   http:timeout
+make_node Tee            access:log
+make_node HTTP_Route     root
+make_node HTTP_Fetch     root:dir       /         topic1:table
+make_node HTTP_Fetch     fetch:dir      /fetch    topic1:table
+make_node HTTP_Store     store:dir      /tmp/http /store topic1
+make_node Topic          topic1         broker
+command root add /      root:dir
+command root add /fetch fetch:dir
+command root add /store store:dir
+connect_node http:responder root
+listen_inet --io localhost:4242
+connect_sink localhost:4242 http:responder
 
-command jobs start_job Tails tails
-cd tails
-    add_tail <home>/.tachikoma/log/tachikoma-server.log _parent/server_log:link
-    add_tail <home>/.tachikoma/log/http-access.log      _parent/http_log
-    add_tail <home>/.tachikoma/log/tasks-access.log     _parent/http_log
-    add_tail <home>/.tachikoma/log/tables-access.log    _parent/http_log
-    if ( `uname` eq "Darwin\n" ) {
-        add_tail /var/log/system.log       _parent/system_log:link;
-        add_tail /var/log/local/system.log _parent/system_log:link;
-    } else {
-        add_tail /var/log/syslog       _parent/system_log:link;
-        add_tail /var/log/local/syslog _parent/system_log:link;
-    }
-cd ..
+listen_inet localhost:4230
 
-connect_node http_log                 _responder
-connect_node system_log               _responder
-connect_node server_log               _responder
-connect_node system_log:color         system_log
-connect_node server_log:color         server_log
-connect_node system_log:ruleset       system_log:color
-connect_node server_log:ruleset       server_log:color
-connect_node local_system_log:ruleset system_log:ruleset
-connect_node server_log:link          server_log:ruleset
-connect_node system_log:link          local_system_log:ruleset
-
-# services
-for service (<tachikoma.services>) {
-    start_service <service>;
-}
-for service ([var "tachikoma.services.<hostname>"]) {
-    start_service <service>;
-}
-
-# ingest server logs
-# connect_node server_log:link sounds:service/server_log:sounds
-connect_node server_log:link server_logs:service/server_log
-
-cd tails
-    tail_probe
-    insecure
-cd ..
 insecure
