@@ -71,8 +71,8 @@ sub fill {
     my $allowed = $self->{allowed};
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
-    my $type            = ( $path =~ m{[.]([^.]+)$} )[0] || 'json';
-    my $accept_encoding = $headers->{'accept-encoding'}  || q();
+    my $type            = lc( ( $path =~ m{[.]([^.]+)$} )[0] ) || 'json';
+    my $accept_encoding = $headers->{'accept-encoding'}        || q();
     my ( $node_name, $escaped ) = split m{/}, $path, 2;
     my $value = undef;
 
