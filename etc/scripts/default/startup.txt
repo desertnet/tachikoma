@@ -1,11 +1,11 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 
 # STORE:
-# curl --data-binary @Pictures/DSCN1032.JPG -X POST \
-#     http://localhost:4242/store/topic1/DSCN1032.JPG
+# curl --data-binary @Pictures/IMG001.JPG -X POST \
+#     http://localhost:4242/store/topic1/IMG001.JPG
 
 # FETCH:
-# http://localhost:4242/topic1:table/DSCN1032.JPG
+# http://localhost:4242/topic1:table/IMG001.JPG
 
 
 # persistent storage
