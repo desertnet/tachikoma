@@ -327,11 +327,12 @@ sub make_consumer {
     my $partitions    = shift;
     my $partition_id  = shift;
     my $broker_id     = $partitions->{$partition_id};
+    my $my_name       = join q(:), $self->topic, 'consumer', $partition_id;
     my $log_name      = join q(:), $self->topic, 'partition', $partition_id;
     my $log           = join q(/), $broker_id, $log_name;
     my $consumer_name = undef;
     if ( $self->{group} ) {
-        $consumer_name = join q(:), $log_name, $self->{group};
+        $consumer_name = join q(:), $my_name, $self->{group};
     }
     else {
         $consumer_name = join q(:), $self->name, $partition_id;
