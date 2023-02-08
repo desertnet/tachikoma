@@ -30,7 +30,7 @@ In a separate terminal, POST something to the server:
 
 Then you can fetch the value here:
 
-    http://localhost:4242/topic1:table/DSCN1032.JPG
+    http://localhost:4242/topic1:table/IMG001.JPG
 
 You can also get a list of keys in JSON format here:
 
