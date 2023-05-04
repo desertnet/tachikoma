@@ -9,7 +9,7 @@
 
 
 # persistent storage
-var home = `echo ~`
+var home = `echo ~`;
 make JobController jobs
 command jobs start_job CommandInterpreter hub
 cd hub
@@ -46,9 +46,11 @@ make_node Tee            access:log
 make_node HTTP_Route     root
 make_node HTTP_Fetch     root:dir       /         topic1:table
 make_node HTTP_Store     store:dir      /tmp/http /store topic1
+make_node HTTP_SimpleUI  simple_ui
 make_node Topic          topic1         localhost:5501/broker
 command root add /      root:dir
 command root add /store store:dir
+command root add /ui    simple_ui
 connect_node http:responder root
 listen_inet --io 0.0.0.0:4242
 connect_sink 0.0.0.0:4242 http:responder
