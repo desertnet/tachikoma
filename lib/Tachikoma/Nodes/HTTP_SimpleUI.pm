@@ -91,7 +91,7 @@ sub generate_content {
             },
             container: 'visualization'
         });
-        
+
         nodesData.forEach(function (node, index) {
             s.graph.addNode({
                 id: node.name,
@@ -101,7 +101,9 @@ sub generate_content {
                 size: 1,
                 color: '#666'
             });
-            
+        });
+
+        nodesData.forEach(function (node, index) {
             if (node.sink && existingNodes.has(node.sink)) {
                 s.graph.addEdge({
                     id: 'e-sink-' + index,
@@ -112,7 +114,7 @@ sub generate_content {
                     label: 'sink'
                 });
             }
-            
+
             if (node.owner && existingNodes.has(node.owner)) {
                 s.graph.addEdge({
                     id: 'e-owner-' + index,
@@ -124,7 +126,7 @@ sub generate_content {
                 });
             }
         });
-        
+
         s.refresh();
     </script>
 </body>
@@ -132,6 +134,5 @@ sub generate_content {
 END_HTML
     return $content;
 }
-
 
 1;
