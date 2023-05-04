@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 # ----------------------------------------------------------------------
-# Tachikoma::Nodes::HTTP_Fetch
+# Tachikoma::Nodes::HTTP_SimpleUI
 # ----------------------------------------------------------------------
 #
 
-package Tachikoma::Nodes::HTTP_Fetch;
+package Tachikoma::Nodes::HTTP_SimpleUI;
 use strict;
 use warnings;
 use Tachikoma::Node;
