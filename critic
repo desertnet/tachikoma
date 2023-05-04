@@ -87,6 +87,7 @@ lib/Tachikoma/Nodes/HTTP_Fetch.pm
 lib/Tachikoma/Nodes/HTTP_File.pm
 lib/Tachikoma/Nodes/HTTP_Responder.pm
 lib/Tachikoma/Nodes/HTTP_Route.pm
+lib/Tachikoma/Nodes/HTTP_SimpleUI.pm
 lib/Tachikoma/Nodes/HTTP_Store.pm
 lib/Tachikoma/Nodes/HTTP_Timeout.pm
 lib/Tachikoma/Nodes/IndexByField.pm
