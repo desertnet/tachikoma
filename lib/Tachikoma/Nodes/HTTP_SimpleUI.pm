@@ -80,6 +80,10 @@ sub generate_content {
     <div id="visualization"></div>
     <script>
         var nodesData = @{[ encode_json($nodes) ]};
+        var existingNodes = new Set(nodesData.map(function(node) {
+            return node.name;
+        }));
+
         var s = new sigma({
             graph: {
                 nodes: [],
@@ -98,7 +102,7 @@ sub generate_content {
                 color: '#666'
             });
             
-            if (node.sink) {
+            if (node.sink && existingNodes.has(node.sink)) {
                 s.graph.addEdge({
                     id: 'e-sink-' + index,
                     source: node.name,
@@ -109,7 +113,7 @@ sub generate_content {
                 });
             }
             
-            if (node.owner) {
+            if (node.owner && existingNodes.has(node.owner)) {
                 s.graph.addEdge({
                     id: 'e-owner-' + index,
                     source: node.name,
@@ -128,5 +132,6 @@ sub generate_content {
 END_HTML
     return $content;
 }
+
 
 1;
