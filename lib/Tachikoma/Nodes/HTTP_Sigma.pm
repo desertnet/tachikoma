@@ -28,11 +28,12 @@ sub fill {
     my @nodes;
     for my $name ( sort keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
-        push @nodes, {
+        push @nodes,
+            {
             name  => $name,
-            sink  => $node->{sink}  ? $node->{sink}->{name}  : '',
-            owner => $node->{owner} ? $node->{owner}         : '',
-        };
+            sink  => $node->{sink} ? $node->{sink}->{name} : q(),
+            owner => $node->{owner} ? $node->{owner} : q(),
+            };
     }
 
     # Generate the HTML and JavaScript content
@@ -59,7 +60,7 @@ sub fill {
 }
 
 sub generate_content {
-    my $nodes = shift;
+    my $nodes   = shift;
     my $content = <<"END_HTML";
 <!DOCTYPE html>
 <html>
@@ -68,15 +69,20 @@ sub generate_content {
     <title>Tachikoma Nodes Visualization</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/1.2.1/sigma.min.js"></script>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         #visualization {
-            height: 600px;
+            height: 100%;
             width: 100%;
-            border: 1px solid #ccc;
+            border: 0px solid #ccc;
         }
     </style>
 </head>
 <body>
-    <h1>Tachikoma Nodes Visualization</h1>
     <div id="visualization"></div>
     <script>
         var nodesData = @{[ encode_json($nodes) ]};

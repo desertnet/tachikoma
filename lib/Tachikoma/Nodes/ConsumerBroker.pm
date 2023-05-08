@@ -331,6 +331,7 @@ sub make_consumer {
     my $log_name      = join q(:), $self->topic, 'partition', $partition_id;
     my $log           = join q(/), $broker_id, $log_name;
     my $consumer_name = undef;
+
     if ( $self->{group} ) {
         $consumer_name = join q(:), $my_name, $self->{group};
     }

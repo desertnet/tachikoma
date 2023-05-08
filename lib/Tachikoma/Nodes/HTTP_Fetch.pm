@@ -66,7 +66,7 @@ sub fill {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request = $message->payload;
     my $headers = $request->{headers};
-    my $path    = $request->{path};
+    my $path    = $request->{path} // q();
     my $prefix  = $self->{prefix};
     my $allowed = $self->{allowed};
     $path =~ s{^$prefix}{};
