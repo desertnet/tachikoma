@@ -162,7 +162,7 @@ sub fill {
     $self->{sink}->fill($response);
     $self->{counter}++;
     log_entry( $self, 200, $message, $stat[7] );
-    return 1;
+    return;
 }
 
 sub path {

@@ -8,13 +8,10 @@ package Tachikoma::Nodes::HTTP_Sigma;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime );
+use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
-use CGI;
-use JSON;    # -support_by_pp;
-use URI::Escape;
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.314');
@@ -55,8 +52,13 @@ sub fill {
         "\n\n",
         $content;
     $self->{sink}->fill($response);
+    $response         = Tachikoma::Message->new;
+    $response->[TYPE] = TM_EOF;
+    $response->[TO]   = $message->[FROM];
+    $self->{sink}->fill($response);
     $self->{counter}++;
-    return 1;
+    log_entry( $self, 200, $message );
+    return;
 }
 
 sub generate_content {

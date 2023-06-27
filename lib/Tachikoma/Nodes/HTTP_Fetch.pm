@@ -8,7 +8,7 @@ package Tachikoma::Nodes::HTTP_Fetch;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime );
+use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
@@ -130,7 +130,7 @@ sub fill {
     $self->{sink}->fill($response);
     $self->{counter}++;
     log_entry( $self, 200, $message );
-    return 1;
+    return;
 }
 
 sub send404 {

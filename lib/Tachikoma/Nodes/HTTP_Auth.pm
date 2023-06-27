@@ -82,7 +82,7 @@ sub fill {
     $response->[TO]   = $message->[FROM];
     $self->{sink}->fill($response);
     log_entry( $self, 401, $message );
-    return 1;
+    return;
 }
 
 sub authenticate {

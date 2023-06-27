@@ -115,7 +115,7 @@ sub fill {
     $self->{sink}->fill($response);
     $self->{counter}++;
     log_entry( $self, 200, $message );
-    return 1;
+    return;
 }
 
 sub send404 {
