@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3324;
+use Test::More tests => 3356;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -62,6 +62,7 @@ my %nodes = (
     'Tachikoma::Nodes::Grep'              => q(.),
     'Tachikoma::Nodes::Hopper'            => q(),
     'Tachikoma::Nodes::HTTP_Auth'         => undef,
+    'Tachikoma::Nodes::HTTP_Command'      => q(),
     'Tachikoma::Nodes::HTTP_File'         => q(),
     'Tachikoma::Nodes::HTTP_Fetch'        => q(/ .*:table),
     'Tachikoma::Nodes::HTTP_Responder'    => q(),
@@ -69,7 +70,7 @@ my %nodes = (
     'Tachikoma::Nodes::HTTP_Sigma'        => q(),
     'Tachikoma::Nodes::HTTP_Store'        => q(),
     'Tachikoma::Nodes::HTTP_Timeout'      => q(),
-    'Tachikoma::Nodes::HTTP_Wrapper'      => q(),
+    'Tachikoma::Nodes::HTTP_Trigger'      => q(),
     'Tachikoma::Nodes::Index'             => q(),
     'Tachikoma::Nodes::IndexByField'      => q(),
     'Tachikoma::Nodes::IndexByStream'     => q(),
