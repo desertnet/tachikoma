@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3292;
+use Test::More tests => 3324;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -69,6 +69,7 @@ my %nodes = (
     'Tachikoma::Nodes::HTTP_Sigma'        => q(),
     'Tachikoma::Nodes::HTTP_Store'        => q(),
     'Tachikoma::Nodes::HTTP_Timeout'      => q(),
+    'Tachikoma::Nodes::HTTP_Wrapper'      => q(),
     'Tachikoma::Nodes::Index'             => q(),
     'Tachikoma::Nodes::IndexByField'      => q(),
     'Tachikoma::Nodes::IndexByStream'     => q(),
