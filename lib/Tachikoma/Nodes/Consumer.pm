@@ -904,11 +904,6 @@ sub fetch {
     $self->get_offset
         or return $messages
         if ( not defined $self->{next_offset} );
-    return $messages
-        if (defined $self->{auto_commit}
-        and defined $self->{offset}
-        and Time::HiRes::time - $self->{last_commit} >= $self->{auto_commit}
-        and not $self->commit_offset_sync );
     usleep( $self->{poll_interval} * 1000000 )
         if ( $self->{eos} and $self->{poll_interval} );
     $self->{eos} = undef;
@@ -942,35 +937,8 @@ sub fetch {
 }
 
 sub get_offset {
-    my $self   = shift;
-    my $stored = undef;
-    $self->cache(undef);
-    if ( $self->offsetlog ) {
-        my $consumer = Tachikoma::Nodes::Consumer->new( $self->offsetlog );
-        $consumer->next_offset(-2);
-        $consumer->broker_id( $self->broker_id );
-        $consumer->timeout( $self->timeout );
-        $consumer->hub_timeout( $self->hub_timeout );
-        while (1) {
-            my $messages = $consumer->fetch;
-            my $error    = $consumer->sync_error // q();
-            chomp $error;
-            $self->sync_error("GET_OFFSET: $error\n") if ($error);
-            last                                      if ( not @{$messages} );
-            $stored = $messages->[-1]->payload;
-        }
-        if ( $self->sync_error ) {
-            $self->remove_target;
-            return;
-        }
-    }
-    if ( $stored and defined $stored->{cache} ) {
-        $self->cache( $stored->{cache} );
-    }
-    if ( $stored and defined $stored->{offset} ) {
-        $self->next_offset( $stored->{offset} );
-    }
-    elsif ( $self->default_offset eq 'start' ) {
+    my $self = shift;
+    if ( $self->default_offset eq 'start' ) {
         $self->next_offset(0);
     }
     elsif ( $self->default_offset eq 'recent' ) {
@@ -1054,49 +1022,6 @@ sub get_messages {
     return;
 }
 
-sub commit_offset_sync {
-    my $self = shift;
-    return 1 if ( $self->{last_commit} >= $self->{last_receive} );
-    my $rv     = undef;
-    my $target = $self->target or return;
-    die "ERROR: no offsetlog specified\n" if ( not $self->offsetlog );
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE] = TM_STORABLE;
-    $message->[TO]   = $self->offsetlog;
-    $message->payload(
-        {   timestamp  => time,
-            offset     => $self->offset,
-            cache_type => 'snapshot',
-            cache      => $self->cache,
-        }
-    );
-    $rv = eval {
-        $target->fill($message);
-        return 1;
-    };
-    if ( not $rv ) {
-        if ( not $target->fh ) {
-            $self->sync_error("COMMIT_OFFSET: lost connection\n");
-        }
-        elsif ( not defined $self->sync_error ) {
-            $self->sync_error("COMMIT_OFFSET: send_messages failed\n");
-        }
-        $self->retry_offset;
-        $rv = undef;
-    }
-    $self->last_commit( $self->last_receive );
-    return $rv;
-}
-
-sub reset_offset {
-    my $self  = shift;
-    my $cache = shift;
-    $self->next_offset(0);
-    $self->cache($cache);
-    $self->last_commit(0);
-    return $self->commit_offset_sync;
-}
-
 sub retry_offset {
     my $self = shift;
     $self->next_offset(undef);
@@ -1170,4 +1095,5 @@ sub sync_error {
     }
     return $self->{sync_error};
 }
+
 1;

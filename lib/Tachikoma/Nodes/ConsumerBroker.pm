@@ -655,13 +655,7 @@ sub get_partitions {
     if ( not $self->{partitions}
         or time - $self->{last_check} > $CHECK_INTERVAL )
     {
-        my $partitions = undef;
-        if ( $self->group ) {
-            $partitions = $self->request_partitions;
-        }
-        else {
-            $partitions = $self->broker->get_mapping;
-        }
+        my $partitions = $self->broker->get_mapping;
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->remove_consumer($partition_id)
                 if ( not $partitions
@@ -674,117 +668,6 @@ sub get_partitions {
         $self->sync_error(undef) if ($partitions);
     }
     return $self->{partitions};
-}
-
-sub request_partitions {
-    my $self            = shift;
-    my $leader          = $self->get_leader or return;
-    my $target          = $self->get_target($leader) or return;
-    my $partitions      = undef;
-    my $request_payload = "GET_PARTITIONS $self->{topic}\n";
-    my $request         = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_REQUEST;
-    $request->[TO]      = $self->group;
-    $request->[PAYLOAD] = $request_payload;
-    $target->callback(
-        sub {
-            my $response = shift;
-            if ( $response->[TYPE] & TM_STORABLE ) {
-                $partitions = $response->payload;
-            }
-            elsif ( $response->[PAYLOAD] eq "NOT_LEADER\n" ) {
-                $self->leader(undef);
-            }
-            elsif ( $response->[PAYLOAD] ) {
-                my $error = $response->[PAYLOAD];
-                chomp $error;
-                $self->sync_error("REQUEST_PARTITIONS: $error\n");
-            }
-            else {
-                die $response->type_as_string . "\n";
-            }
-            return;
-        }
-    );
-    my $okay = eval {
-        $target->fill($request);
-        $target->drain;
-        return 1;
-    };
-    if ( not $okay ) {
-        my $error = $@ || 'unknown error';
-        chomp $error;
-        $self->remove_consumers;
-        $self->sync_error("REQUEST_PARTITIONS: $error\n");
-        $partitions = undef;
-    }
-    elsif ( not $target->{fh} ) {
-        $self->remove_consumers;
-        $self->sync_error("REQUEST_PARTITIONS: lost connection\n");
-        $partitions = undef;
-    }
-    return $partitions;
-}
-
-sub get_leader {
-    my $self = shift;
-    if ( not $self->{leader} ) {
-        die "ERROR: no group specified\n" if ( not $self->group );
-        my $leader = undef;
-        for my $name ( @{ $self->broker_ids } ) {
-            $leader = $self->request_leader($name);
-            last if ($leader);
-        }
-        $self->leader($leader);
-        $self->sync_error(undef) if ($leader);
-    }
-    return $self->{leader};
-}
-
-sub request_leader {
-    my $self            = shift;
-    my $name            = shift;
-    my $target          = $self->get_target($name) or return;
-    my $leader          = undef;
-    my $request_payload = "GET_LEADER $self->{group}\n";
-    my $request         = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_REQUEST;
-    $request->[TO]      = 'broker';
-    $request->[PAYLOAD] = $request_payload;
-    $target->callback(
-        sub {
-            my $response = shift;
-            if ( $response->[TYPE] & TM_INFO ) {
-                $leader = $response->[PAYLOAD];
-                chomp $leader;
-            }
-            elsif ( $response->[PAYLOAD] ) {
-                die $response->[PAYLOAD];
-            }
-            else {
-                die $response->type_as_string . "\n";
-            }
-            return;
-        }
-    );
-    my $okay = eval {
-        $target->fill($request);
-        $target->drain;
-        return 1;
-    };
-    if ( not $okay ) {
-        my $error = $@ || 'unknown error';
-        chomp $error;
-        $self->remove_consumers;
-        $self->sync_error("REQUEST_LEADER: $error\n");
-        $leader = undef;
-    }
-    elsif ( not $target->{fh} ) {
-        $self->remove_consumers;
-        $self->sync_error("REQUEST_LEADER: lost connection\n");
-        $leader = undef;
-    }
-    return $leader;
 }
 
 sub get_controller {
@@ -818,29 +701,6 @@ sub get_group_cache {
     return $caches;
 }
 
-sub commit_offset {
-    my $self = shift;
-    for my $partition_id ( keys %{ $self->consumers } ) {
-        my $consumer = $self->consumers->{$partition_id};
-        $consumer->commit_offset;
-        if ( $consumer->sync_error ) {
-            $self->sync_error( $consumer->sync_error );
-            $self->remove_consumers;
-            last;
-        }
-    }
-    return;
-}
-
-sub retry_offset {
-    my $self = shift;
-    for my $partition_id ( keys %{ $self->consumers } ) {
-        my $consumer = $self->consumers->{$partition_id};
-        $consumer->retry_offset;
-    }
-    return;
-}
-
 sub make_sync_consumers {
     my $self    = shift;
     my $mapping = shift;
@@ -862,34 +722,11 @@ sub make_sync_consumer {
     $consumer->broker_id($broker_id);
     $consumer->partition_id($partition_id);
     $consumer->target( $self->get_target($broker_id) );
-
-    if ( $self->group ) {
-        $consumer->group( $self->group );
-        $consumer->cache_type( $self->cache_type );
-        if ( $self->auto_offset ) {
-            my $offsetlog = join q(:), $log, $self->group;
-            $consumer->offsetlog($offsetlog);
-        }
-        $consumer->auto_commit( $self->auto_commit );
-    }
     $consumer->default_offset( $self->default_offset );
     $consumer->poll_interval(undef);
     $consumer->hub_timeout( $self->hub_timeout );
     $self->consumers->{$partition_id} = $consumer;
     return $consumer;
-}
-
-sub disconnect {
-    my $self    = shift;
-    my $leader  = $self->get_leader or return;
-    my $target  = $self->get_target($leader) or return;
-    my $request = Tachikoma::Message->new;
-    $request->[TYPE]    = TM_REQUEST;
-    $request->[TO]      = $self->group;
-    $request->[PAYLOAD] = "DISCONNECT\n";
-    $target->fill($request);
-    $self->remove_consumers;
-    return;
 }
 
 sub get_target {
