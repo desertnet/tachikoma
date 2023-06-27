@@ -84,6 +84,7 @@ function _execute_query() {
                             var date  = new Date();
                             var queue = ev.queue || "";
                             var value = ev.value || "";
+                            var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
                             date.setTime(
                                 ( ev.timestamp - date.getTimezoneOffset() * 60 )
                                 * 1000
@@ -105,7 +106,7 @@ function _execute_query() {
                                          + "<td>" + queue             + "</td>"
                                          + "<td>" + ev.type           + "</td>"
                                          + "<td>" + ev.key            + "</td>"
-                                         + "<td>" + value             + "</td></tr>";
+                                         + "<td>" + escaped           + "</td></tr>";
                             output.push(row);
                             if (ev.type == "MSG_CANCELED") {
                                 running = 0;
