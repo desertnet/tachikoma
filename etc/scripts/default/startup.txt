@@ -21,7 +21,8 @@ cd ..
 
 
 # in-memory cache
-make_node ConsumerBroker topic1:consumer --broker=broker                \
+connect_inet localhost:4230 localhost:4230
+make_node ConsumerBroker topic1:consumer --broker=localhost:4230/broker \
                                          --topic=topic1                 \
                                          --group=cache                  \
                                          --default_offset=start         \
@@ -33,7 +34,6 @@ connect_edge topic1:consumer topic1:table
 
 
 # http interface
-connect_inet localhost:4230 localhost:4230
 make_node HTTP_Responder http:responder /tmp/http 4242
 make_node HTTP_Timeout   http:timeout
 make_node Tee            access:log
