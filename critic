@@ -11,7 +11,6 @@ bin/tachikoma-fsync
 bin/tachikoma-job
 bin/tail_top
 bin/topic_top
-lib/Accessories/Forks.pm
 lib/Accessories/Jobs/APlay.pm
 lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/DNS.pm
