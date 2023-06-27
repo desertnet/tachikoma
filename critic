@@ -90,6 +90,7 @@ lib/Tachikoma/Nodes/HTTP_Route.pm
 lib/Tachikoma/Nodes/HTTP_Sigma.pm
 lib/Tachikoma/Nodes/HTTP_Store.pm
 lib/Tachikoma/Nodes/HTTP_Timeout.pm
+lib/Tachikoma/Nodes/HTTP_Wrapper.pm
 lib/Tachikoma/Nodes/IndexByField.pm
 lib/Tachikoma/Nodes/IndexByStream.pm
 lib/Tachikoma/Nodes/IndexByTimestamp.pm
