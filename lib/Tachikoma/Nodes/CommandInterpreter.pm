@@ -48,6 +48,12 @@ my %DISABLED = (
     3 => { map { $_ => 1 } qw( connect_node ) },
 );
 my @CONFIG_VARIABLES = qw(
+    wire_version
+    config_file
+    help
+    debug_level
+    secure_level
+    scheme
     prefix
     log_dir
     log_file
@@ -58,6 +64,7 @@ my @CONFIG_VARIABLES = qw(
     low_water_mark
     keep_alive
     hz
+    id
     ssl_client_ca_file
     ssl_client_cert_file
     ssl_client_key_file
@@ -1816,23 +1823,6 @@ $C{dump_config} = sub {
                 if ( not $skip{ $node->{owner} } );
         }
     }
-    return $self->response( $envelope, $response );
-};
-
-$H{dump_tachikoma_conf} = ["dump_tachikoma_conf\n"];
-
-$C{dump_tachikoma_conf} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $copy     = { %{ $self->configuration } };
-    for my $key (qw( private_key private_ed25519_key )) {
-        $copy->{$key} = $copy->{$key} ? q(...) : undef;
-    }
-    for my $key (qw( public_keys help functions var )) {
-        $copy->{$key} = keys %{ $copy->{$key} } ? q({...}) : undef;
-    }
-    my $response = Dumper $copy;
     return $self->response( $envelope, $response );
 };
 
