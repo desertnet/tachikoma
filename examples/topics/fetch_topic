@@ -22,7 +22,7 @@ die "no field\n" if ( not length $field );
 my $consumer = Tachikoma::Nodes::ConsumerBroker->new($topic);
 my $table    = Tachikoma::Nodes::Table->new;
 $table->host('localhost');
-$table->port(5100);
+$table->port(6100);
 $table->field("$topic.$field:table");
 my $json = JSON->new;
 $json->canonical(1);

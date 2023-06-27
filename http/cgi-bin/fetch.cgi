@@ -26,7 +26,7 @@ if ($Tachikoma::Nodes::CGI::Config) {
 }
 $broker_ids ||= ['localhost:5501'];
 my $host = 'localhost';
-my $port = 5100;
+my $port = 6100;
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();
