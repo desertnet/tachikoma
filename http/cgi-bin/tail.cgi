@@ -61,7 +61,7 @@ if ($partitions) {
     for my $partition ( keys %{$partitions} ) {
         my $consumer = $group->consumers->{$partition}
             || $group->make_sync_consumer($partition);
-        my $offset = $offsets[$partition];
+        my $offset = $offsets[$partition] // 'end';
         if ( $offset =~ m{^\d+$} ) {
             $consumer->next_offset($offset);
         }
