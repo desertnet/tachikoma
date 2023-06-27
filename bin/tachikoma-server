@@ -3,7 +3,7 @@ if (<_C> > 0) {
     log "commandline arguments: <@>";
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
-            var <_1> = <_2>
+            var <_1> = <_2>;
         }
         else {
             log (ERROR: couldn\'t parse argument: [var <i>]);
@@ -12,12 +12,13 @@ if (<_C> > 0) {
     }
 }
 if (not [var startup];) {
-    var startup = startup.txt
+    var startup = startup.txt;
 }
 if ([var daemon] eq "no") {
-    initialize [var name]
+    initialize [var name];
+    open_log_file;
 } else {
-    daemonize [var name]
+    daemonize [var name];
 }
 listen_inet
 log "running <startup>"
