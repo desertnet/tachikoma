@@ -13,7 +13,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use CGI;
-use JSON;    # -support_by_pp;
+use JSON;
 use URI::Escape;
 use parent qw( Tachikoma::Node );
 

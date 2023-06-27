@@ -2378,10 +2378,10 @@ $C{daemonize} = $C{initialize};
 $H{open_log_file} = ["open_log_file\n"];
 
 $C{open_log_file} = sub {
-    my $self      = shift;
-    my $command   = shift;
-    my $envelope  = shift;
-    my $okay = eval {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $okay     = eval {
         Tachikoma->open_log_file;
         return 1;
     };

@@ -12,6 +12,7 @@ use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
+use JSON;
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.314');
