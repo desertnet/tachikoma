@@ -9,7 +9,6 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE STREAM PAYLOAD TM_BYTESTREAM );
-use Digest::MD5 qw( md5_hex );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -50,7 +49,7 @@ sub fill {
     elsif ( $message->[TYPE] & TM_BYTESTREAM
         and $message->[PAYLOAD] =~ m{$regex} )
     {
-        $message->[STREAM] = md5_hex($1);
+        $message->[STREAM] = $1;
     }
     return $self->SUPER::fill($message);
 }
