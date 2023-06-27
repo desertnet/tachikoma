@@ -67,7 +67,8 @@ sub fill {
     {
         $self->interpreter->fill($message);
     }
-    elsif ( length $message->[TO] ) {
+    elsif ( length $message->[TO] and $message->[TO] ne '_return_to_sender' )
+    {
         $self->handle_response($message);
         $self->{sink}->fill($message);
     }
@@ -88,7 +89,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        $message->[TO] = $owner;
+        $message->[TO] = join q(/), grep length, $owner, $message->[TO];
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
