@@ -701,6 +701,29 @@ sub get_group_cache {
     return $caches;
 }
 
+sub commit_offset {
+    my $self = shift;
+    for my $partition_id ( keys %{ $self->consumers } ) {
+        my $consumer = $self->consumers->{$partition_id};
+        $consumer->commit_offset;
+        if ( $consumer->sync_error ) {
+            $self->sync_error( $consumer->sync_error );
+            $self->remove_consumers;
+            last;
+        }
+    }
+    return;
+}
+
+sub retry_offset {
+    my $self = shift;
+    for my $partition_id ( keys %{ $self->consumers } ) {
+        my $consumer = $self->consumers->{$partition_id};
+        $consumer->retry_offset;
+    }
+    return;
+}
+
 sub make_sync_consumers {
     my $self    = shift;
     my $mapping = shift;

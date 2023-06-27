@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+
+my $topic   = $ARGV[0] or die "usage: reset_count <topic> [ <group> ]\n";
+my $name    = $ARGV[1] // "count";
+my $group   = Tachikoma::Nodes::ConsumerBroker->new( $topic, $name );
+my $mapping = $group->broker->get_mapping($topic);
+my $cache   = 0;
+$group->make_sync_consumers($mapping);
+die $group->sync_error if ( $group->sync_error );
+for my $partition_id ( keys %$mapping ) {
+    my $consumer = $group->consumers->{$partition_id};
+    $consumer->reset_offset($cache) or die $consumer->sync_error;
+}
+print "ok\n";

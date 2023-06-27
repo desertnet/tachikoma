@@ -1,0 +1,50 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::Nodes::ConsumerBroker;
+use Tachikoma::Nodes::Topic;
+use Digest::MD5 qw( md5 );
+
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
+
+my $from       = $ARGV[0];
+my $to         = $ARGV[1] or die "usage: word_count <from> <to>\n";
+my $consumer   = Tachikoma::Nodes::ConsumerBroker->new( $from, 'word_count' );
+my $producer   = Tachikoma::Nodes::Topic->new($to);
+my $partitions = $producer->get_partitions;
+$consumer->auto_commit(30);
+$consumer->default_offset('start');
+while (1) {
+    my @batch    = ();
+    my $messages = $consumer->fetch(
+        sub {
+            my ( $self, $message ) = @_;
+            $self->{cache} //= {};
+            for my $word ( split( /\W+/, $message->payload ) ) {
+                next if ( $word !~ /\S/ );
+                $self->{cache}->{$word} //= 0;
+                $self->{cache}->{$word}++;
+                my $i = hash($word);
+                $batch[$i] //= {};
+                $batch[$i]->{$word} =
+                    [ join q(), $word, q( ), $self->{cache}->{$word}, "\n" ];
+            }
+        }
+    );
+    for ( my $i = 0; $i < @{$partitions}; $i++ ) {
+        next if ( not $batch[$i] );
+        $producer->send_messages( $i, $batch[$i] );
+    }
+    die $consumer->sync_error if ( $consumer->sync_error );
+    last if ( $consumer->eos );
+}
+$consumer->commit_offset;
+
+sub hash {
+    my $key          = shift // '';
+    my $partition_id = 0;
+    $partition_id += $_ for ( unpack "C*", md5($key) );
+    $partition_id %= scalar @{$partitions};
+    return $partition_id;
+}
