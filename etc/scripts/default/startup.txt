@@ -10,25 +10,18 @@
 
 # persistent storage
 var home = `echo ~`;
-make JobController jobs
-command jobs start_job CommandInterpreter hub
-cd hub
-    make_node Broker broker localhost:5501 <home>/.tachikoma/pool
-    cd broker
-        set_broker localhost:5501 <home>/.tachikoma/pool
-        set_topic topic1 --num_partitions=1                              \
-                         --replication_factor=1
-        set_group cache  --topic=topic1
-        start_broker
-    cd ..
-    listen_inet 127.0.0.1:5501
-    secure 3
+make_node Broker broker localhost:4230 <home>/.tachikoma/pool
+cd broker
+    set_broker localhost:4230 <home>/.tachikoma/pool
+    set_topic topic1 --num_partitions=1                                 \
+                     --replication_factor=1
+    set_group cache  --topic=topic1
+    start_broker
 cd ..
 
 
 # in-memory cache
-connect_inet localhost:5501 localhost:5501
-make_node ConsumerBroker topic1:consumer --broker=localhost:5501/broker \
+make_node ConsumerBroker topic1:consumer --broker=broker                \
                                          --topic=topic1                 \
                                          --group=cache                  \
                                          --default_offset=start         \
@@ -40,6 +33,7 @@ connect_edge topic1:consumer topic1:table
 
 
 # http interface
+connect_inet localhost:4230 localhost:4230
 make_node HTTP_Responder http:responder /tmp/http 4242
 make_node HTTP_Timeout   http:timeout
 make_node Tee            access:log
@@ -47,7 +41,7 @@ make_node HTTP_Route     root
 make_node HTTP_Fetch     root:dir       /         topic1:table
 make_node HTTP_Store     store:dir      /tmp/http /store topic1
 make_node HTTP_Sigma     sigma
-make_node Topic          topic1         localhost:5501/broker
+make_node Topic          topic1         localhost:4230/broker
 command root add /      root:dir
 command root add /store store:dir
 command root add /sigma sigma
