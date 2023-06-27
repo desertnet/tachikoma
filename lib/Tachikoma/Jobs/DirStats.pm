@@ -237,7 +237,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
         if ( $entry =~ m{[\r\n]} ) {
             $entry =~ s{\n}{\\n}g;
             $entry =~ s{\r}{\\r}g;
-            print {*STDERR} "LMAO: $path/$entry\n";
+            Tachikoma->PRINT("LMAO: $path/$entry\n");
             next;
         }
         my $path_entry = join q(/), $path, $entry;

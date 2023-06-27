@@ -233,9 +233,12 @@ sub initialize {
     $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
     srand;
     $self->check_pid;
-    $self->daemonize if ($daemonize);
+    if ($daemonize) {
+        $self->daemonize;
+        $self->open_log_file;
+        $self->tie_log_file;
+    }
     $self->reset_signal_handlers;
-    $self->open_log_file;
     $self->write_pid;
     $self->load_event_framework;
     return;
@@ -263,6 +266,27 @@ sub daemonize {    # from perlipc manpage
     return;
 }
 
+sub open_log_file {
+    my $self = shift;
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
+    if ( not defined $LOG_FILE_HANDLE ) {
+        chdir q(/) or die "ERROR: couldn't chdir /: $!";
+        open $LOG_FILE_HANDLE, '>>', $log
+            or die "ERROR: couldn't open log file $log: $!\n";
+        $LOG_FILE_HANDLE->autoflush(1);
+    }
+    return;
+}
+
+sub tie_log_file {
+    my $self = shift;
+    ## no critic (ProhibitTies)
+    tie *STDOUT, 'Tachikoma', $self or die "ERROR: couldn't tie STDOUT: $!";
+    tie *STDERR, 'Tachikoma', $self or die "ERROR: couldn't tie STDERR: $!";
+    ## use critic
+    return;
+}
+
 sub reset_signal_handlers {
     my $self = shift;
     ## no critic (RequireLocalizedPunctuationVars)
@@ -272,20 +296,6 @@ sub reset_signal_handlers {
     $SIG{HUP}  = 'IGNORE';
     $SIG{USR1} = 'IGNORE';
     return;
-}
-
-sub open_log_file {
-    my $self = shift;
-    my $log  = $self->log_file or die "ERROR: no log file specified\n";
-    chdir q(/) or die "ERROR: couldn't chdir /: $!";
-    open $LOG_FILE_HANDLE, '>>', $log
-        or die "ERROR: couldn't open log file $log: $!\n";
-    $LOG_FILE_HANDLE->autoflush(1);
-    ## no critic (ProhibitTies)
-    tie *STDOUT, 'Tachikoma', $self or die "ERROR: couldn't tie STDOUT: $!";
-    tie *STDERR, 'Tachikoma', $self or die "ERROR: couldn't tie STDERR: $!";
-    ## use critic
-    return 'success';
 }
 
 sub write_pid {
@@ -320,10 +330,12 @@ sub load_event_framework {
 sub touch_log_file {
     my $self = shift;
     my $log  = $self->log_file or die "ERROR: no log file specified\n";
-    $self->close_log_file;
-    $self->open_log_file;
-    utime $Tachikoma::Now, $Tachikoma::Now, $log
-        or die "ERROR: couldn't utime $log: $!";
+    if ( defined $LOG_FILE_HANDLE ) {
+        $self->close_log_file;
+        $self->open_log_file;
+        utime $Tachikoma::Now, $Tachikoma::Now, $log
+            or die "ERROR: couldn't utime $log: $!";
+    }
     return;
 }
 
@@ -332,6 +344,7 @@ sub close_log_file {
     untie *STDOUT;
     untie *STDERR;
     close $LOG_FILE_HANDLE or die $!;
+    undef $LOG_FILE_HANDLE;
     return;
 }
 
@@ -529,7 +542,14 @@ sub WRITE {
     my ( $self, $buf, $length, $offset ) = @_;
     $length //= 0;
     $offset //= 0;
-    return syswrite $LOG_FILE_HANDLE, $buf, $length, $offset;
+    my $rv = undef;
+    if ( not tied *STDERR ) {
+        $rv = syswrite *STDERR, $buf, $length, $offset;
+    }
+    if ( defined $LOG_FILE_HANDLE ) {
+        $rv = syswrite $LOG_FILE_HANDLE, $buf, $length, $offset;
+    }
+    return $rv;
 }
 
 sub PRINT {
@@ -538,7 +558,14 @@ sub PRINT {
     return if ( not @msg );
     push @RECENT_LOG, @msg;
     shift @RECENT_LOG while ( @RECENT_LOG > 100 );
-    return print {$LOG_FILE_HANDLE} @msg;
+    my $rv = undef;
+    if ( not tied *STDERR ) {
+        $rv = print {*STDERR} @msg;
+    }
+    if ( defined $LOG_FILE_HANDLE ) {
+        $rv = print {$LOG_FILE_HANDLE} @msg;
+    }
+    return $rv;
 }
 
 sub PRINTF {
@@ -547,7 +574,14 @@ sub PRINTF {
     return if ( not @msg );
     push @RECENT_LOG, sprintf $fmt, @msg;
     shift @RECENT_LOG while ( @RECENT_LOG > 100 );
-    return print {$LOG_FILE_HANDLE} sprintf $fmt, @msg;
+    my $rv = undef;
+    if ( not tied *STDERR ) {
+        $rv = print {*STDERR} sprintf $fmt, @msg;
+    }
+    if ( defined $LOG_FILE_HANDLE ) {
+        $rv = print {$LOG_FILE_HANDLE} sprintf $fmt, @msg;
+    }
+    return $rv;
 }
 
 1;

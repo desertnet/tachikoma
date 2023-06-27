@@ -2375,6 +2375,22 @@ $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
 $C{daemonize} = $C{initialize};
 
+$H{open_log_file} = ["open_log_file\n"];
+
+$C{open_log_file} = sub {
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $okay = eval {
+        Tachikoma->open_log_file;
+        return 1;
+    };
+    if ( not $okay ) {
+        print {*STDERR} $@ || "ERROR: open_log_file: unknown error\n";
+    }
+    return;
+};
+
 $H{set_timeout} = ["set_timeout <seconds>\n"];
 
 $C{set_timeout} = sub {

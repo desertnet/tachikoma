@@ -432,7 +432,12 @@ sub print_less_often {
 
 sub stderr {
     my ( $self, @raw ) = @_;
-    print {*STDERR} $self->log_prefix( $self->log_midfix(@raw) );
+    if ( $raw[0] =~ m{^\d{4}-\d\d-\d\d} ) {
+        Tachikoma->PRINT( join q(), @raw );
+    }
+    else {
+        Tachikoma->PRINT( $self->log_prefix( $self->log_midfix(@raw) ) );
+    }
     return;
 }
 
