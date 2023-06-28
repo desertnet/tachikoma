@@ -49,7 +49,9 @@ sub fill {
     elsif ( $message->[TYPE] & TM_BYTESTREAM
         and $message->[PAYLOAD] =~ m{$regex} )
     {
-        $message->[STREAM] = $1;
+        my $stream = $1;
+        chomp $stream;
+        $message->[STREAM] = $stream;
     }
     return $self->SUPER::fill($message);
 }
