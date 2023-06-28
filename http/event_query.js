@@ -70,7 +70,10 @@ function _execute_query() {
                 if (this.responseText) {
                     var msg     = JSON.parse(this.responseText);
                     var running = 1;
-                    if (msg[0].error) {
+                    if (!msg[0]) {
+                        document.getElementById("output").innerHTML = "<em> - no results - </em>";
+                    }
+                    else if (msg[0].error) {
                         document.getElementById("output").innerHTML = "<em>"
                             + msg[0].error + "</em>";
                     }
