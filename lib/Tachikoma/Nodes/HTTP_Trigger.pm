@@ -13,7 +13,6 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use CGI;
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.314');
@@ -41,10 +40,20 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_STORABLE ) {
-        my $cgi = CGI->new( $message->payload->{query_string} );
-        $self->{messages}->{ $cgi->param('stream') } = $message;
+        my $path   = $message->payload->{path};
+        my $prefix = $self->{arguments};
+        $path =~ s{^$prefix}{};
+        $path =~ s{^/+}{};
+        $self->{messages}->{$path} = $message;
         if ( not $self->{timer_is_active} ) {
             $self->set_timer;
+        }
+        if ( $self->{edge} ) {
+            my $value = $self->{edge}->lookup($path);
+            if ( defined $value ) {
+                $self->send_response( $message, 200, 'OK', $value );
+                delete $self->{messages}->{$path};
+            }
         }
     }
     else {
@@ -85,7 +94,8 @@ sub handle_response {
     if ($queued) {
         $self->send_response( $queued, $http_code, $http_msg, $http_content );
     }
-    if ( $message->[TYPE] & TM_BYTESTREAM and $message->[TYPE] & TM_PERSIST )
+    if ( $message->[TYPE] & TM_PERSIST
+        and not $message->[TYPE] & TM_RESPONSE )
     {
         $self->cancel($message);
     }
