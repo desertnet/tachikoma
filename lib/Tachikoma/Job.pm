@@ -215,12 +215,7 @@ sub make_stdio {
         sub {
             my $message = shift;
             if ( not $message->[TYPE] & TM_EOF ) {
-                if ( $message->[PAYLOAD] =~ m{^\d{4}-\d\d-\d\d} ) {
-                    Tachikoma->PRINT( $message->[PAYLOAD] );
-                }
-                else {
-                    $self->{connector}->stderr( $message->[PAYLOAD] );
-                }
+                $self->{connector}->stderr( $message->[PAYLOAD] );
             }
             return;
         }

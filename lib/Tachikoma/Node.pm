@@ -431,18 +431,20 @@ sub print_less_often {
 }
 
 sub stderr {
-    my ( $self, @raw ) = @_;
-    if ( $raw[0] =~ m{^\d{4}-\d\d-\d\d} ) {
-        Tachikoma->PRINT( join q(), @raw );
+    my ( $self, @args ) = @_;
+    my $joined = join q(), grep { defined and $_ ne q() } @args;
+    return if ( not length $joined );
+    if ( $joined =~ m{^\d{4}-\d\d-\d\d} ) {
+        Tachikoma->stderr($joined);
     }
     else {
-        Tachikoma->PRINT( $self->log_prefix( $self->log_midfix(@raw) ) );
+        Tachikoma->stderr( $self->log_prefix( $self->log_midfix($joined) ) );
     }
     return;
 }
 
 sub log_prefix {
-    my ( $self, @raw ) = @_;
+    my ( $self, @args ) = @_;
     my $router = $Tachikoma::Nodes{_router};
     my $prefix = q();
     if (   not $router
@@ -455,8 +457,8 @@ sub log_prefix {
     elsif ( $router->{type} eq 'router' ) {
         $prefix = sprintf '%10.5f ', Time::HiRes::time;
     }
-    if (@raw) {
-        my $msg = join q(), grep defined, @raw;
+    if (@args) {
+        my $msg = join q(), grep defined, @args;
         chomp $msg;
         $msg =~ s{^}{$prefix}mg if ( length $prefix );
         return $msg . "\n";
@@ -467,7 +469,7 @@ sub log_prefix {
 }
 
 sub log_midfix {
-    my ( $self, @raw ) = @_;
+    my ( $self, @args ) = @_;
     my $midfix = q();
     if (    ref $self
         and $self->{name}
@@ -475,8 +477,8 @@ sub log_midfix {
     {
         $midfix = join q(), $self->{name}, ': ';
     }
-    if (@raw) {
-        my $msg = join q(), grep defined, @raw;
+    if (@args) {
+        my $msg = join q(), grep defined, @args;
         chomp $msg;
         $msg =~ s{^}{$midfix}mg;
         return $msg . "\n";

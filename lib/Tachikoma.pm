@@ -236,7 +236,6 @@ sub initialize {
     if ($daemonize) {
         $self->daemonize;
         $self->open_log_file;
-        $self->tie_log_file;
     }
     $self->reset_signal_handlers;
     $self->write_pid;
@@ -275,15 +274,6 @@ sub open_log_file {
             or die "ERROR: couldn't open log file $log: $!\n";
         $LOG_FILE_HANDLE->autoflush(1);
     }
-    return;
-}
-
-sub tie_log_file {
-    my $self = shift;
-    ## no critic (ProhibitTies)
-    tie *STDOUT, 'Tachikoma', $self or die "ERROR: couldn't tie STDOUT: $!";
-    tie *STDERR, 'Tachikoma', $self or die "ERROR: couldn't tie STDERR: $!";
-    ## use critic
     return;
 }
 
@@ -341,8 +331,6 @@ sub touch_log_file {
 
 sub close_log_file {
     my $self = shift;
-    untie *STDOUT;
-    untie *STDERR;
     close $LOG_FILE_HANDLE or die $!;
     undef $LOG_FILE_HANDLE;
     return;
@@ -502,7 +490,25 @@ sub print_less_often {
 
 sub stderr {
     my ( $self, @args ) = @_;
-    return Tachikoma::Node->stderr(@args);
+    my $joined = join q(), grep { defined and $_ ne q() } @args;
+    return if ( not length $joined );
+    my $msg = undef;
+    my $rv  = undef;
+    if ( $joined =~ m{^\d{4}-\d\d-\d\d} ) {
+        $msg = $joined;
+    }
+    else {
+        $msg = $self->log_prefix($joined);
+    }
+    push @RECENT_LOG, $msg;
+    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
+    if ( defined *STDERR ) {
+        $rv = print {*STDERR} $msg;
+    }
+    if ( defined $LOG_FILE_HANDLE ) {
+        $rv = print {$LOG_FILE_HANDLE} $msg;
+    }
+    return $rv;
 }
 
 sub log_prefix {
@@ -518,70 +524,6 @@ sub configuration {
 sub scheme {
     my ( $self, @args ) = @_;
     return $self->configuration->scheme(@args);
-}
-
-sub TIEHANDLE {
-    my $class  = shift;
-    my $self   = shift;
-    my $scalar = \$self;
-    return bless $scalar, $class;
-}
-
-sub OPEN {
-    my $self = shift;
-    my $path = shift;
-    return $self;
-}
-
-sub FILENO {
-    my $self = shift;
-    return fileno $LOG_FILE_HANDLE;
-}
-
-sub WRITE {
-    my ( $self, $buf, $length, $offset ) = @_;
-    $length //= 0;
-    $offset //= 0;
-    my $rv = undef;
-    if ( not tied *STDERR ) {
-        $rv = syswrite *STDERR, $buf, $length, $offset;
-    }
-    if ( defined $LOG_FILE_HANDLE ) {
-        $rv = syswrite $LOG_FILE_HANDLE, $buf, $length, $offset;
-    }
-    return $rv;
-}
-
-sub PRINT {
-    my ( $self, @args ) = @_;
-    my @msg = grep { defined and $_ ne q() } @args;
-    return if ( not @msg );
-    push @RECENT_LOG, @msg;
-    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
-    my $rv = undef;
-    if ( not tied *STDERR ) {
-        $rv = print {*STDERR} @msg;
-    }
-    if ( defined $LOG_FILE_HANDLE ) {
-        $rv = print {$LOG_FILE_HANDLE} @msg;
-    }
-    return $rv;
-}
-
-sub PRINTF {
-    my ( $self, $fmt, @args ) = @_;
-    my @msg = grep { defined and $_ ne q() } @args;
-    return if ( not @msg );
-    push @RECENT_LOG, sprintf $fmt, @msg;
-    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
-    my $rv = undef;
-    if ( not tied *STDERR ) {
-        $rv = print {*STDERR} sprintf $fmt, @msg;
-    }
-    if ( defined $LOG_FILE_HANDLE ) {
-        $rv = print {$LOG_FILE_HANDLE} sprintf $fmt, @msg;
-    }
-    return $rv;
 }
 
 1;
