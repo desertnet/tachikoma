@@ -75,7 +75,7 @@ sub fire {
                 ' tail_name:'      => $tail_name,
                 ' filename:'       => $filename,
                 ' bytes_answered:' => $tiedhash->{$name},
-                ' file_size:'      => ( stat $filename )[7],
+                ' file_size:'      => (( stat $filename )[7] || 0),
                 "\n";
         }
     }
