@@ -12,6 +12,7 @@ To get started:
 
     git clone https://github.com/datapoke/tachikoma
     cd tachikoma
+    cp docker/* docker/.env .
     sudo -u docker docker-compose up -d
     sudo -u docker docker-compose exec -u tachikoma tachikoma1 tachikoma-client
 
