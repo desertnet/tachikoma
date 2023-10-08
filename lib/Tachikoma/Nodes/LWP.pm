@@ -46,8 +46,6 @@ sub fill {
     my $res = $self->user_agent->request($req);
     if ( $res->content ) {
         my $response = bless [ @{$message} ], ref $message;
-        $response->[TO] = $message->[FROM]
-            if ( $message->[TO] eq '_return_to_sender' );
         $response->[PAYLOAD] = $res->content;
         $self->{sink}->fill($response);
     }

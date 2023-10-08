@@ -79,12 +79,15 @@ sub fill {
     my $message = shift;
     return $self->drop_message( $message, 'message not addressed' )
         if ( not length $message->[TO] );
+    $message->[TO] = $message->[FROM]
+        if ( $message->[TO] eq '_return_to_sender' );
     return $self->drop_message( $message, 'path exceeded 1024 bytes' )
         if ( ( length $message->[FROM] // 0 ) > 1024 );
     my ( $name, $path ) = split m{/}, $message->[TO], 2;
     return $self->send_error( $message, "NOT_AVAILABLE\n" )
         if ( not $Tachikoma::Nodes{$name} );
     $message->[TO] = $path;
+
     if ($PROFILES) {
         my $before = $self->push_profile($name);
         my $rv     = $Tachikoma::Nodes{$name}->fill($message);
