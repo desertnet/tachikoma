@@ -69,10 +69,11 @@ sub fill {
         or $message->[TYPE] & TM_REQUEST )
     {
         my $name = $self->{name};
-        $arguments->{q(@)}  = join q( ), $name, $payload;
-        $arguments->{q(0)}  = $name;
-        $arguments->{q(1)}  = $payload;
-        $arguments->{q(_C)} = 1;
+        $arguments->{q(@)}          = join q( ), $name, $payload;
+        $arguments->{q(0)}          = $name;
+        $arguments->{q(1)}          = $payload;
+        $arguments->{q(_C)}         = 1;
+        $arguments->{q(self.owner)} = $self->{owner};
     }
     my $shell     = $self->shell;
     my $old_local = $shell->set_local($arguments);
