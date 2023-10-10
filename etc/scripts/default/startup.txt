@@ -1,5 +1,8 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 
+# TRIGGER:
+# http://localhost:4242/trigger/IMG001.JPG
+ 
 # STORE:
 # curl --data-binary @Pictures/IMG001.JPG -X POST \
 #     http://localhost:4242/store/topic1/IMG001.JPG
@@ -28,9 +31,14 @@ make_node ConsumerBroker topic1:consumer --broker=localhost:5501/broker \
                                          --group=cache                  \
                                          --default_offset=start         \
                                          --max_unanswered=0
+make_node Tee            topic1:tee
 make_node Table          topic1:table    --window_size=0                \
                                          --num_buckets=1
-connect_node topic1:consumer topic1:table
+make_node HTTP_Trigger   topic1:dir      /trigger 
+connect_edge topic1:dir      topic1:table
+connect_node topic1:tee      topic1:table
+connect_node topic1:tee      topic1:dir
+connect_node topic1:consumer topic1:tee
 connect_edge topic1:consumer topic1:table
 
 
@@ -43,9 +51,10 @@ make_node HTTP_Fetch     root:dir       /         topic1:table
 make_node HTTP_Store     store:dir      /tmp/http /store topic1
 make_node HTTP_Sigma     sigma
 make_node Topic          topic1         localhost:5501/broker
-command root add /      root:dir
-command root add /store store:dir
-command root add /sigma sigma
+command root add /        root:dir
+command root add /store   store:dir
+command root add /sigma   sigma
+command root add /trigger topic1:dir
 connect_node http:responder root
 listen_inet --io 0.0.0.0:4242
 connect_sink 0.0.0.0:4242 http:responder
