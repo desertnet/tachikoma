@@ -20,6 +20,20 @@ use version; our $VERSION = qv('v2.0.314');
 my $TIMEOUT = 900;
 my $COUNTER = 0;
 
+# TODO: configurate mime types
+my %TYPES = (
+    gif  => 'image/gif',
+    jpg  => 'image/jpeg',
+    png  => 'image/png',
+    ico  => 'image/vnd.microsoft.icon',
+    txt  => 'text/plain; charset=utf8',
+    js   => 'text/javascript; charset=utf8',
+    json => 'application/json; charset=utf8',
+    css  => 'text/css; charset=utf8',
+    html => 'text/html; charset=utf8',
+    xml  => 'text/xml; charset=utf8',
+);
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -51,7 +65,13 @@ sub fill {
         if ( $self->{edge} ) {
             my $value = $self->{edge}->lookup($path);
             if ( defined $value ) {
-                $self->send_response( $message, 200, 'OK', $value );
+                $self->send_response(
+                    $path, $message,
+                    {   code    => 200,
+                        msg     => 'OK',
+                        content => $value
+                    }
+                );
                 delete $self->{messages}->{$path};
             }
         }
@@ -63,36 +83,38 @@ sub fill {
 }
 
 sub handle_response {
-    my $self         = shift;
-    my $message      = shift;
-    my $message_id   = shift;
-    my $http_code    = 400;
-    my $http_msg     = 'Bad Request';
-    my $http_content = 'Bad Request';
+    my $self       = shift;
+    my $message    = shift;
+    my $message_id = shift;
+    my $http       = {
+        code    => 400,
+        msg     => 'Bad Request',
+        content => 'Bad Request',
+    };
     if ( $message->[TYPE] & TM_ERROR ) {
-        $http_code    = 500;
-        $http_msg     = 'Internal Server Error';
-        $http_content = 'Internal Server Error';
+        $http->{code}    = 500;
+        $http->{msg}     = 'Internal Server Error';
+        $http->{content} = 'Internal Server Error';
     }
     elsif ( $message->[TYPE] & TM_BYTESTREAM ) {
-        $http_code    = 200;
-        $http_msg     = 'OK';
-        $http_content = $message->[PAYLOAD];
-        $http_content = "OK\n"
-            if ( not length $http_content or $http_content !~ m{\S} );
+        $http->{code}    = 200;
+        $http->{msg}     = 'OK';
+        $http->{content} = $message->[PAYLOAD];
+        $http->{content} = "OK\n"
+            if ( not length $http->{content} or $http->{content} !~ m{\S} );
     }
     elsif ( $message->[TYPE] & TM_PERSIST
         and $message->[TYPE] & TM_RESPONSE
         and $message->[PAYLOAD] eq 'cancel' )
     {
-        $http_code    = 200;
-        $http_msg     = 'OK';
-        $http_content = "OK\n";
+        $http->{code}    = 200;
+        $http->{msg}     = 'OK';
+        $http->{content} = "OK\n";
     }
     my $queued = $self->{messages}->{$message_id};
     delete $self->{messages}->{$message_id};
     if ($queued) {
-        $self->send_response( $queued, $http_code, $http_msg, $http_content );
+        $self->send_response( $message_id, $queued, $http );
     }
     if ( $message->[TYPE] & TM_PERSIST
         and not $message->[TYPE] & TM_RESPONSE )
@@ -103,28 +125,31 @@ sub handle_response {
 }
 
 sub send_response {
-    my ( $self, $queued, $http_code, $http_msg, $http_content ) = @_;
+    my ( $self, $message_id, $queued, $http ) = @_;
+    my $type     = lc( ( $message_id =~ m{[.]([^.]+)$} )[0] // q() );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $queued->[FROM];
     $response->[STREAM]  = $queued->[STREAM];
     $response->[PAYLOAD] = join q(),
-        "HTTP/1.1 ${http_code} ${http_msg}\n",
+        "HTTP/1.1 ${$http->{code}} ${$http->{msg}}\n",
         'Date: ', cached_strftime(), "\n",
         "Server: Tachikoma\n",
         "Connection: close\n",
-        "Content-Type: text/html\n",
+        'Content-Type: ',
+        $TYPES{$type} || $TYPES{'json'},
+        "\n",
         'Content-Length: ',
-        length($http_content),
+        length( $http->{content} ),
         "\n\n",
-        $http_content;
+        $http->{content};
     $self->{sink}->fill($response);
     $response         = Tachikoma::Message->new;
     $response->[TYPE] = TM_EOF;
     $response->[TO]   = $queued->[FROM];
     $self->{sink}->fill($response);
     $self->{counter}++;
-    log_entry( $self, $http_code, $queued );
+    log_entry( $self, $http->{code}, $queued );
     return;
 }
 
