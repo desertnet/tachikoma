@@ -128,8 +128,6 @@ sub include_conf {
     my $script = <$fh>;
     close $fh or die $!;
     my $config = global();
-    $config->load_legacy;
-    $config->set_legacy;
     ## no critic (ProhibitStringyEval)
     my $okay = eval join q(),
         'package ', $package, ";\n",
@@ -143,48 +141,38 @@ sub include_conf {
     return;
 }
 
-sub set_legacy {
-    my $self = shift;
-    for my $legacy_key ( keys %LEGACY_MAP ) {
-        my $modern_key = $LEGACY_MAP{$legacy_key};
-        if ( $self->{$modern_key} ) {
-            $Tachikoma{$legacy_key} = $self->{$modern_key};
-        }
-    }
-    for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
-        my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
-        if ( $self->{$modern_key} ) {
-            $SSL_Config{$legacy_key} = $self->{$modern_key};
-        }
-    }
-    $ID          = $self->{id}          if ( $self->{id} );
-    $Private_Key = $self->{private_key} if ( $self->{private_key} );
-    $Private_Ed25519_Key = $self->{private_ed25519_key}
-        if ( $self->{private_ed25519_key} );
-    $Keys{$_} = $self->{public_keys}->{$_}
-        for ( keys %{ $self->{public_keys} } );
-    return;
-}
-
 sub load_legacy {
     my $self = shift;
     for my $legacy_key ( keys %LEGACY_MAP ) {
         my $modern_key = $LEGACY_MAP{$legacy_key};
-        if ( $Tachikoma{$legacy_key} ) {
+        if ( exists $Tachikoma{$legacy_key} ) {
             $self->{$modern_key} = $Tachikoma{$legacy_key};
+            delete $Tachikoma{$legacy_key};
         }
     }
     for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
         my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
-        if ( $SSL_Config{$legacy_key} ) {
+        if ( exists $SSL_Config{$legacy_key} ) {
             $self->{$modern_key} = $SSL_Config{$legacy_key};
+            delete $SSL_Config{$legacy_key};
         }
     }
-    $self->{id}          = $ID          if ($ID);
-    $self->{private_key} = $Private_Key if ($Private_Key);
-    $self->{private_ed25519_key} = $Private_Ed25519_Key
-        if ($Private_Ed25519_Key);
-    $self->{public_keys}->{$_} = $Keys{$_} for ( keys %Keys );
+    if ( defined $ID ) {
+        $self->{id} = $ID;
+        undef $ID;
+    }
+    if ( defined $Private_Key ) {
+        $self->{private_key} = $Private_Key;
+        undef $Private_Key;
+    }
+    if ( defined $Private_Ed25519_Key ) {
+        $self->{private_ed25519_key} = $Private_Ed25519_Key;
+        undef $Private_Ed25519_Key;
+    }
+    for my $legacy_key ( keys %Keys ) {
+        $self->{public_keys}->{$legacy_key} = $Keys{$legacy_key};
+        delete $Keys{$legacy_key};
+    }
     return $self;
 }
 
