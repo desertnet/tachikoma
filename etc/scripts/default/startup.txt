@@ -17,8 +17,8 @@ cd broker
                      --replication_factor=1
     set_group cache  --topic=topic1
     start_broker
-    listen_inet 127.0.0.1:5501
 cd ..
+listen_inet 127.0.0.1:5501
 
 
 # in-memory cache
