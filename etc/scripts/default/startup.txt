@@ -10,19 +10,20 @@
 
 # persistent storage
 var home = `echo ~`;
-make_node Broker broker localhost:4230 <home>/.tachikoma/pool
+make_node Broker broker localhost:5501 <home>/.tachikoma/pool
 cd broker
-    set_broker localhost:4230 <home>/.tachikoma/pool
+    set_broker localhost:5501 <home>/.tachikoma/pool
     set_topic topic1 --num_partitions=1                                 \
                      --replication_factor=1
     set_group cache  --topic=topic1
     start_broker
+    listen_inet 127.0.0.1:5501
 cd ..
 
 
 # in-memory cache
-connect_inet localhost:4230 localhost:4230
-make_node ConsumerBroker topic1:consumer --broker=localhost:4230/broker \
+connect_inet localhost:5501 localhost:5501
+make_node ConsumerBroker topic1:consumer --broker=localhost:5501/broker \
                                          --topic=topic1                 \
                                          --group=cache                  \
                                          --default_offset=start         \
@@ -41,7 +42,7 @@ make_node HTTP_Route     root
 make_node HTTP_Fetch     root:dir       /         topic1:table
 make_node HTTP_Store     store:dir      /tmp/http /store topic1
 make_node HTTP_Sigma     sigma
-make_node Topic          topic1         localhost:4230/broker
+make_node Topic          topic1         localhost:5501/broker
 command root add /      root:dir
 command root add /store store:dir
 command root add /sigma sigma
