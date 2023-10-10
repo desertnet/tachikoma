@@ -132,15 +132,13 @@ sub send_response {
     $response->[TO]      = $queued->[FROM];
     $response->[STREAM]  = $queued->[STREAM];
     $response->[PAYLOAD] = join q(),
-        "HTTP/1.1 ${$http->{code}} ${$http->{msg}}\n",
+        'HTTP/1.1 ', $http->{code}, q( ), $http->{msg}, "\n",
         'Date: ', cached_strftime(), "\n",
         "Server: Tachikoma\n",
         "Connection: close\n",
         'Content-Type: ',
-        $TYPES{$type} || $TYPES{'json'},
-        "\n",
-        'Content-Length: ',
-        length( $http->{content} ),
+        $TYPES{$type} || $TYPES{'json'}, "\n",
+        'Content-Length: ', length( $http->{content} ),
         "\n\n",
         $http->{content};
     $self->{sink}->fill($response);
