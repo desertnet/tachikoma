@@ -58,7 +58,6 @@ sub fill {
         my $prefix = $self->{arguments};
         $path =~ s{^$prefix}{};
         $path =~ s{^/+}{};
-        $self->{messages}->{$path} = $message;
         if ( not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -72,8 +71,15 @@ sub fill {
                         content => $value
                     }
                 );
-                delete $self->{messages}->{$path};
             }
+            else {
+                $self->{messages}->{$path} //= [];
+                push @{ $self->{messages}->{$path} }, $message;
+            }
+        }
+        else {
+            $self->{messages}->{$path} //= [];
+            push @{ $self->{messages}->{$path} }, $message;
         }
     }
     else {
@@ -111,10 +117,11 @@ sub handle_response {
         $http->{msg}     = 'OK';
         $http->{content} = "OK\n";
     }
-    my $queued = $self->{messages}->{$message_id};
-    delete $self->{messages}->{$message_id};
-    if ($queued) {
-        $self->send_response( $message_id, $queued, $http );
+    if ( exists $self->{messages}->{$message_id} ) {
+        for my $queued ( @{ $self->{messages}->{$message_id} } ) {
+            $self->send_response( $message_id, $queued, $http );
+        }
+        delete $self->{messages}->{$message_id};
     }
     if ( $message->[TYPE] & TM_PERSIST
         and not $message->[TYPE] & TM_RESPONSE )
@@ -155,9 +162,17 @@ sub fire {
     my $self     = shift;
     my $messages = $self->{messages};
     for my $message_id ( keys %{$messages} ) {
-        my $timestamp = $messages->{$message_id}->[TIMESTAMP];
-        delete $messages->{$message_id}
-            if ( $Tachikoma::Now - $timestamp > $TIMEOUT );
+        my @keep = ();
+        for my $queued ( @{ $messages->{$message_id} } ) {
+            push @keep, $queued
+                if ( $Tachikoma::Now - $queued->[TIMESTAMP] < $TIMEOUT );
+        }
+        if (@keep) {
+            $messages->{$message_id} = \@keep;
+        }
+        else {
+            delete $messages->{$message_id};
+        }
     }
     if ( not keys %{$messages} ) {
         $self->stop_timer;
@@ -171,12 +186,6 @@ sub messages {
         $self->{messages} = shift;
     }
     return $self->{messages};
-}
-
-sub msg_counter {
-    my $self = shift;
-    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
 }
 
 1;
