@@ -412,10 +412,16 @@ sub drain_buffer_persist {
             : $self->{name};
         $message->[TO] = $self->{owner};
         $message->[ID] = $offset;
-        $message->[TYPE] |= TM_PERSIST;
-        push @{ $self->{inflight} }, [ $offset => $Tachikoma::Now ];
+        if ( $message->[TYPE] & TM_EOF ) {
+            $message->[TYPE] ^= TM_PERSIST
+                if ( $message->[TYPE] & TM_PERSIST );
+        }
+        else {
+            $message->[TYPE] |= TM_PERSIST;
+            push @{ $self->{inflight} }, [ $offset => $Tachikoma::Now ];
+            $self->{msg_unanswered}++;
+        }
         $self->{counter}++;
-        $self->{msg_unanswered}++;
         $self->{sink}->fill($message);
         $offset += $size;
         $got    -= $size;
