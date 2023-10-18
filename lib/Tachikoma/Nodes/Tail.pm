@@ -706,9 +706,15 @@ sub delete_EOF {
 }
 
 sub send_EOF {
-    my $self = shift;
-    $self->{sent_EOF} = 'true';
-    return $self->SUPER::send_EOF(@_);
+    my $self    = shift;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]   = TM_EOF;
+    $message->[FROM]   = $self->{name};
+    $message->[TO]     = $self->{owner};
+    $message->[STREAM] = $self->{stream};
+    $self->{sent_EOF}  = 'true';
+    $self->{sink}->fill($message) if ( $self->{sink} );
+    return;
 }
 
 sub sent_EOF {
