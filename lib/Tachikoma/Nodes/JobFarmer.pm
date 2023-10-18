@@ -348,9 +348,10 @@ $C{set_count} = sub {
             next if ( not defined $name );
             my $job = $jobs->{$name};
             $self->disconnect_node( $load_balancer->name, $name );
-            $self->disconnect_node( $tee->name, $name ) if ($tee);
+            $self->disconnect_node( $tee->name,           $name ) if ($tee);
             if ($job) {
-                if ($job->{connector}->isa('Tachikoma::Nodes::FileHandle')) {
+                if ( $job->{connector}->isa('Tachikoma::Nodes::FileHandle') )
+                {
                     $job->{connector}->handle_EOF;
                 }
                 else {
