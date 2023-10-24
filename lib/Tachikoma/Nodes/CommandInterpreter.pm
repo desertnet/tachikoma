@@ -2526,7 +2526,7 @@ sub verify_command {
     my $config       = $self->configuration;
     my $my_id        = $config->id;
     my $secure_level = $config->secure_level;
-    return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
+    return 1 if ( $self->verify_startup( $message, $secure_level ) );
     my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
 
     if ( not $id ) {
@@ -2588,7 +2588,7 @@ sub verify_key {
     my $config       = $self->configuration;
     my $my_id        = $config->id;
     my $secure_level = $config->secure_level;
-    return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
+    return 1 if ( $self->verify_startup( $message, $secure_level ) );
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     my $id      = ( split m{\n}, $command->{signature}, 2 )[0];
     my $entry   = $config->public_keys->{$id};
@@ -2622,7 +2622,6 @@ sub verify_key {
 sub verify_startup {
     my $self         = shift;
     my $message      = shift;
-    my $id           = shift;
     my $secure_level = shift;
     return 1
         if (defined $secure_level
