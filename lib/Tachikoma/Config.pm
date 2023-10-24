@@ -147,31 +147,25 @@ sub load_legacy {
         my $modern_key = $LEGACY_MAP{$legacy_key};
         if ( exists $Tachikoma{$legacy_key} ) {
             $self->{$modern_key} = $Tachikoma{$legacy_key};
-            delete $Tachikoma{$legacy_key};
         }
     }
     for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
         my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
         if ( exists $SSL_Config{$legacy_key} ) {
             $self->{$modern_key} = $SSL_Config{$legacy_key};
-            delete $SSL_Config{$legacy_key};
         }
     }
-    if ( defined $ID ) {
+    if ( length $ID ) {
         $self->{id} = $ID;
-        undef $ID;
     }
-    if ( defined $Private_Key ) {
+    if ( length $Private_Key ) {
         $self->{private_key} = $Private_Key;
-        undef $Private_Key;
     }
-    if ( defined $Private_Ed25519_Key ) {
+    if ( length $Private_Ed25519_Key ) {
         $self->{private_ed25519_key} = $Private_Ed25519_Key;
-        undef $Private_Ed25519_Key;
     }
     for my $legacy_key ( keys %Keys ) {
         $self->{public_keys}->{$legacy_key} = $Keys{$legacy_key};
-        delete $Keys{$legacy_key};
     }
     return $self;
 }
