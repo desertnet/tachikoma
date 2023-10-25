@@ -12,7 +12,8 @@
 
 
 # persistent storage
-var home = `echo ~`;
+var home     = `echo ~`;
+var hostname = `hostname -s`;
 make_node Broker broker localhost:5501 <home>/.tachikoma/pool
 cd broker
     set_broker localhost:5501 <home>/.tachikoma/pool
@@ -60,8 +61,14 @@ listen_inet --io 0.0.0.0:4242
 connect_sink 0.0.0.0:4242 http:responder
 
 # server log
-make_node Tail server_log:tail <home>/.tachikoma/log/tachikoma-server.log
-make_node Tee  server_log
-connect_node server_log:tail server_log
+make_node Tail    server_log:tail <home>/.tachikoma/log/tachikoma-server.log
+make_node Ruleset server_log:ruleset
+make_node Tee     server_log
+cd server_log:ruleset:config
+    add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"
+    add 1000 allow
+cd ..
+connect_node server_log:ruleset server_log
+connect_node server_log:tail    server_log:ruleset
 
 secure 2
