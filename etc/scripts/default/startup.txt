@@ -59,5 +59,9 @@ connect_node http:responder root
 listen_inet --io 0.0.0.0:4242
 connect_sink 0.0.0.0:4242 http:responder
 
+# server log
+make_node Tail server_log:tail <home>/.tachikoma/log/tachikoma-server.log
+make_node Tee  server_log
+connect_node server_log:tail server_log
 
 secure 2
