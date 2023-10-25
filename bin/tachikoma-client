@@ -2,13 +2,13 @@
 if (<_C> > 0) {
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
-            var <_1> = <_2>
+            var <_1> = <_2>;
         }
         elsif ([var <i>] =~ '^--([^=]+)$') {
-            var <_1> = 1
+            var <_1> = 1;
         }
         else {
-            var startup = [var <i>]
+            var startup = [var <i>];
         }
     }
 }

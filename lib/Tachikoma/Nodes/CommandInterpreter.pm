@@ -1693,16 +1693,17 @@ $C{debug_state} = sub {
     my $envelope = shift;
     my ( $name, $level ) = split q( ), $command->arguments, 2;
     my $node = undef;
-    if ( $name =~ m{^\d+$} ) {
+    if ( not length $name ) {
+        $name = $self->name;
+        $node = $self;
+    }
+    elsif ( $name =~ m{^\d+$} ) {
         $level = $name;
         $name  = $self->name;
         $node  = $self;
     }
     elsif ( $Tachikoma::Nodes{$name} ) {
         $node = $Tachikoma::Nodes{$name};
-    }
-    else {
-        $node = $self;
     }
     die qq(can't find node "$name"\n) if ( not $node );
     $node->debug_state( $level // not $node->debug_state );

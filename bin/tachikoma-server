@@ -1,15 +1,24 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 if (<_C> > 0) {
-    log "commandline arguments: <@>";
+    log "arguments: <@>";
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
             var <_1> = <_2>;
+        }
+        elsif ([var <i>] =~ '^--([^=]+)$') {
+            var <_1> = 1;
         }
         else {
             log (ERROR: couldn\'t parse argument: [var <i>]);
             exit 1;
         }
     }
+}
+if ([var debug]) {
+    debug_state _command_interpreter <debug>;
+    debug_state _router              <debug>;
+} else {
+    var debug = 0;
 }
 if (not [var startup];) {
     var startup = startup.txt;
