@@ -82,6 +82,7 @@ $responder->shell($shell);
 attach($responder);
 $node = $router;
 $tachikoma->name('_command_interpreter');
+$tachikoma->debug_state($debug_state);
 attach($tachikoma);
 $shell->show_commands($verbose);
 $shell->want_reply($verbose);

@@ -1685,15 +1685,25 @@ $C{on} = sub {
     return $self->okay($envelope);
 };
 
-$H{debug_state} = ["debug_state <node name> [ <level> ]\n"];
+$H{debug_state} = ["debug_state [ <node name> <level> ]\n"];
 
 $C{debug_state} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
     my ( $name, $level ) = split q( ), $command->arguments, 2;
-    die qq(no node specified\n) if ( not length $name );
-    my $node = $Tachikoma::Nodes{$name};
+    my $node = undef;
+    if ( $name =~ m{^\d+$} ) {
+        $level = $name;
+        $name  = $self->name;
+        $node  = $self;
+    }
+    elsif ( $Tachikoma::Nodes{$name} ) {
+        $node = $Tachikoma::Nodes{$name};
+    }
+    else {
+        $node = $self;
+    }
     die qq(can't find node "$name"\n) if ( not $node );
     $node->debug_state( $level // not $node->debug_state );
     return $self->okay($envelope);
@@ -2690,6 +2700,7 @@ sub make_node {
     my $okay = eval {
         $node->name($name);
         $node->arguments( $arguments // q() );
+        $node->debug_state($self->debug_state);
         $node->sink($self);
         $self->connect_node( $name, $owner ) if ( length $owner );
         return 1;
@@ -2734,6 +2745,7 @@ sub connect_inet {
             Tachikoma::Nodes::STDIO->inet_client_async( $host, $port );
     }
     $connection->name($name);
+    $connection->debug_state($self->debug_state);
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2771,6 +2783,7 @@ sub connect_unix {
         $connection = Tachikoma::Nodes::STDIO->unix_client_async($filename);
     }
     $connection->name($name);
+    $connection->debug_state($self->debug_state);
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
