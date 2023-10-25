@@ -128,11 +128,11 @@ sub send_error {
 sub fire_cb {
     my $self   = shift;
     my $config = $self->configuration;
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( $config->secure_level ) {
         my @again        = ();
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
-            if ( $self->{debug_state} and $self->{debug_state} >= 3 );
         while ( my $node = shift @{$reconnecting} ) {
             my $okay = eval {
                 push @again, $node if ( $node->reconnect );
