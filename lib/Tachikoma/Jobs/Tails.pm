@@ -51,6 +51,7 @@ sub initialize_graph {
     $self->tails( {} );
     $self->files( {} );
     $self->sink( $self->router );
+    $self->timeout($DEFAULT_TIMEOUT);
     $self->timer->set_timer( $OFFSET_INTERVAL * 1000 );
     $self->last_scan( $Tachikoma::Now + $STARTUP_DELAY );
     $interpreter->sink($self);
@@ -105,6 +106,19 @@ sub initialize_graph {
             $watcher->remove_node if ($watcher);
         }
         $self->timer->stop_timer;
+        return $this->okay($envelope);
+    };
+    $interpreter->commands->{'set_timeout'} = sub {
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
+        my $interval = $command->arguments;
+        die "usage: set_timeout <interval>\n" if ( not $interval );
+        $self->timeout($interval);
+        for my $file ( keys %{ $self->tails } ) {
+            my $node = $Tachikoma::Nodes{"$file:tail"};
+            $node->timeout($interval) if ($node);
+        }
         return $this->okay($envelope);
     };
     $interpreter->commands->{'list_files'} = sub {
@@ -197,13 +211,13 @@ sub rescan_files {
             $tail->arguments($arguments);
             $tail->buffer_mode('line-buffered');
             $tail->max_unanswered(256);
-            $tail->timeout($DEFAULT_TIMEOUT);
+            $tail->timeout( $self->timeout );
             $tail->owner($node_path);
             $tail->sink( $self->router );
             my $message = Tachikoma::Message->new;
             $message->type(TM_BYTESTREAM);
             $message->payload($path);
-            $self->{file_watcher}->fill($message);
+            $self->file_watcher->fill($message);
         }
     }
     my $tiedhash = $self->tiedhash;
@@ -313,6 +327,14 @@ sub filename {
         $self->{filename} = $self->{name} . '.db';
     }
     return $self->{filename};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
 }
 
 sub timer {
