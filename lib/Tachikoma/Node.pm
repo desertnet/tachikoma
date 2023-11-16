@@ -13,7 +13,6 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_INFO TM_REQUEST TM_ERROR TM_EOF
 );
 use Tachikoma::Command;
-use Tachikoma::Crypto;
 use POSIX qw( strftime );
 use Sys::Hostname qw( hostname );
 use Time::HiRes;
