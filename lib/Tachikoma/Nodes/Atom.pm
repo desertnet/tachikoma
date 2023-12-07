@@ -64,8 +64,10 @@ sub fill {
         my $error = $@ || 'unknown error';
         return $self->stderr("ERROR: couldn't tempfile $path: $error");
     }
-    syswrite $fh, $message->[PAYLOAD]
-        or return $self->stderr("ERROR: couldn't write $template: $!");
+    my $rv = syswrite $fh, $message->[PAYLOAD];
+    if ( not defined $rv or $rv != length $message->[PAYLOAD] ) {
+        return $self->stderr("ERROR: couldn't write $template: $!");
+    }
     close $fh
         or return $self->stderr("ERROR: couldn't close $template: $!");
     chmod 0644, $template
