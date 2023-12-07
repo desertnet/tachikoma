@@ -2701,7 +2701,7 @@ sub make_node {
     my $okay = eval {
         $node->name($name);
         $node->arguments( $arguments // q() );
-        $node->debug_state($self->debug_state);
+        $node->debug_state( $self->debug_state );
         $node->sink($self);
         $self->connect_node( $name, $owner ) if ( length $owner );
         return 1;
@@ -2746,7 +2746,7 @@ sub connect_inet {
             Tachikoma::Nodes::STDIO->inet_client_async( $host, $port );
     }
     $connection->name($name);
-    $connection->debug_state($self->debug_state);
+    $connection->debug_state( $self->debug_state );
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2784,7 +2784,7 @@ sub connect_unix {
         $connection = Tachikoma::Nodes::STDIO->unix_client_async($filename);
     }
     $connection->name($name);
-    $connection->debug_state($self->debug_state);
+    $connection->debug_state( $self->debug_state );
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
