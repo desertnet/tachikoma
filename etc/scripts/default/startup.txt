@@ -57,8 +57,8 @@ command root add /store   store:dir
 command root add /sigma   sigma
 command root add /trigger topic1:dir
 connect_node http:responder root
-listen_inet --io 0.0.0.0:4242
-connect_sink 0.0.0.0:4242 http:responder
+listen_inet --io 127.0.0.1:4242
+connect_sink 127.0.0.1:4242 http:responder
 
 # server log
 make_node Tail    server_log:tail <home>/.tachikoma/log/tachikoma-server.log
