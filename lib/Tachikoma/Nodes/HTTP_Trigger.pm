@@ -144,7 +144,7 @@ sub send_response {
         "Server: Tachikoma\n",
         "Connection: close\n",
         'Content-Type: ',
-        $TYPES{$type} || $TYPES{'json'}, "\n",
+        $TYPES{$type} || $TYPES{'txt'}, "\n",
         'Content-Length: ', length( $http->{content} ),
         "\n\n",
         $http->{content};
