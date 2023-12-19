@@ -23,7 +23,6 @@ use version; our $VERSION = qv('v2.0.280');
 
 my $CLEAR_INTERVAL  = 900;
 my $DEFAULT_TIMEOUT = 900;
-my $TIMER_INTERVAL  = 15;
 my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_DIR          = "$HOME/.tachikoma/queues";
 my %C               = ();
@@ -169,7 +168,7 @@ sub handle_response {
 
 sub fire {
     my $self = shift;
-    $self->set_timer( $TIMER_INTERVAL * 1000 );
+    $self->set_timer;
 
     # maintain stats
     if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
