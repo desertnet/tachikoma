@@ -18,15 +18,23 @@
 # persistent storage
 var home     = `echo ~`;
 var hostname = `hostname -s`;
-make_node Partition topic1 --filename=<home>/.tachikoma/partitions/topic1.log \
-                           --segment_size=(8 * 1024 * 1024)
-make_node Partition cache  --filename=<home>/.tachikoma/partitions/cache.log \
-                           --segment_size=1
+make_node Broker broker localhost:5501 <home>/.tachikoma/pool
+cd broker
+    set_broker localhost:5501 <home>/.tachikoma/pool
+    set_topic topic1 --num_partitions=1                                 \
+                     --replication_factor=1
+    set_group cache  --topic=topic1
+    start_broker
+cd ..
+listen_inet 127.0.0.1:5501
+connect_inet localhost:5501 localhost:5501
+make_node Topic topic1 localhost:5501/broker
 
 
 # in-memory table
-make_node Consumer       topic1:consumer --partition=topic1 \
-                                         --offsetlog=cache \
+make_node ConsumerBroker topic1:consumer --broker=localhost:5501/broker \
+                                         --topic=topic1                 \
+                                         --group=cache                  \
                                          --max_unanswered=0
 make_node HTTP_Trigger   topic1:dir      /trigger 
 make_node Tee            topic1:tee
