@@ -1,6 +1,5 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 if (<_C> > 0) {
-    log "arguments: <@>";
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
             var <_1> = <_2>;
@@ -13,6 +12,15 @@ if (<_C> > 0) {
             exit 1;
         }
     }
+}
+if ([var help]) {
+    print 'Usage:
+tachikoma-server [ --debug=<level>   ]
+                 [ --daemon=[yes|no] ]
+                 [ --startup=<file>  ]
+                 [ --help            ]
+';
+    exit;
 }
 if ([var debug]) {
     debug_state _command_interpreter <debug>;
@@ -30,5 +38,6 @@ if ([var daemon] eq "no") {
     daemonize [var name];
 }
 listen_inet
+log "arguments: <@>";
 log "running <startup>"
 include <startup>

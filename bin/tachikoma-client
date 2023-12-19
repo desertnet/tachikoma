@@ -13,6 +13,23 @@ if (<_C> > 0) {
     }
 }
 var args
+if ([var help]) {
+    print 'Usage:
+tachikoma-client [ --socket=<socket>   ]
+                 [ --host=<host>       ]
+                 [ --port=<port>       ]
+                 [ --use-ssl           ]
+                 [ --scheme=<scheme>   ]
+                 [ --timeout=<timeout> ]
+                 [ --debug=<debug>     ]
+                 [ --verbose           ]
+                 [ --path=<path>       ]
+                 [ --connect-log       ]
+                 [ --help              ]
+                 [ <file>              ]
+';
+    exit;
+}
 if ([var socket])  { args .= --socket=<socket>     }
 if ([var host])    { args .= --host=<host>         }
 if ([var port])    { args .= --port=<port>         }
