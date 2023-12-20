@@ -107,7 +107,7 @@ sub drain {
     $KQUEUE->EV_SET( SIGUSR1, EVFILT_SIGNAL, EV_ADD );
 
     while ( $router->{is_active} ) {
-        my @events = $KQUEUE->kevent( keys %TIMERS ? 100 : 60000 );
+        my @events = $KQUEUE->kevent( keys %TIMERS ? 0 : 60000 );
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for (@events) {
