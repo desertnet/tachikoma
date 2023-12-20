@@ -9,10 +9,11 @@ var name
 include config.tsl
 connect_hub
 make_x - ConsumerBroker consumer_broker --broker=<broker>      \
-                                        --default_offset=start \
-                                        --startup_delay=0      \
+                                        --topic=<topic>        \
+                                        --max_unanswered=0     \
                                         --poll_interval=0.1    \
-                                        --topic=<topic>
+                                        --default_offset=start \
+                                        --startup_delay=0
 # debug_state consumer_broker 9
 on consumer_broker READY exit 0
 secure 3
