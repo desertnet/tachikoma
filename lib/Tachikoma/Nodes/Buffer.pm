@@ -25,6 +25,7 @@ my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_DIR          = "$HOME/.tachikoma/buffers";
 my $COUNTER         = 0;
 my $DEFAULT_MAX_ATTEMPTS = 10;
+my $HEARTBEAT_INTERVAL   = 15;    # seconds
 my %C                    = ();
 
 sub new {
@@ -197,7 +198,8 @@ sub fire {
         }
         else {
             $self->set_timer( $timeout - $span )
-                if ( $timeout - $span < $self->{timer_interval} );
+                if ( $timeout - $span
+                < ( $self->{timer_interval} // $HEARTBEAT_INTERVAL * 1000 ) );
         }
     }
     if ( not $self->{owner} ) {

@@ -25,7 +25,8 @@ my $CLEAR_INTERVAL  = 900;
 my $DEFAULT_TIMEOUT = 900;
 my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
 my $DB_DIR          = "$HOME/.tachikoma/queues";
-my %C               = ();
+my $HEARTBEAT_INTERVAL = 15;    # seconds
+my %C                  = ();
 
 sub new {
     my $class = shift;
@@ -189,7 +190,8 @@ sub fire {
         }
         else {
             $self->set_timer( $timeout - $span )
-                if ( $timeout - $span < $self->{timer_interval} );
+                if ( $timeout - $span
+                < ( $self->{timer_interval} // $HEARTBEAT_INTERVAL * 1000 ) );
         }
     }
     if ( not $self->{owner} ) {
