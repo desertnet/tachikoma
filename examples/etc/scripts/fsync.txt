@@ -11,6 +11,7 @@ func fsync_source {
     local max_files  ||= 256;
     local secure     //= 2;
     local pedantic;
+    local listen_ip  //= '0.0.0.0';
     local port = var fsync_ports.<name>;
     if ( <user> ) [
         local count = 1;
@@ -72,8 +73,8 @@ func fsync_source {
                     make_node ClientConnector FileSender:client_connector FileSender:tee;
                     connect_sink FileSender:tee FileSender; # force responses through
                     connect_node FileSender     _parent/output:link;
-                    listen_inet --scheme=rsa --use-ssl 0.0.0.0:<bridge_port>;
-                    register 0.0.0.0:<bridge_port> FileSender:client_connector AUTHENTICATED;
+                    listen_inet --scheme=rsa --use-ssl <listen_ip>:<bridge_port>;
+                    register <listen_ip>:<bridge_port> FileSender:client_connector AUTHENTICATED;
                     secure 3;
                 cd ..;
                 connect_node FileSender:load_balancer <name>:bridge<i>/FileSender;
@@ -145,15 +146,15 @@ func fsync_source {
             make_node Tee             heartbeat:tee;
             make_node ClientConnector heartbeat:client_connector heartbeat:tee;
             connect_node heartbeat heartbeat:tee;
-            listen_inet --scheme=rsa --use-ssl 0.0.0.0:(<port> + 99);
-            register 0.0.0.0:(<port> + 99) heartbeat:client_connector AUTHENTICATED;
+            listen_inet --scheme=rsa --use-ssl <listen_ip>:(<port> + 99);
+            register <listen_ip>:(<port> + 99) heartbeat:client_connector AUTHENTICATED;
         };
 
         # listen ports for incoming connections
-        listen_inet --scheme=rsa --use-ssl 0.0.0.0:<port>;
-        listen_inet --scheme=rsa         127.0.0.1:(<port> + 1);
-        listen_inet --scheme=rsa --use-ssl 0.0.0.0:(<port> + 2);
-        register 0.0.0.0:(<port> + 2) DirStats:client_connector AUTHENTICATED;
+        listen_inet --scheme=rsa --use-ssl <listen_ip>:<port>;
+        listen_inet --scheme=rsa             127.0.0.1:(<port> + 1);
+        listen_inet --scheme=rsa --use-ssl <listen_ip>:(<port> + 2);
+        register <listen_ip>:(<port> + 2) DirStats:client_connector AUTHENTICATED;
 
         if ( <probe> and <count> ) {
             buffer_probe;
