@@ -66,7 +66,11 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Topic <name> <broker path> [ <topic> ]
+make_node Topic <name> <broker>
+make_node Topic <name> --broker=<broker>        \
+                       --topic=<topic>          \
+                       --batch_interval=<float> \
+                       --batch_threshold=<int>
 EOF
 }
 
