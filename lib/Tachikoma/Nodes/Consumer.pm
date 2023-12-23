@@ -95,10 +95,9 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,     $offsetlog,     $max_unanswered,
-            $timeout,       $poll_interval, $hub_timeout,
-            $startup_delay, $cache_type,    $auto_commit,
-            $default_offset,
+        my ($partition,  $offsetlog,   $max_unanswered,
+            $timeout,    $hub_timeout, $startup_delay,
+            $cache_type, $auto_commit, $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -106,7 +105,6 @@ sub arguments {
             'offsetlog=s'      => \$offsetlog,
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
-            'poll_interval=i'  => \$poll_interval,
             'hub_timeout=i'    => \$hub_timeout,
             'startup_delay=i'  => \$startup_delay,
             'cache_type=s'     => \$cache_type,
@@ -126,7 +124,6 @@ sub arguments {
         $self->{msg_unanswered}     = 0;
         $self->{max_unanswered}     = $max_unanswered // 1;
         $self->{timeout}            = $timeout || $DEFAULT_TIMEOUT;
-        $self->{poll_interval}      = $poll_interval || $POLL_INTERVAL;
         $self->{hub_timeout}        = $hub_timeout || $HUB_TIMEOUT;
         $self->{last_receive}       = $Tachikoma::Now;
         $self->{cache_type}         = $cache_type // $CACHE_TYPE;
@@ -150,7 +147,10 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
+    if ( $message->[TYPE] == TM_REQUEST ) {
+        $self->fire;
+    }
+    elsif ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         $self->handle_response($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
@@ -308,6 +308,7 @@ sub fire {
         elsif ( $self->{msg_unanswered} < $self->{max_unanswered} ) {
             $self->drain_buffer_persist;
         }
+        $self->stop_timer if ( $self->{timer_is_active} );
     }
     if ((   not $self->{max_unanswered}
             or $self->{msg_unanswered} < $self->{max_unanswered}
@@ -1015,6 +1016,9 @@ sub get_batch_sync {
                 ${ $self->{buffer} } .= $response->[PAYLOAD];
             }
             $expecting = undef;
+        }
+        elsif ( $response->[TYPE] & TM_REQUEST ) {
+            $expecting = 1;
         }
         elsif ( $response->[PAYLOAD] ) {
             die $response->[PAYLOAD];

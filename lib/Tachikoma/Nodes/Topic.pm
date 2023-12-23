@@ -17,6 +17,7 @@ use Tachikoma::Message qw(
     TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Digest::MD5 qw( md5 );
+use Getopt::Long qw( GetOptionsFromString );
 use Time::HiRes qw( usleep );
 use parent qw( Tachikoma::Nodes::Timer );
 
@@ -74,11 +75,23 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         $self->{arguments} = $arguments;
-        my ( $broker, $topic ) = split q( ), $arguments, 2;
+        my ( $broker, $topic, $batch_interval, $batch_threshold );
+        my ( $r, $argv ) = GetOptionsFromString(
+            $arguments,
+            'broker=s'          => \$broker,
+            'topic=s'           => \$topic,
+            'batch_interval=f'  => \$batch_interval,
+            'batch_threshold=i' => \$batch_threshold,
+        );
+        $broker //= shift @{$argv};
+        die "ERROR: bad arguments for Topic\n"
+            if ( not $r or not $broker );
         die "ERROR: bad arguments for Topic\n" if ( not $broker );
         $self->{broker_path}     = $broker;
         $self->{topic}           = $topic // $self->{name};
         $self->{partitions}      = undef;
+        $self->{batch_interval}  = $batch_interval // $BATCH_INTERVAL;
+        $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
         $self->{next_partition}  = 0;
         $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
         $self->{batch}           = {};

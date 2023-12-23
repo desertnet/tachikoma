@@ -23,8 +23,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $CHECK_INTERVAL  = 2;             # check partition map this often
-my $POLL_INTERVAL   = 1;             # poll for new messages this often
+my $POLL_INTERVAL   = 2;             # check partition map this often
 my $STARTUP_DELAY   = 5;             # wait at least this long on startup
 my $COMMIT_INTERVAL = 60;            # commit offsets
 my $DEFAULT_TIMEOUT = 900;           # default message timeout
@@ -78,7 +77,6 @@ make_node ConsumerBroker <node name> --broker=<path>               \
                                      --partition_id=<int>          \
                                      --max_unanswered=<int>        \
                                      --timeout=<seconds>           \
-                                     --poll_interval=<seconds>     \
                                      --hub_timeout=<seconds>       \
                                      --cache_type=<string>         \
                                      --auto_commit=<seconds>       \
@@ -92,10 +90,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($broker,        $topic,          $group,
-            $partition_id,  $max_unanswered, $timeout,
-            $poll_interval, $hub_timeout,    $startup_delay,
-            $cache_type,    $auto_commit,    $default_offset,
+        my ($broker,       $topic,          $group,
+            $partition_id, $max_unanswered, $timeout,
+            $hub_timeout,  $startup_delay,  $cache_type,
+            $auto_commit,  $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -105,7 +103,6 @@ sub arguments {
             'partition_id=s'   => \$partition_id,
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
-            'poll_interval=f'  => \$poll_interval,
             'hub_timeout=i'    => \$hub_timeout,
             'startup_delay=i'  => \$startup_delay,
             'cache_type=s'     => \$cache_type,
@@ -124,7 +121,6 @@ sub arguments {
         $self->{max_unanswered} = $max_unanswered // 1;
         $self->{timeout}        = $timeout || $DEFAULT_TIMEOUT;
         $self->{check_interval} = 0;
-        $self->{poll_interval}  = $poll_interval || $POLL_INTERVAL;
         $self->{hub_timeout}    = $hub_timeout || $HUB_TIMEOUT;
         $self->{startup_delay}  = $startup_delay // $STARTUP_DELAY;
 
@@ -184,24 +180,20 @@ sub fire {
     my $consumers = $self->{consumers};
     $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
         if ( $self->{debug_state} and $self->{debug_state} >= 3 );
-    if ( $Tachikoma::Right_Now - $self->{last_check}
-        >= $self->{check_interval} )
-    {
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE] = TM_REQUEST;
-        $message->[FROM] = $self->name;
-        $message->[TO]   = $self->broker_path;
-        if ( defined $self->{partition_id} or not $self->{group} ) {
-            $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
-        }
-        else {
-            $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
-        }
-        $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-        $self->sink->fill($message);
-        $self->{last_check} = $Tachikoma::Right_Now;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE] = TM_REQUEST;
+    $message->[FROM] = $self->name;
+    $message->[TO]   = $self->broker_path;
+    if ( defined $self->{partition_id} or not $self->{group} ) {
+        $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
     }
+    else {
+        $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
+    }
+    $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    $self->sink->fill($message);
+    $self->{last_check} = $Tachikoma::Right_Now;
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
     {
@@ -253,7 +245,7 @@ sub update_graph {
     my $self       = shift;
     my $message    = shift;
     my $partitions = $message->payload;
-    my $ready      = $self->{check_interval} != $CHECK_INTERVAL;
+    my $ready      = $self->{check_interval} != $POLL_INTERVAL;
     if ( ref $partitions eq 'ARRAY' ) {
         my %mapping = ();
         my $i       = 0;
@@ -295,7 +287,7 @@ sub update_graph {
     }
     if ($ready) {
         $self->stderr('DEBUG: GRAPH_COMPLETE') if ( $self->debug_state );
-        $self->{check_interval} = $CHECK_INTERVAL;
+        $self->{check_interval} = $POLL_INTERVAL;
     }
     return;
 }
@@ -356,7 +348,6 @@ sub make_consumer {
             $consumer->auto_commit( $self->auto_commit );
         }
         $consumer->default_offset( $self->default_offset );
-        $consumer->poll_interval( $self->poll_interval );
         $consumer->hub_timeout( $self->hub_timeout );
         $consumer->max_unanswered( $self->max_unanswered );
         $consumer->timeout( $self->timeout );
@@ -366,6 +357,7 @@ sub make_consumer {
         $consumer->owner( $self->owner );
         $consumer->debug_state( $self->debug_state );
         $consumer->register( 'READY', $self->name );
+        $consumer->set_timer(0);
         $self->consumers->{$partition_id} = $consumer;
     }
     return;
@@ -653,7 +645,7 @@ sub get_partitions {
     my $self = shift;
     $self->{sync_error} = undef;
     if ( not $self->{partitions}
-        or time - $self->{last_check} > $CHECK_INTERVAL )
+        or time - $self->{last_check} > $POLL_INTERVAL )
     {
         my $partitions = $self->broker->get_mapping;
         for my $partition_id ( keys %{ $self->consumers } ) {

@@ -409,10 +409,8 @@ sub process_get {
         $response->[TYPE] = TM_EOF;
         $response->[ID]   = $offset;
         $node->fill($response);
-        if ($broker_id) {
-            $self->{in_sync_replicas}->{$broker_id} = $offset;
-            $self->{waiting}->{$to}                 = $name;
-        }
+        $self->{in_sync_replicas}->{$broker_id} = $offset if ($broker_id);
+        $self->{waiting}->{$to}                 = $name;
     }
     return;
 }

@@ -8,7 +8,8 @@ package Tachikoma::Nodes::HTTP_File;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime send404 );
+use Tachikoma::Nodes::HTTP_Responder
+    qw( get_time log_entry cached_strftime send404 );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
