@@ -37,12 +37,4 @@ sub initialize_graph {
     return;
 }
 
-sub fill {
-    my $self    = shift;
-    my $message = shift;
-    $message->[TO] = join q(/), '_parent', $message->[TO]
-        if ( $message->[TO] !~ m{^_parent} );
-    return $self->SUPER::fill($message);
-}
-
 1;
