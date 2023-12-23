@@ -8,7 +8,7 @@ package Tachikoma::Nodes::HTTP_Store;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry );
+use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry send404 );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
@@ -116,29 +116,6 @@ sub fill {
     $self->{counter}++;
     log_entry( $self, 200, $message );
     return;
-}
-
-sub send404 {
-    my $self     = shift;
-    my $message  = shift;
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_BYTESTREAM;
-    $response->[TO]      = $message->[FROM];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q(),
-        "HTTP/1.1 404 NOT FOUND\n",
-        strftime( "Date: %a, %d %b %Y %T GMT\n", gmtime $Tachikoma::Now ),
-        "Server: Tachikoma\n",
-        "Connection: close\n",
-        "Content-Type: text/plain; charset=utf8\n",
-        "\n",
-        "Requested URL not found.\n";
-    $self->{sink}->fill($response);
-    $response         = Tachikoma::Message->new;
-    $response->[TYPE] = TM_EOF;
-    $response->[TO]   = $message->[FROM];
-    log_entry( $self, 404, $message );
-    return $self->{sink}->fill($response);
 }
 
 sub tmp_path {

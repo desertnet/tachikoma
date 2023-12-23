@@ -10,14 +10,14 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE
+    TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use File::Temp qw( tempfile );
 use POSIX qw( strftime );
 use Time::Local;
 use vars qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Nodes::Timer );
-@EXPORT_OK = qw( get_time log_entry cached_strftime );
+@EXPORT_OK = qw( get_time log_entry cached_strftime send404 );
 
 use version; our $VERSION = qv('v2.0.314');
 
@@ -208,6 +208,29 @@ sub get_time {
             : timelocal( $sec, $min, $hour, $day, $mon - 1, $year - 1900 );
     }
     return $time;
+}
+
+sub send404 {
+    my $self     = shift;
+    my $message  = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_BYTESTREAM;
+    $response->[TO]      = $message->[FROM];
+    $response->[STREAM]  = $message->[STREAM];
+    $response->[PAYLOAD] = join q(),
+        "HTTP/1.1 404 NOT FOUND\n",
+        'Date: ', cached_strftime(), "\n",
+        "Server: Tachikoma\n",
+        "Connection: close\n",
+        "Content-Type: text/plain; charset=utf8\n",
+        "\n",
+        "Requested URL not found.\n";
+    $self->{sink}->fill($response);
+    $response         = Tachikoma::Message->new;
+    $response->[TYPE] = TM_EOF;
+    $response->[TO]   = $message->[FROM];
+    log_entry( $self, 404, $message );
+    return $self->{sink}->fill($response);
 }
 
 sub log_entry {

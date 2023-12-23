@@ -8,7 +8,7 @@ package Tachikoma::Nodes::HTTP_File;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime );
+use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime send404 );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
@@ -93,20 +93,7 @@ sub fill {
         return $self->{sink}->fill($response);
     }
     elsif ( not -r _ ) {
-        $response->[PAYLOAD] = join q(),
-            "HTTP/1.1 404 NOT FOUND\n",
-            'Date: ', cached_strftime(), "\n",
-            "Server: Tachikoma\n",
-            "Connection: close\n",
-            "Content-Type: text/plain; charset=utf8\n",
-            "\n",
-            "Requested URL not found.\n";
-        $self->{sink}->fill($response);
-        $response         = Tachikoma::Message->new;
-        $response->[TYPE] = TM_EOF;
-        $response->[TO]   = $message->[FROM];
-        log_entry( $self, 404, $message );
-        return $self->{sink}->fill($response);
+        return $self->send404($message);
     }
     elsif ($if_modified) {
         my $last_modified = ( stat _ )[9];
