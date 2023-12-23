@@ -64,14 +64,16 @@ connect_sink 0.0.0.0:4242 http:responder
 
 # server log
 #   - support bin/tachikoma-client --connect-log
-make_node Tail    server_log:tail <home>/.tachikoma/log/tachikoma-server.log
-make_node Ruleset server_log:ruleset
-make_node Tee     server_log
+make_node Tail     server_log:tail <home>/.tachikoma/log/tachikoma-server.log
+make_node Ruleset  server_log:ruleset
+make_node LogColor server_log:color
+make_node Tee      server_log
 cd server_log:ruleset:config
     add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"
     add 1000 allow
 cd ..
-connect_node server_log:ruleset server_log
+connect_node server_log:color   server_log
+connect_node server_log:ruleset server_log:color
 connect_node server_log:tail    server_log:ruleset
 
 secure 2
