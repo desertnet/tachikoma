@@ -242,6 +242,7 @@ sub fire {
             if ( $Tachikoma::Nodes{$name} ) {
                 my $message = Tachikoma::Message->new;
                 $message->[TYPE]    = TM_REQUEST;
+                $message->[FROM]    = $self->{name};
                 $message->[TO]      = $follower;
                 $message->[PAYLOAD] = "UPDATE\n";
                 $self->{sink}->fill($message);
