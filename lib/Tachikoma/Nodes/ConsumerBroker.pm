@@ -23,7 +23,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $POLL_INTERVAL     = 1;             # check partition map this often
+my $POLL_INTERVAL     = 5;             # check partition map this often
 my $CONSUMER_INTERVAL = 15;            # sanity check consumers this often
 my $STARTUP_DELAY     = 5;             # wait at least this long on startup
 my $COMMIT_INTERVAL   = 60;            # commit offsets
