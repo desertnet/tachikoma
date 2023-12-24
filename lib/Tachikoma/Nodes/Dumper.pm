@@ -137,6 +137,12 @@ sub dump_response {
             return;    # TLDNR
         }
     }
+    elsif ( $command->{name} eq 'prompt' ) {
+        $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[PAYLOAD] = $command->{payload};
+        $self->SUPER::fill($message);
+        return;
+    }
     if (    $self->{configuration}->{debug_level}
         and $self->{configuration}->{debug_level} >= 2 )
     {
