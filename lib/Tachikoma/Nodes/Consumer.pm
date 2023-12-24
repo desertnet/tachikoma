@@ -148,7 +148,7 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] == TM_REQUEST ) {
-        $self->fire;
+        $self->set_timer(0);
     }
     elsif ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         $self->handle_response($message);
@@ -308,7 +308,6 @@ sub fire {
         elsif ( $self->{msg_unanswered} < $self->{max_unanswered} ) {
             $self->drain_buffer_persist;
         }
-        $self->stop_timer if ( $self->{timer_is_active} );
     }
     if ((   not $self->{max_unanswered}
             or $self->{msg_unanswered} < $self->{max_unanswered}

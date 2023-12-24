@@ -23,12 +23,13 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $POLL_INTERVAL   = 2;             # check partition map this often
-my $STARTUP_DELAY   = 5;             # wait at least this long on startup
-my $COMMIT_INTERVAL = 60;            # commit offsets
-my $DEFAULT_TIMEOUT = 900;           # default message timeout
-my $HUB_TIMEOUT     = 300;           # timeout waiting for hub
-my $CACHE_TYPE      = 'snapshot';    # save complete state
+my $POLL_INTERVAL     = 1;             # check partition map this often
+my $CONSUMER_INTERVAL = 15;            # sanity check consumers this often
+my $STARTUP_DELAY     = 5;             # wait at least this long on startup
+my $COMMIT_INTERVAL   = 60;            # commit offsets
+my $DEFAULT_TIMEOUT   = 900;           # default message timeout
+my $HUB_TIMEOUT       = 300;           # timeout waiting for hub
+my $CACHE_TYPE        = 'snapshot';    # save complete state
 
 sub new {
     my $class = shift;
@@ -193,17 +194,19 @@ sub fire {
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     $self->sink->fill($message);
-    $self->{last_check} = $Tachikoma::Right_Now;
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{poll_interval} * 1000 )
     {
         $self->set_timer( $self->{poll_interval} * 1000 );
     }
-    for my $partition_id ( keys %{$consumers} ) {
-        next
-            if ( $consumers->{$partition_id}->{timer_is_active}
-            or not $consumers->{$partition_id}->{name} );
-        $consumers->{$partition_id}->fire;
+    if ( $Tachikoma::Right_Now - $self->{last_check} > $CONSUMER_INTERVAL ) {
+        for my $partition_id ( keys %{$consumers} ) {
+            next
+                if ( $consumers->{$partition_id}->{timer_is_active}
+                or not $consumers->{$partition_id}->{name} );
+            $consumers->{$partition_id}->fire;
+        }
+        $self->{last_check} = $Tachikoma::Right_Now;
     }
     return;
 }
@@ -348,6 +351,7 @@ sub make_consumer {
             $consumer->auto_commit( $self->auto_commit );
         }
         $consumer->default_offset( $self->default_offset );
+        $consumer->poll_interval($CONSUMER_INTERVAL);
         $consumer->hub_timeout( $self->hub_timeout );
         $consumer->max_unanswered( $self->max_unanswered );
         $consumer->timeout( $self->timeout );
@@ -357,7 +361,6 @@ sub make_consumer {
         $consumer->owner( $self->owner );
         $consumer->debug_state( $self->debug_state );
         $consumer->register( 'READY', $self->name );
-        $consumer->set_timer(0);
         $self->consumers->{$partition_id} = $consumer;
     }
     return;
