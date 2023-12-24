@@ -21,13 +21,13 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $POLL_INTERVAL   = 1;             # poll for new messages this often
-my $STARTUP_DELAY   = 5;             # wait at least this long on startup
-my $DEFAULT_TIMEOUT = 900;           # default message timeout
-my $EXPIRE_INTERVAL = 15;            # check message timeouts
-my $COMMIT_INTERVAL = 60;            # commit offsets
-my $HUB_TIMEOUT     = 300;           # timeout waiting for hub
-my $CACHE_TYPE      = 'snapshot';    # save complete state
+my $POLL_INTERVAL   = 15;           # sanity check for new messages this often
+my $STARTUP_DELAY   = 5;            # wait at least this long on startup
+my $DEFAULT_TIMEOUT = 900;          # default message timeout
+my $EXPIRE_INTERVAL = 15;           # check message timeouts
+my $COMMIT_INTERVAL = 60;           # commit offsets
+my $HUB_TIMEOUT     = 300;          # timeout waiting for hub
+my $CACHE_TYPE      = 'snapshot';   # save complete state
 
 sub new {
     my $class      = shift;
