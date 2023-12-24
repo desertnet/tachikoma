@@ -25,7 +25,7 @@ use version; our $VERSION = qv('v2.0.256');
 
 my $BATCH_INTERVAL  = 0.25;     # how long to wait if below threshold
 my $BATCH_THRESHOLD = 65536;    # low water mark before sending batches
-my $POLL_INTERVAL   = 5;        # delay between polls
+my $ASYNC_INTERVAL  = 5;        # check partition map this often
 my $STARTUP_DELAY   = 0;        # offset from poll interval
 my $HUB_TIMEOUT     = 60;       # synchronous timeout waiting for hub
 
@@ -38,7 +38,7 @@ sub new {
     $self->{partitions}             = undef;
     $self->{batch_interval}         = $BATCH_INTERVAL;
     $self->{batch_threshold}        = $BATCH_THRESHOLD;
-    $self->{poll_interval}          = $POLL_INTERVAL;
+    $self->{async_interval}         = $ASYNC_INTERVAL;
     $self->{next_partition}         = 0;
     $self->{last_check}             = 0;
     $self->{batch}                  = {};
@@ -53,11 +53,11 @@ sub new {
 
     # sync support
     if ( length $self->{topic} ) {
-        $self->{broker_ids}  = ['localhost:5501'];
-        $self->{persist}     = 'cancel';
-        $self->{hub_timeout} = $HUB_TIMEOUT;
-        $self->{targets}     = {};
-        $self->{sync_error}  = undef;
+        $self->{broker_ids}    = ['localhost:5501'];
+        $self->{persist}       = 'cancel';
+        $self->{hub_timeout}   = $HUB_TIMEOUT;
+        $self->{targets}       = {};
+        $self->{sync_error}    = undef;
     }
     bless $self, $class;
     return $self;
@@ -104,7 +104,7 @@ sub arguments {
         $self->{batch_timestamp} = {};
         $self->{responses}       = {};
         $self->{batch_responses} = {};
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        $self->set_timer( $self->{async_interval} * 1000 );
     }
     return $self->{arguments};
 }
@@ -193,7 +193,7 @@ sub fire {
         }
     }
     if ( $Tachikoma::Right_Now - $self->{last_check}
-        >= $self->{poll_interval} )
+        >= $self->{async_interval} )
     {
         $self->{valid_broker_paths} = undef;
         my $message = Tachikoma::Message->new;
@@ -210,8 +210,8 @@ sub fire {
         $self->set_timer( $batch_interval * 1000 )
             if ( $self->{timer_interval} != $batch_interval * 1000 );
     }
-    elsif ( $self->{timer_interval} != $self->{poll_interval} * 1000 ) {
-        $self->set_timer( $self->{poll_interval} * 1000 );
+    elsif ( $self->{timer_interval} != $self->{async_interval} * 1000 ) {
+        $self->set_timer( $self->{async_interval} * 1000 );
     }
     return;
 }
@@ -446,12 +446,12 @@ sub batch_threshold {
     return $self->{batch_threshold};
 }
 
-sub poll_interval {
+sub async_interval {
     my $self = shift;
     if (@_) {
-        $self->{poll_interval} = shift;
+        $self->{async_interval} = shift;
     }
-    return $self->{poll_interval};
+    return $self->{async_interval};
 }
 
 sub next_partition {

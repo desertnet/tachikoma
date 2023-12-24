@@ -21,7 +21,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $POLL_INTERVAL   = 15;           # sanity check for new messages this often
+my $ASYNC_INTERVAL  = 15;           # sanity check for new messages this often
+my $POLL_INTERVAL   = 0.1;          # sync check for new messages this often
 my $STARTUP_DELAY   = 5;            # wait at least this long on startup
 my $DEFAULT_TIMEOUT = 900;          # default message timeout
 my $EXPIRE_INTERVAL = 15;           # check message timeouts
@@ -40,7 +41,7 @@ sub new {
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
     $self->{buffer}          = \$new_buffer;
-    $self->{poll_interval}   = $POLL_INTERVAL;
+    $self->{async_interval}  = $ASYNC_INTERVAL;
     $self->{hub_timeout}     = $HUB_TIMEOUT;
     $self->{last_receive}    = Time::HiRes::time;
     $self->{cache}           = undef;
@@ -64,11 +65,12 @@ sub new {
 
     # sync support
     if ( length $self->{partition} ) {
-        $self->{host}       = 'localhost';
-        $self->{port}       = 4230;
-        $self->{target}     = undef;
-        $self->{eos}        = undef;
-        $self->{sync_error} = undef;
+        $self->{host}          = 'localhost';
+        $self->{port}          = 4230;
+        $self->{target}        = undef;
+        $self->{poll_interval} = $POLL_INTERVAL;
+        $self->{eos}           = undef;
+        $self->{sync_error}    = undef;
     }
     bless $self, $class;
     return $self;
@@ -81,7 +83,6 @@ make_node Consumer <node name> --partition=<path>            \
                                --offsetlog=<path>            \
                                --max_unanswered=<int>        \
                                --timeout=<seconds>           \
-                               --poll_interval=<seconds>     \
                                --hub_timeout=<seconds>       \
                                --cache_type=<string>         \
                                --auto_commit=<seconds>       \
@@ -288,14 +289,14 @@ sub fire {
         $self->expire_messages or return;
     }
     if ( not $self->{timer_interval}
-        or $self->{timer_interval} != $self->{poll_interval} * 1000 )
+        or $self->{timer_interval} != $self->{async_interval} * 1000 )
     {
         if ( defined $self->{partition_id} ) {
             $self->stop_timer;
-            $self->{timer_interval} = $self->{poll_interval} * 1000;
+            $self->{timer_interval} = $self->{async_interval} * 1000;
         }
         else {
-            $self->set_timer( $self->{poll_interval} * 1000 );
+            $self->set_timer( $self->{async_interval} * 1000 );
         }
     }
     if ( length ${ $self->{buffer} } ) {
@@ -744,12 +745,12 @@ sub buffer {
     return $self->{buffer};
 }
 
-sub poll_interval {
+sub async_interval {
     my $self = shift;
     if (@_) {
-        $self->{poll_interval} = shift;
+        $self->{async_interval} = shift;
     }
-    return $self->{poll_interval};
+    return $self->{async_interval};
 }
 
 sub hub_timeout {
@@ -1162,6 +1163,14 @@ sub target {
         }
     }
     return $self->{target};
+}
+
+sub poll_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{poll_interval} = shift;
+    }
+    return $self->{poll_interval};
 }
 
 sub eos {

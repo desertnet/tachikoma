@@ -23,7 +23,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $POLL_INTERVAL     = 5;             # check partition map this often
+my $ASYNC_INTERVAL    = 5;             # check partition map this often
+my $POLL_INTERVAL     = 1;             # check for new messages this often
 my $CONSUMER_INTERVAL = 15;            # sanity check consumers this often
 my $STARTUP_DELAY     = 5;             # wait at least this long on startup
 my $COMMIT_INTERVAL   = 60;            # commit offsets
@@ -38,8 +39,8 @@ sub new {
     $self->{group}          = shift;
     $self->{flags}          = 0;
     $self->{consumers}      = {};
+    $self->{async_interval} = $ASYNC_INTERVAL;
     $self->{check_interval} = 0;
-    $self->{poll_interval}  = $POLL_INTERVAL;
     $self->{hub_timeout}    = $HUB_TIMEOUT;
     $self->{cache_type}     = $CACHE_TYPE;
     $self->{auto_commit}    = $self->{group} ? $COMMIT_INTERVAL : undef;
@@ -56,14 +57,15 @@ sub new {
 
     # sync support
     if ( length $self->{topic} ) {
-        $self->{broker}      = undef;
-        $self->{broker_ids}  = ['localhost:5501'];
-        $self->{targets}     = {};
-        $self->{partitions}  = undef;
-        $self->{leader}      = undef;
-        $self->{last_expire} = 0;
-        $self->{eos}         = undef;
-        $self->{sync_error}  = undef;
+        $self->{broker}        = undef;
+        $self->{broker_ids}    = ['localhost:5501'];
+        $self->{targets}       = {};
+        $self->{partitions}    = undef;
+        $self->{leader}        = undef;
+        $self->{poll_interval} = $POLL_INTERVAL;
+        $self->{last_expire}   = 0;
+        $self->{eos}           = undef;
+        $self->{sync_error}    = undef;
     }
     bless $self, $class;
     return $self;
@@ -195,9 +197,9 @@ sub fire {
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     $self->sink->fill($message);
     if ( not $self->{timer_interval}
-        or $self->{timer_interval} != $self->{poll_interval} * 1000 )
+        or $self->{timer_interval} != $self->{async_interval} * 1000 )
     {
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        $self->set_timer( $self->{async_interval} * 1000 );
     }
     if ( $Tachikoma::Right_Now - $self->{last_check} > $CONSUMER_INTERVAL ) {
         for my $partition_id ( keys %{$consumers} ) {
@@ -248,7 +250,7 @@ sub update_graph {
     my $self       = shift;
     my $message    = shift;
     my $partitions = $message->payload;
-    my $ready      = $self->{check_interval} != $POLL_INTERVAL;
+    my $ready      = $self->{check_interval} != $ASYNC_INTERVAL;
     if ( ref $partitions eq 'ARRAY' ) {
         my %mapping = ();
         my $i       = 0;
@@ -290,7 +292,7 @@ sub update_graph {
     }
     if ($ready) {
         $self->stderr('DEBUG: GRAPH_COMPLETE') if ( $self->debug_state );
-        $self->{check_interval} = $POLL_INTERVAL;
+        $self->{check_interval} = $ASYNC_INTERVAL;
     }
     return;
 }
@@ -351,7 +353,7 @@ sub make_consumer {
             $consumer->auto_commit( $self->auto_commit );
         }
         $consumer->default_offset( $self->default_offset );
-        $consumer->poll_interval($CONSUMER_INTERVAL);
+        $consumer->async_interval($CONSUMER_INTERVAL);
         $consumer->hub_timeout( $self->hub_timeout );
         $consumer->max_unanswered( $self->max_unanswered );
         $consumer->timeout( $self->timeout );
@@ -449,20 +451,20 @@ sub consumers {
     return $self->{consumers};
 }
 
+sub async_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{async_interval} = shift;
+    }
+    return $self->{async_interval};
+}
+
 sub check_interval {
     my $self = shift;
     if (@_) {
         $self->{check_interval} = shift;
     }
     return $self->{check_interval};
-}
-
-sub poll_interval {
-    my $self = shift;
-    if (@_) {
-        $self->{poll_interval} = shift;
-    }
-    return $self->{poll_interval};
 }
 
 sub hub_timeout {
@@ -648,7 +650,7 @@ sub get_partitions {
     my $self = shift;
     $self->{sync_error} = undef;
     if ( not $self->{partitions}
-        or time - $self->{last_check} > $POLL_INTERVAL )
+        or time - $self->{last_check} > $ASYNC_INTERVAL )
     {
         my $partitions = $self->broker->get_mapping;
         for my $partition_id ( keys %{ $self->consumers } ) {
@@ -792,7 +794,6 @@ sub broker {
     if ( not defined $self->{broker} ) {
         my $broker = Tachikoma::Nodes::Topic->new( $self->topic );
         $broker->broker_ids( $self->broker_ids );
-        $broker->poll_interval( $self->poll_interval );
         $broker->hub_timeout( $self->hub_timeout );
         $self->{broker} = $broker;
     }
@@ -823,6 +824,14 @@ sub leader {
         $self->{leader} = shift;
     }
     return $self->{leader};
+}
+
+sub poll_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{poll_interval} = shift;
+    }
+    return $self->{poll_interval};
 }
 
 sub last_expire {
