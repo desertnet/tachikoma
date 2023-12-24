@@ -17,12 +17,15 @@ use parent qw( Tachikoma::Nodes::HTTP_Trigger );
 
 use version; our $VERSION = qv('v2.0.314');
 
+my $COUNTER = 0;
+
 sub fill {
     my $self    = shift;
     my $message = shift;
     if ( $message->[TYPE] & TM_STORABLE ) {
         $message->[ID] = $self->msg_counter;
-        $self->{messages}->{ $message->[ID] } = $message;
+        $self->{messages}->{ $message->[ID] } //= [];
+        push @{ $self->{messages}->{ $message->[ID] } }, $message;
         if ( not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -40,6 +43,12 @@ sub fill {
         $self->handle_response( $message, $message->[ID] );
     }
     return;
+}
+
+sub msg_counter {
+    my $self = shift;
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
 }
 
 1;
