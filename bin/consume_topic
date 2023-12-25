@@ -22,6 +22,7 @@ my $port        = 5501;
 my $use_SSL     = undef;
 my $topic_name  = undef;
 my $group       = undef;
+my $partition   = undef;
 my $offset      = 'end';
 my $batch       = undef;
 my $debug_level = undef;
@@ -35,6 +36,7 @@ my $r = GetOptions(
     'use-ssl'       => \$use_SSL,
     'topic=s'       => \$topic_name,
     'group=s'       => \$group,
+    'partition=i'   => \$partition,
     'offset=s'      => \$offset,
     'batch'         => \$batch,
     'debug_level:i' => \$debug_level,
@@ -66,6 +68,7 @@ if ($group) {
     $consumer_broker->group($group);
     $consumer_broker->auto_commit(1);
 }
+$consumer_broker->partition_id($partition) if ( defined $partition );
 $consumer_broker->debug_state($debug_state);
 $consumer_broker->default_offset($offset);
 $consumer_broker->max_unanswered(0);
@@ -108,6 +111,7 @@ sub usage {
         . "              [ --use-ssl         ]\n"
         . "              [ --topic=<topic>   ]\n"
         . "              [ --group=<group>   ]\n"
+        . "              [ --partition=<i>   ]\n"
         . "              [ --offset=<offset> ]\n"
         . "              [ --batch           ]\n"
         . "              [ --debug_level=<i> ]\n"
