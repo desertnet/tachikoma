@@ -742,6 +742,15 @@ sub make_sync_consumer {
     $consumer->broker_id($broker_id);
     $consumer->partition_id($partition_id);
     $consumer->target( $self->get_target($broker_id) );
+
+    if ( $self->group ) {
+        $consumer->cache_type( $self->cache_type );
+        if ( $self->auto_offset ) {
+            my $offsetlog = join q(:), $log, $self->group;
+            $consumer->offsetlog($offsetlog);
+        }
+        $consumer->auto_commit( $self->auto_commit );
+    }
     $consumer->default_offset( $self->default_offset );
     $consumer->poll_interval(undef);
     $consumer->hub_timeout( $self->hub_timeout );
