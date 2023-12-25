@@ -230,7 +230,7 @@ sub update_leader {
     $response->[FROM]    = $self->name;
     $response->[TO]      = $self->leader_path;
     $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
-    $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+    $self->stderr( 'DEBUG: ' . $response->[PAYLOAD] )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     $self->sink->fill($response);
     return;

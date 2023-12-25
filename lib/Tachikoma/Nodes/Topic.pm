@@ -176,7 +176,7 @@ sub fire {
             $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
             $self->stderr( "DEBUG: FILL $broker_id ",
                 $batch_size->{$i}, ' bytes' )
-                if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+                if ( $self->{debug_state} and $self->{debug_state} >= 3 );
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
             $batch_responses->{$i} //= [];
@@ -202,7 +202,7 @@ sub fire {
         $message->[TO]      = $self->{broker_path};
         $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
         $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-            if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
         $self->{sink}->fill($message);
         $self->{last_check} = $Tachikoma::Right_Now;
     }
