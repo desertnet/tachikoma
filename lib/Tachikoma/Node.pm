@@ -453,7 +453,7 @@ sub log_prefix {
         $prefix = join q(), strftime( '%F %T %Z ', localtime time ),
             hostname(), q( ), $0, '[', $$, ']: ';
     }
-    elsif ( $router->{type} eq 'router' ) {
+    else {
         $prefix = sprintf '%10.5f ', Time::HiRes::time;
     }
     if (@args) {
