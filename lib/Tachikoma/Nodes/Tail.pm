@@ -687,8 +687,6 @@ sub reattempt {
 sub handle_EOF {
     my $self   = shift;
     my $on_eof = $self->{on_EOF};
-    $self->stderr('DEBUG: EOF')
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     if ( $on_eof eq 'delete' ) {
         $self->delete_EOF;
     }

@@ -598,11 +598,10 @@ sub load_cache_complete {
     if ( defined $self->{saved_offset} ) {
         $self->{last_commit_offset} = $self->{saved_offset};
     }
-    else {
+    if ( $self->{debug_state} ) {
         $self->stderr(
-            'INFO: beginning at ',
-            $self->{default_offset},
-            ' offset'
+            'DEBUG: LOAD_CACHE_COMPLETE beginning at ',
+            $self->{saved_offset} // $self->{default_offset}
         );
     }
     $self->{last_commit} = $Tachikoma::Now;
