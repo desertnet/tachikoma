@@ -258,8 +258,8 @@ sub handle_error {
     }
     my $error = $message->[PAYLOAD];
 
-    # $self->stderr("INFO: reset_topic - got $error");
-    $self->reset_topic;
+    # $self->stderr("INFO: restart - got $error");
+    $self->restart;
     for my $sender ( keys %senders ) {
         my $copy = bless [ @{$message} ], ref $message;
         $copy->[TO]     = $sender;
@@ -352,19 +352,19 @@ sub update_partitions {
     my $new_partitions = $partitions ? join q(|), @{$partitions} : q();
     if ( not $okay ) {
         $self->stderr("WARNING: got partial partition map: $new_partitions");
-        $self->reset_topic;
+        $self->restart;
     }
     elsif ( $old_partitions ne $new_partitions ) {
 
         # $self->stderr(
         #     "INFO: partition remap: $old_partitions -> $new_partitions");
-        $self->reset_topic;
+        $self->restart;
     }
     $self->{partitions} = $partitions if ($okay);
     return $okay;
 }
 
-sub reset_topic {
+sub restart {
     my $self = shift;
     $self->{partitions}      = undef;
     $self->{next_partition}  = int rand 1000;
@@ -377,6 +377,7 @@ sub reset_topic {
     $self->{batch_responses} = {};
     $self->{set_state}       = {};
     $self->notify( 'RESET' => $self->{name} );
+    $self->stderr('DEBUG: RESTART') if ( $self->{debug_state} );
     return;
 }
 

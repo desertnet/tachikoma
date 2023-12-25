@@ -609,6 +609,7 @@ sub load_cache_complete {
 
 sub restart {
     my $self = shift;
+    $self->stderr('DEBUG: RESTART') if ( $self->{debug_state} );
     if ( defined $self->partition_id ) {
         $self->remove_node;
     }
