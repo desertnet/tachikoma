@@ -328,6 +328,8 @@ sub update_partitions {
         my $node = $Tachikoma::Nodes{$broker_id};
         if ( not $node ) {
             my ( $host, $port ) = split m{:}, $broker_id, 2;
+            $self->stderr("DEBUG: CREATE $broker_id")
+                if ( $self->debug_state );
             if ( $self->flags & TK_SYNC ) {
                 $node = Tachikoma::Nodes::Socket->inet_client( $host, $port,
                     TK_SYNC );
