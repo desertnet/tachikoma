@@ -1188,4 +1188,5 @@ sub sync_error {
     }
     return $self->{sync_error};
 }
+
 1;
