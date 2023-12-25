@@ -36,7 +36,7 @@ sub new {
     $self->{flags}                  = 0;
     $self->{broker_path}            = undef;
     $self->{partitions}             = undef;
-    $self->{batch_interval}         = $BATCH_INTERVAL;
+    $self->{batch_interval}         = 0;
     $self->{batch_threshold}        = $BATCH_THRESHOLD;
     $self->{async_interval}         = $ASYNC_INTERVAL;
     $self->{next_partition}         = 0;
@@ -176,7 +176,7 @@ sub fire {
             $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
             $self->stderr( "DEBUG: FILL $broker_id ",
                 $batch_size->{$i}, ' bytes' )
-                if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+                if ( $self->{debug_state} and $self->{debug_state} >= 2 );
             $Tachikoma::Nodes{$broker_id}->fill($message)
                 if ( $Tachikoma::Nodes{$broker_id} );
             $batch_responses->{$i} //= [];
@@ -202,7 +202,7 @@ sub fire {
         $message->[TO]      = $self->{broker_path};
         $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
         $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+            if ( $self->{debug_state} and $self->{debug_state} >= 3 );
         $self->{sink}->fill($message);
         $self->{last_check} = $Tachikoma::Right_Now;
     }

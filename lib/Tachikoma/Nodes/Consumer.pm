@@ -21,9 +21,9 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
+my $STARTUP_DELAY   = 5;            # wait at least this long on startup
 my $ASYNC_INTERVAL  = 15;           # sanity check for new messages this often
 my $POLL_INTERVAL   = 0.1;          # sync check for new messages this often
-my $STARTUP_DELAY   = 5;            # wait at least this long on startup
 my $DEFAULT_TIMEOUT = 900;          # default message timeout
 my $EXPIRE_INTERVAL = 15;           # check message timeouts
 my $COMMIT_INTERVAL = 60;           # commit offsets
@@ -42,6 +42,7 @@ sub new {
     $self->{next_offset}     = undef;
     $self->{buffer}          = \$new_buffer;
     $self->{async_interval}  = $ASYNC_INTERVAL;
+    $self->{timeout}         = $DEFAULT_TIMEOUT;
     $self->{hub_timeout}     = $HUB_TIMEOUT;
     $self->{last_receive}    = Time::HiRes::time;
     $self->{cache}           = undef;
@@ -57,7 +58,6 @@ sub new {
     $self->{last_expire}             = $Tachikoma::Now;
     $self->{msg_unanswered}          = 0;
     $self->{max_unanswered}          = 1;
-    $self->{timeout}                 = $DEFAULT_TIMEOUT;
     $self->{startup_delay}           = 0;
     $self->{status}                  = $self->{offsetlog} ? 'INIT' : 'ACTIVE';
     $self->{registrations}->{ACTIVE} = {};
@@ -753,6 +753,14 @@ sub async_interval {
     return $self->{async_interval};
 }
 
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
+}
+
 sub hub_timeout {
     my $self = shift;
     if (@_) {
@@ -872,14 +880,6 @@ sub max_unanswered {
         $self->{max_unanswered} = shift;
     }
     return $self->{max_unanswered};
-}
-
-sub timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{timeout} = shift;
-    }
-    return $self->{timeout};
 }
 
 sub startup_delay {
