@@ -524,8 +524,7 @@ sub commit_offset {
         cache      => $cache,
     };
     return if ( not $self->{sink} );
-    $self->stderr( 'DEBUG: COMMIT_OFFSET ',
-        $offset, ' to ', $self->{offsetlog} )
+    $self->stderr( 'DEBUG: COMMIT_OFFSET ', $offset )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
 
     if ( $self->{cache_type} eq 'snapshot' ) {
