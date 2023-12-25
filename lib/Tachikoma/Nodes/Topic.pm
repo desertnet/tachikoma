@@ -39,7 +39,7 @@ sub new {
     $self->{batch_interval}         = 0;
     $self->{batch_threshold}        = $BATCH_THRESHOLD;
     $self->{async_interval}         = $ASYNC_INTERVAL;
-    $self->{next_partition}         = 0;
+    $self->{next_partition}         = int rand 1000;
     $self->{last_check}             = 0;
     $self->{batch}                  = {};
     $self->{batch_offset}           = {};
@@ -96,7 +96,7 @@ sub arguments {
         $self->{partitions}      = undef;
         $self->{batch_interval}  = $batch_interval // $BATCH_INTERVAL;
         $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
-        $self->{next_partition}  = 0;
+        $self->{next_partition}  = int rand 1000;
         $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
@@ -283,7 +283,8 @@ sub batch_message {
         $i %= scalar @{$partitions};
     }
     else {
-        $i = $self->{next_partition};
+        $i = ( $self->{next_partition} + 1 ) % @{$partitions};
+        $self->{next_partition} = $i;
     }
     my $packed = $message->packed;
     if ( not exists $self->{batch}->{$i} ) {
@@ -303,7 +304,6 @@ sub batch_message {
         push @{ $self->{responses}->{$i} }, $message;
     }
     if ( $self->{batch_size}->{$i} >= $self->{batch_threshold} ) {
-        $self->{next_partition} = ( $i + 1 ) % @{$partitions};
         $self->set_timer(0)
             if ( not defined $self->{timer_interval}
             or $self->{timer_interval} != 0 );
@@ -367,7 +367,7 @@ sub update_partitions {
 sub reset_topic {
     my $self = shift;
     $self->{partitions}      = undef;
-    $self->{next_partition}  = 0;
+    $self->{next_partition}  = int rand 1000;
     $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
     $self->{batch}           = {};
     $self->{batch_offset}    = {};
