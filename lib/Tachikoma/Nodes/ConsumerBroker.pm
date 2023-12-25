@@ -173,6 +173,7 @@ sub fill {
             $self->consumers->{$partition_id}->remove_node;
             delete $self->consumers->{$partition_id};
         }
+        $self->{async_interval} = $STARTUP_INTERVAL;
     }
     elsif ( not $message->[TYPE] & TM_EOF ) {
         $self->stderr( 'INFO: ', $message->type_as_string, ' from ',
@@ -246,7 +247,6 @@ sub update_state {
             if ( not exists $consumers->{$i}->{set_state}->{$event} );
     }
     if ($state) {
-        $self->{async_interval} = $ASYNC_INTERVAL if ( $event eq 'READY' );
         $self->set_state($event);
     }
     return;
@@ -296,6 +296,7 @@ sub update_graph {
     if ($configured) {
         $self->set_state('CONFIGURED')
             if ( not $self->{set_state}->{CONFIGURED} );
+        $self->{async_interval} = $ASYNC_INTERVAL;
     }
     else {
         delete $self->{set_state}->{CONFIGURED};
