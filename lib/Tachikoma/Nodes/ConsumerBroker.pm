@@ -240,7 +240,7 @@ sub update_state {
     my $message   = shift;
     my $event     = $message->[STREAM];
     my $consumers = $self->consumers;
-    my $state     = 1;
+    my $state     = $self->{set_state}->{CONFIGURED};
     for my $i ( keys %{$consumers} ) {
         $state = undef
             if ( not exists $consumers->{$i}->{set_state}->{$event} );
@@ -264,9 +264,6 @@ sub update_graph {
             $mapping{ $i++ } = $broker_id;
         }
         $partitions = \%mapping;
-    }
-    else {
-        $configured = undef;
     }
     for my $partition_id ( keys %{ $self->consumers } ) {
         if ( not $partitions->{$partition_id} ) {
@@ -323,6 +320,8 @@ sub make_broker_connection {
     my $node      = $Tachikoma::Nodes{$broker_id};
     if ( not $node ) {
         my ( $host, $port ) = split m{:}, $broker_id, 2;
+        $self->stderr("DEBUG: CREATE $broker_id")
+            if ( $self->debug_state );
         if ( $self->flags & TK_SYNC ) {
             $node = Tachikoma::Nodes::Socket->inet_client( $host, $port,
                 TK_SYNC );
