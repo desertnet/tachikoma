@@ -53,11 +53,11 @@ sub new {
 
     # sync support
     if ( length $self->{topic} ) {
-        $self->{broker_ids}    = ['localhost:5501'];
-        $self->{persist}       = 'cancel';
-        $self->{hub_timeout}   = $HUB_TIMEOUT;
-        $self->{targets}       = {};
-        $self->{sync_error}    = undef;
+        $self->{broker_ids}  = ['localhost:5501'];
+        $self->{persist}     = 'cancel';
+        $self->{hub_timeout} = $HUB_TIMEOUT;
+        $self->{targets}     = {};
+        $self->{sync_error}  = undef;
     }
     bless $self, $class;
     return $self;
