@@ -490,16 +490,9 @@ sub print_less_often {
 
 sub stderr {
     my ( $self, @args ) = @_;
-    my $joined = join q(), grep { defined and $_ ne q() } @args;
-    return if ( not length $joined );
-    my $msg = undef;
-    my $rv  = undef;
-    if ( $joined =~ m{^\d{4}-\d\d-\d\d} ) {
-        $msg = $joined;
-    }
-    else {
-        $msg = $self->log_prefix($joined);
-    }
+    my $msg = join q(), grep { defined and $_ ne q() } @args;
+    return if ( not length $msg );
+    my $rv = undef;
     push @RECENT_LOG, $msg;
     shift @RECENT_LOG while ( @RECENT_LOG > 100 );
     if ( defined *STDERR ) {
