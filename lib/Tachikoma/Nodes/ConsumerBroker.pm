@@ -43,10 +43,10 @@ sub new {
     $self->{group}          = $group;
     $self->{partition_id}   = undef;
     $self->{max_unanswered} = undef;
+    $self->{startup_delay}  = 0;
     $self->{async_interval} = $STARTUP_INTERVAL;
     $self->{timeout}        = $DEFAULT_TIMEOUT;
     $self->{hub_timeout}    = $HUB_TIMEOUT;
-    $self->{startup_delay}  = 0;
     $self->{flags}          = 0;
     $self->{consumers}      = {};
     $self->{cache_type}     = $CACHE_TYPE;
@@ -98,22 +98,23 @@ sub arguments {
         my $arguments = shift;
         my ($broker,       $topic,          $group,
             $partition_id, $max_unanswered, $timeout,
-            $hub_timeout,  $startup_delay,  $cache_type,
-            $auto_commit,  $default_offset,
+            $hub_timeout,  $startup_delay,  $startup_interval,
+            $cache_type,   $auto_commit,    $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
-            'broker=s'         => \$broker,
-            'topic=s'          => \$topic,
-            'group=s'          => \$group,
-            'partition_id=s'   => \$partition_id,
-            'max_unanswered=i' => \$max_unanswered,
-            'timeout=i'        => \$timeout,
-            'hub_timeout=i'    => \$hub_timeout,
-            'startup_delay=i'  => \$startup_delay,
-            'cache_type=s'     => \$cache_type,
-            'auto_commit=i'    => \$auto_commit,
-            'default_offset=s' => \$default_offset,
+            'broker=s'           => \$broker,
+            'topic=s'            => \$topic,
+            'group=s'            => \$group,
+            'partition_id=s'     => \$partition_id,
+            'max_unanswered=i'   => \$max_unanswered,
+            'timeout=i'          => \$timeout,
+            'hub_timeout=i'      => \$hub_timeout,
+            'startup_delay=i'    => \$startup_delay,
+            'startup_interval=f' => \$startup_interval,
+            'cache_type=s'       => \$cache_type,
+            'auto_commit=i'      => \$auto_commit,
+            'default_offset=s'   => \$default_offset,
         );
         die "ERROR: bad arguments for ConsumerBroker\n" if ( not $r );
         die "ERROR: no topic for ConsumerBroker\n" if ( not length $topic );
@@ -125,10 +126,10 @@ sub arguments {
         $self->{group}          = $group;
         $self->{partition_id}   = $partition_id;
         $self->{max_unanswered} = $max_unanswered // 1;
-        $self->{async_interval} = $STARTUP_INTERVAL;
+        $self->{startup_delay}  = $startup_delay // $STARTUP_DELAY;
+        $self->{async_interval} = $startup_interval // $STARTUP_INTERVAL;
         $self->{timeout}        = $timeout || $DEFAULT_TIMEOUT;
         $self->{hub_timeout}    = $hub_timeout || $HUB_TIMEOUT;
-        $self->{startup_delay}  = $startup_delay // $STARTUP_DELAY;
 
         if ($group) {
             $self->{cache_type}  = $cache_type  // $CACHE_TYPE;
@@ -489,6 +490,14 @@ sub max_unanswered {
     return $self->{max_unanswered};
 }
 
+sub startup_delay {
+    my $self = shift;
+    if (@_) {
+        $self->{startup_delay} = shift;
+    }
+    return $self->{startup_delay};
+}
+
 sub async_interval {
     my $self = shift;
     if (@_) {
@@ -511,14 +520,6 @@ sub hub_timeout {
         $self->{hub_timeout} = shift;
     }
     return $self->{hub_timeout};
-}
-
-sub startup_delay {
-    my $self = shift;
-    if (@_) {
-        $self->{startup_delay} = shift;
-    }
-    return $self->{startup_delay};
 }
 
 sub flags {

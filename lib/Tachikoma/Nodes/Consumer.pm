@@ -41,6 +41,7 @@ sub new {
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
     $self->{buffer}          = \$new_buffer;
+    $self->{startup_delay}   = 0;
     $self->{async_interval}  = $ASYNC_INTERVAL;
     $self->{timeout}         = $DEFAULT_TIMEOUT;
     $self->{hub_timeout}     = $HUB_TIMEOUT;
@@ -58,7 +59,6 @@ sub new {
     $self->{last_expire}             = $Tachikoma::Now;
     $self->{msg_unanswered}          = 0;
     $self->{max_unanswered}          = 1;
-    $self->{startup_delay}           = 0;
     $self->{status}                  = $self->{offsetlog} ? 'INIT' : 'ACTIVE';
     $self->{registrations}->{ACTIVE} = {};
     $self->{registrations}->{READY}  = {};
@@ -748,6 +748,14 @@ sub buffer {
     return $self->{buffer};
 }
 
+sub startup_delay {
+    my $self = shift;
+    if (@_) {
+        $self->{startup_delay} = shift;
+    }
+    return $self->{startup_delay};
+}
+
 sub async_interval {
     my $self = shift;
     if (@_) {
@@ -883,14 +891,6 @@ sub max_unanswered {
         $self->{max_unanswered} = shift;
     }
     return $self->{max_unanswered};
-}
-
-sub startup_delay {
-    my $self = shift;
-    if (@_) {
-        $self->{startup_delay} = shift;
-    }
-    return $self->{startup_delay};
 }
 
 sub status {
