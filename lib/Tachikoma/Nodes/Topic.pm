@@ -39,7 +39,7 @@ sub new {
     $self->{batch_interval}         = 0;
     $self->{batch_threshold}        = $BATCH_THRESHOLD;
     $self->{async_interval}         = $ASYNC_INTERVAL;
-    $self->{next_partition}         = int rand 1_000_000;
+    $self->{next_partition}         = 0;
     $self->{last_check}             = 0;
     $self->{batch}                  = {};
     $self->{batch_offset}           = {};
@@ -96,7 +96,7 @@ sub arguments {
         $self->{partitions}      = undef;
         $self->{batch_interval}  = $batch_interval // $BATCH_INTERVAL;
         $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
-        $self->{next_partition}  = int rand 1_000_000;
+        $self->{next_partition}  = 0;
         $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
@@ -195,16 +195,7 @@ sub fire {
     if ( $Tachikoma::Right_Now - $self->{last_check}
         >= $self->{async_interval} )
     {
-        $self->{valid_broker_paths} = undef;
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_REQUEST;
-        $message->[FROM]    = $self->{name};
-        $message->[TO]      = $self->{broker_path};
-        $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
-        $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-        $self->{sink}->fill($message);
-        $self->{last_check} = $Tachikoma::Right_Now;
+        $self->get_partitions_async;
     }
     if ( keys %{$batch} ) {
         $self->set_timer( $batch_interval * 1000 )
@@ -316,6 +307,21 @@ sub batch_message {
     return;
 }
 
+sub get_partitions_async {
+    my $self = shift;
+    $self->{valid_broker_paths} = undef;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_REQUEST;
+    $message->[FROM]    = $self->{name};
+    $message->[TO]      = $self->{broker_path};
+    $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
+    $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    $self->{sink}->fill($message);
+    $self->{last_check} = $Tachikoma::Right_Now;
+    return;
+}
+
 sub update_partitions {
     my ( $self, $message ) = @_;
     my $partitions = $message->payload;
@@ -378,6 +384,7 @@ sub restart {
     $self->{set_state}       = {};
     $self->notify( 'RESET' => $self->{name} );
     $self->stderr('DEBUG: RESTART') if ( $self->{debug_state} );
+    $self->set_timer(0);
     return;
 }
 
