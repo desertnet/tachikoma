@@ -39,7 +39,7 @@ sub new {
     $self->{batch_interval}         = 0;
     $self->{batch_threshold}        = $BATCH_THRESHOLD;
     $self->{async_interval}         = $ASYNC_INTERVAL;
-    $self->{next_partition}         = int rand 1000;
+    $self->{next_partition}         = int rand 1_000_000;
     $self->{last_check}             = 0;
     $self->{batch}                  = {};
     $self->{batch_offset}           = {};
@@ -96,7 +96,7 @@ sub arguments {
         $self->{partitions}      = undef;
         $self->{batch_interval}  = $batch_interval // $BATCH_INTERVAL;
         $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
-        $self->{next_partition}  = int rand 1000;
+        $self->{next_partition}  = int rand 1_000_000;
         $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
@@ -367,7 +367,7 @@ sub update_partitions {
 sub restart {
     my $self = shift;
     $self->{partitions}      = undef;
-    $self->{next_partition}  = int rand 1000;
+    $self->{next_partition}  = int rand 1_000_000;
     $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
     $self->{batch}           = {};
     $self->{batch_offset}    = {};

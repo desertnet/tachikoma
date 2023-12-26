@@ -33,7 +33,7 @@ usage() if ( $help or not $r or not length $topic );
 
 my $broker     = Tachikoma::Nodes::Topic->new($topic);
 my $partitions = $broker->get_partitions;
-my $i          = $partition > -1 ? $partition : 0;
+my $i          = $partition > -1 ? $partition : int rand 1_000_000;
 my @lines      = ();
 my $last_time  = 0;
 my $total      = 0;
@@ -70,7 +70,6 @@ if ( $mode eq 'keys' ) {
 elsif ( $mode eq 'bytestream' ) {
     while ( my $size = sysread STDIN, $buf[0], 65536 ) {
         $broker->send_messages( $i, \@buf ) or die $broker->sync_error;
-        $i = 0 if ( $partition < 0 and $i++ >= $#{$partitions} );
     }
 }
 else {
@@ -83,6 +82,7 @@ else {
             and @lines < $batch_size
             and $Tachikoma::Right_Now - $last_time < 1 );
         $Tachikoma::Now = int $Tachikoma::Right_Now;
+        $i = ( $i + 1 ) % @{$partitions} if ( $partition < 0 );
         while ( @lines and not $broker->send_messages( $i, \@lines ) ) {
             print {*STDERR} $broker->sync_error;
             sleep 1;
@@ -90,7 +90,6 @@ else {
         last if ( not defined $line or not @lines );
         @lines     = ();
         $last_time = $Tachikoma::Right_Now;
-        $i         = 0 if ( $partition < 0 and $i++ >= $#{$partitions} );
     }
 }
 
