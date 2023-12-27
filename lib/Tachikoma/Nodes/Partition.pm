@@ -448,20 +448,20 @@ sub process_ack {
             last if ( $responses->[0]->[$OFFSET] > $offset );
             $self->cancel( shift @{$responses} );
         }
-    }
-    if ( $self->{followers} ) {
-        for my $follower ( keys %{ $self->{waiting} } ) {
-            my $name = $self->{waiting}->{$follower};
-            next if ( $self->{followers}->{$follower} );
-            if ( $Tachikoma::Nodes{$name} ) {
-                my $message = Tachikoma::Message->new;
-                $message->[TYPE]    = TM_REQUEST;
-                $message->[FROM]    = $self->{name};
-                $message->[TO]      = $follower;
-                $message->[PAYLOAD] = "UPDATE\n";
-                $self->{sink}->fill($message);
+        if ( $self->{followers} ) {
+            for my $follower ( keys %{ $self->{waiting} } ) {
+                my $name = $self->{waiting}->{$follower};
+                next if ( $self->{followers}->{$follower} );
+                if ( $Tachikoma::Nodes{$name} ) {
+                    my $message = Tachikoma::Message->new;
+                    $message->[TYPE]    = TM_REQUEST;
+                    $message->[FROM]    = $self->{name};
+                    $message->[TO]      = $follower;
+                    $message->[PAYLOAD] = "UPDATE\n";
+                    $self->{sink}->fill($message);
+                }
+                delete $self->{waiting}->{$follower};
             }
-            delete $self->{waiting}->{$follower};
         }
     }
     return;
