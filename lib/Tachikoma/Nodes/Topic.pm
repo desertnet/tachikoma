@@ -114,18 +114,18 @@ sub fill {
     if ( $message->[TYPE] & TM_RESPONSE ) {
         $self->handle_response($message);
     }
+    elsif ( $message->[TYPE] & TM_ERROR ) {
+        $self->handle_error($message);
+    }
     elsif ( $self->is_broker_path( $message->[FROM] ) ) {
-        if ( $message->[TYPE] & TM_ERROR ) {
-            $self->handle_error($message);
-        }
-        elsif ( $message->[TYPE] & TM_STORABLE ) {
+        if ( $message->[TYPE] & TM_STORABLE ) {
             my $okay = $self->update_partitions($message);
             $self->set_state('READY')
                 if ( $okay and not $self->{set_state}->{READY} );
         }
         else {
-            $self->stderr( $message->type_as_string, ' from ',
-                $message->from );
+            $self->stderr( 'ERROR: unexpected ',
+                $message->type_as_string, ' from ', $message->from );
         }
     }
     elsif ( not $message->[TYPE] & TM_ERROR ) {
@@ -291,8 +291,8 @@ sub batch_message {
     $self->{counter}++;
 
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $message->[PAYLOAD] = q();
-        push @{ $self->{responses}->{$i} }, $message;
+        push @{ $self->{responses}->{$i} },
+            bless [ @{$message}[ 0 .. PAYLOAD - 1 ] ], ref $message;
     }
     if ( $self->{batch_size}->{$i} >= $self->{batch_threshold} ) {
         $self->set_timer(0)
