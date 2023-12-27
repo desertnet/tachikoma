@@ -81,7 +81,7 @@ sub arguments {
         $self->{max_lifespan}       = $max_lifespan;
         $self->{status}             = 'ACTIVE';
         $self->{leader}             = undef;
-        $self->{followers}          = {};
+        $self->{followers}          = undef;
         $self->{in_sync_replicas}   = {};
         $self->{replication_factor} = 1;
         $self->{segments} //= [];
@@ -237,18 +237,7 @@ sub fire {
         $self->create_segment
             if ( not $self->{leader}
             and $segment->[LOG_SIZE] >= $self->{segment_size} );
-        for my $follower ( keys %{ $self->{waiting} } ) {
-            my $name = $self->{waiting}->{$follower};
-            if ( $Tachikoma::Nodes{$name} ) {
-                my $message = Tachikoma::Message->new;
-                $message->[TYPE]    = TM_REQUEST;
-                $message->[FROM]    = $self->{name};
-                $message->[TO]      = $follower;
-                $message->[PAYLOAD] = "UPDATE\n";
-                $self->{sink}->fill($message);
-            }
-            delete $self->{waiting}->{$follower};
-        }
+        $self->update_followers;
     }
     if ( $self->{leader} ) {
         if ( $self->{expecting} ) {
@@ -268,6 +257,25 @@ sub fire {
     }
     elsif ( $self->{replication_factor} < 2 ) {
         $self->commit_messages;
+    }
+    return;
+}
+
+sub update_followers {
+    my $self = shift;
+    for my $follower ( keys %{ $self->{waiting} } ) {
+        my $name = $self->{waiting}->{$follower};
+        next
+            if ( $self->{followers} and not $self->{followers}->{$follower} );
+        if ( $Tachikoma::Nodes{$name} ) {
+            my $message = Tachikoma::Message->new;
+            $message->[TYPE]    = TM_REQUEST;
+            $message->[FROM]    = $self->{name};
+            $message->[TO]      = $follower;
+            $message->[PAYLOAD] = "UPDATE\n";
+            $self->{sink}->fill($message);
+        }
+        delete $self->{waiting}->{$follower};
     }
     return;
 }
@@ -323,7 +331,8 @@ sub process_get_valid_offsets {
     my ( $name, $path ) = split m{/}, $to, 2;
     my $node = $Tachikoma::Nodes{$name} or return;
     return if ( not $node or not $broker_id );
-    $self->{followers}->{$broker_id} = $to;
+    $self->{followers} //= {};
+    $self->{followers}->{$to} = $broker_id;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_REQUEST;
     $response->[FROM]    = $self->{name};
@@ -410,8 +419,8 @@ sub process_get {
         $response->[TYPE] = TM_EOF;
         $response->[ID]   = $offset;
         $node->fill($response);
-        $self->{in_sync_replicas}->{$broker_id} = $offset if ($broker_id);
-        $self->{waiting}->{$to}                 = $name;
+        $self->{in_sync_replicas}->{$to} = $offset if ($broker_id);
+        $self->{waiting}->{$to}          = $name;
     }
     return;
 }
@@ -430,6 +439,21 @@ sub process_ack {
             $self->cancel( shift @{$responses} );
         }
     }
+    if ( $self->{followers} ) {
+        for my $follower ( keys %{ $self->{waiting} } ) {
+            my $name = $self->{waiting}->{$follower};
+            next if ( $self->{followers}->{$follower} );
+            if ( $Tachikoma::Nodes{$name} ) {
+                my $message = Tachikoma::Message->new;
+                $message->[TYPE]    = TM_REQUEST;
+                $message->[FROM]    = $self->{name};
+                $message->[TO]      = $follower;
+                $message->[PAYLOAD] = "UPDATE\n";
+                $self->{sink}->fill($message);
+            }
+            delete $self->{waiting}->{$follower};
+        }
+    }
     return;
 }
 
@@ -445,10 +469,10 @@ sub process_delete {
 
         # make sure the follower doesn't delete more than the leader
         $delete = $keep->[LOG_OFFSET];
-        for my $broker_id ( keys %{ $self->{in_sync_replicas} } ) {
+        for my $to ( keys %{ $self->{in_sync_replicas} } ) {
             my $message = Tachikoma::Message->new;
             $message->[TYPE]    = TM_REQUEST;
-            $message->[TO]      = $self->{followers}->{$broker_id};
+            $message->[TO]      = $to;
             $message->[PAYLOAD] = join q(), 'DELETE ', $delete, q( ),
                 $self->{last_commit_offset}, "\n";
             $self->{sink}->fill($message);
@@ -1000,7 +1024,7 @@ sub leader {
     if (@_) {
         my $leader = shift;
         $self->{leader}           = $leader;
-        $self->{followers}        = {};
+        $self->{followers}        = undef;
         $self->{in_sync_replicas} = {};
     }
     return $self->{leader};
