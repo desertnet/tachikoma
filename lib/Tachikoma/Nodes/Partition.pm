@@ -41,10 +41,11 @@ my %FOLLOWER_COMMANDS =
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Partition <node name> --filename=<path>        \
-                                --num_segments=<int>     \
-                                --segment_size=<int>     \
-                                --max_lifespan=<seconds> \
+make_node Partition <node name> --filename=<path>          \
+                                --num_segments=<int>       \
+                                --segment_size=<int>       \
+                                --max_lifespan=<seconds>   \
+                                --replication_factor=<int> \
                                 --leader=<node path>
 EOF
 }
@@ -52,20 +53,22 @@ EOF
 sub arguments {
     my $self = shift;
     if (@_) {
-        my $arguments    = shift;
-        my $filename     = undef;
-        my $path         = undef;
-        my $num_segments = $DEFAULT_NUM_SEGMENTS;
-        my $segment_size = $DEFAULT_SEGMENT_SIZE;
-        my $max_lifespan = $DEFAULT_SEGMENT_LIFESPAN;
-        my $leader       = undef;
+        my $arguments          = shift;
+        my $filename           = undef;
+        my $path               = undef;
+        my $num_segments       = $DEFAULT_NUM_SEGMENTS;
+        my $segment_size       = $DEFAULT_SEGMENT_SIZE;
+        my $max_lifespan       = $DEFAULT_SEGMENT_LIFESPAN;
+        my $replication_factor = 1;
+        my $leader             = undef;
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
-            'filename=s'     => \$filename,
-            'num_segments=i' => \$num_segments,
-            'segment_size=i' => \$segment_size,
-            'max_lifespan=i' => \$max_lifespan,
-            'leader=s'       => \$leader,
+            'filename=s'           => \$filename,
+            'num_segments=i'       => \$num_segments,
+            'segment_size=i'       => \$segment_size,
+            'max_lifespan=i'       => \$max_lifespan,
+            'replication_factor=i' => \$replication_factor,
+            'leader=s'             => \$leader,
         );
         die "ERROR: bad arguments for Partition\n" if ( not $r );
         $filename //= shift @{$argv};
@@ -83,7 +86,7 @@ sub arguments {
         $self->{leader}             = undef;
         $self->{followers}          = undef;
         $self->{in_sync_replicas}   = {};
-        $self->{replication_factor} = 1;
+        $self->{replication_factor} = $replication_factor;
         $self->{segments} //= [];
         $self->{last_commit_offset}   = undef;
         $self->{last_truncate_offset} = undef;
@@ -142,6 +145,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
                 return $self->send_error( $message, "BAD_COMMAND\n" );
             }
         }
+        $self->stderr( 'DEBUG: ', $payload ) if ( $self->{debug_state} );
         if ( $command eq 'GET' ) {
             $self->process_get( $message, $offset, $args );
         }
@@ -207,6 +211,8 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
 sub fire {
     my $self = shift;
     return if ( not $self->{filename} );
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
+        if ( $self->{debug_state} );
     my $batch     = $self->{batch};
     my $responses = $self->{responses};
     my $segment   = $self->get_segment(-1);
@@ -285,6 +291,7 @@ sub commit_messages {
     return if ( not defined $self->{offset} );
     $self->write_offset( $self->{offset} );
     my $responses = $self->{responses};
+    $self->stderr('DEBUG: CANCEL') if ( $self->{debug_state} );
     $self->cancel($_) for ( @{$responses} );
     @{$responses} = ();
     return;
@@ -298,6 +305,8 @@ sub write_offset {
         if ( not @{ $self->{segments} }
         or $offset > $self->{offset}
         or $offset == $lco );
+    $self->stderr( 'DEBUG: WRITE_OFFSET ', $offset )
+        if ( $self->{debug_state} );
     if ( $self->{leader} and $offset < $lco ) {
         $self->stderr("WARNING: commit_offset $offset < my $lco");
         $self->purge_offsets(-1);
@@ -434,6 +443,7 @@ sub process_ack {
     if ( $offset > $self->{last_commit_offset} ) {
         my $responses = $self->{responses};
         $self->write_offset($offset);
+        $self->stderr('DEBUG: CANCEL') if ( $self->{debug_state} );
         while ( @{$responses} ) {
             last if ( $responses->[0]->[$OFFSET] > $offset );
             $self->cancel( shift @{$responses} );
