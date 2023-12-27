@@ -424,17 +424,15 @@ sub remove_node {
     for my $partition_id ( keys %{ $self->consumers } ) {
         $self->consumers->{$partition_id}->remove_node;
     }
-    if ( $self->leader_path ) {
+    if ( $self->leader_path and not Tachikoma->shutting_down ) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_REQUEST;
         $message->[FROM]    = $self->name;
         $message->[TO]      = $self->leader_path;
         $message->[PAYLOAD] = "DISCONNECT\n";
-        if ( not Tachikoma->shutting_down ) {
-            $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-                if ( $self->debug_state );
-            $self->sink->fill($message) if ( $self->sink );
-        }
+        $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+            if ( $self->debug_state );
+        $self->sink->fill($message);
     }
     $self->SUPER::remove_node;
     return;

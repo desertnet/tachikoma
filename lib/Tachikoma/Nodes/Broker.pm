@@ -921,7 +921,8 @@ sub determine_mapping {
     $self->{stage} = 'SEND'
         if ( keys %{ $self->{mapping} } or not keys %{ $self->{topics} } );
 
-    # $self->stderr('CONTROLLER rebalanced partitions');
+    $self->stderr('DEBUG: CONTROLLER rebalanced partitions')
+        if ( $self->{debug_state} );
     return;
 }
 
@@ -979,15 +980,16 @@ sub determine_leader {
     $query->{want_replica} = 0;
     $self->determine_in_sync_replicas($query);
 
-    # $self->stderr(
-    #     "CANDIDATE LEADERS for $log_name - ",
-    #     map join( q(), $_, ' => ', $query->{candidates}->{$_}, ', ' ),
-    #     sort keys %{ $query->{candidates} }
-    # );
+    $self->stderr(
+        "DEBUG: CANDIDATE LEADERS for $log_name - ",
+        map join( q(), $_, ' => ', $query->{candidates}->{$_}, ', ' ),
+        sort keys %{ $query->{candidates} }
+    ) if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     $leader = $self->best_broker($query)
         if ( keys %{ $query->{candidates} } );
 
-    # $self->stderr("BEST LEADER for $log_name - $leader") if ($leader);
+    $self->stderr("DEBUG: BEST LEADER for $log_name - $leader")
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 and $leader );
 
     # assign a new leader
     if ( not $leader and not keys %{ $query->{candidates} } ) {
@@ -1130,7 +1132,8 @@ sub send_mapping {
     my $self = shift;
     $self->{waiting_for_map} = {};
 
-    # $self->stderr('CONTROLLER sending mappings');
+    $self->stderr('DEBUG: CONTROLLER sending mappings')
+        if ( $self->{debug_state} );
     for my $broker_id ( keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
         next
@@ -1184,6 +1187,7 @@ sub apply_mapping {
             $node->name($group_name);
         }
         $node->arguments(q());
+        $node->debug_state( $self->debug_state );
         $node->sink( $self->sink );
         for my $topic_name ( keys %{ $group->{topics} } ) {
             next if ( not $group->{topics}->{$topic_name} );
@@ -1808,10 +1812,11 @@ sub send_info {
     $response->[STREAM]  = $self->{broker_id};
     $response->[PAYLOAD] = $info;
 
-    # chomp $info;
-    # $self->stderr(
-    #     $info, q( ), $self->{generation}, ' for ', $message->[FROM]
-    # );
+    if ( $self->{debug_state} and $self->{debug_state} >= 2 ) {
+        chomp $info;
+        $self->stderr( 'DEBUG: ', $info, q( ), $self->{generation}, ' for ',
+            $message->[FROM] );
+    }
     return $self->{sink}->fill($response);
 }
 

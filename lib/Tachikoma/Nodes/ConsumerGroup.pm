@@ -20,18 +20,6 @@ use version; our $VERSION = qv('v2.0.256');
 
 my $CONSUMER_TIMEOUT = 900;    # wait before abandoning ConsumerBroker
 
-sub new {
-    my $class = shift;
-    my $self  = $class->SUPER::new;
-    $self->{topics}     = undef;
-    $self->{is_leader}  = undef;
-    $self->{mapping}    = undef;
-    $self->{timestamps} = {};
-    $self->{waiting}    = {};
-    bless $self, $class;
-    return $self;
-}
-
 sub help {
     my $self = shift;
     return <<'EOF';
@@ -116,9 +104,8 @@ sub get_partitions {
             or return $self->stderr('ERROR: no partitions');
         return $self->send_error( $message, "TOO_MANY_CONSUMERS\n" )
             if ( keys %{$timestamps} >= @{$partitions} );
-
-        # $self->print_less_often( "INFO: GET_PARTITIONS $topic",
-        #     " - from $from" );
+        $self->stderr( "DEBUG: GET_PARTITIONS $topic", " - from $from" )
+            if ( $self->{debug_state} );
         $self->rebalance_consumers($topic);
     }
     $timestamps->{$from} = $Tachikoma::Now;
@@ -189,10 +176,13 @@ sub send_error {
     $response->[PAYLOAD] = $error;
     chomp $error;
 
-    if (    $error ne 'TOO_MANY_CONSUMERS'
-        and $error ne 'REBALANCING_CONSUMERS' )
-    {
-        $self->stderr( "$error for ", $message->[FROM] );
+    if ( $error ne 'TOO_MANY_CONSUMERS' ) {
+        if ( $self->{debug_state} ) {
+            $self->stderr( "DEBUG: $error for ", $message->[FROM] );
+        }
+        elsif ( $error ne 'REBALANCING_CONSUMERS' ) {
+            $self->stderr( "$error for ", $message->[FROM] );
+        }
     }
     return $self->{sink}->fill($response);
 }
