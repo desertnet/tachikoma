@@ -1221,6 +1221,7 @@ sub apply_mapping {
             $node->num_segments( $topic->{num_segments} );
             $node->segment_size( $topic->{segment_size} );
             $node->max_lifespan( $topic->{max_lifespan} );
+            $node->debug_state( $topic->{debug_state} );
             $node->replication_factor( $topic->{replication_factor} );
             $node->sink( $self->sink );
 
@@ -1246,6 +1247,7 @@ sub apply_mapping {
                 $node->num_segments($NUM_CACHE_SEGMENTS);
                 $node->segment_size( $cache->{segment_size} );
                 $node->max_lifespan( $cache->{max_lifespan} );
+                $node->debug_state( $cache->{debug_state} );
                 $node->replication_factor( $topic->{replication_factor} );
                 $node->sink( $self->sink );
 
@@ -1490,7 +1492,7 @@ sub add_topic {
     my $self      = shift;
     my $arguments = shift;
     my ( $topic_name, $num_partitions, $replication_factor, $num_segments,
-        $segment_size, $max_lifespan, @groups );
+        $segment_size, $max_lifespan, $debug_state, @groups );
     my ( $r, $argv ) = GetOptionsFromString(
         $arguments,
         'topic=s'              => \$topic_name,
@@ -1500,22 +1502,34 @@ sub add_topic {
         'num_segments=i'       => \$num_segments,
         'segment_size=i'       => \$segment_size,
         'max_lifespan=i'       => \$max_lifespan,
+        'debug_state=i'        => \$debug_state,
     );
     $topic_name //= shift @{$argv};
     return $self->stderr("ERROR: bad arguments: ADD_TOPIC $arguments")
         if ( not $r or not length $topic_name );
+    my $current = $self->topics->{$topic_name};
+    if ($current) {
+        $num_partitions     //= $current->{num_partitions};
+        $replication_factor //= $current->{replication_factor};
+        $num_segments       //= $current->{num_segments};
+        $segment_size       //= $current->{segment_size};
+        $max_lifespan       //= $current->{max_lifespan};
+        $debug_state        //= $current->{debug_state};
+    }
     my $default = $self->default_settings;
     $num_partitions     ||= $default->{num_partitions};
     $replication_factor ||= $default->{replication_factor};
     $num_segments       ||= $default->{num_segments};
     $segment_size       ||= $default->{segment_size};
-    $max_lifespan       ||= $default->{max_lifespan};
+    $max_lifespan //= $default->{max_lifespan};
+    $debug_state ||= 0;
     $self->topics->{$topic_name} = {
         num_partitions     => $num_partitions,
         replication_factor => $replication_factor,
         num_segments       => $num_segments,
         segment_size       => $segment_size,
         max_lifespan       => $max_lifespan,
+        debug_state        => $debug_state,
     };
 
     for my $group_name (@groups) {
@@ -1577,28 +1591,41 @@ sub save_topic_state {
 sub add_consumer_group {
     my $self      = shift;
     my $arguments = shift;
-    my ( $group_name, $topic_name, $segment_size, $max_lifespan );
+    my ($group_name,   $topic_name, $segment_size,
+        $max_lifespan, $debug_state
+    );
     my ( $r, $argv ) = GetOptionsFromString(
         $arguments,
         'group=s'        => \$group_name,
         'topic=s'        => \$topic_name,
         'segment_size=s' => \$segment_size,
         'max_lifespan=i' => \$max_lifespan,
+        'debug_state=i'  => \$debug_state,
     );
     $group_name //= shift @{$argv};
-    $segment_size ||= $DEFAULT_CACHE_SIZE;
-    $max_lifespan //= 0;
     return $self->stderr(
         "ERROR: bad arguments: ADD_CONSUMER_GROUP $arguments")
-        if ( not $r or not length $topic_name );
+        if ( not $r or not length $group_name or not length $topic_name );
+    my $group   = $self->consumer_groups->{$group_name};
+    my $current = $group->{topics}->{$topic_name} if ($group);
+
+    if ($current) {
+        $segment_size //= $current->{segment_size};
+        $max_lifespan //= $current->{max_lifespan};
+        $debug_state  //= $current->{debug_state};
+    }
+    $segment_size ||= $DEFAULT_CACHE_SIZE;
+    $max_lifespan                         //= 0;
+    $debug_state                          //= 0;
     $self->consumer_groups->{$group_name} //= {
         broker_id => undef,
         topics    => {}
     };
-    my $group = $self->consumer_groups->{$group_name};
+    $group = $self->consumer_groups->{$group_name};
     $group->{topics}->{$topic_name} = {
         segment_size => $segment_size,
-        max_lifespan => $max_lifespan
+        max_lifespan => $max_lifespan,
+        debug_state  => $debug_state,
     };
     $self->rebalance_partitions;
     return;
@@ -2134,6 +2161,10 @@ $C{set_default} = sub {
     my ( $name, $value ) = split q( ), $command->arguments, 2;
     return $self->error("ERROR: invalid arguments\n")
         if ( not length $name and not length $value );
+    return $self->error("ERROR: invalid setting\n")
+        if ( not exists $self->patron->default_settings->{$name} );
+    return $self->error("ERROR: invalid value\n")
+        if ( $value !~ m{^\d+$} );
     $self->patron->default_settings->{$name} = $value;
     return $self->okay($envelope);
 };
