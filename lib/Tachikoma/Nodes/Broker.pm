@@ -1607,7 +1607,8 @@ sub add_consumer_group {
         "ERROR: bad arguments: ADD_CONSUMER_GROUP $arguments")
         if ( not $r or not length $group_name or not length $topic_name );
     my $group   = $self->consumer_groups->{$group_name};
-    my $current = $group->{topics}->{$topic_name} if ($group);
+    my $current = undef;
+    $current = $group->{topics}->{$topic_name} if ($group);
 
     if ($current) {
         $segment_size //= $current->{segment_size};
