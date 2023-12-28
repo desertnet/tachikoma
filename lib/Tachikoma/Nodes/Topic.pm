@@ -27,6 +27,7 @@ my $BATCH_INTERVAL  = 0.25;     # how long to wait if below threshold
 my $BATCH_THRESHOLD = 65536;    # low water mark before sending batches
 my $ASYNC_INTERVAL  = 5;        # check partition map this often
 my $STARTUP_DELAY   = 0;        # offset from poll interval
+my $BATCH_TIMEOUT   = 45;       # timeout before expiring responses
 my $HUB_TIMEOUT     = 60;       # synchronous timeout waiting for hub
 
 sub new {
@@ -47,6 +48,7 @@ sub new {
     $self->{batch_timestamp}        = {};
     $self->{responses}              = {};
     $self->{batch_responses}        = {};
+    $self->{batch_timeout}          = $BATCH_TIMEOUT;
     $self->{valid_broker_paths}     = undef;
     $self->{registrations}->{RESET} = {};
     $self->{registrations}->{READY} = {};
@@ -70,7 +72,8 @@ make_node Topic <name> <broker>
 make_node Topic <name> --broker=<broker>        \
                        --topic=<topic>          \
                        --batch_interval=<float> \
-                       --batch_threshold=<int>
+                       --batch_threshold=<int>  \
+                       --batch_timeout=<int>
 EOF
 }
 
@@ -79,13 +82,15 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         $self->{arguments} = $arguments;
-        my ( $broker, $topic, $batch_interval, $batch_threshold );
+        my ( $broker, $topic, $batch_interval, $batch_threshold,
+            $batch_timeout );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'broker=s'          => \$broker,
             'topic=s'           => \$topic,
             'batch_interval=f'  => \$batch_interval,
             'batch_threshold=i' => \$batch_threshold,
+            'batch_timeout=i'   => \$batch_timeout,
         );
         $broker //= shift @{$argv};
         die "ERROR: bad arguments for Topic\n"
@@ -184,6 +189,7 @@ sub fire {
                 {
                 last_commit_offset => $batch_offset->{$i},
                 batch              => $responses->{$i},
+                timestamp          => $Tachikoma::Now,
                 }
                 if ($persist);
             delete $batch->{$i};
@@ -196,6 +202,7 @@ sub fire {
         >= $self->{async_interval} )
     {
         $self->get_partitions_async;
+        $self->expire_responses;
     }
     if ( keys %{$batch} ) {
         $self->set_timer( $batch_interval * 1000 )
@@ -361,13 +368,29 @@ sub update_partitions {
         $self->restart;
     }
     elsif ( $old_partitions ne $new_partitions ) {
-
-        # $self->stderr(
-        #     "INFO: partition remap: $old_partitions -> $new_partitions");
+        $self->stderr("DEBUG: REMAP $old_partitions -> $new_partitions")
+            if ( $self->{debug_state} );
         $self->restart;
     }
     $self->{partitions} = $partitions if ($okay);
     return $okay;
+}
+
+sub expire_responses {
+    my $self           = shift;
+    my $should_restart = undef;
+CHECK_BATCH: for my $i ( keys %{ $self->{batch_responses} } ) {
+        my $batch_responses = $self->{batch_responses}->{$i};
+        for my $responses ( @{$batch_responses} ) {
+            my $timestamp = $responses->{timestamp};
+            if ( $Tachikoma::Now - $timestamp > $self->{batch_timeout} ) {
+                $should_restart = 1;
+                last CHECK_BATCH;
+            }
+        }
+    }
+    $self->restart if ($should_restart);
+    return;
 }
 
 sub restart {
@@ -526,6 +549,14 @@ sub batch_responses {
         $self->{batch_responses} = shift;
     }
     return $self->{batch_responses};
+}
+
+sub batch_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_timeout} = shift;
+    }
+    return $self->{batch_timeout};
 }
 
 sub valid_broker_paths {
