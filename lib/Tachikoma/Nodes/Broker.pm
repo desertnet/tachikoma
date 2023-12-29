@@ -1502,7 +1502,7 @@ sub add_topic {
         'num_segments=i'       => \$num_segments,
         'segment_size=i'       => \$segment_size,
         'max_lifespan=i'       => \$max_lifespan,
-        'debug_state=i'        => \$debug_state,
+        'debug_state:i'        => \$debug_state,
     );
     $topic_name //= shift @{$argv};
     return $self->stderr("ERROR: bad arguments: ADD_TOPIC $arguments")
@@ -1522,7 +1522,8 @@ sub add_topic {
     $num_segments       ||= $default->{num_segments};
     $segment_size       ||= $default->{segment_size};
     $max_lifespan //= $default->{max_lifespan};
-    $debug_state ||= 0;
+    $debug_state = 1 if ( defined $debug_state and not $debug_state );
+    $debug_state //= 0;
     $self->topics->{$topic_name} = {
         num_partitions     => $num_partitions,
         replication_factor => $replication_factor,
@@ -1616,8 +1617,9 @@ sub add_consumer_group {
         $debug_state  //= $current->{debug_state};
     }
     $segment_size ||= $DEFAULT_CACHE_SIZE;
-    $max_lifespan                         //= 0;
-    $debug_state                          //= 0;
+    $max_lifespan //= 0;
+    $debug_state = 1 if ( defined $debug_state and not $debug_state );
+    $debug_state //= 0;
     $self->consumer_groups->{$group_name} //= {
         broker_id => undef,
         topics    => {}

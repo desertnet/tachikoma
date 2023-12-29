@@ -48,6 +48,8 @@ my $r = GetOptions(
 );
 my @arguments = @ARGV;
 my $filename  = $arguments[0];
+$debug_level = 1 if ( defined $debug_level and not $debug_level );
+$debug_state = 1 if ( defined $debug_state and not $debug_state );
 
 usage() if ( $help or not $r );
 my $config = Tachikoma->configuration;
