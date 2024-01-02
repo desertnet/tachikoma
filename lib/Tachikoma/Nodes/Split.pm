@@ -52,12 +52,13 @@ sub fill {
     my $message    = shift;
     my $messages   = undef;
     my $message_id = undef;
-    return if ( $message->[TYPE] & TM_ERROR or $message->[TYPE] & TM_EOF );
+    return if ( $message->[TYPE] & TM_EOF );
+    return $self->handle_response($message)
+        if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE )
+        or $message->[TYPE] == TM_ERROR );
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $messages = $self->{messages};
-        return $self->handle_response($message)
-            if ( $message->[TYPE] & TM_RESPONSE );
-        $message_id = $self->msg_counter;
+        $messages                = $self->{messages};
+        $message_id              = $self->msg_counter;
         $messages->{$message_id} = {
             original  => $message,
             count     => undef,
