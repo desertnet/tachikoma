@@ -1195,7 +1195,7 @@ sub apply_mapping {
             $self->{caches}->{$topic_name}->{$group_name} =
                 $group->{topics}->{$topic_name};
         }
-        $node->topics( $group->{topics} );
+        $node->topics( { map { $_ => 1 } keys %{ $group->{topics} } } );
         $node->mapping(undef);
         if ( $group->{broker_id} eq $self->{broker_id} ) {
             $node->is_leader(1);
