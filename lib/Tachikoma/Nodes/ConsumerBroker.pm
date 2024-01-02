@@ -23,7 +23,6 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $STARTUP_DELAY     = 5;            # wait at least this long on startup
 my $STARTUP_INTERVAL  = 1;            # async interval on startup
 my $ASYNC_INTERVAL    = 5;            # check partition map this often
 my $POLL_INTERVAL     = 1;            # sync check for new messages this often
@@ -43,7 +42,6 @@ sub new {
     $self->{group}          = $group;
     $self->{partition_id}   = undef;
     $self->{max_unanswered} = undef;
-    $self->{startup_delay}  = 0;
     $self->{async_interval} = $STARTUP_INTERVAL;
     $self->{timeout}        = $DEFAULT_TIMEOUT;
     $self->{hub_timeout}    = $HUB_TIMEOUT;
@@ -96,10 +94,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($broker,       $topic,          $group,
-            $partition_id, $max_unanswered, $timeout,
-            $hub_timeout,  $startup_delay,  $startup_interval,
-            $cache_type,   $auto_commit,    $default_offset,
+        my ($broker,       $topic,            $group,
+            $partition_id, $max_unanswered,   $timeout,
+            $hub_timeout,  $startup_interval, $cache_type,
+            $auto_commit,  $default_offset,
         );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
@@ -110,7 +108,6 @@ sub arguments {
             'max_unanswered=i'   => \$max_unanswered,
             'timeout=i'          => \$timeout,
             'hub_timeout=i'      => \$hub_timeout,
-            'startup_delay=i'    => \$startup_delay,
             'startup_interval=f' => \$startup_interval,
             'cache_type=s'       => \$cache_type,
             'auto_commit=i'      => \$auto_commit,
@@ -126,7 +123,6 @@ sub arguments {
         $self->{group}          = $group;
         $self->{partition_id}   = $partition_id;
         $self->{max_unanswered} = $max_unanswered // 1;
-        $self->{startup_delay}  = $startup_delay // $STARTUP_DELAY;
         $self->{async_interval} = $startup_interval // $STARTUP_INTERVAL;
         $self->{timeout}        = $timeout || $DEFAULT_TIMEOUT;
         $self->{hub_timeout}    = $hub_timeout || $HUB_TIMEOUT;
@@ -378,7 +374,6 @@ sub make_consumer {
         $consumer->timeout( $self->timeout );
         $consumer->hub_timeout( $self->hub_timeout );
         $consumer->max_unanswered( $self->max_unanswered );
-        $consumer->startup_delay( $self->startup_delay );
         $consumer->sink( $self->sink );
         $consumer->edge( $self->edge );
         $consumer->owner( $self->owner );
@@ -396,7 +391,7 @@ sub owner {
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->owner( $self->{owner} );
         }
-        $self->set_timer( $self->{startup_delay} * 1000 );
+        $self->set_timer(0);
     }
     return $self->{owner};
 }
@@ -411,7 +406,7 @@ sub edge {
         for my $partition_id ( keys %{ $self->consumers } ) {
             $self->consumers->{$partition_id}->edge( $self->{edge} );
         }
-        $self->set_timer( $self->{startup_delay} * 1000 );
+        $self->set_timer(0);
     }
     return $self->{edge};
 }
@@ -486,14 +481,6 @@ sub max_unanswered {
         $self->{max_unanswered} = shift;
     }
     return $self->{max_unanswered};
-}
-
-sub startup_delay {
-    my $self = shift;
-    if (@_) {
-        $self->{startup_delay} = shift;
-    }
-    return $self->{startup_delay};
 }
 
 sub async_interval {

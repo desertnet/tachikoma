@@ -21,7 +21,6 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $STARTUP_DELAY   = 5;            # wait at least this long on startup
 my $ASYNC_INTERVAL  = 15;           # sanity check for new messages this often
 my $POLL_INTERVAL   = 0.1;          # sync check for new messages this often
 my $DEFAULT_TIMEOUT = 900;          # default message timeout
@@ -41,7 +40,6 @@ sub new {
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
     $self->{buffer}          = \$new_buffer;
-    $self->{startup_delay}   = 0;
     $self->{async_interval}  = $ASYNC_INTERVAL;
     $self->{timeout}         = $DEFAULT_TIMEOUT;
     $self->{hub_timeout}     = $HUB_TIMEOUT;
@@ -96,10 +94,8 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,  $offsetlog,   $max_unanswered,
-            $timeout,    $hub_timeout, $startup_delay,
-            $cache_type, $auto_commit, $default_offset,
-        );
+        my ( $partition, $offsetlog, $max_unanswered, $timeout, $hub_timeout,
+            $cache_type, $auto_commit, $default_offset, );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'partition=s'      => \$partition,
@@ -107,7 +103,6 @@ sub arguments {
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
             'hub_timeout=i'    => \$hub_timeout,
-            'startup_delay=i'  => \$startup_delay,
             'cache_type=s'     => \$cache_type,
             'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
@@ -138,7 +133,6 @@ sub arguments {
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
-        $self->{startup_delay}      = $startup_delay // $STARTUP_DELAY;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
         $self->{set_state}          = {};
     }
@@ -615,7 +609,7 @@ sub restart {
     }
     else {
         $self->arguments( $self->arguments );
-        $self->set_timer( $self->{startup_delay} * 1000 );
+        $self->set_timer(0);
     }
     return;
 }
@@ -625,7 +619,7 @@ sub owner {
     if (@_) {
         $self->{owner} = shift;
         $self->last_receive($Tachikoma::Now);
-        $self->set_timer( $self->{startup_delay} * 1000 );
+        $self->set_timer(0);
         $self->set_state('ACTIVE')
             if (not $self->{offsetlog}
             and not $self->{set_state}->{ACTIVE} );
@@ -647,7 +641,7 @@ sub edge {
             else {
                 $edge->new_cache if ( $edge->can('new_cache') );
             }
-            $self->set_timer( $self->{startup_delay} * 1000 );
+            $self->set_timer(0);
             $self->set_state('ACTIVE')
                 if (not $self->{offsetlog}
                 and not $self->{set_state}->{ACTIVE} );
@@ -746,14 +740,6 @@ sub buffer {
         $self->{buffer} = shift;
     }
     return $self->{buffer};
-}
-
-sub startup_delay {
-    my $self = shift;
-    if (@_) {
-        $self->{startup_delay} = shift;
-    }
-    return $self->{startup_delay};
 }
 
 sub async_interval {

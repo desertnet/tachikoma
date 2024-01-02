@@ -12,7 +12,6 @@ make ConsumerBroker consumer_broker --broker=<broker>      \
                                     --topic=<topic>        \
                                     --max_unanswered=0     \
                                     --default_offset=start \
-                                    --startup_delay=0      \
                                     --startup_interval=0.1
 # debug_state consumer_broker 9
 on consumer_broker READY exit 0

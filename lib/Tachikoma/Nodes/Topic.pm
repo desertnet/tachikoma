@@ -26,7 +26,6 @@ use version; our $VERSION = qv('v2.0.256');
 my $BATCH_INTERVAL  = 0.25;     # how long to wait if below threshold
 my $BATCH_THRESHOLD = 65536;    # low water mark before sending batches
 my $ASYNC_INTERVAL  = 5;        # check partition map this often
-my $STARTUP_DELAY   = 0;        # offset from poll interval
 my $BATCH_TIMEOUT   = 45;       # timeout before expiring responses
 my $HUB_TIMEOUT     = 60;       # synchronous timeout waiting for hub
 
@@ -102,7 +101,7 @@ sub arguments {
         $self->{batch_interval}  = $batch_interval // $BATCH_INTERVAL;
         $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
         $self->{next_partition}  = 0;
-        $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
+        $self->{last_check}      = 0;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
         $self->{batch_size}      = {};
@@ -397,7 +396,7 @@ sub restart {
     my $self = shift;
     $self->{partitions}      = undef;
     $self->{next_partition}  = int rand 1_000_000;
-    $self->{last_check}      = $Tachikoma::Now + $STARTUP_DELAY;
+    $self->{last_check}      = $Tachikoma::Now;
     $self->{batch}           = {};
     $self->{batch_offset}    = {};
     $self->{batch_size}      = {};
@@ -407,7 +406,7 @@ sub restart {
     $self->{set_state}       = {};
     $self->notify( 'RESET' => $self->{name} );
     $self->stderr('DEBUG: RESTART') if ( $self->{debug_state} );
-    $self->set_timer(0);
+    $self->set_timer( $self->{async_interval} * 1000 );
     return;
 }
 
