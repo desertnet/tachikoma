@@ -48,6 +48,10 @@ sub arguments {
     return $self->{arguments};
 }
 
+sub fill {
+    return;
+}
+
 sub fire {
     my $self     = shift;
     my $out      = q();
