@@ -50,7 +50,7 @@ make_node JSONvisualizer visualizer
 command root add /           root:dir
 command root add /store      store:dir
 command root add /trigger    topic1:dir
-command root add /visualizer visualizer
+command root add /v          visualizer
 connect_node http:responder root
 listen_inet --io 0.0.0.0:4242
 connect_sink 0.0.0.0:4242 http:responder
