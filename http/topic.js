@@ -72,7 +72,7 @@ function update_table(msg) {
     if (msg.payload.length) {
         output.unshift(msg.payload.reverse().join(''));
     }
-    while (output.length > count) {
+    while (output.length > _count) {
         output.pop();
     }
     dirty = msg.payload.length;
@@ -80,7 +80,7 @@ function update_table(msg) {
 
 function display_table() {
     if (dirty) {
-        while (output.length > count) {
+        while (output.length > _count) {
             output.pop();
         }
         document.getElementById("output").innerHTML = "<pre>"
