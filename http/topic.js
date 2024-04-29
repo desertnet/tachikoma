@@ -27,7 +27,8 @@ function start_timer() {
 }
 
 function start_partition(partition) {
-    var prefix_url  = "https://" + server_host + ":" + server_port
+    var prefix_url  = window.location.protocol + "//"
+                    + server_host + ":" + server_port
                     + server_path + "/"
                     + _topic      + "/"
                     + partition   + "/";
