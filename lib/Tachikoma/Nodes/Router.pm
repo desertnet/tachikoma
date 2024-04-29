@@ -77,6 +77,7 @@ sub drain {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    $self->{counter}++;
     return $self->drop_message( $message, 'message not addressed' )
         if ( not length $message->[TO] );
     $message->[TO] = $message->[FROM]
