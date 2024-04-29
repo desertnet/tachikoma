@@ -11,8 +11,8 @@
 #     http://localhost:4242/store/topic1/IMG001.JPG
 
 # FETCH:
-# http://localhost:4242/topic1:table/test.json
-# http://localhost:4242/topic1:table/IMG001.JPG
+# http://localhost:4242/fetch/topic1:table/test.json
+# http://localhost:4242/fetch/topic1:table/IMG001.JPG
 
 
 # persistent storage
@@ -52,10 +52,12 @@ make_node HTTP_Responder http:responder  /tmp/http 4242
 make_node HTTP_Timeout   http:timeout
 make_node Tee            access:log
 make_node HTTP_Route     root
-make_node HTTP_Fetch     root:dir        /         topic1:table
+make_node HTTP_File      root:dir        /home/tachikoma/http
+make_node HTTP_Fetch     fetch:dir       /fetch    topic1:table
 make_node HTTP_Store     store:dir       /tmp/http /store topic1
 make_node JSONvisualizer visualizer
 command root add /        root:dir
+command root add /fetch   fetch:dir
 command root add /store   store:dir
 command root add /trigger topic1:dir
 command root add /v       visualizer
