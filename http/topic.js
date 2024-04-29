@@ -90,6 +90,8 @@ function display_table() {
 }
 
 function tick(partition, server_url) {
+    // rewrite server_url match current window.location.protocol
+    server_url = window.location.protocol + "//" + server_url.split("//")[1];
     xhttp[partition].open("GET", server_url, true);
     xhttp[partition].send();
 }
