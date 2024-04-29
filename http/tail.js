@@ -28,7 +28,7 @@ function start_tail() {
     var prefix_url  = window.location.protocol + "//"
                     + server_host + ":" + server_port
                     + server_path + "/" + _topic;
-    var server_url  = prefix_url  + "/" + offset + "/" + _count;
+    var server_url  = prefix_url  + "/" + _offset + "/" + _count;
     xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
