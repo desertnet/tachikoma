@@ -50,7 +50,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
-        if (length $config_path) {
+        if (length $config_file) {
             my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
             my $rv   = do $path;
             die "couldn't parse $path: $@" if ($@);
