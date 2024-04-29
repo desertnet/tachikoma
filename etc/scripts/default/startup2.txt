@@ -54,9 +54,11 @@ make_node Tee            access:log
 make_node HTTP_Route     root
 make_node HTTP_Fetch     root:dir        /         topic1:table
 make_node HTTP_Store     store:dir       /tmp/http /store topic1
+make_node JSONvisualizer visualizer
 command root add /        root:dir
 command root add /store   store:dir
 command root add /trigger topic1:dir
+command root add /v       visualizer
 connect_node http:responder root
 listen_inet --io 0.0.0.0:4242
 connect_sink 0.0.0.0:4242 http:responder
