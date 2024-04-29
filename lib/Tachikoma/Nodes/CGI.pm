@@ -20,6 +20,15 @@ use version; our $VERSION = qv('v2.0.367');
 
 my $MAX_REQUESTS = 500;
 
+my $home = ( getpwuid $< )[7];
+$Tachikoma::Nodes::CGI::Config = {
+    protocol      => 'https',
+    document_root => "$home/.tachikoma/http",
+    script_paths  => { '/cgi-bin' => "$home/.tachikoma/http/cgi-bin/" },
+    broker_ids    => ['localhost:5501'],
+    engines_http  => ['localhost:5201'],
+};
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
@@ -42,11 +51,13 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
         my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
-        my $rv   = do $path;
-        die "couldn't parse $path: $@" if ($@);
-        die "couldn't do $path: $!"    if ( not defined $rv );
-        die "couldn't run $path"       if ( not $rv );
-        $self->{config_file} = $path;
+        if ($path) {
+            my $rv   = do $path;
+            die "couldn't parse $path: $@" if ($@);
+            die "couldn't do $path: $!"    if ( not defined $rv );
+            die "couldn't run $path"       if ( not $rv );
+            $self->{config_file} = $path;
+        }
         $self->{config}      = $Tachikoma::Nodes::CGI::Config;
         $self->{tmp_path}    = $tmp_path;
     }
