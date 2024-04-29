@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3320;
+use Test::More tests => 3356;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -67,7 +67,6 @@ my %nodes = (
     'Tachikoma::Nodes::HTTP_Fetch'        => q(/ .*:table),
     'Tachikoma::Nodes::HTTP_Responder'    => q(),
     'Tachikoma::Nodes::HTTP_Route'        => q(),
-    'Tachikoma::Nodes::HTTP_Sigma'        => q(),
     'Tachikoma::Nodes::HTTP_Store'        => q(),
     'Tachikoma::Nodes::HTTP_Timeout'      => q(),
     'Tachikoma::Nodes::HTTP_Trigger'      => q(),
@@ -78,6 +77,7 @@ my %nodes = (
     'Tachikoma::Nodes::JobController'     => q(),
     'Tachikoma::Nodes::JobFarmer'         => q(0 Echo),
     'Tachikoma::Nodes::Join'              => q(),
+    'Tachikoma::Nodes::JSONvisualizer'    => q(),
     'Tachikoma::Nodes::List'              => q(),
     'Tachikoma::Nodes::LoadBalancer'      => q(),
     'Tachikoma::Nodes::LoadController'    => q(),
@@ -129,6 +129,7 @@ my %nodes = (
     'Accessories::Nodes::SFESerLCD'       => q(),
     'Accessories::Nodes::Spool'           => qq($t/spool),
     'Accessories::Nodes::TestStream'      => qq(),
+    'Accessories::Nodes::Transform'       => qq(- 1),
     'Accessories::Nodes::Uniq'            => q(),
 );
 

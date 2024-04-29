@@ -16,6 +16,7 @@ lib/Accessories/Jobs/Delay.pm
 lib/Accessories/Jobs/DNS.pm
 lib/Accessories/Jobs/ExecFork.pm
 lib/Accessories/Jobs/Fortune.pm
+lib/Accessories/Jobs/Transform.pm
 lib/Accessories/Nodes/Bucket.pm
 lib/Accessories/Nodes/Clock.pm
 lib/Accessories/Nodes/IndexByHostname.pm
@@ -25,6 +26,7 @@ lib/Accessories/Nodes/SFE4DigitLED.pm
 lib/Accessories/Nodes/SFESerLCD.pm
 lib/Accessories/Nodes/Spool.pm
 lib/Accessories/Nodes/TestStream.pm
+lib/Accessories/Nodes/Transform.pm
 lib/Accessories/Nodes/Uniq.pm
 lib/Tachikoma/Command.pm
 lib/Tachikoma/Config.pm
@@ -87,7 +89,6 @@ lib/Tachikoma/Nodes/HTTP_Fetch.pm
 lib/Tachikoma/Nodes/HTTP_File.pm
 lib/Tachikoma/Nodes/HTTP_Responder.pm
 lib/Tachikoma/Nodes/HTTP_Route.pm
-lib/Tachikoma/Nodes/HTTP_Sigma.pm
 lib/Tachikoma/Nodes/HTTP_Store.pm
 lib/Tachikoma/Nodes/HTTP_Timeout.pm
 lib/Tachikoma/Nodes/HTTP_Trigger.pm
@@ -99,6 +100,7 @@ lib/Tachikoma/Nodes/JobController.pm
 lib/Tachikoma/Nodes/JobFarmer.pm
 lib/Tachikoma/Nodes/Join.pm
 lib/Tachikoma/Nodes/JSONtoStorable.pm
+lib/Tachikoma/Nodes/JSONvisualizer.pm
 lib/Tachikoma/Nodes/List.pm
 lib/Tachikoma/Nodes/LoadBalancer.pm
 lib/Tachikoma/Nodes/LoadController.pm
