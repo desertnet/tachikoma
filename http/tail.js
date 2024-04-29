@@ -1,16 +1,16 @@
-var parsed_url      = new URL(window.location.href);
-var server_host     = window.location.hostname;
-var server_port     = window.location.port;
-var server_path     = "/cgi-bin/tail.cgi"
-var _topic          = parsed_url.searchParams.get("topic")    || topic;
-var _offset         = parsed_url.searchParams.get("offset")   || offset;
-var _count          = parsed_url.searchParams.get("count")    || count;
-var _interval       = parsed_url.searchParams.get("interval") || interval;
-var xhttp           = null;
-var fetch_timers    = [];
-var display_timer   = null;
-var output          = [];
-var dirty           = 1;
+var parsed_url    = new URL(window.location.href);
+var server_host   = window.location.hostname;
+var server_port   = window.location.port;
+var server_path   = "/cgi-bin/tail.cgi"
+var _topic        = parsed_url.searchParams.get("topic")    || topic;
+var _offset       = parsed_url.searchParams.get("offset")   || offset;
+var _count        = parsed_url.searchParams.get("count")    || count;
+var _interval     = parsed_url.searchParams.get("interval") || interval;
+var xhttp         = null;
+var fetch_timers  = [];
+var display_timer = null;
+var output        = [];
+var dirty         = 1;
 
 function start_timer() {
     if (_topic) {
@@ -25,9 +25,9 @@ function start_timer() {
 }
 
 function start_tail() {
-    var prefix_url  = "https://" + server_host + ":" + server_port
-                    + server_path + "/"
-                    + _topic;
+    var prefix_url  = window.location.protocol + "//"
+                    + server_host + ":" + server_port
+                    + server_path + "/" + _topic;
     var server_url  = prefix_url  + "/" + offset + "/" + _count;
     xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {
