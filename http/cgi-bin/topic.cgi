@@ -80,7 +80,7 @@ if ( $location eq 'recent' ) {
 if ( not $consumer or $consumer->sync_error ) {
     print STDERR $consumer->sync_error if ($consumer);
     my $next_url = $cgi->url( -path_info => 1, -query => 1 );
-    $next_url =~ s{^http://}{https://};
+    # $next_url =~ s{^http://}{https://};
     $results = {
         next_url => $next_url,
         error    => 'SERVER_ERROR'
@@ -97,7 +97,7 @@ else {
     }
     my $next_url = join q(/), $cgi->url, $topic, $partition, $next_offset,
         $count;
-    $next_url =~ s{^http://}{https://};
+    # $next_url =~ s{^http://}{https://};
     $results = {
         next_url => $next_url,
         payload  => \@output
