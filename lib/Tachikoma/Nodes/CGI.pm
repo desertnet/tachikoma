@@ -50,8 +50,8 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
-        my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
-        if ($path) {
+        if (length $config_path) {
+            my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
             my $rv   = do $path;
             die "couldn't parse $path: $@" if ($@);
             die "couldn't do $path: $!"    if ( not defined $rv );
@@ -59,7 +59,7 @@ sub arguments {
             $self->{config_file} = $path;
         }
         $self->{config}      = $Tachikoma::Nodes::CGI::Config;
-        $self->{tmp_path}    = $tmp_path;
+        $self->{tmp_path}    = $tmp_path // '/tmp';
     }
     return $self->{arguments};
 }
