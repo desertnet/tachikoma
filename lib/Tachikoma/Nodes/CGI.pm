@@ -50,7 +50,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
-        if (length $config_file) {
+        if ( length $config_file ) {
             my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
             my $rv   = do $path;
             die "couldn't parse $path: $@" if ($@);
@@ -58,8 +58,8 @@ sub arguments {
             die "couldn't run $path"       if ( not $rv );
             $self->{config_file} = $path;
         }
-        $self->{config}      = $Tachikoma::Nodes::CGI::Config;
-        $self->{tmp_path}    = $tmp_path // '/tmp';
+        $self->{config}   = $Tachikoma::Nodes::CGI::Config;
+        $self->{tmp_path} = $tmp_path // '/tmp';
     }
     return $self->{arguments};
 }
