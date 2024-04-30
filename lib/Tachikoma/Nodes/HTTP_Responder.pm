@@ -238,7 +238,9 @@ sub log_entry {
     my $status  = shift;
     my $message = shift;
     my $size    = shift;
-    return if ( not $message->[TYPE] & TM_STORABLE );
+    return
+        if ( not $message->[TYPE] & TM_STORABLE
+        or not exists $Tachikoma::Nodes{'access:log'} );
     my $request    = $message->payload;
     my $headers    = $request->{headers};
     my $host       = $headers->{'host'} || q("");
