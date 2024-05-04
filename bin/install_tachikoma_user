@@ -18,7 +18,7 @@ mkdir -p ~/.tachikoma/partitions/
 mkdir -p ~/.tachikoma/pool/
 mkdir -p ~/.tachikoma/run/
 mkdir -p ~/.tachikoma/services/
-mkdir -p ~/.tachikoma/pki/
+mkdir -p ~/.tachikoma/tls/
 
 # server config
 cp etc/Devel/tachikoma.conf ~/.tachikoma/etc/
@@ -42,16 +42,8 @@ fi
 # authorized keys
 cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
 
-# TLS
-cp -r etc/pki ~/.tachikoma/
-if [ ! -d ~/.tachikoma/tls ] ; then
-    (
-        cd ~/.tachikoma/pki
-        ./genkey net.desert server
-        mv tls/net.desert ~/.tachikoma/tls
-    )
-fi
-
+echo "NOTE: Remember to add ca.crt, server.crt, and server.key"
+echo "      to ~/.tachikoma/tls/ if you want TLS support."
 # extras
 if which install_tachikoma_user_extra > /dev/null 2>&1 ; then
     install_tachikoma_user_extra
