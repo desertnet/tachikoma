@@ -405,6 +405,20 @@ sub send_stats {
     return;
 }
 
+sub get_table_size {
+    my ($self) = @_;
+    my $total = 0;
+    for my $i ( 0 .. $self->num_partitions - 1 ) {
+        my $cache = $self->caches->[$i];
+        for my $b ( 0 .. $self->num_buckets - 1 ) {
+            my $bucket = $cache->[$b] // {};
+            my $count  = $bucket ? scalar keys %{$bucket} : 0;
+            $total += $count;
+        }
+    }
+    return $total;
+}
+
 sub get_keys {
     my ($self) = @_;
     my %unique = ();

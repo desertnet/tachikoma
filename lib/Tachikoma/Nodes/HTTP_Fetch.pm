@@ -89,7 +89,11 @@ sub fill {
                     };
             }
             else {
-                push @{$value}, $name;
+                push @{$value},
+                    {
+                    name => $name,
+                    size => 0
+                    };
             }
         }
     }
@@ -97,6 +101,7 @@ sub fill {
         my $node = $Tachikoma::Nodes{$node_name};
         return $self->send404($message)
             if ( $node_name !~ m{$allowed}
+            or $node_name =~ m{:table|:index$}
             or not $node
             or not $node->can('lookup') );
         my $key = uri_unescape( $escaped // q() );
