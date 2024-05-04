@@ -5,7 +5,7 @@ var server_url = "https://" + window.location.hostname
 var shell_path = window.location.pathname;
 var xhttp      = new XMLHttpRequest();
 var queue      = parsed_url.searchParams.get("queue");
-var interval   = parsed_url.searchParams.get("interval") || 33;
+var interval   = parsed_url.searchParams.get("interval") || 2000;
 var timer      = null;
 if (queue) {
     server_url += "/" + queue;
