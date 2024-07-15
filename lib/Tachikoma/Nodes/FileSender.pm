@@ -17,7 +17,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $REQUEST_TIMEOUT = 600;
+my $REQUEST_TIMEOUT = 360;
 my $EXPIRE_INTERVAL = 60;
 
 # my $SEPARATOR       = chr 0;

@@ -16,7 +16,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 
-my $DEFAULT_TIMEOUT = 840;
+my $DEFAULT_TIMEOUT = 420;
 my %EXCLUSIVE       = map { $_ => 1 } qw(
     rmdir
     rename
