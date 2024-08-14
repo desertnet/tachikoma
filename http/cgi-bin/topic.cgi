@@ -34,6 +34,7 @@ if ($location) {
 }
 die "no topic\n" if ( not length $topic );
 $partition ||= 0;
+$location  ||= 'start';
 $offset    ||= 'start';
 $count     ||= 1;
 my $json = JSON->new;

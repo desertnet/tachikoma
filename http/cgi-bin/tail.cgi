@@ -33,6 +33,7 @@ if ($location) {
     $offset_string = $location;
 }
 die "no topic\n" if ( not length $topic );
+$location      ||= 'start';
 $offset_string ||= 'start';
 $count         ||= 1;
 my $json = JSON->new;
