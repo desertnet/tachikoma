@@ -57,7 +57,6 @@ sub fill {
         my $path   = $message->payload->{path};
         my $prefix = $self->{arguments};
         $path =~ s{^$prefix}{};
-        $path =~ s{^/+}{};
         if ( not $self->{timer_is_active} ) {
             $self->set_timer;
         }
