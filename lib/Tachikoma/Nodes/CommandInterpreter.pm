@@ -2392,6 +2392,40 @@ $C{open_log_file} = sub {
     return;
 };
 
+$H{get_priority} = ["get_priority\n"];
+
+$C{get_priority} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $priority = undef;
+    my $okay     = eval {
+        $priority = getpriority( 'process', $$ );
+        return 1;
+    };
+    if ( not $okay ) {
+        print {*STDERR} $@ || "ERROR: get_priority: unknown error\n";
+    }
+    return $self->response( $envelope, "$priority\n" );
+};
+
+$H{set_priority} = ["set_priority <int>\n"];
+
+$C{set_priority} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $okay     = eval {
+        my $priority = $command->arguments;
+        setpriority( 'process', $$, $priority );
+        return 1;
+    };
+    if ( not $okay ) {
+        print {*STDERR} $@ || "ERROR: set_priority: unknown error\n";
+    }
+    return;
+};
+
 $H{set_timeout} = ["set_timeout <seconds>\n"];
 
 $C{set_timeout} = sub {
