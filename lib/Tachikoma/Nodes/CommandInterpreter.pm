@@ -2400,7 +2400,7 @@ $C{get_priority} = sub {
     my $envelope = shift;
     my $priority = undef;
     my $okay     = eval {
-        $priority = getpriority( 'process', $$ );
+        $priority = getpriority( 0, 0 );
         return 1;
     };
     if ( not $okay ) {
@@ -2417,7 +2417,11 @@ $C{set_priority} = sub {
     my $envelope = shift;
     my $okay     = eval {
         my $priority = $command->arguments;
-        setpriority( 'process', $$, $priority );
+
+        # PRIO_PROCESS = 0,		/* WHO is a process ID.  */
+        # PRIO_PGRP = 1,		/* WHO is a process group ID.  */
+        # PRIO_USER = 2			/* WHO is a user ID.  */
+        setpriority( 1, 0, $priority );
         return 1;
     };
     if ( not $okay ) {
