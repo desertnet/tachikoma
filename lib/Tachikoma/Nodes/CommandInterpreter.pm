@@ -43,7 +43,7 @@ my %H        = ();
 my %L        = ();
 my %C        = ();
 my %DISABLED = (
-    1 => { map { $_ => 1 } qw( config func make_node remote_env slurp var ) },
+    1 => { map { $_ => 1 } qw( make_node slurp config env var func ) },
     2 => { map { $_ => 1 } qw( command_node ) },
     3 => { map { $_ => 1 } qw( connect_node ) },
 );
@@ -529,26 +529,6 @@ $C{list_disabled} = sub {
         $response .= "$cmd_name\n";
     }
     return $self->response( $envelope, $response );
-};
-
-$H{scheme} = ["scheme <rsa,rsa-sha256,ed25519>\n"];
-
-$C{scheme} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'make_node' )
-        or return $self->error("verification failed\n");
-    my $response = undef;
-    if ( $command->arguments ) {
-        $self->configuration->scheme( $command->arguments );
-        $response = $self->okay($envelope);
-    }
-    else {
-        my $scheme = $self->configuration->scheme;
-        $response = $self->response( $envelope, "$scheme\n" );
-    }
-    return $response;
 };
 
 $H{make_node} = [
@@ -1851,24 +1831,75 @@ $L{reload} = $H{reload_config};
 
 $C{reload} = $C{reload_config};
 
+$H{config} = ["config [ <name> [ = <value> ] ]\n"];
+
+$C{config} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my ( $key, $op, $value ) =
+        split m{\s*(=)\s*}, $command->arguments, 2;
+    if ( length $value or length $op ) {
+        $self->verify_key( $envelope, ['meta'], 'config' )
+            or return $self->error("verification failed\n");
+    }
+    my $var = {};
+    $var->{$_} = $self->configuration->{$_} for (@CONFIG_VARIABLES);
+    return $self->error("invalid key: $key\n")
+        if ( length $key and not exists $var->{$key} );
+    return $self->error("invalid operator: $op\n")
+        if ( length $op and $op ne q(=) );
+
+    if ( length $value ) {
+        $self->configuration->{$key} = $value;
+    }
+    elsif ( length $op ) {
+        $self->configuration->{$key} = undef;
+    }
+    elsif ( length $key ) {
+        if ( defined $var->{$key} ) {
+            my $line = $var->{$key};
+            chomp $line;
+            return $self->response( $envelope, "$line\n" );
+        }
+        else {
+            return $self->response( $envelope, "\n" );
+        }
+    }
+    else {
+        my @response = ();
+        for my $key ( sort keys %{$var} ) {
+            next if ( ref $var->{$key} );
+            my $line = "$key=" . ( $var->{$key} // q() );
+            chomp $line;
+            push @response, $line, "\n";
+        }
+        return $self->response( $envelope, join q(), @response );
+    }
+    return $self->okay($envelope);
+};
+
 $H{remote_env} = ["env [ <name> [ = <value> ] ]\n"];
 
 $C{remote_env} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'remote_env' )
-        or return $self->error("verification failed\n");
     my ( $key, $op, $value ) =
         split m{\s*(=)\s*}, $command->arguments, 2;
-    return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
+    if ( length $value or length $op ) {
+        $self->verify_key( $envelope, ['meta'], 'env' )
+            or return $self->error("verification failed\n");
+    }
+    return $self->error("invalid operator: $op\n")
+        if ( length $op and $op ne q(=) );
     if ( length $value ) {
         $ENV{$key} = $value;    ## no critic (RequireLocalizedPunctuationVars)
     }
-    elsif ( defined $op ) {
+    elsif ( length $op ) {
         delete $ENV{$key};
     }
-    elsif ( defined $key ) {
+    elsif ( length $key ) {
         if ( defined $ENV{$key} ) {
             my $line = $ENV{$key};
             chomp $line;
@@ -1897,61 +1928,18 @@ $C{remote_env} = sub {
     return $self->okay($envelope);
 };
 
-$H{config} = ["config [ <name> [ = <value> ] ]\n"];
-
-$C{config} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'config' )
-        or return $self->error("verification failed\n");
-    my ( $key, $op, $value ) =
-        split m{\s*(=)\s*}, $command->arguments, 2;
-    my $var = {};
-    $var->{$_} = $self->configuration->{$_} for (@CONFIG_VARIABLES);
-    return $self->error("invalid key: $key\n")
-        if ( $key and not exists $var->{$key} );
-    return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
-
-    if ( length $value ) {
-        $self->configuration->{$key} = $value;
-    }
-    elsif ( defined $op ) {
-        $self->configuration->{$key} = undef;
-    }
-    elsif ( defined $key ) {
-        if ( defined $var->{$key} ) {
-            my $line = $var->{$key};
-            chomp $line;
-            return $self->response( $envelope, "$line\n" );
-        }
-        else {
-            return $self->response( $envelope, "\n" );
-        }
-    }
-    else {
-        my @response = ();
-        for my $key ( sort keys %{$var} ) {
-            next if ( ref $var->{$key} );
-            my $line = "$key=" . ( $var->{$key} // q() );
-            chomp $line;
-            push @response, $line, "\n";
-        }
-        return $self->response( $envelope, join q(), @response );
-    }
-    return $self->okay($envelope);
-};
-
 $H{remote_var} = ["remote_var [ <name> [ = <value> ] ]\n"];
 
 $C{remote_var} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'var' )
-        or return $self->error("verification failed\n");
     my ( $key, $op, $value ) =
         split m{\s*([.]=|[|][|]=|=)\s*}, $command->arguments, 2;
+    if ( length $value or length $op ) {
+        $self->verify_key( $envelope, ['meta'], 'var' )
+            or return $self->error("verification failed\n");
+    }
     my $var = $self->configuration->var;
     if ( length $value ) {
         my $v = $var->{$key};
@@ -1975,11 +1963,11 @@ $C{remote_var} = sub {
             $var->{$key} = $v->[0];
         }
     }
-    elsif ( defined $op ) {
+    elsif ( length $op ) {
         return $self->error("invalid operator: $op\n") if ( $op ne q(=) );
         delete $var->{$key};
     }
-    elsif ( defined $key ) {
+    elsif ( length $key ) {
         if ( defined $var->{$key} ) {
             if ( ref $var->{$key} ) {
                 return $self->response( $envelope,
@@ -2593,8 +2581,12 @@ sub verify_command {
             $message->[FROM], ' failed: ', $id, ' not in authorized_keys' );
         return;
     }
-    $self->verify_key( $message, ['command'], $command->{name} )
-        or return;
+
+    # Just see if they can send commands at all.
+    # Important commands will have their own verify_key()
+    if ( not $self->verify_key( $message, ['command'] ) ) {
+        return;
+    }
     my $response = undef;
     my $signed   = join q(:),
         $id, $message->[TIMESTAMP], $command->{name},
@@ -2648,6 +2640,8 @@ sub verify_key {
 
     my $allow_tag = 1;
     for my $tag ( @{$tags} ) {
+
+        # local key automatically has meta
         next if ( $tag eq 'meta' and $id eq $my_id );
         $allow_tag = undef if ( not $entry->{allow}->{$tag} );
     }
