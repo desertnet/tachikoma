@@ -62,6 +62,7 @@ lib/Tachikoma/Nodes/Buffer.pm
 lib/Tachikoma/Nodes/BufferProbe.pm
 lib/Tachikoma/Nodes/BufferProbeToGraphite.pm
 lib/Tachikoma/Nodes/BufferTop.pm
+lib/Tachikoma/Nodes/BytestreamToStorable.pm
 lib/Tachikoma/Nodes/Callback.pm
 lib/Tachikoma/Nodes/CGI.pm
 lib/Tachikoma/Nodes/CircuitTester.pm
@@ -136,6 +137,7 @@ lib/Tachikoma/Nodes/Split.pm
 lib/Tachikoma/Nodes/SQL.pm
 lib/Tachikoma/Nodes/StdErr.pm
 lib/Tachikoma/Nodes/STDIO.pm
+lib/Tachikoma/Nodes/StorableToBytestream.pm
 lib/Tachikoma/Nodes/StorableToJSON.pm
 lib/Tachikoma/Nodes/Substr.pm
 lib/Tachikoma/Nodes/SudoFarmer.pm
