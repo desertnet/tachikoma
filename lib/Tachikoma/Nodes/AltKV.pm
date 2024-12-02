@@ -59,11 +59,17 @@ sub fill {
 
 sub expand_bytestream {
     my ( $self, $message, $response ) = @_;
-    my %new = split q( ), $message->[PAYLOAD];
-    if ( scalar keys %new > 1 ) {
-        $self->print_less_often('ERROR: expand batches not supported');
+    my @new = split q( ), $message->[PAYLOAD];
+    if ( not @new ) {
+        $self->print_less_often('ERROR: empty payload');
+    }
+    elsif ( @new > 2 ) {
+        $self->print_less_often( 'ERROR: expand batches not supported [',
+            join( q(], [), @new ), ']' );
     }
     else {
+        push @new, q() if ( @new == 1 );
+        my %new = @new;
         for my $key ( keys %new ) {
             my $value = $new{$key};
             chomp $value;
