@@ -10,7 +10,6 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Shell2;
-use Tachikoma::Nodes::Responder;
 use Tachikoma::Nodes::FileWatcher;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Tail;
@@ -36,14 +35,13 @@ sub initialize_graph {
     my $name         = $self->name;
     my $interpreter  = Tachikoma::Nodes::CommandInterpreter->new;
     my $shell        = Tachikoma::Nodes::Shell2->new;
-    my $responder    = Tachikoma::Nodes::Responder->new;
     my $file_watcher = Tachikoma::Nodes::FileWatcher->new;
+    Tachikoma->nodes->{_responder}->shell($shell);
+    $shell->sink($interpreter);
     $self->connector->sink($interpreter);
+
     $shell->sink($interpreter);
     $interpreter->name('_command_interpreter');
-    $responder->name('_responder');
-    $responder->shell($shell);
-    $responder->sink( $self->router );
     $self->interpreter($interpreter);
     $file_watcher->name('_file_watcher');
     $file_watcher->sink($self);

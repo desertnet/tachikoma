@@ -80,8 +80,6 @@ sub fill {
     $self->{counter}++;
     return $self->drop_message( $message, 'message not addressed' )
         if ( not length $message->[TO] );
-    $message->[TO] = $message->[FROM]
-        if ( $message->[TO] eq '_return_to_sender' );
     return $self->drop_message( $message, 'path exceeded 1024 bytes' )
         if ( ( length $message->[FROM] // 0 ) > 1024 );
     my ( $name, $path ) = split m{/}, $message->[TO], 2;
