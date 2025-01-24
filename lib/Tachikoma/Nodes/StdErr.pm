@@ -26,6 +26,12 @@ sub fill {
     $self->{counter}++;
     $self->stderr( $message->payload )
         if ( $message->type & TM_BYTESTREAM );
+    if ( length $self->{owner} ) {
+        $self->SUPER::fill($message)
+    }
+    else {
+        $self->cancel($message);
+    }
     return;
 }
 
