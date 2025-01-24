@@ -1184,6 +1184,7 @@ $C{connect_inet} = sub {
     my $name        = undef;
     my $io_mode     = undef;
     my $use_SSL     = undef;
+    my $ssl_verify  = undef;
     my $ssl_ca_file = undef;
     my $scheme      = undef;
     my $reconnect   = undef;
@@ -1200,6 +1201,7 @@ $C{connect_inet} = sub {
         'name=s'        => \$name,
         'io'            => \$io_mode,
         'use-ssl'       => \$use_SSL,
+        'ssl-verify'    => \$ssl_verify,
         'ssl-ca-file=s' => \$ssl_ca_file,
         'scheme=s'      => \$scheme,
         'reconnect'     => \$reconnect,
@@ -1222,7 +1224,7 @@ $C{connect_inet} = sub {
         port        => $port,
         name        => $name,
         mode        => $io_mode ? 'io' : 'message',
-        use_SSL     => $use_SSL,
+        use_SSL     => $use_SSL ? $ssl_verify ? 'verify' : 'noverify' : undef,
         SSL_ca_file => $ssl_ca_file,
         scheme      => $scheme,
         reconnect   => $reconnect,
@@ -1249,6 +1251,7 @@ $C{connect_unix} = sub {
     my $name        = undef;
     my $io_mode     = undef;
     my $use_SSL     = undef;
+    my $ssl_verify  = undef;
     my $ssl_ca_file = undef;
     my $scheme      = undef;
     my $reconnect   = undef;
@@ -1261,6 +1264,7 @@ $C{connect_unix} = sub {
         'name=s'        => \$name,
         'io'            => \$io_mode,
         'use-ssl'       => \$use_SSL,
+        'ssl-verify'    => \$ssl_verify,
         'ssl-ca-file=s' => \$ssl_ca_file,
         'scheme=s'      => \$scheme,
         'reconnect'     => \$reconnect,
@@ -1280,7 +1284,7 @@ $C{connect_unix} = sub {
         filename    => $filename,
         name        => $name,
         mode        => $io_mode ? 'io' : 'message',
-        use_SSL     => $use_SSL,
+        use_SSL     => $use_SSL ? $ssl_verify ? 'verify' : 'noverify' : undef,
         SSL_ca_file => $ssl_ca_file,
         scheme      => $scheme,
         reconnect   => $reconnect,
