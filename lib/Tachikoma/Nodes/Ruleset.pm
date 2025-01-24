@@ -148,8 +148,8 @@ $C{list_rules} = sub {
             }
             else {
                 $response .= "$id $type";
-                $response .= " from $from" if ($from);
-                $response .= " to $to" if ($to);
+                $response .= " from $from"            if ($from);
+                $response .= " to $to"                if ($to);
                 $response .= " where $field='$regex'" if ($field);
                 $response .= "\n";
             }
@@ -208,8 +208,8 @@ $C{add_rule} = sub {
             $type,
             defined $from                              ? qr{$from} : undef,
             ( not $EXCLUDE_TO{$type} and defined $to ) ? qr{$to}   : $to,
-            $field_id      ? $enum{$field_id} : undef,
-            defined $regex ? qr{$regex}       : undef
+            $field_id      ? $enum{$field_id}                      : undef,
+            defined $regex ? qr{$regex}                            : undef
         ];
         return $self->okay($envelope);
     }
@@ -269,8 +269,8 @@ sub dump_config {
         }
         else {
             $response .= "command $self->{name} add_rule $id $type";
-            $response .= " from $from" if ($from);
-            $response .= " to $to" if ($to);
+            $response .= " from $from"            if ($from);
+            $response .= " to $to"                if ($to);
             $response .= " where $field='$regex'" if ($field);
             $response .= "\n";
         }

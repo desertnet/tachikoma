@@ -14,13 +14,13 @@ package Tachikoma::Nodes::Socket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
-use Tachikoma::Message qw(
+use Tachikoma::Message           qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_HEARTBEAT TM_RESPONSE TM_ERROR
     VECTOR_SIZE
 );
 use Tachikoma::Crypto;
-use Digest::MD5 qw( md5 );
+use Digest::MD5     qw( md5 );
 use IO::Socket::SSL qw(
     SSL_WANT_WRITE SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT
 );
@@ -42,7 +42,7 @@ BEGIN {
         return 1;
     };
 }
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
@@ -196,7 +196,7 @@ sub inet_client_async {
 sub new {
     my $proto        = shift;
     my $class        = ref($proto) || $proto;
-    my $flags        = shift || 0;
+    my $flags        = shift       || 0;
     my $self         = $class->SUPER::new;
     my $input_buffer = q();
     $self->{type}             = 'socket';
@@ -726,7 +726,7 @@ sub verify_signature {
 
 sub read_block {
     my $self     = shift;
-    my $buf_size = shift or die 'FAILED: missing buf_size';
+    my $buf_size = shift       or die 'FAILED: missing buf_size';
     my $fh       = $self->{fh} or return;
     my $buffer   = $self->{input_buffer};
     my $got      = length ${$buffer};

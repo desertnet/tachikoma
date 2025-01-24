@@ -11,7 +11,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use Time::HiRes;
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent        qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
@@ -77,8 +77,8 @@ sub fire {
                 ' max_unanswered:' => $node->{max_unanswered},
                 ' msg_in_buf:'     => $node->{buffer_size}
                 // $node->get_buffer_size,
-                ' msg_rcvd:' => $node->{counter},
-                ' msg_sent:' => $node->{msg_sent},
+                ' msg_rcvd:'       => $node->{counter},
+                ' msg_sent:'       => $node->{msg_sent},
                 ' msg_unanswered:' =>
                 scalar( keys %{ $node->{msg_unanswered} } ),
                 ' p_msg_sent:' => $node->{pmsg_sent},

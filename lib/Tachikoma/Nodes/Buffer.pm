@@ -14,7 +14,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_RESPONSE TM_ERROR TM_EOF
 );
 use Data::Dumper;
-use POSIX qw( strftime );
+use POSIX  qw( strftime );
 use parent qw( Tachikoma::Nodes::Scheduler );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -414,8 +414,8 @@ $C{list_messages} = sub {
             my ( $timestamp, $attempts, $packed ) =
                 ( unpack 'F N a*', $tiedhash->{$key} );
             my $message = Tachikoma::Message->unpacked( \$packed );
-            $response .=
-                sprintf "%-31s %8d %8d %25s\n", $key, $attempts,
+            $response
+                .= sprintf "%-31s %8d %8d %25s\n", $key, $attempts,
                 $Tachikoma::Now - $message->[TIMESTAMP],
                 $timestamp
                 ? strftime( '%F %T %Z', localtime $timestamp )

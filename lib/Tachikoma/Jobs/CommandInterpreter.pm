@@ -12,7 +12,7 @@ use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
-use parent qw( Tachikoma::Job );
+use parent             qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 

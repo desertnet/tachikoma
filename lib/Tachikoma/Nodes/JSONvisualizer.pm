@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
-use Tachikoma::Message qw(
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use JSON;
@@ -40,10 +40,10 @@ sub gather_node_information {
         push @nodes,
             {
             name    => $name,
-            sink    => $node->{sink} ? $node->{sink}->{name} : q(),
-            edge    => $node->{edge} ? $node->{edge}->{name} : q(),
-            owner   => $node->{owner} ? $node->{owner} : q(),
-            counter => $node->{counter} ? $node->{counter} : 0,
+            sink    => $node->{sink}    ? $node->{sink}->{name} : q(),
+            edge    => $node->{edge}    ? $node->{edge}->{name} : q(),
+            owner   => $node->{owner}   ? $node->{owner}        : q(),
+            counter => $node->{counter} ? $node->{counter}      : 0,
             };
     }
     return @nodes;

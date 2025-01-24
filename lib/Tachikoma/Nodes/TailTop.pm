@@ -9,9 +9,9 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::TopicTop qw( smart_sort );
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM TM_EOF );
-use POSIX qw( strftime );
-use vars qw( @ISA );
-use parent qw( Tachikoma::Nodes::TopicTop );
+use POSIX              qw( strftime );
+use vars               qw( @ISA );
+use parent             qw( Tachikoma::Nodes::TopicTop );
 
 use version; our $VERSION = qv('v2.0.368');
 

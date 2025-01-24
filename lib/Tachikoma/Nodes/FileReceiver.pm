@@ -13,7 +13,7 @@ use Tachikoma::Message qw(
     STREAM PAYLOAD TM_BYTESTREAM TM_EOF
 );
 use File::Temp qw( tempfile );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent     qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.349');
 

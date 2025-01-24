@@ -19,8 +19,8 @@ use Tachikoma::Message qw(
     TM_STORABLE TM_ERROR TM_EOF
 );
 use Getopt::Long qw( GetOptionsFromString );
-use POSIX qw( strftime );
-use parent qw( Tachikoma::Nodes::Timer );
+use POSIX        qw( strftime );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.165');
 
@@ -36,13 +36,13 @@ my $SAVE_INTERVAL       = 3600;           # re-save topic configs this often
 my $REBALANCE_THRESHOLD = 0.90;           # have 90% of our share of leaders
 my $ELECTION_SHORT      = 5;              # wait if everyone is online
 my $ELECTION_LONG       = 120;            # wait if a broker is offline
-my $ELECTION_TIMEOUT   = 300;    # how long to wait before starting over
-my $LCO_SEND_INTERVAL  = 15;     # how often to send last commit offsets
-my $LCO_TIMEOUT        = 3600;   # how long to wait before expiring cached LCO
-my $LAST_LCO_SEND      = 0;      # time we last sent LCO
-my $DEFAULT_CACHE_SIZE = 1;      # config for cache partitions
-my $NUM_CACHE_SEGMENTS = 2;
-my %C                  = ();
+my $ELECTION_TIMEOUT    = 300;   # how long to wait before starting over
+my $LCO_SEND_INTERVAL   = 15;    # how often to send last commit offsets
+my $LCO_TIMEOUT         = 3600;  # how long to wait before expiring cached LCO
+my $LAST_LCO_SEND       = 0;     # time we last sent LCO
+my $DEFAULT_CACHE_SIZE  = 1;     # config for cache partitions
+my $NUM_CACHE_SEGMENTS  = 2;
+my %C                   = ();
 
 die 'ERROR: data will be lost if HEARTBEAT_TIMEOUT < LCO_SEND_INTERVAL'
     if ( $HEARTBEAT_TIMEOUT < $LCO_SEND_INTERVAL );
@@ -1044,7 +1044,7 @@ sub determine_followers {
     my %candidates  = ();
     my @followers   = ();
     die "ERROR: no replication factor specified\n" if ( not defined $count );
-    $skip{$leader_pool} = 1 if ($leader_pool);
+    $skip{$leader_pool} = 1                        if ($leader_pool);
 
     # find candidate pools
     for my $broker_id ( keys %{ $query->{online_brokers} } ) {
@@ -2113,9 +2113,9 @@ $C{list_partitions} = sub {
             next if ( $glob and $name !~ m{$glob} );
             my $log       = $broker_lco->{$name};
             my $stats     = $broker_stats->{$name};
-            my $count     = $stats ? $stats->{isr} : q();
+            my $count     = $stats ? $stats->{isr}    : q();
             my $offset    = $stats ? $stats->{offset} : q();
-            my $is_leader = $count ? q(*) : q();
+            my $is_leader = $count ? q(*)             : q();
             my $is_active = q();
             my $is_online = $broker->{is_online} ? q(*) : q();
             $is_active = q(*)

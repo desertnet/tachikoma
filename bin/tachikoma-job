@@ -11,7 +11,7 @@ use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Responder;
 use Tachikoma::Nodes::Echo;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_SYNC );
-use Tachikoma::Config qw( load_module );
+use Tachikoma::Config            qw( load_module );
 
 use version; our $VERSION = qv('v2.0.192');
 

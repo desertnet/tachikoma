@@ -243,7 +243,7 @@ $C{at} = sub {
         my ( $year, $month, $day, $hour, $min, $sec, $imperative ) =
             ( $1, $2, $3, $4, $5, $6, $7 );
         $year -= 1900 if ($year);
-        $month-- if ($month);
+        $month--      if ($month);
         $sec ||= 0;
         my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
@@ -320,7 +320,7 @@ $C{enable_event} = sub {
     }
     my ( $time, $repeat, $enabled, $text, $packed ) = unpack 'N N N Z* a*',
         $event;
-    $enabled = 1;
+    $enabled          = 1;
     $tiedhash->{$key} = pack 'N N N Z* a*', $time, $repeat, $enabled, $text,
         $packed;
     return $self->okay($envelope);
@@ -342,7 +342,7 @@ $C{disable_event} = sub {
     }
     my ( $time, $repeat, $enabled, $text, $packed ) = unpack 'N N N Z* a*',
         $event;
-    $enabled = 0;
+    $enabled          = 0;
     $tiedhash->{$key} = pack 'N N N Z* a*', $time, $repeat, $enabled, $text,
         $packed;
     return $self->okay($envelope);

@@ -17,8 +17,8 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
-use POSIX qw( F_SETFL O_NONBLOCK EAGAIN );
-use vars qw( @EXPORT_OK );
+use POSIX  qw( F_SETFL O_NONBLOCK EAGAIN );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Node );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
@@ -47,7 +47,7 @@ sub filehandle {
 sub new {
     my $proto        = shift;
     my $class        = ref($proto) || $proto;
-    my $flags        = shift || 0;
+    my $flags        = shift       || 0;
     my $self         = $class->SUPER::new;
     my $input_buffer = q();
     $self->{type}                 = 'filehandle';

@@ -15,16 +15,16 @@ use Tachikoma::Message qw(
 );
 use DBI;
 use Data::Dumper;
-use POSIX qw( strftime );
+use POSIX    qw( strftime );
 use Storable qw( nfreeze );
-use parent qw( Tachikoma::Nodes::Buffer );
+use parent   qw( Tachikoma::Nodes::Buffer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $CLEAR_INTERVAL  = 900;
-my $DEFAULT_TIMEOUT = 900;
-my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_DIR          = "$HOME/.tachikoma/queues";
+my $CLEAR_INTERVAL     = 900;
+my $DEFAULT_TIMEOUT    = 900;
+my $HOME               = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR             = "$HOME/.tachikoma/queues";
 my $HEARTBEAT_INTERVAL = 15;    # seconds
 my %C                  = ();
 

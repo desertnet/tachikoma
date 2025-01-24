@@ -9,8 +9,8 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM );
-use POSIX qw( strftime );
-use parent qw( Tachikoma::Node );
+use POSIX              qw( strftime );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.400');
 

@@ -19,12 +19,12 @@ use Tachikoma::Message qw(
 );
 use BerkeleyDB;
 use Digest::MD5 qw( md5 );
-use parent qw( Tachikoma::Job );
+use parent      qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $HOME   = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_DIR = "$HOME/.tachikoma/tails";
+my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR          = "$HOME/.tachikoma/tails";
 my $OFFSET_INTERVAL = 1;      # write offsets this often
 my $SCAN_INTERVAL   = 15;     # check files this often
 my $STARTUP_DELAY   = -10;    # offset from scan interval

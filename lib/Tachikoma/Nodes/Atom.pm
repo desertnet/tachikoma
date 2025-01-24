@@ -9,8 +9,8 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR TM_EOF );
-use File::Temp qw( tempfile );
-use parent qw( Tachikoma::Node );
+use File::Temp         qw( tempfile );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 

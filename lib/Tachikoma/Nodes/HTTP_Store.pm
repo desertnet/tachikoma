@@ -9,14 +9,14 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry send404 );
-use Tachikoma::Message qw(
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use CGI;
 use POSIX qw( strftime );
 use URI::Escape;
 use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Node );
+use parent      qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
@@ -36,7 +36,7 @@ sub arguments {
         my ( $tmp_path, $prefix, @topics ) = split q( ), $self->{arguments};
         $self->{topics}   = { map { $_ => 1 } @topics };
         $self->{tmp_path} = $tmp_path if ( defined $tmp_path );
-        $self->{prefix}   = $prefix if ( defined $prefix );
+        $self->{prefix}   = $prefix   if ( defined $prefix );
     }
     return $self->{arguments};
 }

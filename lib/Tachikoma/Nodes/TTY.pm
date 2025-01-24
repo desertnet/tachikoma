@@ -10,10 +10,10 @@ package Tachikoma::Nodes::TTY;
 use strict;
 use warnings;
 use Tachikoma::Nodes::STDIO qw( TK_R TK_W TK_SYNC );
-use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
-use Term::ReadLine qw();
-use vars qw( @EXPORT_OK );
-use parent qw( Tachikoma::Nodes::STDIO );
+use Tachikoma::Message      qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
+use Term::ReadLine          qw();
+use vars                    qw( @EXPORT_OK );
+use parent                  qw( Tachikoma::Nodes::STDIO );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC );
 
 use version; our $VERSION = qv('v2.0.280');

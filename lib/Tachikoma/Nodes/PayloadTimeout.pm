@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_PERSIST
 );
 use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent      qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.905');
 

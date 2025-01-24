@@ -14,12 +14,12 @@ use Tachikoma::Message qw(
 );
 use Digest::MD5;
 use File::Path qw( remove_tree );
-use parent qw( Tachikoma::Job );
+use parent     qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
 # my $SEPARATOR   = chr 0;
-my $SEPARATOR = join q(), chr 30, q( -> ), chr 30;
+my $SEPARATOR   = join q(), chr 30, q( -> ), chr 30;
 my %DOT_INCLUDE = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -121,15 +121,15 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             next;
         }
-        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
-        my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
+        my $stat          = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $other_entry   = $other{$entry};
-        my $their_stat    = $other_entry ? $other_entry->[0] : q();
-        my $their_size    = $other_entry ? $other_entry->[1] : q(-);
-        my $their_perms   = $other_entry ? $other_entry->[2] : q();
-        my $my_is_dir     = ( $stat eq 'D' ) ? 1 : 0;
-        my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1 : 0;
+        my $their_stat    = $other_entry           ? $other_entry->[0] : q();
+        my $their_size    = $other_entry           ? $other_entry->[1] : q(-);
+        my $their_perms   = $other_entry           ? $other_entry->[2] : q();
+        my $my_is_dir     = ( $stat eq 'D' )       ? 1                 : 0;
+        my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1                 : 0;
         my $digest        = q(-);
         my $theirs_exists = exists $other{$entry};
 

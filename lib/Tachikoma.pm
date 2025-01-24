@@ -12,7 +12,7 @@ use Tachikoma::Message qw(
     TM_PERSIST TM_RESPONSE
 );
 use Tachikoma::Config qw( load_module include_conf );
-use POSIX qw( setsid );
+use POSIX             qw( setsid );
 
 use version; our $VERSION = qv('v2.0.101');
 
@@ -255,7 +255,7 @@ sub check_pid {
 
 sub daemonize {    # from perlipc manpage
     my $self = shift;
-    open STDIN,  '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
+    open STDIN, '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
     open STDOUT, '>', '/dev/null'
         or die "ERROR: couldn't write /dev/null: $!";
     defined( my $pid = fork ) or die "ERROR: couldn't fork: $!";

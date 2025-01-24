@@ -14,7 +14,7 @@ use Tachikoma::Message qw(
 );
 use Digest::MD5;
 use Time::HiRes;
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Job );
 @EXPORT_OK = qw( stat_directory );
 
@@ -25,7 +25,7 @@ my $DEFAULT_MAX_FILES = 64;
 my $DEFAULT_PORT      = 5600;
 
 # my $SEPARATOR         = chr 0;
-my $SEPARATOR = join q(), chr 30, q( -> ), chr 30;
+my $SEPARATOR   = join q(), chr 30, q( -> ), chr 30;
 my %DOT_INCLUDE = map { $_ => 1 } qw(
     .htaccess
     .svn
@@ -243,8 +243,8 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
         my $path_entry = join q(/), $path, $entry;
         my @lstat      = lstat $path_entry;
         next if ( not @lstat );
-        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
-        my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
+        my $stat          = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
         my $perms         = sprintf '%04o', $lstat[2] & 07777;
         my $last_modified = $lstat[9];
         my $digest        = q(-);

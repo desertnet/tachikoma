@@ -6,8 +6,8 @@ use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::ConsumerBroker;
 use Tachikoma::Nodes::Dumper;
 use Tachikoma::Nodes::Socket qw( TK_SYNC );
-use Tachikoma::Nodes::STDIO qw( TK_R );
-use Getopt::Long qw( GetOptions );
+use Tachikoma::Nodes::STDIO  qw( TK_R );
+use Getopt::Long             qw( GetOptions );
 
 use version; our $VERSION = qv('v2.0.929');
 

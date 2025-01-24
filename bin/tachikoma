@@ -18,7 +18,7 @@ use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM TM_EOF );
 use Tachikoma::Config;
 use Getopt::Long qw( GetOptions );
-use POSIX qw( isatty );
+use POSIX        qw( isatty );
 
 use version; our $VERSION = qv('v2.0.192');
 
@@ -101,8 +101,8 @@ $Tachikoma::Right_Now = $Tachikoma::Now;
 
 if ( length $filename ) {
     my @values = @arguments;
-    $config->{var}->{$_} = $values[$_] for ( 1 .. $#values );
-    $config->{var}->{q(0)} = shift @values;
+    $config->{var}->{$_}    = $values[$_] for ( 1 .. $#values );
+    $config->{var}->{q(0)}  = shift @values;
     $config->{var}->{q(@)}  = join q( ), @values;
     $config->{var}->{q(_C)} = scalar @values;
     my @lines = ();

@@ -9,8 +9,8 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR TM_EOF );
-use POSIX qw( strftime );
-use parent qw( Tachikoma::Nodes::Timer );
+use POSIX              qw( strftime );
+use parent             qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 

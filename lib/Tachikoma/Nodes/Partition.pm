@@ -14,9 +14,9 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD LAST_MSG_FIELD
     TM_BATCH TM_REQUEST TM_PERSIST TM_ERROR TM_EOF
 );
-use Fcntl qw( :flock SEEK_SET SEEK_END );
+use Fcntl        qw( :flock SEEK_SET SEEK_END );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.165');
 
@@ -221,8 +221,8 @@ sub fire {
         my $wrote = 0;
         sysseek $fh, 0, SEEK_END or die "ERROR: couldn't seek: $!";
         for my $message ( @{$batch} ) {
-            $wrote +=
-                syswrite $fh,
+            $wrote
+                += syswrite $fh,
                 $message->[TYPE] & TM_BATCH
                 ? $message->[PAYLOAD]
                 : ${ $message->packed } // die "ERROR: couldn't write: $!";
@@ -804,7 +804,7 @@ sub purge_tree {
     my $self = shift;
     my $path = shift;
     $path //= $self->{filename} if ( ref $self );
-    return if ( not $path or not -d $path );
+    return                      if ( not $path or not -d $path );
     my @filenames = ();
     my $dh        = undef;
     if ( opendir $dh, $path ) {

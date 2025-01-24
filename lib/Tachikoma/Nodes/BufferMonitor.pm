@@ -80,9 +80,9 @@ LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
         $buffer->{id}              = $buffer_id;
         $buffer->{last_update}     = $Tachikoma::Right_Now;
         $buffer->{last_timestamp}  = $message->[TIMESTAMP];
-        $buffer->{last_email} = $old_buffer->{last_email} || 0;
-        $buffer->{last_trap}  = $old_buffer->{last_trap}  || 0;
-        $buffer->{lag}        = sprintf '%.1f',
+        $buffer->{last_email}      = $old_buffer->{last_email} || 0;
+        $buffer->{last_trap}       = $old_buffer->{last_trap}  || 0;
+        $buffer->{lag}             = sprintf '%.1f',
             $buffer->{last_update} - $buffer->{last_timestamp};
         $buffer->{age} ||= 0;
 

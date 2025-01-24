@@ -8,7 +8,7 @@ package Tachikoma::Nodes::LWP;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
+use Tachikoma::Message    qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use HTTP::Request::Common qw(GET);
 use LWP::UserAgent;
 use parent qw( Tachikoma::Node );

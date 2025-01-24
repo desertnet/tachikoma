@@ -13,7 +13,7 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Tachikoma::Jobs::DirStats qw( stat_directory );
-use POSIX qw( isatty );
+use POSIX                     qw( isatty );
 my $USE_RESOLVER;
 
 BEGIN {
@@ -195,7 +195,7 @@ $tachikoma->callback(
             print {*STDERR} join q(),
                 'wrong intent: "', $payload, q("),
                 ' should be: "',   $intent,  q("),
-                ' from ', $message->from, "\n";
+                ' from ',          $message->from, "\n";
             $fail = 1;
         }
         pop @targets;

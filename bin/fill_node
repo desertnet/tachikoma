@@ -6,7 +6,7 @@ use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Tail;
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Nodes::Socket qw( TK_R TK_SYNC );
-use Getopt::Long qw( GetOptions );
+use Getopt::Long             qw( GetOptions );
 
 use version; our $VERSION = qv('v2.0.929');
 

@@ -13,9 +13,9 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_REQUEST
 );
-use Digest::MD5 qw( md5 );
+use Digest::MD5  qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Nodes::Table );
+use parent       qw( Tachikoma::Nodes::Table );
 
 use version; our $VERSION = qv('v2.0.197');
 
@@ -50,8 +50,8 @@ sub arguments {
         $self->{arguments}      = $arguments;
         $self->{caches}         = [];
         $self->{num_partitions} = $num_partitions // $DEFAULT_NUM_PARTITIONS;
-        $self->{window_size}    = $window_size // $DEFAULT_WINDOW_SIZE;
-        $self->{num_buckets}    = $num_buckets // $DEFAULT_NUM_BUCKETS;
+        $self->{window_size}    = $window_size    // $DEFAULT_WINDOW_SIZE;
+        $self->{num_buckets}    = $num_buckets    // $DEFAULT_NUM_BUCKETS;
         $self->{limit}          = $limit || $DEFAULT_LIMIT;
         $self->{next_window}    = [];
     }

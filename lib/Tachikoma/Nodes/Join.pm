@@ -13,7 +13,7 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_PERSIST TM_EOF
 );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 

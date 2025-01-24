@@ -18,7 +18,7 @@ use Tachikoma::Nodes::Callback;
 use POSIX qw( F_SETFD dup2 );
 use Socket;
 use Scalar::Util qw( blessed );
-use parent qw( Tachikoma::Node );
+use parent       qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.101');
 
@@ -119,11 +119,11 @@ sub spawn {
     else {
         my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
-        my $type          = ( $options->{type} =~ m{^([\w:]+)$} )[0];
-        my $username      = ( $options->{username} =~ m{^(\S*)$} )[0];
+        my $type          = ( $options->{type}        =~ m{^([\w:]+)$} )[0];
+        my $username      = ( $options->{username}    =~ m{^(\S*)$} )[0];
         my $config_file   = ( $options->{config_file} =~ m{^(\S*)$} )[0];
-        my $name          = ( $options->{name} =~ m{^(\S*)$} )[0];
-        my $arguments     = ( $options->{arguments} =~ m{^(.*)$}s )[0];
+        my $name          = ( $options->{name}        =~ m{^(\S*)$} )[0];
+        my $arguments     = ( $options->{arguments}   =~ m{^(.*)$}s )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -279,8 +279,8 @@ sub fill {
 
 sub execute {
     my $self        = shift;
-    my $safe_part   = shift || q();
-    my $unsafe_part = shift || q();
+    my $safe_part   = shift                                           || q();
+    my $unsafe_part = shift                                           || q();
     my $now_safe = ( $unsafe_part =~ m{^([\d\s\w@%"'/:,.=_-]*)$} )[0] || q();
     if ( $unsafe_part eq $now_safe ) {
         my $command = join q( ), $safe_part, $now_safe;
@@ -295,8 +295,8 @@ sub execute {
 
 sub execute_unsafe {
     my $self        = shift;
-    my $safe_part   = shift || q();
-    my $unsafe_part = shift || q();
+    my $safe_part   = shift                            || q();
+    my $unsafe_part = shift                            || q();
     my $now_safe    = ( $unsafe_part =~ m{^(.*)$} )[0] || q();
     if ( $unsafe_part eq $now_safe ) {
         my $command = join q( ), $safe_part, $now_safe;

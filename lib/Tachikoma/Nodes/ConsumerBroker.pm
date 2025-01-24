@@ -18,8 +18,8 @@ use Tachikoma::Message qw(
     TM_INFO TM_REQUEST TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Getopt::Long qw( GetOptionsFromString );
-use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Nodes::Timer );
+use Time::HiRes  qw( usleep );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
@@ -48,11 +48,11 @@ sub new {
     $self->{flags}          = 0;
     $self->{consumers}      = {};
     $self->{cache_type}     = $CACHE_TYPE;
-    $self->{auto_commit}    = $self->{group} ? $COMMIT_INTERVAL : undef;
-    $self->{auto_offset}    = $self->{auto_commit} ? 1 : undef;
-    $self->{default_offset} = 'end';
-    $self->{last_check}     = 0;
-    $self->{leader_path}    = undef;
+    $self->{auto_commit}    = $self->{group}       ? $COMMIT_INTERVAL : undef;
+    $self->{auto_offset}    = $self->{auto_commit} ? 1                : undef;
+    $self->{default_offset}              = 'end';
+    $self->{last_check}                  = 0;
+    $self->{leader_path}                 = undef;
     $self->{registrations}->{CONFIGURED} = {};
     $self->{registrations}->{READY}      = {};
 
@@ -122,9 +122,9 @@ sub arguments {
         $self->{topic}          = $topic;
         $self->{group}          = $group;
         $self->{partition_id}   = $partition_id;
-        $self->{max_unanswered} = $max_unanswered // 1;
+        $self->{max_unanswered} = $max_unanswered   // 1;
         $self->{async_interval} = $startup_interval // $STARTUP_INTERVAL;
-        $self->{timeout}        = $timeout || $DEFAULT_TIMEOUT;
+        $self->{timeout}        = $timeout     || $DEFAULT_TIMEOUT;
         $self->{hub_timeout}    = $hub_timeout || $HUB_TIMEOUT;
 
         if ($group) {
@@ -341,7 +341,7 @@ sub make_consumer {
     my $partitions    = shift;
     my $partition_id  = shift;
     my $broker_id     = $partitions->{$partition_id};
-    my $my_name       = join q(:), $self->topic, 'consumer', $partition_id;
+    my $my_name       = join q(:), $self->topic, 'consumer',  $partition_id;
     my $log_name      = join q(:), $self->topic, 'partition', $partition_id;
     my $log           = join q(/), $broker_id, $log_name;
     my $consumer_name = undef;
@@ -600,7 +600,8 @@ sub fetch {
     usleep( $self->{poll_interval} * 1000000 )
         if ( $self->{eos} and $self->{poll_interval} );
     for my $partition_id ( keys %{$partitions} ) {
-        my $consumer = $self->{consumers}->{$partition_id}
+        my $consumer =
+               $self->{consumers}->{$partition_id}
             || $self->make_sync_consumer($partition_id)
             or next;
         push @{$messages}, @{ $consumer->fetch( $count, $callback ) };

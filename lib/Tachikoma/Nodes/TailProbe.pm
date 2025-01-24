@@ -11,7 +11,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use Time::HiRes;
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent        qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 

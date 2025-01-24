@@ -13,7 +13,7 @@ use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::STDIO qw( TK_R TK_SYNC );
 use Tachikoma::Nodes::BufferTop;
 use Tachikoma::Message qw( PAYLOAD );
-use Getopt::Long qw( GetOptions );
+use Getopt::Long       qw( GetOptions );
 
 use version; our $VERSION = qv('v2.1.12');
 

@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_PERSIST TM_COMMAND TM_EOF
 );
 use Device::SerialPort;
-use POSIX qw( F_SETFL O_NONBLOCK );
+use POSIX  qw( F_SETFL O_NONBLOCK );
 use parent qw( Tachikoma::Nodes::STDIO );
 
 use version; our $VERSION = qv('v2.0.368');

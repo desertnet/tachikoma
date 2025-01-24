@@ -10,9 +10,9 @@ use warnings;
 no warnings qw( uninitialized );    ## no critic (ProhibitNoWarnings)
 use Data::Dumper;
 use Storable qw( nfreeze thaw );
-use POSIX qw( strftime );
-use vars qw( @EXPORT_OK );
-use parent qw( Exporter );
+use POSIX    qw( strftime );
+use vars     qw( @EXPORT_OK );
+use parent   qw( Exporter );
 @EXPORT_OK = qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     IS_UNTHAWED LAST_MSG_FIELD

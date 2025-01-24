@@ -19,12 +19,12 @@ use Tachikoma::Command;
 use Tachikoma::Crypto;
 use Tachikoma::Nodes::Shell2;
 use Data::Dumper;
-use Getopt::Long qw( GetOptionsFromString );
-use POSIX qw( strftime SIGHUP );
-use Storable qw( thaw );
+use Getopt::Long  qw( GetOptionsFromString );
+use POSIX         qw( strftime SIGHUP );
+use Storable      qw( thaw );
 use Sys::Hostname qw( hostname );
-use Time::HiRes qw();
-use parent qw( Tachikoma::Node Tachikoma::Crypto );
+use Time::HiRes   qw();
+use parent        qw( Tachikoma::Node Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -406,9 +406,9 @@ $C{list_nodes} = sub {
     if ( $show_owner or $show_sink or $show_edge ) {
         my $header = ['NAME'];
         unshift @{$header}, 'COUNT' if ($show_count);
-        push @{$header}, 'SINK'  if ($show_sink);
-        push @{$header}, 'EDGE'  if ($show_edge);
-        push @{$header}, 'OWNER' if ($show_owner);
+        push @{$header},   'SINK'  if ($show_sink);
+        push @{$header},   'EDGE'  if ($show_edge);
+        push @{$header},   'OWNER' if ($show_owner);
         push @{$response}, $header;
     }
     if ( @{$argv} ) {
@@ -802,7 +802,7 @@ $C{dump_metadata} = sub {
         $owner = join q(, ), @{$owner} if ( ref $owner eq 'ARRAY' );
         $response .= join( q(|),
             $received, $sent, $name, $sink, $owner || q(),
-            $class, $type, @extra )
+            $class,    $type, @extra )
             . "\n";
     }
     return $self->response( $envelope, $response );
@@ -1932,7 +1932,7 @@ $C{remote_var} = sub {
         elsif ( $op eq q(/=) )           { $v->[0] //= 0; $v->[0] /= $value; }
         elsif ( $op eq q(//=) and not @{$v} )           { $v = [$value]; }
         elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = [$value]; }
-        else { return $self->error("invalid operator: $op"); }
+        else  { return $self->error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
             $var->{$key} = $v;
@@ -2620,7 +2620,7 @@ sub verify_key {
     for my $tag ( @{$tags} ) {
 
         # local key automatically has meta
-        next if ( $tag eq 'meta' and $id eq $my_id );
+        next               if ( $tag eq 'meta' and $id eq $my_id );
         $allow_tag = undef if ( not $entry->{allow}->{$tag} );
     }
     if ( $allow_tag or $secure_level < 0 ) {

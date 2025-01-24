@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM );
-use parent qw( Tachikoma::Node );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.197');
 

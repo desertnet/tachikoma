@@ -13,12 +13,12 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Socket qw( TK_R TK_W TK_SYNC setsockopts );
-use Tachikoma::Message qw(
+use Tachikoma::Message       qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
-use POSIX qw( EAGAIN );
-use vars qw( @EXPORT_OK );
+use POSIX  qw( EAGAIN );
+use vars   qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
@@ -29,7 +29,7 @@ my $DEFAULT_TIMEOUT = 900;
 sub new {
     my $proto = shift;
     my $class = ref($proto) || $proto;
-    my $flags = shift || 0;
+    my $flags = shift       || 0;
     my $self  = $class->SUPER::new($flags);
     $self->{last_fill}    = undef;
     $self->{got_EOF}      = undef;

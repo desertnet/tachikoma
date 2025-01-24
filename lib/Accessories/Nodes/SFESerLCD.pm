@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_NOREPLY);
-use parent qw( Tachikoma::Nodes::Timer );
+use parent             qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.768');
 

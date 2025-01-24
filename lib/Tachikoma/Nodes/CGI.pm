@@ -9,12 +9,12 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
-use Tachikoma::Message qw(
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_RESPONSE TM_EOF TM_KILLME
 );
 use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Node );
+use parent      qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
@@ -159,9 +159,9 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{QUERY_STRING}   = $query_string;
     $ENV{REMOTE_ADDR}    = $request->{remote_addr};
     $ENV{REMOTE_PORT}    = $request->{remote_port};
-    $ENV{AUTH_TYPE}      = $request->{auth_type} || q();
+    $ENV{AUTH_TYPE}      = $request->{auth_type}   || q();
     $ENV{REMOTE_USER}    = $request->{remote_user} || q();
-    $ENV{CONTENT_TYPE}   = $headers->{'content-type'} if ($is_post);
+    $ENV{CONTENT_TYPE}   = $headers->{'content-type'}   if ($is_post);
     $ENV{CONTENT_LENGTH} = $headers->{'content-length'} if ($is_post);
     $ENV{UNIQUE_ID}      = md5_hex(rand);
 

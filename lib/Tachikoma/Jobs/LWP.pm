@@ -10,7 +10,7 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::LWP;
 use Tachikoma::Message qw( TO TM_BYTESTREAM );
-use parent qw( Tachikoma::Job );
+use parent             qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.349');
 

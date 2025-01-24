@@ -11,7 +11,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use Time::HiRes;
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent        qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
@@ -92,11 +92,11 @@ sub fire {
                 'hostname:'        => $self->{my_hostname},
                 ' partition:'      => $partition_name,
                 ' consumer:'       => $consumer_name,
-                ' c_offset:'       => $node->{offset} // 0,
+                ' c_offset:'       => $node->{offset}          // 0,
                 ' cache_size:'     => $node->{last_cache_size} // 0,
-                ' msg_sent:'       => $node->{counter} // 0,
-                ' msg_unanswered:' => $node->{msg_unanswered} // 0,
-                ' max_unanswered:' => $node->{max_unanswered} // 0,
+                ' msg_sent:'       => $node->{counter}         // 0,
+                ' msg_unanswered:' => $node->{msg_unanswered}  // 0,
+                ' max_unanswered:' => $node->{max_unanswered}  // 0,
                 "\n";
         }
     }

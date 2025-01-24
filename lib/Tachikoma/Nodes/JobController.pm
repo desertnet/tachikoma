@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX qw( SIGKILL );
+use POSIX  qw( SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');

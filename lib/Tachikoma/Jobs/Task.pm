@@ -17,7 +17,7 @@ use Symbol qw( gensym );
 use IO::Select;
 use JSON;
 use Time::HiRes;
-use POSIX qw( :sys_wait_h );
+use POSIX  qw( :sys_wait_h );
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');

@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
-use Tachikoma::Message qw(
+use Tachikoma::Message               qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );

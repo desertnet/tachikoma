@@ -13,9 +13,9 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use File::Temp qw( tempfile );
-use POSIX qw( strftime );
+use POSIX      qw( strftime );
 use Time::Local;
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Nodes::Timer );
 @EXPORT_OK = qw( get_time log_entry cached_strftime send404 );
 
@@ -241,8 +241,8 @@ sub log_entry {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request    = $message->payload;
     my $headers    = $request->{headers};
-    my $host       = $headers->{'host'} || q("");
-    my $referer    = $headers->{'referer'} || q();
+    my $host       = $headers->{'host'}       || q("");
+    my $referer    = $headers->{'referer'}    || q();
     my $user_agent = $headers->{'user-agent'} || q();
     my $log_entry  = Tachikoma::Message->new;
     $log_entry->[TYPE]    = TM_BYTESTREAM;

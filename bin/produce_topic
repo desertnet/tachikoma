@@ -8,7 +8,7 @@ use Tachikoma::Nodes::SetStream;
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Nodes::Topic;
 use Tachikoma::Nodes::Socket qw( TK_R TK_SYNC );
-use Getopt::Long qw( GetOptions );
+use Getopt::Long             qw( GetOptions );
 
 use version; our $VERSION = qv('v2.0.929');
 
@@ -43,7 +43,7 @@ my $r = GetOptions(
     'help'          => \$help,
 );
 $topic_name //= $ARGV[0];
-$throttle = defined $throttle ? 1024 : 0 if ( not $throttle );
+$throttle    = defined $throttle ? 1024 : 0 if ( not $throttle );
 $debug_state = 1 if ( defined $debug_state and not $debug_state );
 
 usage() if ( $help or not $r or not length $topic_name );

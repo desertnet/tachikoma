@@ -10,7 +10,7 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::CGI;
 use Tachikoma::Message qw( TO );
-use parent qw( Tachikoma::Job );
+use parent             qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.349');
 

@@ -13,9 +13,9 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST
     TM_PERSIST TM_ERROR TM_EOF
 );
-use Digest::MD5 qw( md5 );
+use Digest::MD5  qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.197');
 
@@ -83,7 +83,7 @@ sub arguments {
         $self->{arguments}      = $arguments;
         $self->{caches}         = [];
         $self->{num_partitions} = $num_partitions // $DEFAULT_NUM_PARTITIONS;
-        $self->{num_buckets}    = $num_buckets // $DEFAULT_NUM_BUCKETS;
+        $self->{num_buckets}    = $num_buckets    // $DEFAULT_NUM_BUCKETS;
 
         if ($bucket_size) {
             $self->{bucket_size} = $bucket_size;
@@ -333,7 +333,7 @@ sub get_bucket {
     if ( $timestamp and $self->{window_size} ) {
         my $span = $self->{next_window}->[$i] - $timestamp - 1;
         $j = int $span / $self->{window_size};
-        $j = 0 if ( $j < 0 );
+        $j = 0                        if ( $j < 0 );
         $j = $self->{num_buckets} - 1 if ( $j >= $self->{num_buckets} );
     }
     $self->stderr( "DEBUG: GET_BUCKET $i, $timestamp < ",

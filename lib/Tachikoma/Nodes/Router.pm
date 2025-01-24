@@ -12,7 +12,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_HEARTBEAT TM_COMPLETION TM_ERROR
 );
-use POSIX qw( :sys_wait_h );
+use POSIX  qw( :sys_wait_h );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.195');
@@ -163,7 +163,7 @@ sub heartbeat {
     my $self  = shift;
     my $var   = shift;
     my $stale = $var->{stale_connector_threshold} || 900;
-    my $slow  = $var->{slow_connector_threshold} || 900;
+    my $slow  = $var->{slow_connector_threshold}  || 900;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {

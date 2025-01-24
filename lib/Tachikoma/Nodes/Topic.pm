@@ -16,10 +16,10 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_BATCH TM_STORABLE TM_REQUEST
     TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Digest::MD5 qw( md5 );
+use Digest::MD5  qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
-use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Nodes::Timer );
+use Time::HiRes  qw( usleep );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
@@ -98,7 +98,7 @@ sub arguments {
         $self->{broker_path}     = $broker;
         $self->{topic}           = $topic // $self->{name};
         $self->{partitions}      = undef;
-        $self->{batch_interval}  = $batch_interval // $BATCH_INTERVAL;
+        $self->{batch_interval}  = $batch_interval  // $BATCH_INTERVAL;
         $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
         $self->{next_partition}  = 0;
         $self->{last_check}      = 0;
@@ -177,7 +177,7 @@ sub fire {
             $message->[FROM]    = $self->{name};
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = join q(:), $i, $batch_offset->{$i};
-            $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
+            $message->[PAYLOAD] = join q(),  @{ $batch->{$i} };
             $self->stderr( "DEBUG: FILL $broker_id ",
                 $batch_size->{$i}, ' bytes' )
                 if ( $self->{debug_state} and $self->{debug_state} >= 3 );
@@ -214,8 +214,8 @@ sub fire {
 }
 
 sub handle_response {
-    my ( $self, $message )            = @_;
-    my ( $i,    $last_commit_offset ) = split m{:}, $message->[ID], 2;
+    my ( $self, $message ) = @_;
+    my ( $i, $last_commit_offset ) = split m{:}, $message->[ID], 2;
     my $batch_responses = $self->{batch_responses}->{$i} // [];
     my $responses       = $batch_responses->[0];
     if (    $responses
@@ -576,7 +576,7 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     my $payloads   = shift;
     my $topic      = $self->{topic};
     my $partitions = $self->{partitions} || $self->get_partitions or return;
-    my $broker_id  = $partitions->[ $i % @{$partitions} ] or return;
+    my $broker_id  = $partitions->[ $i % @{$partitions} ]         or return;
     my $target =
         $self->{targets}->{$broker_id} || $self->get_target($broker_id)
         or return;
@@ -639,7 +639,7 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     my $payloads   = shift;
     my $topic      = $self->{topic};
     my $partitions = $self->{partitions} || $self->get_partitions or return;
-    my $broker_id  = $partitions->[ $i % @{$partitions} ] or return;
+    my $broker_id  = $partitions->[ $i % @{$partitions} ]         or return;
     my $target =
         $self->{targets}->{$broker_id} || $self->get_target($broker_id)
         or return;

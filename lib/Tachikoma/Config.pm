@@ -8,7 +8,7 @@ package Tachikoma::Config;
 use strict;
 use warnings;
 use Exporter;
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
     %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config

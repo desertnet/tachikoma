@@ -14,7 +14,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PING TM_RESPONSE TM_NOREPLY TM_INFO TM_EOF
 );
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent        qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -253,7 +253,7 @@ sub handle_connection {
     my $id_regex       = $self->{id_regex};
     my $hostname_regex = $self->{hostname_regex};
     my $id             = ( $payload =~ m{$id_regex} )[0];
-    my $hostname       = ( $host =~ m{$hostname_regex} )[0];
+    my $hostname       = ( $host    =~ m{$hostname_regex} )[0];
 
     if ( $id and $hostname ) {
         $self->add_connector(

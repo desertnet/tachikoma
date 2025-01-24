@@ -14,7 +14,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Digest::MD5 qw( md5 );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent      qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -134,7 +134,8 @@ sub fire {
     }
     for my $id ( keys %{$streams} ) {
         my $stream = $streams->{$id};
-        if ($Tachikoma::Now - ( $stream->{timestamps}->[0] || 0 ) > $timeout )
+        if (
+            $Tachikoma::Now - ( $stream->{timestamps}->[0] || 0 ) > $timeout )
         {
             my $owner = $stream->{owner};
             if ( $owner and defined $msg_unanswered->{$owner} ) {
@@ -359,8 +360,8 @@ sub dump_config {
     my $method         = $self->{method};
     my $mode           = $self->{mode};
     $response = "make_node LoadBalancer $self->{name}";
-    $response .= " $max_unanswered"       if ($max_unanswered);
-    $response .= " $timeout"              if ( $timeout ne $DEFAULT_TIMEOUT );
+    $response .= " $max_unanswered" if ($max_unanswered);
+    $response .= " $timeout"        if ( $timeout ne $DEFAULT_TIMEOUT );
     $response .= "\n";
     $settings .= "  set_method $method\n" if ( $method ne 'round-robin' );
     $settings .= "  set_mode $mode\n"     if ( $mode ne 'persistent' );

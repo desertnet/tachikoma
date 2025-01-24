@@ -9,9 +9,9 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM TM_EOF );
-use POSIX qw( strftime );
-use vars qw( @EXPORT_OK );
-use parent qw( Exporter Tachikoma::Nodes::Timer );
+use POSIX              qw( strftime );
+use vars               qw( @EXPORT_OK );
+use parent             qw( Exporter Tachikoma::Nodes::Timer );
 @EXPORT_OK = qw( smart_sort );
 
 use version; our $VERSION = qv('v2.0.367');
@@ -165,7 +165,7 @@ OUTPUT:
             $consumer->{cache} = human( $consumer->{cache_size} );
             $consumer->{$_} = human( $consumer->{"_$_"} )
                 for (qw( distance recv_rate send_rate ));
-            $consumer->{msg_rate} = sprintf '%.2f', $consumer->{_msg_rate};
+            $consumer->{msg_rate}  = sprintf '%.2f', $consumer->{_msg_rate};
             $consumer->{direction} = (
                 ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q(=)
                 : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q(>)

@@ -11,7 +11,7 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_NOREPLY );
 use Data::Dumper;
 use Storable qw( nfreeze );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent   qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.768');
 
@@ -308,7 +308,7 @@ sub dots {
     my $chunk = shift;
     my $dots  = 0;
     foreach my $dot ( keys %DOT_BITS ) {
-        $self->verbose($dot) if ( $chunk->{$dot} );
+        $self->verbose($dot)     if ( $chunk->{$dot} );
         $dots += $DOT_BITS{$dot} if ( $chunk->{$dot} );
     }
     if ( $dots > 0 ) {

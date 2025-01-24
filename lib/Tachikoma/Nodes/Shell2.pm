@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 use Tachikoma::Command;
 use Carp;
 use Data::Dumper qw( Dumper );
-use Storable qw( nfreeze );
+use Storable     qw( nfreeze );
 my $USE_JSON;
 
 BEGIN {
@@ -109,9 +109,9 @@ my %SYNTAX  = map { $_ => 1 } qw(
     open_paren   close_paren
     open_brace   close_brace
     open_bracket close_bracket leaf );
-my %OPEN    = map { $_ => 1 } qw( open_paren open_brace open_bracket );
-my %CLOSE   = map { $_ => 1 } qw( close_paren close_brace close_bracket );
-my %COMMAND = map { $_ => 1 } qw( open_brace open_bracket command pipe );
+my %OPEN     = map { $_ => 1 } qw( open_paren open_brace open_bracket );
+my %CLOSE    = map { $_ => 1 } qw( close_paren close_brace close_bracket );
+my %COMMAND  = map { $_ => 1 } qw( open_brace open_bracket command pipe );
 my %MATCHING = (
     open_paren   => 'close_paren',
     open_brace   => 'close_brace',
@@ -518,8 +518,8 @@ $EVALUATORS{'open_paren'} = sub {
     my $raw_tree = shift;
     my $values   = $raw_tree->{value};
     my $first    = $values->[0];
-    my $trimmed  = ref $first ? $self->trim($first) : undef;
-    my $inner    = $trimmed ? $trimmed->{value} : [];
+    my $trimmed  = ref $first     ? $self->trim($first)       : undef;
+    my $inner    = $trimmed       ? $trimmed->{value}         : [];
     my $op       = @{$inner} == 3 ? $inner->[1]->{value}->[0] : undef;
     my $rv       = undef;
 
@@ -861,7 +861,7 @@ $BUILTINS{'shift'} = sub {
     my $rv    = undef;
     if ( ref $value ) {
         $rv = [ shift @{$value} // q() ];
-        shift @{$value} if ( @{$value} and $value->[0] =~ m{^\s*$} );
+        shift @{$value}     if ( @{$value} and $value->[0] =~ m{^\s*$} );
         $hash->{$key} = q() if ( not @{$value} );
     }
     else {
@@ -1567,12 +1567,12 @@ $BUILTINS{'exit'} = sub {
     exit $value;
 };
 
-$OPERATORS{'lt'} = sub { $_[0] lt $_[1] };
-$OPERATORS{'gt'} = sub { $_[0] gt $_[1] };
-$OPERATORS{'le'} = sub { $_[0] le $_[1] };
-$OPERATORS{'ge'} = sub { $_[0] ge $_[1] };
-$OPERATORS{'ne'} = sub { $_[0] ne $_[1] };
-$OPERATORS{'eq'} = sub { $_[0] eq $_[1] };
+$OPERATORS{'lt'}  = sub { $_[0] lt $_[1] };
+$OPERATORS{'gt'}  = sub { $_[0] gt $_[1] };
+$OPERATORS{'le'}  = sub { $_[0] le $_[1] };
+$OPERATORS{'ge'}  = sub { $_[0] ge $_[1] };
+$OPERATORS{'ne'}  = sub { $_[0] ne $_[1] };
+$OPERATORS{'eq'}  = sub { $_[0] eq $_[1] };
 $OPERATORS{q(=~)} = sub {
     my @rv = ( ( $_[0] // q() ) =~ ( $_[1] // q() ) );
     for my $i ( 0 .. $#rv ) {
@@ -1718,7 +1718,7 @@ sub assignment {
         if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-    my $op         = join q(), @{ $self->evaluate($op_tree) };
+    my $op = join q(), @{ $self->evaluate($op_tree) };
 
     if ( exists $LOCAL{$key} ) {
         $self->operate( \%LOCAL, $key, $op, $value_tree );
@@ -1796,13 +1796,13 @@ sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
     if    ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
     if    ( $op eq q(=) )            { $v = $result; }
     elsif ( $op eq q(.=) )           { push @{$v}, @{$result}; }
-    elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
-    elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
-    elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
-    elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
+    elsif ( $op eq q(+=) )           { $v->[0] //= 0; $v->[0] += $joined; }
+    elsif ( $op eq q(-=) )           { $v->[0] //= 0; $v->[0] -= $joined; }
+    elsif ( $op eq q(*=) )           { $v->[0] //= 0; $v->[0] *= $joined; }
+    elsif ( $op eq q(/=) )           { $v->[0] //= 0; $v->[0] /= $joined; }
     elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
     elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
-    else { $self->fatal_parse_error("invalid operator: $op"); }
+    else  { $self->fatal_parse_error("invalid operator: $op"); }
     return $v;
 }
 

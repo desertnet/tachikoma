@@ -16,8 +16,8 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Getopt::Long qw( GetOptionsFromString );
-use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Nodes::Timer );
+use Time::HiRes  qw( usleep );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
@@ -119,7 +119,7 @@ sub arguments {
         $self->{buffer}             = \$new_buffer;
         $self->{msg_unanswered}     = 0;
         $self->{max_unanswered}     = $max_unanswered // 1;
-        $self->{timeout}            = $timeout || $DEFAULT_TIMEOUT;
+        $self->{timeout}            = $timeout     || $DEFAULT_TIMEOUT;
         $self->{hub_timeout}        = $hub_timeout || $HUB_TIMEOUT;
         $self->{last_receive}       = $Tachikoma::Now;
         $self->{cache_type}         = $cache_type // $CACHE_TYPE;

@@ -15,10 +15,10 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Fcntl qw( SEEK_SET SEEK_CUR SEEK_END );
-use Getopt::Long qw( GetOptionsFromString );
+use Fcntl         qw( SEEK_SET SEEK_CUR SEEK_END );
+use Getopt::Long  qw( GetOptionsFromString );
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::FileHandle );
+use parent        qw( Tachikoma::Nodes::FileHandle );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -125,7 +125,7 @@ sub arguments {
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered || 0;
         $self->{on_ENOENT}      = $on_enoent if ($on_enoent);
-        $self->{timeout}        = $timeout if ($timeout);
+        $self->{timeout}        = $timeout   if ($timeout);
 
         if ( not open $fh, '<', $path ) {
             $self->{on_EOF} = $on_eof if ($on_eof);

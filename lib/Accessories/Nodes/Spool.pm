@@ -47,7 +47,7 @@ sub arguments {
         my $dir = ( $filename =~ m{^(/.*)$} )[0];
         $self->{spool}          = {};
         $self->{spool_dir}      = $dir;
-        $self->{timeout}        = $timeout || $DEFAULT_TIMEOUT;
+        $self->{timeout}        = $timeout        || $DEFAULT_TIMEOUT;
         $self->{max_unanswered} = $max_unanswered || 1;
         $self->make_dirs($dir);
         $self->set_timer;
