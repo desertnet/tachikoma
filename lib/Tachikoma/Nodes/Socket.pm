@@ -390,6 +390,9 @@ sub start_SSL_connection {
         # SSL_cipher_list     => $config->ssl_ciphers,
         SSL_version         => $config->ssl_version,
         SSL_verify_callback => $self->get_ssl_verify_callback,
+        SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+        ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+        : 0
     );
     if ( not $ssl_socket or not ref $ssl_socket ) {
         my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
@@ -458,6 +461,8 @@ sub init_SSL_connection {
             qq("\n);
 
         # $self->stderr($method, '() verified peer: ', $peer);
+        $self->register_reader_node;
+        $self->unregister_writer_node;
         if ( $type eq 'connect' ) {
             $self->init_connect;
         }
@@ -468,9 +473,6 @@ sub init_SSL_connection {
             }
             $self->init_accept;
         }
-        $self->unregister_writer_node
-            if ( ref $self eq 'Tachikoma::Nodes::STDIO' );
-        $self->register_reader_node;
     }
     elsif ( $! != EAGAIN ) {
         $self->log_SSL_error($method);
