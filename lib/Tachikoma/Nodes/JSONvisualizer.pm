@@ -50,8 +50,7 @@ sub gather_node_information {
 }
 
 sub send_http_response {
-    my $self = shift;
-    my ( $message, $content ) = @_;
+    my ( $self, $message, $content ) = @_;
     my $response = Tachikoma::Message->new;
     $response->[TYPE]    = TM_BYTESTREAM;
     $response->[TO]      = $message->[FROM];
@@ -71,6 +70,7 @@ sub send_http_response {
     $response->[TYPE] = TM_EOF;
     $response->[TO]   = $message->[FROM];
     $self->{sink}->fill($response);
+    return;
 }
 
 1;

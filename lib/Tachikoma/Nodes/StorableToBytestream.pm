@@ -25,7 +25,7 @@ sub fill {
     my $response = bless [ @{$message} ], ref $message;
     $response->[TYPE] = TM_BYTESTREAM | $persist;
     if ( ref $payload =~ m{HASH} ) {
-        $response->[PAYLOAD] = join qq(), map "$_ $payload->{$_}\n",
+        $response->[PAYLOAD] = join q(), map "$_ $payload->{$_}\n",
             sort keys %{$payload};
     }
     else {
