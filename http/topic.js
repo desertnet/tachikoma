@@ -31,9 +31,10 @@ function start_partition(partition) {
                     + server_host + ":" + server_port
                     + server_path + "/"
                     + _topic      + "/"
-                    + partition   + "/";
+                    + partition;
     var server_url  = prefix_url  + "/" + offset + "/" + _count;
     xhttp[partition] = new XMLHttpRequest();
+    // xhttp[partition].timeout = 15000;
     xhttp[partition].onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
@@ -101,7 +102,9 @@ function playOrPause() {
     if (state == "pause") {
         for (var i = 0; i < _num_partitions; i++) {
             clearTimeout(fetch_timers[i]);
+            xhttp[i].abort();
         }
+        xhttp = [];
         fetch_timers = [];
         clearInterval(display_timer);
         display_timer = null;

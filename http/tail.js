@@ -7,7 +7,7 @@ var _offset       = parsed_url.searchParams.get("offset")   || offset;
 var _count        = parsed_url.searchParams.get("count")    || count;
 var _interval     = parsed_url.searchParams.get("interval") || interval;
 var xhttp         = null;
-var fetch_timers  = [];
+var fetch_timer   = null;
 var display_timer = null;
 var output        = [];
 var dirty         = 1;
@@ -30,6 +30,7 @@ function start_tail() {
                     + server_path + "/" + _topic;
     var server_url  = prefix_url  + "/" + _offset + "/" + _count;
     xhttp = new XMLHttpRequest();
+    // xhttp.timeout = 15000;
     xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
@@ -49,7 +50,7 @@ function start_tail() {
             fetch_timer = setTimeout(tick, 1000, server_url);
         }
     };
-    fetch_timers = setTimeout(tick, 100, server_url);
+    fetch_timer = setTimeout(tick, 100, server_url);
 }
 
 function update_table(msg) {
@@ -88,6 +89,8 @@ function playOrPause() {
         clearInterval(display_timer);
         display_timer = null;
         document.getElementById("toggle").innerHTML = "play";
+        xhttp.abort();
+        xhttp = null
     }
     else {
         start_timer();
