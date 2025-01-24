@@ -30,7 +30,6 @@ sub fill {
     my $message = shift;
     return if ( not $message->type & TM_BYTESTREAM );
     my $arguments = $message->payload;
-    $message->to('_parent');
     $message->payload( $self->execute( '/usr/bin/host', $arguments ) );
     return $self->SUPER::fill($message);
 }

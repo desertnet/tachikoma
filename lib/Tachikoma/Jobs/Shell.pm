@@ -83,10 +83,9 @@ sub fill {
         if ( not $type & TM_PERSIST ) {
             my $response = Tachikoma::Message->new;
             $response->[TYPE]   = TM_RESPONSE;
-            $response->[TO]     = '_parent';
             $response->[STREAM] = $message->[STREAM];
             $response->[ID]     = $message->[ID];
-            $self->{sink}->fill($response);
+            $self->SUPER::fill($response);
         }
     }
     elsif ( $from eq '_shell:stdout' ) {
