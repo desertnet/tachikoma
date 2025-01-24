@@ -1024,37 +1024,7 @@ $C{listen_inet} = sub {
         or return $self->error("verification failed\n");
 
     if ( not $command->arguments ) {
-        my $config = $self->configuration;
-        for my $listen ( @{ $config->listen_sockets } ) {
-            my $server_node = undef;
-            if ( $listen->{Socket} ) {
-                require Tachikoma::Nodes::Socket;
-                $server_node =
-                    Tachikoma::Nodes::Socket->unix_server(
-                    $listen->{Socket} );
-                $server_node->name('_listener');
-            }
-            else {
-                require Tachikoma::Nodes::Socket;
-                die qq(inet sockets disabled for keyless servers\n)
-                    if ( not length $id );
-                $server_node =
-                    Tachikoma::Nodes::Socket->inet_server( $listen->{Addr},
-                    $listen->{Port} );
-                $server_node->name( join q(:), $listen->{Addr},
-                    $listen->{Port} );
-            }
-            $server_node->use_SSL( $listen->{use_SSL} );
-            my $okay = eval {
-                $server_node->scheme( $listen->{Scheme} )
-                    if ( $listen->{Scheme} );
-                return 1;
-            };
-            $self->stderr( $@ || 'FAILED: Tachikoma::Socket::scheme()' )
-                if ( not $okay );
-            $server_node->sink($self);
-        }
-        return $self->okay($envelope);
+        $self->listen_startup($envelope);
     }
 
     my ( $r, $argv ) = GetOptionsFromString(
@@ -1094,6 +1064,7 @@ $C{listen_inet} = sub {
         $node = Tachikoma::Nodes::Socket->inet_server( $address, $port );
     }
     $node->name( join q(:), $address, $port );
+    $node->debug_state( $self->debug_state );
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
@@ -1139,6 +1110,11 @@ $C{listen_unix} = sub {
     my $owner        = undef;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
+
+    if ( not $command->arguments ) {
+        $self->listen_startup($envelope);
+    }
+
     my ( $r, $argv ) = GetOptionsFromString(
         $command->arguments,
         'filename=s'     => \$filename,
@@ -1177,6 +1153,7 @@ $C{listen_unix} = sub {
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->name($name);
+    $node->debug_state( $self->debug_state );
     $node->owner($owner) if ( length $owner );
     $node->use_SSL( $ssl_verify ? 'verify' : 'noverify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
@@ -1441,6 +1418,7 @@ $C{slurp_file} = sub {
                 : 8,
             }
         );
+        $node->debug_state( $self->debug_state );
         $node->owner($owner) if ( length $owner );
         $node->sink($sink);
         $node->on_EOF('close');
@@ -2749,6 +2727,41 @@ sub make_node {
         die $error;
     }
     return;
+}
+
+sub listen_startup {
+    my ( $self, $envelope ) = @_;
+    my $config = $self->configuration;
+    my $id     = $self->configuration->id;
+    for my $listen ( @{ $config->listen_sockets } ) {
+        my $server_node = undef;
+        if ( $listen->{Socket} ) {
+            require Tachikoma::Nodes::Socket;
+            $server_node =
+                Tachikoma::Nodes::Socket->unix_server( $listen->{Socket} );
+            $server_node->name('_listener');
+        }
+        else {
+            require Tachikoma::Nodes::Socket;
+            die qq(inet sockets disabled for keyless servers\n)
+                if ( not length $id );
+            $server_node =
+                Tachikoma::Nodes::Socket->inet_server( $listen->{Addr},
+                $listen->{Port} );
+            $server_node->name( join q(:), $listen->{Addr}, $listen->{Port} );
+        }
+        $server_node->use_SSL( $listen->{use_SSL} );
+        my $okay = eval {
+            $server_node->scheme( $listen->{Scheme} )
+                if ( $listen->{Scheme} );
+            return 1;
+        };
+        $self->stderr( $@ || 'FAILED: Tachikoma::Socket::scheme()' )
+            if ( not $okay );
+        $server_node->debug_state( $self->debug_state );
+        $server_node->sink($self);
+    }
+    return $self->okay($envelope);
 }
 
 sub connect_inet {
