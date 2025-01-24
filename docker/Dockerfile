@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 ARG CONFIG=default
 ARG TACHIKOMA_UID=1000
