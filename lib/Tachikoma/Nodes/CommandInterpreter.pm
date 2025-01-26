@@ -1024,7 +1024,7 @@ $C{listen_inet} = sub {
         or return $self->error("verification failed\n");
 
     if ( not $command->arguments ) {
-        $self->listen_startup($envelope);
+        return $self->listen_startup($envelope);
     }
 
     my ( $r, $argv ) = GetOptionsFromString(
@@ -1112,7 +1112,7 @@ $C{listen_unix} = sub {
         or return $self->error("verification failed\n");
 
     if ( not $command->arguments ) {
-        $self->listen_startup($envelope);
+        return $self->listen_startup($envelope);
     }
 
     my ( $r, $argv ) = GetOptionsFromString(
