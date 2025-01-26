@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------esn't s
 # Tachikoma::Nodes::Socket
 # ----------------------------------------------------------------------
 #
@@ -279,7 +279,7 @@ sub accept_connection {
 
             # SSL_cipher_list     => $config->{ssl_ciphers},
             SSL_version         => $config->{ssl_version},
-            SSL_verify_callback => $self->get_ssl_verify_callback,
+            SSL_verify_callback => 
             SSL_verify_mode     => $self->{use_SSL} eq 'verify'
             ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
             : 0
@@ -452,17 +452,11 @@ sub init_SSL_connection {
     my $method = $type eq 'connect' ? 'connect_SSL' : 'accept_SSL';
     if ( $fh and $fh->$method ) {
         my $peer = join q(),
-            'authority: "',
-            $fh->peer_certificate('authority'),
-            '" owner: "',
-            $fh->peer_certificate('owner'),
-            '" cipher: "',
-            $fh->get_cipher,
-            qq("\n);
+            'authority: "', $fh->peer_certificate('authority'),
+            '" owner: "',   $fh->peer_certificate('owner'),
+            '" cipher: "',  $fh->get_cipher, qq("\n);
 
         # $self->stderr($method, '() verified peer: ', $peer);
-        $self->register_reader_node;
-        $self->unregister_writer_node;
         if ( $type eq 'connect' ) {
             $self->init_connect;
         }
@@ -490,12 +484,6 @@ sub init_SSL_connection {
             and $! ne 'Broken pipe' );
         $self->{fh} = undef;
         $self->handle_EOF;
-    }
-    elsif ( $IO::Socket::SSL::SSL_ERROR == SSL_WANT_WRITE ) {
-        $self->register_writer_node;
-    }
-    else {
-        $self->unregister_writer_node;
     }
     return;
 }
