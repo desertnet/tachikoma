@@ -32,6 +32,7 @@ our %Aliases             = ();
 my $CONFIGURATION = undef;
 my %FORBIDDEN     = ();
 my %LEGACY_MAP    = (
+    scheme         => 'scheme',
     Listen         => 'listen_sockets',
     Prefix         => 'prefix',
     Log_Dir        => 'log_dir',
