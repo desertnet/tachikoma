@@ -212,7 +212,8 @@ is( $answer, "{\\}\n", 'double quotes do not escape backslash' );
 $parse_tree = $shell->parse('send echo "\<test\>"');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{<test>}\n", 'variables in double quotes are escaped with backslash' );
+is( $answer, "{<test>}\n",
+    'variables in double quotes are escaped with backslash' );
 
 #####################################################################
 
@@ -319,8 +320,7 @@ $parse_tree = $shell->parse( '
 ' );
 $answer = q();
 $shell->send_command($parse_tree);
-is( $answer, "[one][]\n",
-    'logical operators are evaluated correctly' );
+is( $answer, "[one][]\n", 'logical operators are evaluated correctly' );
 
 #####################################################################
 
@@ -348,7 +348,8 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly' );
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
 
 #####################################################################
 
