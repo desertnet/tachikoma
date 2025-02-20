@@ -279,8 +279,8 @@ sub accept_connection {
 
             # SSL_cipher_list     => $config->{ssl_ciphers},
             SSL_version         => $config->{ssl_version},
-            SSL_verify_callback => 
-            SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+            SSL_verify_callback => SSL_verify_mode => $self->{use_SSL} eq
+                'verify'
             ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
             : 0
         );
