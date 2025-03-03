@@ -17,7 +17,7 @@ if ( -d './t/ext' ) {
         # untaint $file
         $file = ( $file =~ m{(.*)} )[0];
         # run test script and capture output
-        my $output = qx{perl -Ilib $file};
+        my $output = qx{perl -T -Ilib $file};
         # remove the first line of the output
         $output =~ s/.*\n//;
         # remove the last line of the output
