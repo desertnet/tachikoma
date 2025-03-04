@@ -88,7 +88,7 @@ sub search {
         for my $cache ( @{ $self->{caches} } ) {
             for my $bucket ( @{$cache} ) {
                 for my $key ( keys %{$bucket} ) {
-                    next if ( $key =~ m{$glob} );
+                    next if ( $key =~ m{$glob}i );
                     $rv{$_} = 1 for ( @{ $bucket->{$key} } );
                 }
             }
@@ -98,7 +98,7 @@ sub search {
         for my $cache ( @{ $self->{caches} } ) {
             for my $bucket ( @{$cache} ) {
                 for my $key ( keys %{$bucket} ) {
-                    next if ( $key !~ m{$glob} );
+                    next if ( $key !~ m{$glob}i );
                     $rv{$_} = 1 for ( @{ $bucket->{$key} } );
                 }
             }
