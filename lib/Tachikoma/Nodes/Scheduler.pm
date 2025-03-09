@@ -238,20 +238,23 @@ $C{at} = sub {
     $self->verify_key( $envelope, ['meta'], 'schedule' )
         or return $self->error("verification failed\n");
     my $text    = join q( ), $command->name, $command->arguments;
-    my $pattern = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+)}s;
+    my $pattern = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(?:(\d+):(\d+))?(?::(\d+))? (.+)}s;
     if ( $command->arguments =~ m{$pattern} ) {
         my ( $year, $month, $day, $hour, $min, $sec, $imperative ) =
             ( $1, $2, $3, $4, $5, $6, $7 );
         $year -= 1900 if ($year);
         $month--      if ($month);
-        $sec ||= 0;
         my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
-        my ( $nsec, $nmin, $nhour, $nday, $nmonth, $nyear ) =
-            localtime $Tachikoma::Now;
+        my $now = $Tachikoma::Now;
+        $now += 60 if ( length $sec and not length $min );
+        my ( $nsec, $nmin, $nhour, $nday, $nmonth, $nyear ) = localtime $now;
         $year  ||= $nyear;
         $month ||= $nmonth;
         $day   ||= $nday;
+        $hour    = $nhour if ( length $sec and not length $hour );
+        $min     = $nmin  if ( length $sec and not length $min );
+        $sec   ||= 0;
         my $time = timelocal( $sec, $min, $hour, $day, $month, $year );
         $time += 86400 if ( $time < $Tachikoma::Now );
         my $own_name = $self->patron->name;
