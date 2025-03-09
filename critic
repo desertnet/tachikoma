@@ -19,6 +19,7 @@ lib/Accessories/Jobs/Fortune.pm
 lib/Accessories/Jobs/Transform.pm
 lib/Accessories/Nodes/Bucket.pm
 lib/Accessories/Nodes/Clock.pm
+lib/Accessories/Nodes/HexDump.pm
 lib/Accessories/Nodes/IndexByHostname.pm
 lib/Accessories/Nodes/IndexByProcess.pm
 lib/Accessories/Nodes/LogColor.pm

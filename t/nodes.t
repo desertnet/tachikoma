@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3452;
+use Test::More tests => 3482;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -124,6 +124,7 @@ my %nodes = (
     'Tachikoma::Nodes::Watchdog'             => q(),
     'Accessories::Nodes::Bucket'             => qq($t/bucket),
     'Accessories::Nodes::Clock'              => q(),
+    'Accessories::Nodes::HexDump'            => q(),
     'Accessories::Nodes::IndexByHostname'    => q(),
     'Accessories::Nodes::IndexByProcess'     => q(),
     'Accessories::Nodes::LogColor'           => q(),
