@@ -38,7 +38,9 @@ sub arguments {
         $self->{fields}    = [];
         for my $field ( split q( ), $self->{arguments} ) {
             die "ERROR: unknown field '$field'\n"
-                if ( $field !~ m{^(?:date|hostname|process)$} );
+                if ($field ne 'date'
+                and $field ne 'hostname'
+                and $field ne 'process' );
             push @{ $self->{fields} }, $field;
         }
     }
