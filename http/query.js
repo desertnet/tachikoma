@@ -299,8 +299,8 @@ function displayTable(results) {
             return (aValue > bValue ? 1 : (aValue < bValue ? -1 : 0)) * (ascending ? 1 : -1);
         });
 
-        // Limit the sortedResults array to the first 500 rows
-        sortedResults = sortedResults.slice(0, 500);
+        // Limit the sortedResults array to the first 2500 rows
+        sortedResults = sortedResults.slice(0, 2500);
 
         tbody.innerHTML = ''; // Clear the tbody before appending rows
 
@@ -350,8 +350,8 @@ function displayLogEntries(results) {
     var log = document.getElementById("output");
     log.innerHTML = "<h3>Log Entries</h3>";
 
-    // at most 500 log entries
-    var start = Math.max(0, results.length - 500);
+    // at most 5000 log entries
+    var start = Math.max(0, results.length - 5000);
     for (var i = start; i < results.length; i++) {
         var div = document.createElement("div");
         div.innerHTML = results[i];
