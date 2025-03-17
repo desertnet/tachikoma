@@ -48,7 +48,6 @@ make_node HTTP_File      root:dir        /home/tachikoma/.tachikoma/http
 make_node HTTP_Fetch     fetch:dir       /fetch    topic1:table
 make_node HTTP_Store     store:dir       /tmp/http /store topic1
 make_node JobFarmer      CGI             4 CGI
-
 make_node JSONvisualizer visualizer
 command root add /        root:dir
 command root add /fetch   fetch:dir
