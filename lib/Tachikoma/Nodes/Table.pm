@@ -293,7 +293,7 @@ sub roll {
     my $cache = $self->{caches}->[$i];
     if ($window) {
         my $save_cb = $self->{on_save_window}->[$i];
-        my $bucket  = $cache->[0];
+        my $bucket  = $cache->[-1];
         $self->queue(
             $window => sub {
                 $self->send_bucket( $i, $window, $bucket )
