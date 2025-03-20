@@ -2011,6 +2011,15 @@ $C{remote_func} = sub {
     return $self->okay($envelope);
 };
 
+$C{whoami} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $id       = ( split m{\n}, $command->{signature}, 2 )[0];
+    my $response = "$id\n";
+    return $self->response( $envelope, $response );
+};
+
 $C{list_callbacks} = sub {
     my $self      = shift;
     my $command   = shift;
@@ -2628,7 +2637,7 @@ sub verify_key {
         next               if ( $tag eq 'meta' and $id eq $my_id );
         $allow_tag = undef if ( not $entry->{allow}->{$tag} );
     }
-    if ( $allow_tag or $secure_level < 0 ) {
+    if ($allow_tag) {
         if ($cmd_name) {
             return 1 if ( not $self->disabled->{$secure_level}->{$cmd_name} );
         }
