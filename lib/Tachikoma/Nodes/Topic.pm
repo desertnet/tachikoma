@@ -720,13 +720,15 @@ sub get_partitions {
     die "ERROR: no topic\n" if ( not $self->topic );
     my $partitions = undef;
     $self->sync_error(undef);
-    for my $broker_id ( @{ $self->broker_ids } ) {
+    my $broker_ids = $self->broker_ids;
+    for my $broker_id ( @{$broker_ids} ) {
         $partitions = $self->request_partitions($broker_id);
         if ($partitions) {
             $self->sync_error(undef);
             last;
         }
     }
+    push @{$broker_ids}, shift @{$broker_ids};
     $self->partitions($partitions);
     return $partitions;
 }
