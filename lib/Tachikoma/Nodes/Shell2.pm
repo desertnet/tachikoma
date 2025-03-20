@@ -725,7 +725,7 @@ $BUILTINS{'print'} = sub {
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     $self->fatal_parse_error('bad arguments for print')
-        if ( @{ $parse_tree->{value} } > 2 );
+        if ( @{ $parse_tree->{value} } != 2 );
     my $argument_tree = $parse_tree->{value}->[1];
     my $output        = join q(), @{ $self->evaluate($argument_tree) };
     syswrite STDOUT, $output or die if ( length $output );
@@ -745,6 +745,8 @@ $BUILTINS{'grep'} = sub {
     my $regex = join q(), @{ $self->evaluate($arg1) };
     my $lines = join q(), @{ $self->evaluate($arg2) };
     $lines = $LOCAL{q(@)} if ( not length $lines );
+    $self->fatal_parse_error('bad arguments for grep')
+        if ( not defined $lines );
     my $output = q();
 
     for my $line ( split m{^}, $lines ) {
@@ -752,6 +754,61 @@ $BUILTINS{'grep'} = sub {
     }
     syswrite STDOUT, $output or die if ( length $output );
     return [];
+};
+
+$H{'grepv'} = [qq(<command> | grepv <regex>\n)];
+
+$BUILTINS{'grep'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for grep')
+        if ( @{ $parse_tree->{value} } > 3 );
+    my $arg1  = $parse_tree->{value}->[1];
+    my $arg2  = $parse_tree->{value}->[2];
+    my $regex = join q(), @{ $self->evaluate($arg1) };
+    my $lines = join q(), @{ $self->evaluate($arg2) };
+    $lines = $LOCAL{q(@)} if ( not length $lines );
+    $self->fatal_parse_error('bad arguments for grep')
+        if ( not defined $lines );
+    my $output = q();
+
+    for my $line ( split m{^}, $lines ) {
+        $output .= $line if ( $line !~ m{$regex} );
+    }
+    syswrite STDOUT, $output or die if ( length $output );
+    return [];
+};
+
+$H{'rand'} = [qq(rand [ <int> ]\n)];
+
+$BUILTINS{'rand'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for rand')
+        if ( @{ $parse_tree->{value} } > 2 );
+    my $arg1 = $parse_tree->{value}->[1];
+    my $int  = join q(), @{ $self->evaluate($arg1) };
+    $self->fatal_parse_error('bad arguments for rand')
+        if ( $int !~ m{^\d+$} );
+    $int ||= 2;
+    return [ int rand $int ];
+};
+
+$H{'randarg'} = [qq(randarg <list>\n)];
+
+$BUILTINS{'randarg'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $line = join q(), @{ $self->evaluate($raw_tree) };
+    my ( $proto, @args ) = split q( ), $line;
+    $self->fatal_parse_error('bad arguments for randarg')
+        if ( not @args );
+    my $int  = @args;
+    my $rand = int rand($int);
+    my $arg  = $args[$rand];
+    return [ $arg ];
 };
 
 for my $type (qw( local var env )) {
