@@ -59,11 +59,11 @@ function start_tail() {
 function update_table(msg) {
     if (msg.payload.length) {
         output.unshift(msg.payload.reverse().join(''));
+        while (output.length > _count) {
+            output.pop();
+        }
+        dirty = 1;
     }
-    while (output.length > _count) {
-        output.pop();
-    }
-    dirty = 1;
 }
 
 function display_table() {

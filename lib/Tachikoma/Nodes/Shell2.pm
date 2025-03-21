@@ -799,16 +799,16 @@ $BUILTINS{'rand'} = sub {
 $H{'randarg'} = [qq(randarg <list>\n)];
 
 $BUILTINS{'randarg'} = sub {
-    my $self       = shift;
-    my $raw_tree   = shift;
-    my $line = join q(), @{ $self->evaluate($raw_tree) };
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
     my ( $proto, @args ) = split q( ), $line;
     $self->fatal_parse_error('bad arguments for randarg')
         if ( not @args );
     my $int  = @args;
     my $rand = int rand($int);
     my $arg  = $args[$rand];
-    return [ $arg ];
+    return [$arg];
 };
 
 for my $type (qw( local var env )) {
