@@ -26,7 +26,7 @@ $broker_ids ||= ['localhost:5501'];
 my $cgi  = CGI->new;
 my $path = $cgi->path_info;
 $path =~ s(^/)();
-my ( $topic, $location, $count ) = split m{/}, $path, 3;
+my ( $topic, $location, $count, $double_encode ) = split m{/}, $path, 4;
 my $offset_string = undef;
 if ($location) {
     $location      = 'recent' if ( $location eq 'last' );
@@ -36,6 +36,7 @@ die "no topic\n" if ( not length $topic );
 $location      ||= 'start';
 $offset_string ||= 'start';
 $count         ||= 1;
+$double_encode ||= 0;
 my $json = JSON->new;
 
 # $json->escape_slash(1);
@@ -101,7 +102,12 @@ else {
     my @output       = ();
     my @next_offsets = ();
     for my $message (@messages) {
-        push @output, $message->payload;
+        if ( $double_encode and ref $message->payload ) {
+            push @output, $json->utf8->encode($message->payload);
+        }
+        else {
+            push @output, $message->payload;
+        }
     }
     for my $partition ( sort keys %{$partitions} ) {
         my $consumer = $group->consumers->{$partition};
@@ -113,7 +119,7 @@ else {
         }
     }
     my $next_url = join q(/), $cgi->url, $topic, join( q(,), @next_offsets ),
-        $count;
+        $count, $double_encode;
     $next_url =~ s{^http://}{https://};
     $results = {
         next_url => $next_url,

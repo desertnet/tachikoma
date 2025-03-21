@@ -21,13 +21,13 @@ mkdir -p ~/.tachikoma/services/
 mkdir -p ~/.tachikoma/tls/
 
 # server config
-cp etc/Devel/tachikoma.conf ~/.tachikoma/etc/
+cp etc/tachikoma_conf/$config.conf ~/.tachikoma/etc/tachikoma.conf
 
 # private key
 bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
 
 # HTTP
-cp etc/Devel/CGI.conf ~/.tachikoma/etc/
+cp etc/CGI_conf/$config.conf ~/.tachikoma/etc/CGI.conf
 cp -r http/* ~/.tachikoma/http/
 
 # init scripts

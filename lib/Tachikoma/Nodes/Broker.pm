@@ -1522,7 +1522,7 @@ sub add_topic {
     $num_segments       ||= $default->{num_segments};
     $segment_size       ||= $default->{segment_size};
     $max_lifespan //= $default->{max_lifespan};
-    $debug_state = 1 if ( defined $debug_state and not $debug_state );
+    $debug_state = 1 if ( length $debug_state and not $debug_state );
     $debug_state //= 0;
     $self->topics->{$topic_name} = {
         num_partitions     => $num_partitions,
@@ -1618,7 +1618,7 @@ sub add_consumer_group {
     }
     $segment_size ||= $DEFAULT_CACHE_SIZE;
     $max_lifespan //= 0;
-    $debug_state = 1 if ( defined $debug_state and not $debug_state );
+    $debug_state = 1 if ( length $debug_state and not $debug_state );
     $debug_state //= 0;
     $self->consumer_groups->{$group_name} //= {
         broker_id => undef,

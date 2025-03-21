@@ -29,6 +29,9 @@ function start_tail() {
                     + server_host + ":" + server_port
                     + server_path + "/" + _topic;
     var server_url  = prefix_url  + "/" + _offset + "/" + _count;
+    if (double_encode) {
+        server_url += "/1";
+    }
     xhttp = new XMLHttpRequest();
     // xhttp.timeout = 15000;
     xhttp.onreadystatechange = function() {
