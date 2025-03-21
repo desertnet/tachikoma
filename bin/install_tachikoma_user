@@ -21,23 +21,31 @@ mkdir -p ~/.tachikoma/services/
 mkdir -p ~/.tachikoma/tls/
 
 # server config
-cp etc/tachikoma_conf/$config.conf ~/.tachikoma/etc/tachikoma.conf
+if [ -e etc/tachikoma_conf/$config.conf ] ; then
+    cp etc/tachikoma_conf/$config.conf ~/.tachikoma/etc/tachikoma.conf
+else
+    cp etc/tachikoma_conf/default.conf ~/.tachikoma/etc/tachikoma.conf
+fi
 
 # private key
 bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
 
 # HTTP
-cp etc/CGI_conf/$config.conf ~/.tachikoma/etc/CGI.conf
-cp -r http/* ~/.tachikoma/http/
+if [ -e etc/CGI_conf/$config.conf ] ; then
+    cp etc/CGI_conf/$config.conf ~/.tachikoma/etc/CGI.conf
+else
+    cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
+fi
+cp -Tr http ~/.tachikoma/http
 
 # init scripts
 cp etc/scripts/$config/startup.txt ~/.tachikoma/
-if [ -f etc/scripts/$config/config.tsl ] ; then
+if [ -e etc/scripts/$config/config.tsl ] ; then
     cp etc/scripts/$config/config.tsl  ~/.tachikoma/
+else
+    cp etc/scripts/default/config.tsl  ~/.tachikoma/
 fi
-if [ -d etc/services ] ; then
-    cp -Tr etc/services ~/.tachikoma/services
-fi
+cp -Tr etc/services ~/.tachikoma/services
 
 # authorized keys
 cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
