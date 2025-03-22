@@ -82,7 +82,7 @@ mkdir -p ~/.tachikoma/run
 
 # copy config:
 mkdir -p ~/.tachikoma/etc
-cp etc/tachikoma.conf ~/.tachikoma/etc/
+cp etc/tachikoma_conf/default.conf ~/.tachikoma/etc/tachikoma.conf
 
 
 
@@ -100,7 +100,7 @@ bin/gen_server_key ~/.tachikoma/etc/id 4096
 # IF USING THE EXAMPLE SERVER
 # ---------------------------
 
-cp etc/Devel/CGI.conf ~/.tachikoma/etc
+cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
 mkdir -p ~/.tachikoma/http/cgi-bin
 cp cgi-bin/* ~/.tachikoma/http/cgi-bin/
 
