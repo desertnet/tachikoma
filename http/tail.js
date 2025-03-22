@@ -68,9 +68,6 @@ function update_table(msg) {
 
 function display_table() {
     if (dirty) {
-        while (output.length > _count) {
-            output.pop();
-        }
         document.getElementById("output").innerHTML = "<pre>"
             + output.join('') + "</pre>";
         dirty = 0;

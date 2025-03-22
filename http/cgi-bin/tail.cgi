@@ -51,7 +51,7 @@ my $group      = $groups{$topic};
 my $partitions = $group->get_partitions;
 my @offsets    = ();
 my @messages   = ();
-my $results    = undef;
+my $results    = {};
 
 if ($partitions) {
     if ( $offset_string =~ m{^\D} ) {

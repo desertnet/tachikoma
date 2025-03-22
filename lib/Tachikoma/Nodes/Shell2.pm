@@ -758,7 +758,7 @@ $BUILTINS{'grep'} = sub {
 
 $H{'grepv'} = [qq(<command> | grepv <regex>\n)];
 
-$BUILTINS{'grep'} = sub {
+$BUILTINS{'grepv'} = sub {
     my $self       = shift;
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
@@ -791,7 +791,7 @@ $BUILTINS{'rand'} = sub {
     my $arg1 = $parse_tree->{value}->[1];
     my $int  = join q(), @{ $self->evaluate($arg1) };
     $self->fatal_parse_error('bad arguments for rand')
-        if ( $int !~ m{^\d+$} );
+        if ( $int =~ m{\D} );
     $int ||= 2;
     return [ int rand $int ];
 };

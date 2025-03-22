@@ -51,7 +51,7 @@ my $group    = $groups{$topic};
 my $consumer = $group->consumers->{$partition}
     || $group->make_sync_consumer($partition);
 my @messages = ();
-my $results  = undef;
+my $results  = {};
 
 if ($consumer) {
     if ( $offset =~ m(^\d+$) ) {
