@@ -89,7 +89,7 @@ sub arguments {
         $self->{replication_factor} = $replication_factor;
         $self->{segments} //= [];
         $self->{last_commit_offset}   = undef;
-        $self->{last_truncate_offset} = undef;
+        $self->{last_truncate_offset} = 0;
         $self->{valid_offsets}        = [];
         $self->{offset}               = undef;
         $self->{responses}            = [];
