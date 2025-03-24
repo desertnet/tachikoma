@@ -135,6 +135,7 @@ sub inet_server {
     my $server = $class->new;
     $server->{type}    = 'listen';
     $server->{address} = $iaddr;
+    $server->{port}    = $port;
     $server->fh($socket);
     return $server->register_server_node;
 }

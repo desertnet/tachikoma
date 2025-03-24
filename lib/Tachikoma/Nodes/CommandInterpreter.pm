@@ -964,9 +964,7 @@ $C{list_connections} = sub {
     for my $name ( sort keys %Tachikoma::Nodes ) {
         next if ( length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
-        next
-            if ( not $node->isa('Tachikoma::Nodes::Socket')
-            or $node->type ne 'connect' );
+        next if ( not $node->isa('Tachikoma::Nodes::Socket') );
         my $address = '...';
         if ( $node->{port} ) {
             $address =

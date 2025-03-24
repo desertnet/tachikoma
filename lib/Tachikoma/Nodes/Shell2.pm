@@ -1771,8 +1771,6 @@ sub assignment {
     $i++ if ( $values->[$i]->{type} eq 'whitespace' );
     my $op_tree = $values->[$i];
     $i++ if ( $values->[$i]->{type} eq 'op' );
-    $self->fatal_parse_error('bad arguments for assigment')
-        if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
     my $op = join q(), @{ $self->evaluate($op_tree) };
