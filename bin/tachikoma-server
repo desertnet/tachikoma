@@ -28,7 +28,7 @@ if ([var debug]) {
 } else {
     var debug = 0;
 }
-if (not [var startup];) {
+if (! [var startup]) {
     var startup = startup.txt;
 }
 if ([var daemon] eq "no") {

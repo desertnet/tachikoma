@@ -366,11 +366,10 @@ $shell->send_command($parse_tree);
 is( $answer, "{6}\n", 'expressions are evaluated before operators' );
 
 #####################################################################
-
 $parse_tree = $shell->parse( '
 {
-    if ( not 1 > 10; ) { date };
-    if ( not 0 <= 5; ) { uptime };
+    if ( ! 1 > 10 ) { date };
+    if ( ! 0 <= 5 ) { uptime };
 }
 ' );
 $answer = q();
@@ -381,8 +380,8 @@ is( $answer, "[date][]\n", 'not negates operators' );
 
 $parse_tree = $shell->parse( '
 {
-    if ( not 1 + 1 == 3; ) { date; };
-    if ( not 2 + 2 == 4; ) { uptime; };
+    if ( ! 1 + 1 == 3 ) { date; };
+    if ( ! 2 + 2 == 4 ) { uptime; };
 }
 ' );
 $answer = q();
@@ -393,8 +392,8 @@ is( $answer, "[date][]\n", 'not negates arithmetic' );
 
 $parse_tree = $shell->parse( '
 {
-    if ( not { true }; ) { date };
-    if ( not { false }; ) { uptime };
+    if ( ! { true } ) { date };
+    if ( ! { false } ) { uptime };
 }
 ' );
 $answer = q();

@@ -40,7 +40,7 @@ my $ident_re  = qr{[^ . + \- * / # () {} \[\] ! = & | ; " ' ` \s \\ ]+}x;
 my $not_op_re = qr{(?: [.](?![.=]) | [+](?![+=]) | -(?![-=])
                                    | [*](?![=])  | /(?![/=]) )*}x;
 my $math_re    = qr{ [+](?![+=]) | -(?![-=]) | [*](?![=]) | /(?![/=]) }x;
-my $logical_re = qr{ !~ | =~ | !=? | <=? | >=? | == }x;
+my $logical_re = qr{ !~ | =~ | != | <=? | >=? | == }x;
 
 my %TOKENS = (
     whitespace => qr{\s+},
@@ -51,6 +51,7 @@ my %TOKENS = (
                        | //=? | [+]=   | -= | [*]= | /= | = )}x,
     and           => qr{&&},
     or            => qr{[|][|]},
+    not           => qr{!},
     command       => qr{[;&]},
     pipe          => qr{[|]},
     open_paren    => qr{[(]},
@@ -76,6 +77,7 @@ my @TOKEN_TYPES = qw(
     op
     and
     or
+    not
     command
     pipe
     open_paren
@@ -104,7 +106,7 @@ no re 'eval';
 my %IDENT   = map { $_ => 1 } qw( ident whitespace number leaf );
 my %STRINGS = map { $_ => 1 } qw( string1 string2 string3 string4 );
 my %PARTIAL = map { $_ => 1 } qw( string1 string2 string3 );
-my %LOGICAL = map { $_ => 1 } qw( command and or pipe );
+my %LOGICAL = map { $_ => 1 } qw( and or not command pipe );
 my %SYNTAX  = map { $_ => 1 } qw(
     open_paren   close_paren
     open_brace   close_brace
@@ -313,10 +315,12 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $this_branch = $tok;
         }
         elsif ( $LOGICAL{ $tok->{type} } ) {
-            $self->fatal_parse_error('unexpected logical operator')
-                if ( not $parse_tree );
-            $parse_tree = { type => $tok->{type}, value => [$parse_tree] }
-                if ( $parse_tree->{type} ne $tok->{type} );
+            if ( not $parse_tree ) {
+                $parse_tree = { type => $tok->{type}, value => [] };
+            }
+            elsif ( $parse_tree->{type} ne $tok->{type} ) {
+                $parse_tree = { type => $tok->{type}, value => [$parse_tree] };
+            }
             $tok->{type}  = 'leaf';
             $tok->{value} = [];
             $this_branch  = $tok;
@@ -570,6 +574,16 @@ $EVALUATORS{'logical'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
     return [ $raw_tree->{value}->[0] ];
+};
+
+$EVALUATORS{'not'} = sub {
+    my $self      = shift;
+    my $raw_tree  = shift;
+    my $test_tree = $self->fake_tree( 'open_paren', $raw_tree->{value} );
+    my $rv        = $self->evaluate($test_tree);
+    my $test      = join q(), @{$rv};
+    $test =~ s{^\s*|\s*$}{}g;
+    return ( $test ? [] : [1] );
 };
 
 $EVALUATORS{'and'} = sub {
@@ -1027,22 +1041,6 @@ $BUILTINS{'else'} = sub {
     my $raw_tree = shift;
     $self->fatal_parse_error('unexpected else');
     return [];
-};
-
-$H{'not'} = [
-    qq(not <expression>;\n),
-    qq(    ex: if (not 0 > 1;) { print "nope\\n" }\n)
-];
-
-# XXX: requires a semicolon in expressions to execute...
-# e.g. if (not 0 > 1;) { ... }
-$BUILTINS{'not'} = sub {
-    my $self      = shift;
-    my $raw_tree  = shift;
-    my $test_tree = $self->fake_tree( 'open_paren', $raw_tree->{value}, 1 );
-    my $test      = join q(), @{ $self->evaluate($test_tree) };
-    $test =~ s{^\s*|\s*$}{}g;
-    return [ not $test ];
 };
 
 $H{'for'} = [
