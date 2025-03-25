@@ -308,11 +308,16 @@ sub fire {
         $self->determine_controller;
     }
     $self->send_heartbeat;
-    my $total  = keys %{ $self->{brokers} };
-    my $online = $self->check_heartbeats;
+    my $total              = keys %{ $self->{broker_pools } };
+    my $online             = $self->check_heartbeats;
+    my $replication_factor = $self->{default_settings}->{replication_factor};
     if ( not $total or $online <= $total / 2 ) {
-        $self->print_less_often('ERROR: not enough servers')
+        $self->print_less_often('ERROR: not enough servers for quorum')
             if ( not $self->{starting_up} );
+        $self->rebalance_partitions('inform_brokers');
+    }
+    elsif ( $replication_factor > $total ) {
+        $self->print_less_often('ERROR: not enough servers for replication');
         $self->rebalance_partitions('inform_brokers');
     }
     elsif ( $self->{status} eq 'REBALANCING_PARTITIONS' ) {
@@ -617,33 +622,34 @@ sub update_lco {
 
 sub check_heartbeats {
     my $self   = shift;
-    my $total  = 0;
-    my $online = 0;
-    my $votes  = 0;
+    my $total_pools   = keys %{ $self->{broker_pools} };
+    my %online_pools  = ();
+    my %offline_pools = ();
+    my $online        = 0;
+    my $votes         = 0;
     $votes++ if ( $self->{controller} eq $self->{broker_id} );
-    my %offline = ();
     for my $broker_id ( keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
         $self->offline($broker_id)
             if ( $Tachikoma::Right_Now - $broker->{last_heartbeat}
             > $HEARTBEAT_TIMEOUT );
-        $offline{ $broker->{pool} } = 1
+        $offline_pools{ $broker->{pool} } = 1
             if ( not $broker->{is_online} );
     }
     for my $broker_id ( keys %{ $self->{brokers} } ) {
         my $broker = $self->{brokers}->{$broker_id};
-        $total++;
-        next if ( $offline{ $broker->{pool} } );
+        next if ( $offline_pools{ $broker->{pool} } );
+        $online_pools{ $broker->{pool} } = 1;
         $online++;
         $votes++ if ( $self->{votes}->{$broker_id} );
     }
-    if ( $online > $total / 2 and $online == $votes ) {
+    if ( keys %online_pools > $total_pools / 2 and $online == $votes ) {
         $self->{is_controller} = 1;
     }
     else {
         $self->{is_controller} = undef;
     }
-    return $online;
+    return scalar keys %online_pools;
 }
 
 sub offline {
