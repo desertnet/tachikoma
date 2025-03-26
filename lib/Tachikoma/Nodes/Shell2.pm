@@ -848,7 +848,6 @@ for my $type (qw( local var env )) {
         $op_tree = $values->[ $i++ ];
         $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
         $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-        my $key  = join q(), @{ $self->evaluate($key_tree) };
         my $hash = undef;
 
         if ( $type eq 'local' ) {
@@ -860,6 +859,7 @@ for my $type (qw( local var env )) {
         else {
             $hash = $self->{configuration}->{var};
         }
+        my $key = join q(), @{ $self->evaluate($key_tree) };
         my $op  = join q(), @{ $self->evaluate($op_tree) };
         my $rv  = [];
 
