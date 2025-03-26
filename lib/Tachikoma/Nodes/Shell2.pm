@@ -134,7 +134,7 @@ my %SPECIAL = (
 my %EVALUATORS = ();
 my %BUILTINS   = ();
 my %OPERATORS  = ();
-my %LOCAL      = ();
+my @LOCAL      = ( {} );
 my %SHARED     = ();
 ## no critic (ProhibitTies)
 tie %SHARED, 'Tachikoma::Nodes::Shell2';
@@ -261,7 +261,7 @@ sub process_bytestream {
     }
     else {
         $message->to( $self->path );
-        $message->stream( $LOCAL{'message.stream'} );
+        $message->stream( $self->get_shared('message.stream') );
         $self->sink->fill($message);
     }
     return;
@@ -497,19 +497,18 @@ $EVALUATORS{'open_bracket'} = sub {
 
 # localize variables and evaluate statements
 $EVALUATORS{'open_brace'} = sub {
-    my $self      = shift;
-    my $raw_tree  = shift;
-    my $values    = $raw_tree->{value};
-    my $rv        = [];
-    my %old_local = ();
-    %old_local = %LOCAL;
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $values   = $raw_tree->{value};
+    my $rv       = [];
+    unshift @LOCAL, {};
 
     # send contents of braces as a command:
     my $command = $values->[0];
     my $result  = undef;
     $result = $self->send_command($command) if ( ref $command );
     push @{$rv}, @{$result} if ( defined $result );
-    %LOCAL = %old_local;
+    shift @LOCAL;
 
     # evaluate statements after the close bracket:
     $self->evaluate_splice( $values, $rv, 1 );
@@ -671,9 +670,9 @@ $EVALUATORS{'pipe'} = sub {
     else {
         $self->callbacks->{$id} = $functions[0];
     }
-    my $old_local = $self->set_local( { 'message.from' => '_responder' } );
+    unshift @LOCAL, { 'message.from' => '_responder' };
     $self->send_command($cmd_tree);
-    $self->restore_local($old_local);
+    shift @LOCAL;
     $self->fatal_parse_error('no command for pipe') if ( $self->message_id );
     return [];
 };
@@ -724,7 +723,7 @@ $BUILTINS{'read'} = sub {
 
     if ($name) {
         chomp $line;
-        $LOCAL{$name} = $line;
+        $LOCAL[0]->{$name} = $line;
         return [];
     }
     else {
@@ -758,7 +757,7 @@ $BUILTINS{'grep'} = sub {
     my $arg2  = $parse_tree->{value}->[2];
     my $regex = join q(), @{ $self->evaluate($arg1) };
     my $lines = join q(), @{ $self->evaluate($arg2) };
-    $lines = $LOCAL{q(@)} if ( not length $lines );
+    $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
     $self->fatal_parse_error('bad arguments for grep')
         if ( not defined $lines );
     my $output = q();
@@ -782,7 +781,7 @@ $BUILTINS{'grepv'} = sub {
     my $arg2  = $parse_tree->{value}->[2];
     my $regex = join q(), @{ $self->evaluate($arg1) };
     my $lines = join q(), @{ $self->evaluate($arg2) };
-    $lines = $LOCAL{q(@)} if ( not length $lines );
+    $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
     $self->fatal_parse_error('bad arguments for grep')
         if ( not defined $lines );
     my $output = q();
@@ -849,10 +848,11 @@ for my $type (qw( local var env )) {
         $op_tree = $values->[ $i++ ];
         $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
         $value_tree = $self->fake_tree( 'open_paren', $values, $i );
+        my $key  = join q(), @{ $self->evaluate($key_tree) };
         my $hash = undef;
 
         if ( $type eq 'local' ) {
-            $hash = \%LOCAL;
+            $hash = $LOCAL[0];
         }
         elsif ( $type eq 'env' ) {
             $hash = \%ENV;
@@ -860,7 +860,6 @@ for my $type (qw( local var env )) {
         else {
             $hash = $self->{configuration}->{var};
         }
-        my $key = join q(), @{ $self->evaluate($key_tree) };
         my $op  = join q(), @{ $self->evaluate($op_tree) };
         my $rv  = [];
 
@@ -915,18 +914,16 @@ $BUILTINS{'shift'} = sub {
     $key = join q(), @{ $self->evaluate($key_tree) } if ($key_tree);
     $self->fatal_parse_error('bad arguments for shift')
         if ( @{ $parse_tree->{value} } > 2 );
-    my $hash = undef;
-
-    if ( defined $LOCAL{$key} ) {
-        $hash = \%LOCAL;
-    }
-    elsif ( defined $self->{configuration}->{var}->{$key} ) {
-        $hash = $self->{configuration}->{var};
-    }
-    else {
-        $self->stderr( "WARNING: use of uninitialized value <$key>,",
-            " line $self->{counter}\n" );
-        return [];
+    my $hash = $self->get_local_hash($key);
+    if ( not defined $hash ) {
+        if ( defined $self->{configuration}->{var}->{$key} ) {
+            $hash = $self->{configuration}->{var};
+        }
+        else {
+            $self->stderr( "WARNING: use of uninitialized value <$key>,",
+                " line $self->{counter}\n" );
+            return [];
+        }
     }
     my $value = $hash->{$key};
     my $rv    = undef;
@@ -1071,28 +1068,19 @@ $BUILTINS{'for'} = sub {
         or not ref $do_tree
         or not @{ $do_tree->{value} }
         or @{ $raw_tree->{value} } > $i );
-    my %old_local = ();
-    $old_local{$_} = $LOCAL{$_}
-        for ( grep exists $LOCAL{$_}, qw( index total ), $var );
+    unshift @LOCAL, {};
     my $result = $self->evaluate($each_tree);
-    $LOCAL{index} = [1];
-    $LOCAL{total} = [ scalar grep m{\S}, @{$result} ];
+    $LOCAL[0]->{index} = [1];
+    $LOCAL[0]->{total} = [ scalar grep m{\S}, @{$result} ];
     my $rv = [];
 
     for my $i ( @{$result} ) {
         next if ( $i !~ m{\S} );
-        $LOCAL{$var} = [$i];
+        $LOCAL[0]->{$var} = [$i];
         $rv = $self->evaluate($do_tree);
-        $LOCAL{index}->[0]++;
+        $LOCAL[0]->{index}->[0]++;
     }
-    for my $key ( qw( index total ), $var ) {
-        if ( exists $old_local{$key} ) {
-            $LOCAL{$key} = $old_local{$key};
-        }
-        else {
-            delete $LOCAL{$key};
-        }
-    }
+    shift @LOCAL;
     return $rv;
 };
 
@@ -1172,7 +1160,7 @@ $BUILTINS{'include'} = sub {
         shift @lines if ( $lines[0] eq "v2\n" );
         $shell = $self;
     }
-    my $old_local = $self->set_local( \%new_local );
+    unshift @LOCAL, \%new_local;
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
@@ -1180,7 +1168,7 @@ $BUILTINS{'include'} = sub {
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }
-    $self->restore_local($old_local);
+    shift @LOCAL;
     return [];
 };
 
@@ -1370,8 +1358,8 @@ $BUILTINS{'tell_node'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_INFO);
-    $message->from( $LOCAL{'message.from'}     // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} // q() );
+    $message->from( $self->get_shared('message.from')     // '_responder' );
+    $message->stream( $self->get_shared('message.stream') // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1389,8 +1377,8 @@ $BUILTINS{'request_node'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_REQUEST);
-    $message->from( $LOCAL{'message.from'}     // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} // q() );
+    $message->from( $self->get_shared('message.from')     // '_responder' );
+    $message->stream( $self->get_shared('message.stream') // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1423,8 +1411,8 @@ $BUILTINS{'send_node'} = sub {
     my $payload = join q(), @{$payload_rv};
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
-    $message->from( $LOCAL{'message.from'} // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} );
+    $message->from( $self->get_shared('message.from') // '_responder' );
+    $message->stream( $self->get_shared('message.stream') );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1443,8 +1431,8 @@ $BUILTINS{'send_hash'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_STORABLE);
-    $message->from( $LOCAL{'message.from'} // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} );
+    $message->from( $self->get_shared('message.from') // '_responder' );
+    $message->stream( $self->get_shared('message.stream') );
     $message->to( $self->prefix($path) );
     $message->payload( $json->decode($payload) );
     return [ $self->sink->fill($message) ];
@@ -1478,7 +1466,7 @@ $BUILTINS{'ping'} = sub {
     my ( $proto, $path ) = split q( ), $line, 2;
     my $message = Tachikoma::Message->new;
     $message->type(TM_PING);
-    $message->from( $LOCAL{'message.from'} // '_responder' );
+    $message->from( $self->get_shared('message.from') // '_responder' );
     $message->to( $self->prefix($path) );
     $message->payload($Tachikoma::Right_Now);
     return [ $self->sink->fill($message) ];
@@ -1631,7 +1619,7 @@ $OPERATORS{'eq'}  = sub { $_[0] eq $_[1] };
 $OPERATORS{q(=~)} = sub {
     my @rv = ( ( $_[0] // q() ) =~ ( $_[1] // q() ) );
     for my $i ( 0 .. $#rv ) {
-        $LOCAL{ '_' . ( $i + 1 ) } = [ $rv[$i] ];
+        $LOCAL[0]->{ '_' . ( $i + 1 ) } = [ $rv[$i] ];
     }
     return @rv;
 };
@@ -1665,13 +1653,8 @@ sub get_values {
         if ( $value =~ m{^<([^<>]+)>(\s*)$} ) {
             my $key        = $1;
             my $whitespace = $2;
-            if ( defined $LOCAL{$key} ) {
-                $values = $LOCAL{$key};
-            }
-            elsif ( defined $self->{configuration}->{var}->{$key} ) {
-                $values = $self->{configuration}->{var}->{$key};
-            }
-            else {
+            $values = $self->get_shared($key);
+            if ( not defined $values ) {
                 $self->stderr( "WARNING: use of uninitialized value <$key>,",
                     " line $self->{counter}\n" );
                 $values = [];
@@ -1772,9 +1755,10 @@ sub assignment {
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
     my $op = join q(), @{ $self->evaluate($op_tree) };
+    my $hash = $self->get_local_hash($key);
 
-    if ( exists $LOCAL{$key} ) {
-        $self->operate( \%LOCAL, $key, $op, $value_tree );
+    if ( $hash ) {
+        $self->operate( $hash, $key, $op, $value_tree );
     }
     elsif ( exists $self->{configuration}->{var}->{$key} ) {
         $self->operate( $self->{configuration}->{var},
@@ -1890,14 +1874,13 @@ sub call_function {
     my $self      = shift;
     my $name      = shift;
     my $new_local = shift // {};
-    my %old_local = %LOCAL;
     my $rv        = [];
-    $LOCAL{$_} = $new_local->{$_} for ( keys %{$new_local} );
+    unshift @LOCAL, $new_local;
     my $okay = eval {
         $rv = $self->evaluate( $self->{configuration}->{functions}->{$name} );
         return 1;
     };
-    %LOCAL = %old_local;
+    shift @LOCAL;
 
     if ( not $okay ) {
         my $trap = $@ || 'call_function: unknown error';
@@ -1923,10 +1906,11 @@ sub _send_command {
     my $arguments = shift // q();
     my $payload   = shift;
     my $path      = shift;
+    my $from      = $self->get_shared('message.from');
     my $message   = $self->command( $name, $arguments, $payload );
     $message->type( TM_COMMAND | TM_NOREPLY )
-        if ( not $LOCAL{'message.from'} and not $self->{want_reply} );
-    $message->from( $LOCAL{'message.from'} // '_responder' );
+        if ( not length $from and not $self->{want_reply} );
+    $message->from( $from // '_responder' );
     $message->to( $self->prefix($path) );
     $message->id( $self->message_id );
     $self->dirty($name);
@@ -1956,8 +1940,7 @@ sub callback {
             $arguments{q(_ERROR)} = $options->{payload};
         }
         $arguments{q(response.from)} = $options->{from};
-        my %old_local = %LOCAL;
-        $LOCAL{$_} = $arguments{$_} for ( keys %arguments );
+        unshift @LOCAL, \%arguments;
         my $okay = eval {
             $self->send_command( $callbacks->{$id} );
             return 1;
@@ -1966,8 +1949,8 @@ sub callback {
             my $trap = $@ || 'callback failed: unknown error';
             $self->stderr($trap);
         }
-        %LOCAL = %old_local;
-        $rv    = $okay;
+        shift @LOCAL;
+        $rv = $okay;
     }
     else {
         $self->stderr("WARNING: couldn't find callback for id $id");
@@ -1992,21 +1975,6 @@ sub get_completions {
     $message->[TO]   = $self->path;
     $self->sink->fill($message);
     $self->dirty(undef);
-    return;
-}
-
-sub set_local {
-    my $self      = shift;
-    my $new_local = shift;
-    my %old_local = %LOCAL;
-    $LOCAL{$_} = $new_local->{$_} for ( keys %{$new_local} );
-    return \%old_local;
-}
-
-sub restore_local {
-    my $self      = shift;
-    my $old_local = shift;
-    %LOCAL = %{$old_local};
     return;
 }
 
@@ -2134,6 +2102,45 @@ sub msg_counter {
     return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
 }
 
+sub set_local {
+    my $self = shift;
+    unshift @LOCAL, @_;
+    return;
+}
+
+sub restore_local {
+    my $self = shift;
+    shift @LOCAL;
+    return;
+}
+
+sub get_shared {
+    my $self = shift;
+    my $key  = shift;
+    for my $hash (@LOCAL) {
+        return $hash->{$key} if ( exists $hash->{$key} );
+    }
+    return $self->{configuration}->{var}->{$key};
+}
+
+sub get_local {
+    my $self = shift;
+    my $key  = shift;
+    for my $hash (@LOCAL) {
+        return $hash->{$key} if ( exists $hash->{$key} );
+    }
+    return;
+}
+
+sub get_local_hash {
+    my $self = shift;
+    my $key  = shift;
+    for my $hash (@LOCAL) {
+        return $hash if ( exists $hash->{$key} );
+    }
+    return;
+}
+
 sub TIEHASH {
     my $self = shift;
     my $node = {};
@@ -2144,15 +2151,20 @@ sub TIEHASH {
 sub FETCH {
     my $self = shift;
     my $key  = shift;
-    my $rv   = q();
-    if ( defined $LOCAL{$key} ) {
-        $rv = $LOCAL{$key};
+    my $rv   = undef;
+    for my $hash (@LOCAL) {
+        next if ( not exists $hash->{$key} );
+        $rv = $hash->{$key};
+        last;
     }
-    elsif ( defined Tachikoma->configuration->var->{$key} ) {
-        $rv = Tachikoma->configuration->var->{$key};
-    }
-    else {
-        print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
+    if ( not defined $rv ) {
+        if ( defined Tachikoma->configuration->var->{$key} ) {
+            $rv = Tachikoma->configuration->var->{$key};
+        }
+        else {
+            $rv = q();
+            print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
+        }
     }
     return ref $rv ? join q(), @{$rv} : $rv;
 }

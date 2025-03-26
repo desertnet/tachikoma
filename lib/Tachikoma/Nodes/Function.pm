@@ -75,13 +75,13 @@ sub fill {
         $arguments->{q(_C)}         = 1;
         $arguments->{q(self.owner)} = $self->{owner};
     }
-    my $shell     = $self->shell;
-    my $old_local = $shell->set_local($arguments);
-    my $okay      = eval {
+    my $shell = $self->shell;
+    $shell->set_local($arguments);
+    my $okay = eval {
         $shell->send_command( $self->{parse_tree} );
         return 1;
     };
-    $shell->restore_local($old_local);
+    $shell->restore_local;
     if ( not $okay ) {
         my $trap = $@ || 'unknown error';
         chomp $trap;

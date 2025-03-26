@@ -57,11 +57,11 @@ var count = 0;
 if (<_C> > 0) {
     count = <1>;
 };
-if (not <count>;) {
+if (! <count>) {
     print "enter an even number: ";
     count = [read];
 };
-if (not <count>;) {
+if (! <count>) {
     count = 20;
 };
 main <count>;
