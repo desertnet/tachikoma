@@ -103,14 +103,10 @@ $re = $re ? "$re|$TOKENS{$_}(?{'$_'})" : "$TOKENS{$_}(?{'$_'})"
 my $TRIE = qr{\G(?:$re)};
 no re 'eval';
 
-my %IDENT   = map { $_ => 1 } qw( ident whitespace number leaf );
-my %STRINGS = map { $_ => 1 } qw( string1 string2 string3 string4 );
-my %PARTIAL = map { $_ => 1 } qw( string1 string2 string3 );
-my %LOGICAL = map { $_ => 1 } qw( and or not command pipe );
-my %SYNTAX  = map { $_ => 1 } qw(
-    open_paren   close_paren
-    open_brace   close_brace
-    open_bracket close_bracket leaf );
+my %IDENT    = map { $_ => 1 } qw( ident whitespace number leaf );
+my %STRINGS  = map { $_ => 1 } qw( string1 string2 string3 string4 );
+my %PARTIAL  = map { $_ => 1 } qw( string1 string2 string3 );
+my %LOGICAL  = map { $_ => 1 } qw( and or not command pipe );
 my %OPEN     = map { $_ => 1 } qw( open_paren open_brace open_bracket );
 my %CLOSE    = map { $_ => 1 } qw( close_paren close_brace close_bracket );
 my %COMMAND  = map { $_ => 1 } qw( open_brace open_bracket command pipe );
@@ -219,7 +215,6 @@ sub process_command {
         $self->report_error($error);
     }
     elsif ($parse_tree) {
-        $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
         if ( not $self->{validate} ) {
             $okay = eval {
                 $self->send_command($parse_tree);
@@ -314,13 +309,15 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $tok->{value} = [$inner];
             $this_branch = $tok;
         }
+        elsif ( $tok->{type} eq 'not' ) {
+            $tok->{value} = [];
+            $parse_tree = $tok;
+        }
         elsif ( $LOGICAL{ $tok->{type} } ) {
-            if ( not $parse_tree ) {
-                $parse_tree = { type => $tok->{type}, value => [] };
-            }
-            elsif ( $parse_tree->{type} ne $tok->{type} ) {
-                $parse_tree = { type => $tok->{type}, value => [$parse_tree] };
-            }
+            $self->fatal_parse_error('unexpected logical operator')
+                if ( not $parse_tree );
+            $parse_tree = { type => $tok->{type}, value => [$parse_tree] }
+                if ( $parse_tree->{type} ne $tok->{type} );
             $tok->{type}  = 'leaf';
             $tok->{value} = [];
             $this_branch  = $tok;
@@ -351,6 +348,12 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $this_branch = $tok;
         }
         if ($this_branch) {
+            $self->stderr(
+                sprintf "%s -> %s -> %s",
+                $parse_tree ? $parse_tree->{type} : '/',
+                $this_branch->{type},
+                Dumper( $this_branch->{value} )
+            ) if ( $self->show_parse );
             my $cursor = undef;
             $cursor = $parse_tree->{value}->[-1]
                 if ($parse_tree
@@ -580,9 +583,11 @@ $EVALUATORS{'not'} = sub {
     my $raw_tree  = shift;
     my $test_tree = $self->fake_tree( 'open_paren', $raw_tree->{value} );
     my $rv        = $self->evaluate($test_tree);
-    my $test      = join q(), @{$rv};
+    shift @{$rv} while ( @{$rv} and $rv->[0]  !~ m{\S} );
+    pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
+    my $test = join q(), @{$rv};
     $test =~ s{^\s*|\s*$}{}g;
-    return ( $test ? [] : [1] );
+    return ( $test ? [0] : [1] );
 };
 
 $EVALUATORS{'and'} = sub {
@@ -592,7 +597,7 @@ $EVALUATORS{'and'} = sub {
     if ( @{ $raw_tree->{value} } > 1 ) {
         for my $branch ( @{ $raw_tree->{value} } ) {
             $rv = $self->evaluate(
-                  $OPEN{ $branch->{type} }
+                ( $OPEN{ $branch->{type} } or $LOGICAL{ $branch->{type} } )
                 ? $branch
                 : $self->fake_tree( 'open_paren', $branch->{value} )
             );
@@ -612,7 +617,7 @@ $EVALUATORS{'or'} = sub {
     my $rv       = [];
     for my $branch ( @{ $raw_tree->{value} } ) {
         $rv = $self->evaluate(
-              $OPEN{ $branch->{type} }
+            ( $OPEN{ $branch->{type} } or $LOGICAL{ $branch->{type} } )
             ? $branch
             : $self->fake_tree( 'open_paren', $branch->{value} )
         );
@@ -872,6 +877,7 @@ for my $type (qw( local var env )) {
             }
         }
         elsif ( length $key ) {
+            $hash->{$key} = $self->get_local($key) if ( $type eq 'local' );
             $hash->{$key} //= q();
             if ( ref $hash->{$key} ) {
                 $rv = $hash->{$key};
@@ -879,6 +885,30 @@ for my $type (qw( local var env )) {
             else {
                 $rv = [ $hash->{$key} ];
             }
+        }
+        elsif ( $type eq 'local' ) {
+            my $layer = 0;
+            for my $hash (@LOCAL) {
+                push @{$rv}, sprintf "### LAYER %d:\n", $layer++;
+                for my $key ( sort keys %{$hash} ) {
+                    my $output = "$key=";
+                    if ( ref $hash->{$key} ) {
+                        $output
+                            .= '["'
+                            . join( q(", "), grep m{\S}, @{ $hash->{$key} } )
+                            . '"]';
+                    }
+                    else {
+                        $output .= $hash->{$key} // q();
+                    }
+                    chomp $output;
+                    push @{$rv}, "$output\n";
+                }
+                push @{$rv}, "\n" if $layer < $#LOCAL;
+            }
+            my $output = join q(), @{$rv};
+            syswrite STDOUT, $output or die if ($output);
+            $rv = [];
         }
         else {
             for my $key ( sort keys %{$hash} ) {
@@ -915,6 +945,7 @@ $BUILTINS{'shift'} = sub {
     $self->fatal_parse_error('bad arguments for shift')
         if ( @{ $parse_tree->{value} } > 2 );
     my $hash = $self->get_local_hash($key);
+
     if ( not defined $hash ) {
         if ( defined $self->{configuration}->{var}->{$key} ) {
             $hash = $self->{configuration}->{var};
@@ -1754,10 +1785,10 @@ sub assignment {
     $i++ if ( $values->[$i]->{type} eq 'op' );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
-    my $op = join q(), @{ $self->evaluate($op_tree) };
-    my $hash = $self->get_local_hash($key);
+    my $op         = join q(), @{ $self->evaluate($op_tree) };
+    my $hash       = $self->get_local_hash($key);
 
-    if ( $hash ) {
+    if ($hash) {
         $self->operate( $hash, $key, $op, $value_tree );
     }
     elsif ( exists $self->{configuration}->{var}->{$key} ) {
@@ -1871,16 +1902,17 @@ sub _call_function {
 }
 
 sub call_function {
-    my $self      = shift;
-    my $name      = shift;
-    my $new_local = shift // {};
-    my $rv        = [];
+    my $self       = shift;
+    my $name       = shift;
+    my $new_local  = shift // {};
+    my $rv         = [];
+    my $stack_size = $#LOCAL;
     unshift @LOCAL, $new_local;
     my $okay = eval {
         $rv = $self->evaluate( $self->{configuration}->{functions}->{$name} );
         return 1;
     };
-    shift @LOCAL;
+    shift @LOCAL while ( $#LOCAL > $stack_size );
 
     if ( not $okay ) {
         my $trap = $@ || 'call_function: unknown error';
@@ -1940,16 +1972,17 @@ sub callback {
             $arguments{q(_ERROR)} = $options->{payload};
         }
         $arguments{q(response.from)} = $options->{from};
+        my $stack_size = $#LOCAL;
         unshift @LOCAL, \%arguments;
         my $okay = eval {
             $self->send_command( $callbacks->{$id} );
             return 1;
         };
+        shift @LOCAL while ( $#LOCAL > $stack_size );
         if ( not $okay ) {
             my $trap = $@ || 'callback failed: unknown error';
             $self->stderr($trap);
         }
-        shift @LOCAL;
         $rv = $okay;
     }
     else {

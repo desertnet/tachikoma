@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 86;
+use Test::More tests => 95;
 
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Callback;
@@ -349,6 +349,206 @@ $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n",
     'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    if (1 || ("foo" eq "bar")) { date };
+    if (0 || ("foo" eq "bar")) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( (! <mode>) || <mode> eq "update" ) { date };
+    var mode="update";
+    if ( (! <mode>) || <mode> eq "update" ) { uptime };
+    var mode="check";
+    if ( (! <mode>) || <mode> eq "update" ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( ! <mode> || (<mode> eq "update") ) { date };
+    var mode="update";
+    if ( ! <mode> || (<mode> eq "update") ) { uptime };
+    var mode="check";
+    if ( ! <mode> || (<mode> eq "update") ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( (<mode> eq "update") || (! <mode>) ) { date };
+    var mode="update";
+    if ( (<mode> eq "update") || (! <mode>) ) { uptime };
+    var mode="check";
+    if ( (<mode> eq "update") || (! <mode>) ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+# $parse_tree = $shell->parse( '
+# {
+#     var mode="";
+#     if ( (<mode> eq "update") || ! <mode> ) { date };
+#     var mode="update";
+#     if ( (<mode> eq "update") || ! <mode> ) { uptime };
+#     var mode="check";
+#     if ( (<mode> eq "update") || ! <mode> ) { uptime };
+# }
+# ' );
+# $answer = q();
+# $shell->send_command($parse_tree);
+# is( $answer, "[date][]\n[uptime][]\n",
+#     'logical operators with parenthesized expressions are evaluted correctly'
+# );
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( <mode> eq "update" || (! <mode>) ) { date };
+    var mode="update";
+    if ( <mode> eq "update" || (! <mode>) ) { uptime };
+    var mode="check";
+    if ( <mode> eq "update" || (! <mode>) ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( ! <mode> || <mode> eq "update" ) { date };
+    var mode="update";
+    if ( ! <mode> || <mode> eq "update" ) { uptime };
+    var mode="check";
+    if ( ! <mode> || <mode> eq "update" ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators without parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( <mode> eq "update" || (! <mode>) ) { date };
+    var mode="update";
+    if ( <mode> eq "update" || (! <mode>) ) { uptime };
+    var mode="check";
+    if ( <mode> eq "update" || (! <mode>) ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var enable="";
+    var tachikoma.foo=1;
+    var user=foo;
+    if ( <enable> && (! [var "tachikoma.<user>"]) ) { date };
+    var enable=1;
+    if ( <enable> && (! [var "tachikoma.<user>"]) ) { uptime };
+    var tachikoma.bar=0;
+    var user=bar;
+    if ( <enable> && (! [var "tachikoma.<user>"]) ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
+
+#####################################################################
+
+# $parse_tree = $shell->parse( '
+# {
+#     var mode="";
+#     if ( <mode> eq "update" || ! <mode> ) { date };
+#     var mode="update";
+#     if ( <mode> eq "update" || ! <mode> ) { uptime };
+#     var mode="check";
+#     if ( <mode> eq "update" || ! <mode> ) { uptime };
+# }
+# ' );
+# $answer = q();
+# $shell->send_command($parse_tree);
+# is( $answer, "[date][]\n[uptime][]\n",
+#     'logical operators without parenthesized expressions are evaluted correctly'
+# );
+
+#####################################################################
+
+$parse_tree = $shell->parse( '
+{
+    var enable="";
+    var tachikoma.foo=1;
+    var user=foo;
+    if ( <enable> && ! [var "tachikoma.<user>"] ) { date };
+    var enable=1;
+    if ( <enable> && ! [var "tachikoma.<user>"] ) { uptime };
+    var tachikoma.bar=0;
+    var user=bar;
+    if ( <enable> && ! [var "tachikoma.<user>"] ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[uptime][]\n",
+    'logical operators without parenthesized expressions are evaluted correctly'
 );
 
 #####################################################################
