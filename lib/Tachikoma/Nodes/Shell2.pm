@@ -869,6 +869,8 @@ for my $type (qw( local var env )) {
         my $rv  = [];
 
         if ( length $op ) {
+            $hash->{$key} = $self->get_local($key) if ( $type eq 'local' );
+            $hash->{$key} //= q();
             if ( $type eq 'env' ) {
                 $rv = $self->operate_env( $hash, $key, $op, $value_tree );
             }
