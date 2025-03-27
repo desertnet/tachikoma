@@ -791,8 +791,7 @@ $C{dump_metadata} = sub {
                 $n += $node->{msg_unanswered}->{$_}
                     for ( keys %{ $node->{msg_unanswered} } );
                 @extra = (
-                    $n,
-                    $node->{max_unanswered} ? $node->{max_unanswered} : $n
+                    $n, $node->{max_unanswered} ? $node->{max_unanswered} : $n
                 );
             }
             elsif ( $node->isa('Tachikoma::Nodes::Router') ) {
@@ -970,8 +969,8 @@ $C{list_connections} = sub {
             $address =
                 join q(:),
                 $node->{address}
-                ? join q(.),
-                map sprintf( '%d', ord ), split m{}, $node->{address}
+                ? join q(.), map sprintf( '%d', ord ), split m{},
+                $node->{address}
                 : '...',
                 $node->{port};
         }

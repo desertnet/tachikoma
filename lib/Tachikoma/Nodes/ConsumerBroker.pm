@@ -321,7 +321,8 @@ sub make_broker_connection {
         $self->stderr("DEBUG: CREATE $broker_id")
             if ( $self->debug_state );
         if ( $self->flags & TK_SYNC ) {
-            $node = Tachikoma::Nodes::Socket->inet_client( $host, $port,
+            $node =
+                Tachikoma::Nodes::Socket->inet_client( $host, $port,
                 TK_SYNC );
         }
         else {

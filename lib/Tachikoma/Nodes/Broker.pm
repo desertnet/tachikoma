@@ -308,7 +308,7 @@ sub fire {
         $self->determine_controller;
     }
     $self->send_heartbeat;
-    my $total              = keys %{ $self->{broker_pools } };
+    my $total              = keys %{ $self->{broker_pools} };
     my $online             = $self->check_heartbeats;
     my $replication_factor = $self->{default_settings}->{replication_factor};
     if ( not $total or $online <= $total / 2 ) {
@@ -621,7 +621,7 @@ sub update_lco {
 }
 
 sub check_heartbeats {
-    my $self   = shift;
+    my $self          = shift;
     my $total_pools   = keys %{ $self->{broker_pools} };
     my %online_pools  = ();
     my %offline_pools = ();

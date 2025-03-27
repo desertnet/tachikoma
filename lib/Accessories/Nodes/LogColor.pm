@@ -95,7 +95,8 @@ sub cleanup_syslog {
     }
     else {
         $payload =~ s{^(\S)}{ $1};
-        $payload = strftime( '%F %T %Z', localtime $message->[TIMESTAMP] )
+        $payload =
+            strftime( '%F %T %Z', localtime $message->[TIMESTAMP] )
             . $payload;
     }
     return $payload;

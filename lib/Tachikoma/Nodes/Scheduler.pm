@@ -74,7 +74,8 @@ sub fire {
     my $next_when = 30;
     for my $message_id ( sort { $a <=> $b } keys %{ $self->tiedhash } ) {
         my ( $time, $repeat, $enabled, $text, $packed ) =
-            unpack 'N N N Z* a*', $self->tiedhash->{$message_id};
+            unpack 'N N N Z* a*',
+            $self->tiedhash->{$message_id};
         my $when = $time - $Tachikoma::Now;
         $next_when = $when if ( $when < $next_when );
         next if ( $when > 0 or not $enabled );
