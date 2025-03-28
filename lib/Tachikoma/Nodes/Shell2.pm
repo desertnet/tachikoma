@@ -870,7 +870,6 @@ for my $type (qw( local var env )) {
 
         if ( length $op ) {
             $hash->{$key} = $self->get_local($key) if ( $type eq 'local' );
-            $hash->{$key} //= q();
             if ( $type eq 'env' ) {
                 $rv = $self->operate_env( $hash, $key, $op, $value_tree );
             }
@@ -906,7 +905,7 @@ for my $type (qw( local var env )) {
                     chomp $output;
                     push @{$rv}, "$output\n";
                 }
-                push @{$rv}, "\n" if $layer < $#LOCAL;
+                push @{$rv}, "\n" if $layer < @LOCAL;
             }
             my $output = join q(), @{$rv};
             syswrite STDOUT, $output or die if ($output);
@@ -1858,18 +1857,18 @@ sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
     my ( $self, $hash, $key, $op, $value_tree ) = @_;
     my $result = $self->evaluate($value_tree);
     my $v      = $hash->{$key};
-    $v = []   if ( not defined $v or not length $v );
+    $v = []   if ( not defined $v );
     $v = [$v] if ( not ref $v );
     shift @{$result} if ( @{$result} and $result->[0]  =~ m{^\s+$} );
     pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
     my $joined = join q(), @{$result};
-    if    ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
     if    ( $op eq q(=) )            { $v = $result; }
-    elsif ( $op eq q(.=) )           { push @{$v}, @{$result}; }
-    elsif ( $op eq q(+=) )           { $v->[0] //= 0; $v->[0] += $joined; }
-    elsif ( $op eq q(-=) )           { $v->[0] //= 0; $v->[0] -= $joined; }
-    elsif ( $op eq q(*=) )           { $v->[0] //= 0; $v->[0] *= $joined; }
-    elsif ( $op eq q(/=) )           { $v->[0] //= 0; $v->[0] /= $joined; }
+    elsif ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ), @{$result}; }
+    elsif ( $op eq q(.=) )           { push @{$v},       @{$result}; }
+    elsif ( $op eq q(+=) )           { $v->[0] ||= 0; $v->[0] += $joined; }
+    elsif ( $op eq q(-=) )           { $v->[0] ||= 0; $v->[0] -= $joined; }
+    elsif ( $op eq q(*=) )           { $v->[0] ||= 0; $v->[0] *= $joined; }
+    elsif ( $op eq q(/=) )           { $v->[0] ||= 0; $v->[0] /= $joined; }
     elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
     elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
     else  { $self->fatal_parse_error("invalid operator: $op"); }
