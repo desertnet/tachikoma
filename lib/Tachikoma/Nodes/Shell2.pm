@@ -1864,7 +1864,7 @@ sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
     my $joined = join q(), @{$result};
     if    ( $op eq q(=) )            { $v = $result; }
     elsif ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ), @{$result}; }
-    elsif ( $op eq q(.=) )           { push @{$v},       @{$result}; }
+    elsif ( $op eq q(.=) )           { push @{$v}, @{$result}; }
     elsif ( $op eq q(+=) )           { $v->[0] ||= 0; $v->[0] += $joined; }
     elsif ( $op eq q(-=) )           { $v->[0] ||= 0; $v->[0] -= $joined; }
     elsif ( $op eq q(*=) )           { $v->[0] ||= 0; $v->[0] *= $joined; }
