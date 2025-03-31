@@ -100,6 +100,7 @@ lib/Tachikoma/Nodes/IndexByTimestamp.pm
 lib/Tachikoma/Nodes/Index.pm
 lib/Tachikoma/Nodes/JobController.pm
 lib/Tachikoma/Nodes/JobFarmer.pm
+lib/Tachikoma/Nodes/JobSpawnTimer.pm
 lib/Tachikoma/Nodes/Join.pm
 lib/Tachikoma/Nodes/JSONtoStorable.pm
 lib/Tachikoma/Nodes/JSONvisualizer.pm

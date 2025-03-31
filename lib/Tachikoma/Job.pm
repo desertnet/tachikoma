@@ -15,6 +15,7 @@ use Tachikoma::Message qw(
 use Tachikoma::Nodes::FileHandle qw( TK_R setsockopts );
 use Tachikoma::Nodes::STDIO;
 use Tachikoma::Nodes::Callback;
+use Tachikoma::Nodes::JobSpawnTimer;
 use POSIX qw( F_SETFD dup2 );
 use Socket;
 use Scalar::Util qw( blessed );
@@ -29,6 +30,8 @@ if ( -f '/usr/bin/sudo' ) {
 elsif ( -f '/usr/local/bin/sudo' ) {
     $SUDO = '/usr/local/bin/sudo';
 }
+
+my @SPAWN_QUEUE = ();
 
 use constant {
     MAX_RECENT_LOG => 100,
@@ -47,6 +50,7 @@ sub new {
     $self->{config_file}    = undef;
     $self->{original_name}  = undef;
     $self->{router}         = undef;
+    $self->{spawn_buffer}   = undef;
     $self->{connector}      = undef;
     bless $self, $class;
     return $self;
@@ -70,7 +74,7 @@ sub prepare {
             my $message = shift;
             my $sink    = $self->{connector}->{sink};
             my $owner   = $self->{connector}->{owner};
-            $self->spawn($options);
+            $self->_spawn($options);
             if ( $self->{connector}->{type} ) {
                 $self->{connector}->sink($sink);
                 $self->{connector}->owner($owner) if ( length $owner );
@@ -83,6 +87,50 @@ sub prepare {
 }
 
 sub spawn {
+    my $self    = shift;
+    my $options = shift;
+    $self->{arguments}      = $options->{arguments};
+    $self->{type}           = $options->{type};
+    $self->{pid}            = q(-);
+    $self->{username}       = $options->{username};
+    $self->{config_file}    = $options->{config_file};
+    $self->{original_name}  = $options->{name};
+    $self->{arguments}      = $options->{arguments};
+    $self->{owner}          = $options->{owner};
+    $self->{should_restart} = $options->{should_restart};
+    $self->{spawn_buffer}   = [];
+    $self->{connector}      = Tachikoma::Nodes::Callback->new;
+    $self->{connector}->name( $options->{name} );
+    $self->{connector}->callback(
+        sub {
+            my $message = shift;
+            push @{ $self->{spawn_buffer} }, $message;
+            return;
+        }
+    );
+    if ( not Tachikoma->nodes->{'_spawn_timer'} ) {
+        my $spawn_timer = Tachikoma::Nodes::JobSpawnTimer->new;
+        $spawn_timer->name('_spawn_timer');
+        $spawn_timer->set_timer(250);
+        $spawn_timer->sink($self);
+        Tachikoma->nodes->{'_spawn_timer'} = $spawn_timer;
+    }
+    push @SPAWN_QUEUE, sub {
+        my $sink  = $self->{connector}->{sink};
+        my $owner = $self->{connector}->{owner};
+        $self->_spawn($options);
+        if ( $self->{connector}->{type} ) {
+            $self->{connector}->sink($sink);
+            $self->{connector}->owner($owner) if ( length $owner );
+            $self->{connector}->fill($_) for ( @{ $self->{spawn_buffer} } );
+            $self->{spawn_buffer} = undef;
+        }
+        return;
+    };
+    return;
+}
+
+sub _spawn {
     my $self        = shift;
     my $options     = shift;
     my $filehandles = {
@@ -105,15 +153,8 @@ sub spawn {
 
         # connect parent filehandles
         $self->connect_parent( $filehandles, $options->{name} );
-        $self->{type}           = $options->{type};
-        $self->{pid}            = $pid;
-        $self->{last_restart}   = $Tachikoma::Now;
-        $self->{username}       = $options->{username};
-        $self->{config_file}    = $options->{config_file};
-        $self->{original_name}  = $options->{name};
-        $self->{arguments}      = $options->{arguments};
-        $self->{owner}          = $options->{owner};
-        $self->{should_restart} = $options->{should_restart};
+        $self->{pid}          = $pid;
+        $self->{last_restart} = $Tachikoma::Now;
         return;
     }
     else {
@@ -389,12 +430,25 @@ sub router {
     return $self->{router};
 }
 
+sub spawn_buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{spawn_buffer} = shift;
+    }
+    return $self->{spawn_buffer};
+}
+
 sub connector {
     my $self = shift;
     if (@_) {
         $self->{connector} = shift;
     }
     return $self->{connector};
+}
+
+sub spawn_queue {
+    my $self = shift;
+    return \@SPAWN_QUEUE;
 }
 
 1;
