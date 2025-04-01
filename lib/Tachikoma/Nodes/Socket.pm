@@ -1001,7 +1001,6 @@ sub reconnect_unix {
         $self->close_filehandle;
         return 'try again';
     }
-    $self->stderr( 'reconnect: ', $! || 'success' );
     if ( $self->{use_SSL} ) {
         if ( not $self->start_SSL_connection ) {
             $self->close_filehandle;
@@ -1054,23 +1053,37 @@ sub dns_lookup {
     my $secure = Tachikoma->configuration->{secure_level};
     return $self->close_filehandle('reconnect')
         if ( defined $secure and $secure == 0 );
-    my $job_controller = $Tachikoma::Nodes{'jobs'};
-    if ( not $job_controller ) {
-        require Tachikoma::Nodes::JobController;
-        my $sink =
-               $Tachikoma::Nodes{'_command_interpreter'}
-            || $Tachikoma::Nodes{'_router'}
-            || die q(FAILED: couldn't find a suitable sink);
-        $job_controller = Tachikoma::Nodes::JobController->new;
-        $job_controller->name('jobs');
-        $job_controller->sink($sink);
-    }
+    my $sink =
+           $Tachikoma::Nodes{'_command_interpreter'}
+        || $Tachikoma::Nodes{'_router'}
+        || die q(FAILED: couldn't find a suitable sink);
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
+    my $wait = undef;
     if ( not $inet_aton ) {
-        $inet_aton = $job_controller->start_job( { type => 'Inet_AtoN' } );
-        $Tachikoma::Inet_AtoN_Serial++;
+        if ( Tachikoma->get_pid('Inet_AtoN') ) {
+            $inet_aton =
+                Tachikoma::Nodes::Socket->unix_client('/tmp/Inet_AtoN');
+            $inet_aton->name('Inet_AtoN');
+            $inet_aton->sink($sink);
+            $wait = 1;
+        }
+        else {
+            my $job_controller = $Tachikoma::Nodes{'jobs'};
+            if ( not $job_controller ) {
+                require Tachikoma::Nodes::JobController;
+                $job_controller = Tachikoma::Nodes::JobController->new;
+                $job_controller->name('jobs');
+                $job_controller->sink($sink);
+            }
+            $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
+            if ( not $inet_aton ) {
+                $inet_aton =
+                    $job_controller->start_job( { type => 'Inet_AtoN' } );
+                $Tachikoma::Inet_AtoN_Serial++;
+            }
+            $self->{inet_aton_serial} = $Tachikoma::Inet_AtoN_Serial;
+        }
     }
-    $self->{inet_aton_serial} = $Tachikoma::Inet_AtoN_Serial;
     #
     # Send the hostname to our Inet_AtoN job.
     # When it sends the reply, we pick it up with fill_buffer_init().
@@ -1078,13 +1091,15 @@ sub dns_lookup {
     # see also inet_client_async(), fill_buffer_init(), init_socket(),
     #      and reconnect()
     #
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_BYTESTREAM;
-    $message->[FROM]    = $self->{name};
-    $message->[PAYLOAD] = $self->{hostname};
-    $inet_aton->fill($message);
-    $self->{fill}    = $self->{fill_modes}->{init};
-    $self->{address} = undef;
+    if ( not $wait ) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = $self->{name};
+        $message->[PAYLOAD] = $self->{hostname};
+        $inet_aton->fill($message);
+        $self->{fill}    = $self->{fill_modes}->{init};
+        $self->{address} = undef;
+    }
     return;
 }
 

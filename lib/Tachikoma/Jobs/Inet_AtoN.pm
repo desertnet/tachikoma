@@ -8,6 +8,7 @@ package Tachikoma::Jobs::Inet_AtoN;
 use strict;
 use warnings;
 use Tachikoma::Job;
+use Tachikoma::Nodes::Socket;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
@@ -18,13 +19,24 @@ use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $JOB_TIMEOUT = 5;     # seconds
+my $JOB_TIMEOUT = 60;    # seconds
 my $DNS_TIMEOUT = 30;    # seconds
 
 sub initialize_graph {
     my $self = shift;
     $self->connector->sink($self);
     $self->sink( $self->router );
+
+    if ( not Tachikoma->configuration->pid_dir ) {
+        Tachikoma->configuration->pid_dir('/var/run/tachikoma');
+    }
+    Tachikoma->check_pid;
+    Tachikoma->write_pid;
+    my $node = Tachikoma::Nodes::Socket->unix_server('/tmp/Inet_AtoN');
+    $node->name('_socket');
+    $node->owner( $self->name );
+    $node->sink( $self->router );
+
     $self->timer( Tachikoma::Nodes::Timer->new );
     $self->timer->name('_timer');
     $self->timer->set_timer( $JOB_TIMEOUT * 1000, 'oneshot' );
@@ -77,6 +89,12 @@ sub fill {
     $message->[FROM]    = q();
     $message->[PAYLOAD] = $number ? join q(), inet_ntoa($number), "\n" : q();
     return $self->SUPER::fill($message);
+}
+
+sub remove_node {
+    my $self = shift;
+    Tachikoma->remove_pid;
+    return $self->SUPER::remove_node;
 }
 
 sub timer {
