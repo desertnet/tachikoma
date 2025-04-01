@@ -16,7 +16,7 @@ use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
 use Tachikoma::Message           qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_HEARTBEAT TM_RESPONSE TM_ERROR
+    TM_BYTESTREAM TM_HEARTBEAT TM_REQUEST TM_RESPONSE TM_ERROR
     VECTOR_SIZE
 );
 use Tachikoma::Crypto;
@@ -868,9 +868,7 @@ sub do_not_enter {
 sub fill_buffer_init {
     my $self    = shift;
     my $message = shift;
-    if (    $message->[TYPE] & TM_BYTESTREAM
-        and $message->[FROM] =~ m{^Inet_AtoN(?:-\d+)?$} )
-    {
+    if ( $message->[TYPE] & TM_RESPONSE and $message->[FROM] eq 'Inet_AtoN' ) {
         #
         # we're a connection starting up, and our Inet_AtoN job is
         # sending us the results of the DNS lookup.
@@ -1093,7 +1091,7 @@ sub dns_lookup {
     #
     if ( not $wait ) {
         my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[TYPE]    = TM_REQUEST;
         $message->[FROM]    = $self->{name};
         $message->[PAYLOAD] = $self->{hostname};
         $inet_aton->fill($message);

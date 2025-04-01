@@ -10,14 +10,14 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::Socket;
 use Tachikoma::Message qw(
-    TYPE FROM TO PAYLOAD TM_BYTESTREAM
+    TYPE FROM TO PAYLOAD TM_REQUEST TM_RESPONSE
 );
 use Socket;
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $DNS_TIMEOUT = 30; # seconds
+my $DNS_TIMEOUT = 30;    # seconds
 
 sub initialize_graph {
     my $self = shift;
@@ -36,7 +36,7 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return if ( not $message->[TYPE] & TM_BYTESTREAM );
+    return if ( not $message->[TYPE] & TM_REQUEST );
 
     my $arguments = $message->[PAYLOAD];
     chomp $arguments;
@@ -57,6 +57,7 @@ sub fill {
             die $@ if ( $@ ne "alarm\n" );    # propagate unexpected errors
         }
     }
+    $message->[TYPE]    = TM_RESPONSE;
     $message->[TO]      = $message->[FROM];
     $message->[FROM]    = q();
     $message->[PAYLOAD] = $number ? join q(), inet_ntoa($number), "\n" : q();
