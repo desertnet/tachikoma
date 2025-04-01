@@ -358,6 +358,7 @@ sub get_pid {
     $pid = <$fh>;
     close $fh or die $!;
     chomp $pid if ($pid);
+
     if ( kill 0, $pid ) {
         return $pid;
     }
