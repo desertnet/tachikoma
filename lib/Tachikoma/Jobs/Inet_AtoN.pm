@@ -9,18 +9,15 @@ use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::Socket;
-use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
-    TYPE FROM TO PAYLOAD
-    TM_BYTESTREAM TM_EOF TM_KILLME
+    TYPE FROM TO PAYLOAD TM_BYTESTREAM
 );
 use Socket;
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $JOB_TIMEOUT = 60;    # seconds
-my $DNS_TIMEOUT = 30;    # seconds
+my $DNS_TIMEOUT = 30; # seconds
 
 sub initialize_graph {
     my $self = shift;
@@ -33,35 +30,13 @@ sub initialize_graph {
     $node->name('_socket');
     $node->owner( $self->name );
     $node->sink( $self->router );
-
-    $self->timer( Tachikoma::Nodes::Timer->new );
-    $self->timer->name('_timer');
-    $self->timer->set_timer( $JOB_TIMEOUT * 1000, 'oneshot' );
-    $self->timer->sink($self);
     return;
 }
 
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return if ( $message->[TYPE] & TM_EOF );
-
-    # timeout, send a TM_KILLME request
-    if ( $message->[FROM] eq '_timer' ) {
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE] = TM_KILLME;
-        $self->timer->stop_timer;
-        return $self->SUPER::fill($response);
-    }
-
-    # looks like we're ready to die
-    return $self->shutdown_all_nodes
-        if ( $message->[TYPE] & TM_KILLME );
-
-    # otherwise make sure it's a TM_BYTESTREAM
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    $self->timer->set_timer( $JOB_TIMEOUT * 1000, 'oneshot' )
-        if ( $self->timer );
 
     my $arguments = $message->[PAYLOAD];
     chomp $arguments;
@@ -92,14 +67,6 @@ sub remove_node {
     my $self = shift;
     Tachikoma->remove_pid("Inet_AtoN.$<");
     return $self->SUPER::remove_node;
-}
-
-sub timer {
-    my $self = shift;
-    if (@_) {
-        $self->{timer} = shift;
-    }
-    return $self->{timer};
 }
 
 1;
