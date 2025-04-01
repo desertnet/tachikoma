@@ -277,7 +277,7 @@ sub log_dir {
         $self->{log_dir} = shift;
     }
     elsif ( not defined $self->{log_dir} ) {
-        $self->{log_dir} = '/tmp';
+        $self->{log_dir} = '/var/log/tachikoma';
     }
     return $self->{log_dir};
 }
@@ -296,7 +296,7 @@ sub pid_dir {
         $self->{pid_dir} = shift;
     }
     elsif ( not defined $self->{pid_dir} ) {
-        $self->{pid_dir} = '/tmp';
+        $self->{pid_dir} = '/var/run/tachikoma';
     }
     return $self->{pid_dir};
 }

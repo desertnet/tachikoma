@@ -12,6 +12,7 @@ use Tachikoma::Message qw(
     TM_PERSIST TM_RESPONSE
 );
 use Tachikoma::Config qw( load_module include_conf );
+use Fcntl             qw( :flock );
 use POSIX             qw( setsid );
 
 use version; our $VERSION = qv('v2.0.101');
@@ -43,6 +44,7 @@ my @NODES_TO_RECONNECT = ();
 my @RECENT_LOG         = ();
 my %RECENT_LOG_TIMERS  = ();
 my $SHUTTING_DOWN      = undef;
+my $PID_FH             = undef;
 
 sub inet_client {
     my ( $class, $host, $port, $use_SSL ) = @_;
@@ -245,8 +247,9 @@ sub initialize {
 
 sub check_pid {
     my $self    = shift;
-    my $old_pid = $self->get_pid;
-    if ( $old_pid and kill 0, $old_pid ) {
+    my $name    = shift;
+    my $old_pid = $self->get_pid($name);
+    if ($old_pid) {
         print {*STDERR} "ERROR: $0 already running as pid $old_pid\n";
         exit 3;
     }
@@ -290,11 +293,13 @@ sub reset_signal_handlers {
 
 sub write_pid {
     my $self = shift;
-    my $file = $self->pid_file or die "ERROR: no pid file specified\n";
+    my $name = shift;
+    my $file = $self->pid_file($name) or die "ERROR: no pid file specified\n";
     $MY_PID = $$;
-    open my $fh, '>', $file or die "ERROR: couldn't open pid file $file: $!";
-    print {$fh} "$MY_PID\n";
-    close $fh or die $!;
+    open $PID_FH, '>', $file or die "ERROR: couldn't open pid file $file: $!";
+    flock $PID_FH, LOCK_EX | LOCK_NB
+        or die "ERROR: couldn't lock pid file $file: $!";
+    syswrite $PID_FH, "$MY_PID\n";
     return;
 }
 
@@ -353,14 +358,23 @@ sub get_pid {
     $pid = <$fh>;
     close $fh or die $!;
     chomp $pid if ($pid);
-    return $pid;
+    if ( kill 0, $pid ) {
+        return $pid;
+    }
+    else {
+        return;
+    }
 }
 
 sub remove_pid {
     my $self = shift;
-    my $file = $self->pid_file or die "ERROR: no pid file specified\n";
+    my $name = shift;
+    my $file = $self->pid_file($name) or die "ERROR: no pid file specified\n";
+    flock $PID_FH, LOCK_UN
+        or warn "ERROR: couldn't unlock pid file $file: $!";
+    close $PID_FH or warn $!;
     if ( $file and $$ == $MY_PID ) {
-        unlink $file or die $!;
+        unlink $file or warn "ERROR: couldn't unlink pid file $file: $!";
     }
     return;
 }
@@ -370,11 +384,11 @@ sub pid_file {
     my $name     = shift // $0;
     my $pid_file = undef;
     my $config   = Tachikoma->configuration;
-    if ( $config->pid_file ) {
-        $pid_file = $config->pid_file;
-    }
-    elsif ( $config->pid_dir ) {
+    if ( $config->pid_dir ) {
         $pid_file = join q(), $config->pid_dir, q(/), $name, '.pid';
+    }
+    elsif ( $config->pid_file ) {
+        $pid_file = $config->pid_file;
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -387,11 +401,11 @@ sub log_file {
     my $name     = $0;
     my $log_file = undef;
     my $config   = Tachikoma->configuration;
-    if ( $config->log_file ) {
-        $log_file = $config->log_file;
-    }
-    elsif ( $config->log_dir ) {
+    if ( $config->log_dir ) {
         $log_file = join q(), $config->log_dir, q(/), $name, '.log';
+    }
+    elsif ( $config->log_file ) {
+        $log_file = $config->log_file;
     }
     else {
         die "ERROR: couldn't determine log_file\n";

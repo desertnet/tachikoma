@@ -26,13 +26,10 @@ sub initialize_graph {
     my $self = shift;
     $self->connector->sink($self);
     $self->sink( $self->router );
-
-    if ( not Tachikoma->configuration->pid_dir ) {
-        Tachikoma->configuration->pid_dir('/var/run/tachikoma');
-    }
-    Tachikoma->check_pid;
-    Tachikoma->write_pid;
-    my $node = Tachikoma::Nodes::Socket->unix_server('/tmp/Inet_AtoN');
+    Tachikoma->check_pid("Inet_AtoN.$<");
+    Tachikoma->write_pid("Inet_AtoN.$<");
+    my $node =
+        Tachikoma::Nodes::Socket->unix_server( "/tmp/Inet_AtoN.$<", 700 );
     $node->name('_socket');
     $node->owner( $self->name );
     $node->sink( $self->router );
@@ -93,7 +90,7 @@ sub fill {
 
 sub remove_node {
     my $self = shift;
-    Tachikoma->remove_pid;
+    Tachikoma->remove_pid("Inet_AtoN.$<");
     return $self->SUPER::remove_node;
 }
 

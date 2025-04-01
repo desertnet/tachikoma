@@ -1058,11 +1058,11 @@ sub dns_lookup {
         || $Tachikoma::Nodes{'_router'}
         || die q(FAILED: couldn't find a suitable sink);
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
-    my $wait = undef;
+    my $wait      = undef;
     if ( not $inet_aton ) {
-        if ( Tachikoma->get_pid('Inet_AtoN') ) {
+        if ( Tachikoma->get_pid("Inet_AtoN.$<") ) {
             $inet_aton =
-                Tachikoma::Nodes::Socket->unix_client('/tmp/Inet_AtoN');
+                Tachikoma::Nodes::Socket->unix_client("/tmp/Inet_AtoN.$<");
             $inet_aton->name('Inet_AtoN');
             $inet_aton->sink($sink);
             $wait = 1;
