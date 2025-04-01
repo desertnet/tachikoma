@@ -21,12 +21,13 @@ my $DNS_TIMEOUT = 30;    # seconds
 
 sub initialize_graph {
     my $self = shift;
+    my $path = "/tmp/Inet_AtoN.$<";
     $self->connector->sink($self);
     $self->sink( $self->router );
     Tachikoma->check_pid("Inet_AtoN.$<");
     Tachikoma->write_pid("Inet_AtoN.$<");
-    my $node =
-        Tachikoma::Nodes::Socket->unix_server( "/tmp/Inet_AtoN.$<", 700 );
+    unlink $path if ( -e $path );
+    my $node = Tachikoma::Nodes::Socket->unix_server( $path, 700 );
     $node->name('_socket');
     $node->owner( $self->name );
     $node->sink( $self->router );
