@@ -61,6 +61,7 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $buffers = $self->{buffers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        next if ( $line !~ m{^hostname:} );
         my $stats     = { map { split m{:}, $_, 2 } split q( ), $line };
         my $buffer_id = join q(:), $stats->{hostname}, $stats->{buff_name};
         $stats->{last_update} = $Tachikoma::Right_Now;

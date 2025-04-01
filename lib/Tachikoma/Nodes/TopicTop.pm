@@ -76,6 +76,7 @@ sub fill {
     my $partitions = $self->{partitions};
     my $consumers  = $self->{consumers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        next if ( $line !~ m{^(?:hostname:|partition:)} );
         my $stats = { map { split m{:}, $_, 2 } split q( ), $line };
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];

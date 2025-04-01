@@ -64,10 +64,10 @@ sub fill {
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
         return $self->interpreter->fill($message);
     }
-    if ( $message->[TYPE] & TM_INFO ) {
-        $self->arguments( $self->arguments );
-        return;
-    }
+    # if ( $message->[TYPE] & TM_INFO ) {
+    #     $self->arguments( $self->arguments );
+    #     return;
+    # }
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $thresholds  = $self->{email_thresholds};
     my $buffers     = $self->{buffers};
