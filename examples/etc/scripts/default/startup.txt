@@ -2,7 +2,6 @@
 include config.tsl
 
 make_node CommandInterpreter hosts
-make_node JobController      jobs
 make_node Tee                system_log:link
 make_node Tee                server_log:link
 make_node Ruleset            local_system_log:ruleset
@@ -16,7 +15,6 @@ make_node Tee                http_log
 make_node Null               null
 make_node Echo               echo
 make_node Scheduler          scheduler
-command_node jobs start_job Inet_AtoN
 
 cd server_log:ruleset:config
     add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"

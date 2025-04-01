@@ -40,4 +40,6 @@ if ([var daemon] eq "no") {
 listen_inet
 log "arguments: <@>";
 log "running <startup>"
+make_node JobController jobs
+command_node jobs start_job Inet_AtoN
 include <startup>
