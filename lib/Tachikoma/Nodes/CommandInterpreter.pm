@@ -2971,7 +2971,11 @@ sub dump_flat {
     elsif ( ref $copy->{$key} eq 'ARRAY' ) {
         my $first = $copy->{$key}->[0];
         my $count = scalar @{ $copy->{$key} };
-        if ($count) {
+        if ( ref($first) =~ m{Tachikoma::Message} ) {
+            $copy->{$key} = join q( ), map $_->type_as_string,
+                @{ $copy->{$key} };
+        }
+        elsif ($count) {
             $copy->{$key} = [ $first, $count ];
         }
         else {

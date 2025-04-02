@@ -64,6 +64,7 @@ sub fill {
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
         return $self->interpreter->fill($message);
     }
+
     # if ( $message->[TYPE] & TM_INFO ) {
     #     $self->arguments( $self->arguments );
     #     return;

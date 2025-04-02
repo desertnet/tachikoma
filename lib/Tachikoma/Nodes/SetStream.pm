@@ -34,7 +34,12 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my $regex = $self->{arguments} || '(.*)';
-        $self->{regex} = qr{$regex};
+        if ( $regex =~ m{[(]} ) {
+            $self->{regex} = qr{$regex};
+        }
+        else {
+            $self->{force} = $regex;
+        }
     }
     return $self->{arguments};
 }

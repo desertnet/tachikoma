@@ -530,7 +530,9 @@ sub dump_config {
             my $start =
                 (       $job->{should_restart}
                     and $job->{should_restart} eq 'forever' )
-                ? 'maintain_job'
+                ? $job->{lazy}
+                    ? 'lazy_job'
+                    : 'maintain_job'
                 : 'start_job';
             my $line = "command $self->{name} $start $job->{type} $name";
             if ( $job->{arguments} ) {
