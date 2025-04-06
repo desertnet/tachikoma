@@ -452,14 +452,14 @@ sub tiedhash {
                 tie %h, 'BerkeleyDB::Btree',
                     -Filename => $path,
                     -Flags    => DB_CREATE,
-                    -Mode     => 0600
+                    -Mode     => oct 600
                     or die "couldn't tie $path: $!\n";
             }
             elsif ( $ext eq 'hash' ) {
                 tie %h, 'BerkeleyDB::Hash',
                     -Filename => $path,
                     -Flags    => DB_CREATE,
-                    -Mode     => 0600
+                    -Mode     => oct 600
                     or die "couldn't tie $path: $!\n";
             }
             $self->{tiedhash} = \%h;

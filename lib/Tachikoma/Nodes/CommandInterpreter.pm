@@ -29,9 +29,9 @@ use parent        qw( Tachikoma::Node Tachikoma::Crypto );
 use version; our $VERSION = qv('v2.0.280');
 
 use constant DEFAULT_PORT => 4230;
-use constant TK_R         => 000001;    #    1
-use constant TK_W         => 000002;    #    2
-use constant TK_SYNC      => 000004;    #    4
+use constant TK_R         => oct 1;    #    1
+use constant TK_W         => oct 2;    #    2
+use constant TK_SYNC      => oct 4;    #    4
 
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;

@@ -291,7 +291,7 @@ sub tiedhash {
             # defunk
             tie %h, 'BerkeleyDB::Btree',
                 -Filename => $path,
-                -Mode     => 0600
+                -Mode     => oct 600
                 or warn "couldn't tie $path: $!";
             %copy = %h;
             untie %h     or warn "couldn't untie $path: $!";
@@ -300,7 +300,7 @@ sub tiedhash {
         tie %h, 'BerkeleyDB::Btree',
             -Filename => $path,
             -Flags    => DB_CREATE,
-            -Mode     => 0600
+            -Mode     => oct 600
             or die "couldn't tie $path: $!\n";
         %h = %copy if ( keys %copy );
         return $self->{tiedhash} = \%h;

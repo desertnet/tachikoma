@@ -123,7 +123,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         }
         my $stat          = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
         my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
-        my $perms         = sprintf '%04o', $lstat[2] & 07777;
+        my $perms         = sprintf '%04o', $lstat[2] & oct 7777;
         my $other_entry   = $other{$entry};
         my $their_stat    = $other_entry           ? $other_entry->[0] : q();
         my $their_size    = $other_entry           ? $other_entry->[1] : q(-);

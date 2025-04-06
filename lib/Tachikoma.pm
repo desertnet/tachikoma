@@ -22,9 +22,9 @@ use constant {
     DEFAULT_TIMEOUT => 900,
     MAX_INT         => 2**32,
     BUFSIZ          => 262144,
-    TK_R            => 000001,    #    1
-    TK_W            => 000002,    #    2
-    TK_SYNC         => 000004,    #    4
+    TK_R            => oct 1,    #    1
+    TK_W            => oct 2,    #    2
+    TK_SYNC         => oct 4,    #    4
 };
 
 $Tachikoma::Max_Int         = MAX_INT;

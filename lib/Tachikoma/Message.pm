@@ -43,21 +43,21 @@ use constant {
 
     VECTOR_SIZE => 4,    # bytes (32-bit unsigned network int)
 
-    TM_BYTESTREAM => 000001,    #     1
-    TM_EOF        => 000002,    #     2
-    TM_PING       => 000004,    #     4
-    TM_COMMAND    => 000010,    #     8
-    TM_RESPONSE   => 000020,    #    16
-    TM_ERROR      => 000040,    #    32
-    TM_INFO       => 000100,    #    64
-    TM_PERSIST    => 000200,    #   128
-    TM_STORABLE   => 000400,    #   256
-    TM_COMPLETION => 001000,    #   512
-    TM_BATCH      => 002000,    #  1024
-    TM_KILLME     => 004000,    #  2048
-    TM_NOREPLY    => 010000,    #  4096
-    TM_HEARTBEAT  => 020000,    #  8192
-    TM_REQUEST    => 040000,    # 16384
+    TM_BYTESTREAM => oct 1,        #     1
+    TM_EOF        => oct 2,        #     2
+    TM_PING       => oct 4,        #     4
+    TM_COMMAND    => oct 10,       #     8
+    TM_RESPONSE   => oct 20,       #    16
+    TM_ERROR      => oct 40,       #    32
+    TM_INFO       => oct 100,      #    64
+    TM_PERSIST    => oct 200,      #   128
+    TM_STORABLE   => oct 400,      #   256
+    TM_COMPLETION => oct 1000,     #   512
+    TM_BATCH      => oct 2000,     #  1024
+    TM_KILLME     => oct 4000,     #  2048
+    TM_NOREPLY    => oct 10000,    #  4096
+    TM_HEARTBEAT  => oct 20000,    #  8192
+    TM_REQUEST    => oct 40000,    # 16384
 };
 
 sub new {    ## no critic (RequireArgUnpacking, RequireFinalReturn)

@@ -245,7 +245,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
         next if ( not @lstat );
         my $stat          = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
         my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
-        my $perms         = sprintf '%04o', $lstat[2] & 07777;
+        my $perms         = sprintf '%04o', $lstat[2] & oct 7777;
         my $last_modified = $lstat[9];
         my $digest        = q(-);
 

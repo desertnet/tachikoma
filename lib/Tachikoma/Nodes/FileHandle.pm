@@ -25,9 +25,9 @@ use parent qw( Exporter Tachikoma::Node );
 use version; our $VERSION = qv('v2.0.195');
 
 # flags for new()
-use constant TK_R    => 000001;    #    1
-use constant TK_W    => 000002;    #    2
-use constant TK_SYNC => 000004;    #    4
+use constant TK_R    => oct 1;    #    1
+use constant TK_W    => oct 2;    #    2
+use constant TK_SYNC => oct 4;    #    4
 
 sub filehandle {
     my $class = shift;

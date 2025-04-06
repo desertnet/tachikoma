@@ -225,7 +225,7 @@ sub set_metadata {
     my $path    = shift;
     my $payload = shift;
     my @lstat   = split m{:}, $payload;
-    my $mode    = $lstat[2] & 07777;
+    my $mode    = $lstat[2] & oct 7777;
     chmod $mode, $path or $self->stderr("ERROR: couldn't chmod $path: $!");
     utime $lstat[8], $lstat[9], $path
         or $self->stderr("ERROR: couldn't utime $path: $!");
