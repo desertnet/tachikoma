@@ -1423,7 +1423,7 @@ $BUILTINS{'tell_node'} = sub {
     $message->type(TM_INFO);
     $message->from( $self->get_shared('message.from')     // '_responder' );
     $message->stream( $self->get_shared('message.stream') // q() );
-    $message->id( $self->message_id // q() );
+    $message->id( $self->message_id                       // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1443,7 +1443,7 @@ $BUILTINS{'request_node'} = sub {
     $message->type(TM_REQUEST);
     $message->from( $self->get_shared('message.from')     // '_responder' );
     $message->stream( $self->get_shared('message.stream') // q() );
-    $message->id( $self->message_id // q() );
+    $message->id( $self->message_id                       // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
