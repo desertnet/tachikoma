@@ -693,4 +693,4 @@ Christopher Reaume C<< <chris@desert.net> >>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2024 DesertNet
+Copyright (c) 2025 DesertNet
