@@ -56,16 +56,32 @@ for ( @{$partitions} ) {
 
 # light it up
 my $start = time;
+# my %filled = ();
 while ( ( $total * $count ) < $num_messages ) {
     my $broker_id = $partitions->[ $i % @{$partitions} ] or die;
     my $target = $targets->{$broker_id} or die;
     $batch->[TO] = "$topic:partition:$i";
+    # $filled{$broker_id} //= 0;
+    # if ($filled{$broker_id} > 64) {
+    #     $target->drain;
+    #     $filled{$broker_id} = 0;
+    # }
     $target->fill($batch);
+    # $filled{$broker_id}++;
 
-    # $target->drain;
     $total++;
     $i = 0 if ( $partition < 0 and $i++ >= $#$partitions );
 }
+# while (keys %filled) {
+#     for my $broker_id (keys %filled) {
+#         if ($filled{$broker_id} > 0) {
+#             my $target = $targets->{$broker_id} or die;
+#             $target->drain;
+#         }
+#         delete $filled{$broker_id};
+#     }
+# }
+print "\n";
 my $end = time;
 
 printf "%d messages in %.2f seconds\n", $count * $total, $end - $start;

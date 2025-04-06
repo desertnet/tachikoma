@@ -12,7 +12,7 @@ func main {
 func matgen {
     local count  = <1>;
     local prefix = <2>;
-    local tmp    = (1.0 / <count> / <count>);
+    local tmp    = 1.0 / <count> / <count>;
     # print "tmp: <tmp>\n";
     for i (0 .. (<count> - 1)) {
         for j (0 .. (<count> - 1)) {
@@ -33,7 +33,7 @@ func mul {
             var sum = 0;
             for k (0 .. (<count> - 1)) {
                 # print ("<sum> +=" [var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"]\n);
-                var sum += ([var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"]);
+                sum += [var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"];
             };
             var "r:<i>:<j>" = <sum>;
             # print "r:<i>:<j> = <sum>\n";
