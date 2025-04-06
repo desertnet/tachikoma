@@ -690,7 +690,7 @@ $EVALUATORS{'pipe'} = sub {
     unshift @LOCAL, { 'message.from' => '_responder' };
     $self->send_command($cmd_tree);
     shift @LOCAL;
-    $self->fatal_parse_error('no command for pipe') if ( $self->message_id );
+    $self->message_id(undef);
     return [];
 };
 
@@ -762,6 +762,29 @@ $BUILTINS{'print'} = sub {
     return [];
 };
 
+$H{'catn'} = [qq(<command> | catn\n)];
+
+$BUILTINS{'catn'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for grep')
+        if ( @{ $parse_tree->{value} } > 3 );
+    my $arg1  = $parse_tree->{value}->[1];
+    my $lines = join q(), @{ $self->evaluate($arg1) };
+    $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
+    $self->fatal_parse_error('bad arguments for catn')
+        if ( not defined $lines );
+    my $output = q();
+    my $i      = 1;
+
+    for my $line ( split m{^}, $lines ) {
+        $output .= sprintf "%5d %s", $i++, $line;
+    }
+    syswrite STDOUT, $output or die if ( length $output );
+    return [];
+};
+
 $H{'grep'} = [qq(<command> | grep <regex>\n)];
 
 $BUILTINS{'grep'} = sub {
@@ -792,14 +815,14 @@ $BUILTINS{'grepv'} = sub {
     my $self       = shift;
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
-    $self->fatal_parse_error('bad arguments for grep')
+    $self->fatal_parse_error('bad arguments for grepv')
         if ( @{ $parse_tree->{value} } > 3 );
     my $arg1  = $parse_tree->{value}->[1];
     my $arg2  = $parse_tree->{value}->[2];
     my $regex = join q(), @{ $self->evaluate($arg1) };
     my $lines = join q(), @{ $self->evaluate($arg2) };
     $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
-    $self->fatal_parse_error('bad arguments for grep')
+    $self->fatal_parse_error('bad arguments for grepv')
         if ( not defined $lines );
     my $output = q();
 
@@ -1289,8 +1312,6 @@ $BUILTINS{'die'} = sub {
     my $value_tree = $parse_tree->{value}->[1];
     $self->fatal_parse_error('bad arguments for die')
         if ( @{ $parse_tree->{value} } > 2 );
-    delete $self->callbacks->{ $self->message_id }
-        if ( $self->{message_id} );
     my $value = join q(), @{ $self->evaluate($value_tree) };
     die "DIE:$value\n";
 };
@@ -1304,8 +1325,6 @@ $BUILTINS{'confess'} = sub {
     my $value_tree = $parse_tree->{value}->[1];
     $self->fatal_parse_error('bad arguments for confess')
         if ( @{ $parse_tree->{value} } > 2 );
-    delete $self->callbacks->{ $self->message_id }
-        if ( $self->{message_id} );
     my $value = join q(), @{ $self->evaluate($value_tree) };
     confess "CONFESS:$value\n";
 };
@@ -1404,6 +1423,7 @@ $BUILTINS{'tell_node'} = sub {
     $message->type(TM_INFO);
     $message->from( $self->get_shared('message.from')     // '_responder' );
     $message->stream( $self->get_shared('message.stream') // q() );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1423,6 +1443,7 @@ $BUILTINS{'request_node'} = sub {
     $message->type(TM_REQUEST);
     $message->from( $self->get_shared('message.from')     // '_responder' );
     $message->stream( $self->get_shared('message.stream') // q() );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1457,6 +1478,7 @@ $BUILTINS{'send_node'} = sub {
     $message->type(TM_BYTESTREAM);
     $message->from( $self->get_shared('message.from') // '_responder' );
     $message->stream( $self->get_shared('message.stream') );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1477,6 +1499,7 @@ $BUILTINS{'send_hash'} = sub {
     $message->type(TM_STORABLE);
     $message->from( $self->get_shared('message.from') // '_responder' );
     $message->stream( $self->get_shared('message.stream') );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $json->decode($payload) );
     return [ $self->sink->fill($message) ];
@@ -1957,7 +1980,7 @@ sub _send_command {
         if ( not length $from and not $self->{want_reply} );
     $message->from( $from // '_responder' );
     $message->to( $self->prefix($path) );
-    $message->id( $self->message_id );
+    $message->id( $self->message_id // q() );
     $self->dirty($name);
     $self->stderr("+ $name $arguments") if ( $self->{show_commands} );
     return [ $self->sink->fill($message) // 0 ];
@@ -2111,11 +2134,7 @@ sub message_id {
     if (@_) {
         $self->{message_id} = shift;
     }
-    else {
-        $rv = $self->{message_id};
-        $self->{message_id} = undef;
-    }
-    return $rv;
+    return $self->{message_id};
 }
 
 sub parse_buffer {

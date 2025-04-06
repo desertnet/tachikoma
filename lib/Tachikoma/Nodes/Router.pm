@@ -233,7 +233,6 @@ sub expire_callbacks {
         for my $id ( sort keys %{$callbacks} ) {
             my $timestamp = ( split m{:}, $id, 2 )[0];
             last if ( $Tachikoma::Now - $timestamp < 900 );
-            $self->stderr("WARNING: expiring callback $id");
             delete $callbacks->{$id};
         }
     }

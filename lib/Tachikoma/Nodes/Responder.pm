@@ -59,7 +59,6 @@ sub fill {
                 error   => $type & TM_ERROR
             }
         );
-        delete $shell->callbacks->{ $message->[ID] };
         return;
     }
     if ( $self->{owner} ) {
