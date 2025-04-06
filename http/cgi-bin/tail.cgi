@@ -90,7 +90,7 @@ if ( $location eq 'recent' ) {
 }
 
 if ( not $partitions or $group->sync_error ) {
-    print STDERR $group->sync_error;
+    print STDERR $group->sync_error if ( $group->sync_error );
     my $next_url = $cgi->url( -path_info => 1, -query => 1 );
     $next_url =~ s{^http://}{https://};
     $results = {

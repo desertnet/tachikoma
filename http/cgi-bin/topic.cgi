@@ -79,7 +79,7 @@ if ( $location eq 'recent' ) {
 }
 
 if ( not $consumer or $consumer->sync_error ) {
-    print STDERR $consumer->sync_error if ($consumer);
+    print STDERR $consumer->sync_error if ($consumer and $consumer->sync_error);
     my $next_url = $cgi->url( -path_info => 1, -query => 1 );
     $next_url =~ s{^http://}{https://};
     $results = {
