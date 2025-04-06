@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 95;
+use Test::More tests => 97;
 
 use Tachikoma::Nodes::Shell2;
 use Tachikoma::Nodes::Callback;
@@ -421,21 +421,21 @@ is( $answer, "[date][]\n[uptime][]\n",
 
 #####################################################################
 
-# $parse_tree = $shell->parse( '
-# {
-#     var mode="";
-#     if ( (<mode> eq "update") || ! <mode> ) { date };
-#     var mode="update";
-#     if ( (<mode> eq "update") || ! <mode> ) { uptime };
-#     var mode="check";
-#     if ( (<mode> eq "update") || ! <mode> ) { uptime };
-# }
-# ' );
-# $answer = q();
-# $shell->send_command($parse_tree);
-# is( $answer, "[date][]\n[uptime][]\n",
-#     'logical operators with parenthesized expressions are evaluted correctly'
-# );
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( (<mode> eq "update") || ! <mode> ) { date };
+    var mode="update";
+    if ( (<mode> eq "update") || ! <mode> ) { uptime };
+    var mode="check";
+    if ( (<mode> eq "update") || ! <mode> ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators with parenthesized expressions are evaluted correctly'
+);
 
 #####################################################################
 
@@ -514,21 +514,21 @@ is( $answer, "[uptime][]\n",
 
 #####################################################################
 
-# $parse_tree = $shell->parse( '
-# {
-#     var mode="";
-#     if ( <mode> eq "update" || ! <mode> ) { date };
-#     var mode="update";
-#     if ( <mode> eq "update" || ! <mode> ) { uptime };
-#     var mode="check";
-#     if ( <mode> eq "update" || ! <mode> ) { uptime };
-# }
-# ' );
-# $answer = q();
-# $shell->send_command($parse_tree);
-# is( $answer, "[date][]\n[uptime][]\n",
-#     'logical operators without parenthesized expressions are evaluted correctly'
-# );
+$parse_tree = $shell->parse( '
+{
+    var mode="";
+    if ( <mode> eq "update" || ! <mode> ) { date };
+    var mode="update";
+    if ( <mode> eq "update" || ! <mode> ) { uptime };
+    var mode="check";
+    if ( <mode> eq "update" || ! <mode> ) { uptime };
+}
+' );
+$answer = q();
+$shell->send_command($parse_tree);
+is( $answer, "[date][]\n[uptime][]\n",
+    'logical operators without parenthesized expressions are evaluted correctly'
+);
 
 #####################################################################
 
@@ -883,25 +883,25 @@ is( $answer, "{1\n}\n{101\n}\n", 'nested parentheses are otherwise ignored' );
 
 #####################################################################
 
-$parse_tree = $shell->parse(q({ local; { echo foo } }));
+$parse_tree = $shell->parse(q({ uptime; { echo foo } }));
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[38][]\n", 'commands can be nested inside blocks' );
+is( $answer, "[uptime][]\n{foo\n}\n[38][]\n", 'commands can be nested inside blocks' );
 
 #####################################################################
 
-$parse_tree = $shell->parse(q({ local; { echo foo } date }));
+$parse_tree = $shell->parse(q({ uptime; { echo foo } date }));
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[38][date]\n",
+is( $answer, "[uptime][]\n{foo\n}\n[38][date]\n",
     'expressions after blocks are evaluated' );
 
 #####################################################################
 
-$parse_tree = $shell->parse(q({ local; { echo foo } ; date }));
+$parse_tree = $shell->parse(q({ uptime; { echo foo } ; date }));
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{foo\n}\n[38][]\n[date][]\n",
+is( $answer, "[uptime][]\n{foo\n}\n[38][]\n[date][]\n",
     'semicolons separate blocks and expressions' );
 
 #####################################################################

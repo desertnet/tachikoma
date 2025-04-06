@@ -263,11 +263,12 @@ sub process_bytestream {
 }
 
 sub parse {    ## no critic (ProhibitExcessComplexity)
-    my $self       = shift;
-    my $proto      = shift;
-    my $expecting  = shift;
-    my $parse_tree = undef;
-    my $input_ref  = ref $proto ? $proto : \$proto;
+    my $self        = shift;
+    my $proto       = shift;
+    my $expecting   = shift;
+    my $parse_tree  = undef;
+    my $last_branch = undef;
+    my $input_ref   = ref $proto ? $proto : \$proto;
     $expecting ||= 'eos';
     while ( my $tok = $self->get_next_token($input_ref) ) {
         next
@@ -311,7 +312,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
         }
         elsif ( $tok->{type} eq 'not' ) {
             $tok->{value} = [];
-            $parse_tree = $tok;
+            $this_branch = $tok;
         }
         elsif ( $LOGICAL{ $tok->{type} } ) {
             $self->fatal_parse_error('unexpected logical operator')
@@ -355,10 +356,21 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
                 Dumper( $this_branch->{value} )
             ) if ( $self->show_parse );
             my $cursor = undef;
-            $cursor = $parse_tree->{value}->[-1]
-                if ($parse_tree
+            if (    $parse_tree
                 and $LOGICAL{ $parse_tree->{type} }
-                and $this_branch->{type} ne 'leaf' );
+                and $this_branch->{type} ne 'leaf' )
+            {
+                $cursor = $parse_tree->{value}->[-1];
+            }
+            if (    $last_branch
+                and $last_branch->{type} eq 'not'
+                and $this_branch->{type} ne 'leaf' )
+            {
+                $cursor = $last_branch;
+            }
+            else {
+                $last_branch = $this_branch;
+            }
             my $branch = $cursor || $parse_tree;
             if ($branch) {
                 push @{ $branch->{value} }, $this_branch;
