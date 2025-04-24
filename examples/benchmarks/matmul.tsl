@@ -16,7 +16,7 @@ func matgen {
     # print "tmp: <tmp>\n";
     for i (0 .. (<count> - 1)) {
         for j (0 .. (<count> - 1)) {
-            var "<prefix>:<i>:<j>" = <tmp> * (<i> - <j>) * (<i> + <j>);
+            var "<prefix>:<i>:<j>" = (<tmp> * (<i> - <j>) * (<i> + <j>));
             # print ("<prefix>:<i>:<j>" = [var "<prefix>:<i>:<j>"]"\n");
         };
     };
@@ -33,7 +33,7 @@ func mul {
             var sum = 0;
             for k (0 .. (<count> - 1)) {
                 # print ("<sum> +=" [var "<a>:<i>:<k>"] "*" [var "<c>:<j>:<k>"]"\n");
-                sum += [var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"];
+                sum += ([var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"]);
             };
             var "r:<i>:<j>" = <sum>;
             # print "r:<i>:<j> = <sum>\n";

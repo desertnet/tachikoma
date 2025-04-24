@@ -61,6 +61,8 @@ sub new {
     $self->{message_id}   = undef;
     $self->{parse_buffer} = q();
     $self->{show_parse}   = undef;
+    $self->{token_index}  = undef;
+    $self->{tokens}       = undef;
     bless $self, $class;
     return $self;
 }
@@ -335,14 +337,14 @@ sub tokenize {
                   type => $in_quote eq '"' ? 'string1'
                 : $in_quote eq "'" ? 'string2'
                 : 'string3',
-                value => ''
+                value => q()
                 };
             next;
         }
 
         # Handle line continuation (backslash at end of line)
         if ( $input =~ s/^\\(?m:\n|$)// ) {
-            push @tokens, { type => 'newline', value => '' };
+            push @tokens, { type => 'newline', value => q() };
             next;
         }
 
@@ -372,11 +374,9 @@ sub tokenize {
 sub build_ast {
     my $self   = shift;
     my $tokens = shift;
-
-    $self->{token_index} = 0;
-    $self->{tokens}      = $tokens;
-
-    return $self->parse_command_list();
+    $self->token_index(0);
+    $self->tokens($tokens);
+    return $self->parse_command_list;
 }
 
 sub current_token {
@@ -389,14 +389,11 @@ sub current_token {
 sub consume {
     my $self          = shift;
     my $expected_type = shift;
-
-    my $token = $self->current_token();
-
+    my $token         = $self->current_token;
     if ( $expected_type && $token->{type} ne $expected_type ) {
         $self->fatal_parse_error(
             "Expected $expected_type, got $token->{type}");
     }
-
     $self->{token_index}++;
     return $token;
 }
@@ -408,7 +405,7 @@ sub parse_command_list {
     while ( $self->current_token->{type} ne 'eos' ) {
 
         # Parse command
-        my $command = $self->parse_command();
+        my $command = $self->parse_command;
         push @commands, $command if $command;
 
         # Check for command separator
@@ -428,21 +425,21 @@ sub parse_command {
     my $self = shift;
     $self->consume('whitespace')
         while ( $self->current_token->{type} eq 'whitespace' );
-    my $token = $self->current_token();
+    my $token = $self->current_token;
 
     # Check for special structures
     if ( $token->{type} eq 'open_brace' ) {
-        return $self->parse_block();
+        return $self->parse_block;
     }
     elsif ( $token->{type} eq 'open_bracket' ) {
-        return $self->parse_bracket();
+        return $self->parse_bracket;
     }
     elsif ( $token->{type} eq 'open_paren' ) {
-        return $self->parse_parenthesized_expr();
+        return $self->parse_parenthesized_expr;
     }
     else {
         # Parse first command
-        my $left_cmd = $self->parse_simple_command();
+        my $left_cmd = $self->parse_simple_command;
 
         # Check for pipe operator
         if ( $self->current_token->{type} eq 'pipe' ) {
@@ -451,7 +448,7 @@ sub parse_command {
                 while ( $self->current_token->{type} eq 'whitespace' );
 
             # Parse right side (could be another command or a pipe chain)
-            my $right_cmd = $self->parse_command();
+            my $right_cmd = $self->parse_command;
 
             return {
                 type  => 'pipe',
@@ -481,7 +478,7 @@ sub parse_simple_command {
         my $op = $self->consume('op');
         my $expr =
             ( $op->{value} ne '++' and $op->{value} ne '--' )
-            ? $self->parse_expression_list()
+            ? $self->parse_expression_list
             : undef;
         return {
             type     => 'assignment',
@@ -498,22 +495,22 @@ sub parse_simple_command {
         if ( $self->current_token->{type}
             =~ /^(string\d|number|ident|variable|whitespace)$/ )
         {
-            $arg = $self->consume();
+            $arg = $self->consume;
         }
         elsif ( $self->current_token->{type}
             =~ /^(and|or|not|logical|op|arithmetic)$/ )
         {
-            $arg = $self->consume();
+            $arg = $self->consume;
             $arg->{type} = 'ident';
         }
         elsif ( $self->current_token->{type} eq 'open_brace' ) {
-            $arg = $self->parse_block();
+            $arg = $self->parse_block;
         }
         elsif ( $self->current_token->{type} eq 'open_bracket' ) {
-            $arg = $self->parse_bracket();
+            $arg = $self->parse_bracket;
         }
         elsif ( $self->current_token->{type} eq 'open_paren' ) {
-            $arg = $self->parse_parenthesized_expr();
+            $arg = $self->parse_parenthesized_expr;
         }
         elsif ( $self->current_token->{type} eq 'newline' ) {
             $self->consume;
@@ -543,7 +540,7 @@ sub parse_block {
     # Parse the block content
     my @commands = ();
     while ( $self->current_token->{type} ne 'close_brace' ) {
-        my $command = $self->parse_command();
+        my $command = $self->parse_command;
         push @commands, $command if $command;
 
         # Check for command separator
@@ -580,7 +577,7 @@ sub parse_bracket {
     # Parse the block content
     my @commands = ();
     while ( $self->current_token->{type} ne 'close_bracket' ) {
-        my $command = $self->parse_command();
+        my $command = $self->parse_command;
         push @commands, $command if $command;
 
         # Check for command separator
@@ -639,7 +636,7 @@ sub parse_expression {
     $self->consume('whitespace')
         while ( $self->current_token->{type} eq 'whitespace' );
 
-    my $left       = $self->parse_primary_expression();
+    my $left       = $self->parse_primary_expression;
     my $whitespace = undef;
 
     $whitespace = $self->consume('whitespace')
@@ -672,7 +669,7 @@ sub parse_expression {
 
 sub parse_primary_expression {
     my $self  = shift;
-    my $token = $self->current_token();
+    my $token = $self->current_token;
 
     # Handle not operator
     if ( $token->{type} eq 'not' ) {
@@ -688,7 +685,7 @@ sub parse_primary_expression {
     # Handle negative operator
     if ( $token->{type} eq 'arithmetic' and $token->{value} eq '-' ) {
         my $op   = $self->consume('arithmetic');
-        my $expr = $self->parse_expression();
+        my $expr = $self->parse_expression;
         return {
             type       => 'unary_expression',
             operator   => $op->{value},
@@ -698,13 +695,13 @@ sub parse_primary_expression {
 
     # Handle braces, brackets, and parentheses
     if ( $token->{type} eq 'open_brace' ) {
-        return $self->parse_block();
+        return $self->parse_block;
     }
     elsif ( $token->{type} eq 'open_bracket' ) {
-        return $self->parse_bracket();
+        return $self->parse_bracket;
     }
     elsif ( $token->{type} eq 'open_paren' ) {
-        return $self->parse_parenthesized_expr();
+        return $self->parse_parenthesized_expr;
     }
 
     # Handle variables
@@ -749,7 +746,7 @@ sub parse_parenthesized_expr {
     # Parse the expression
     my $expr = [];
     while ( $self->current_token->{type} ne 'close_paren' ) {
-        push @{$expr}, $self->parse_expression();
+        push @{$expr}, $self->parse_expression;
 
         # Handle end of input, throw exception
         if ( $self->current_token->{type} eq 'eos' ) {
@@ -773,7 +770,7 @@ sub parse_expression_list {
     # Parse the expression
     my $expr = [];
     while ( $self->current_token->{type} !~ /^(command|eos|close_\w+)$/ ) {
-        push @{$expr}, $self->parse_expression();
+        push @{$expr}, $self->parse_expression;
     }
 
     return {
@@ -2941,75 +2938,6 @@ sub callback {
     return $rv;
 }
 
-sub fake_expression {
-    my $self      = shift;
-    my $args      = shift;
-    my $expr_text = $self->fake_expr_text($args);
-    my $ast       = undef;
-    my $value     = [];
-
-    # Evaluate the combined expression
-    my $okay = eval {
-        my $tmp    = Tachikoma::Nodes::Shell3->new();
-        my $tokens = $tmp->tokenize("($expr_text)");
-        $tmp->{token_index} = 0;
-        $tmp->{tokens}      = $tokens;
-        $ast                = $tmp->parse_parenthesized_expr();
-        return 1;
-    };
-    if ($okay) {
-        $value = $self->execute_expression($ast);
-    }
-    return $value;
-}
-
-sub fake_expr_text {
-    my $self      = shift;
-    my $args      = shift;
-    my $expr_text = ' ';
-
-    # Create a new expression combining all parts
-    for my $arg ( @{$args} ) {
-        if ( $arg->{type} eq 'parenthesized_expr' ) {
-            $expr_text .= '(';
-            $expr_text .= $self->fake_expr_text( $arg->{expressions} );
-            $expr_text .= ')';
-        }
-        elsif ( $arg->{type} eq 'binary_expression' ) {
-            $expr_text
-                .= $self->fake_expr_text( [ $arg->{left} ] )
-                . $arg->{operator}
-                . $self->fake_expr_text( [ $arg->{right} ] );
-        }
-        elsif ( $arg->{type} eq 'unary_expression' ) {
-            $expr_text .= $arg->{operator}
-                . $self->fake_expr_text( [ $arg->{expression} ] );
-        }
-        elsif ( $arg->{type} eq 'block' ) {
-            $expr_text .= '{';
-            $expr_text .= $self->fake_expr_text( $arg->{commands} );
-            $expr_text .= '}';
-        }
-        elsif ( $arg->{type} eq 'bracket' ) {
-            $expr_text .= '[';
-            $expr_text .= $self->fake_expr_text( $arg->{commands} );
-            $expr_text .= ']';
-        }
-        elsif ( $arg->{type} eq 'command' ) {
-            $expr_text .= $arg->{name} . q( )
-                . $self->fake_expr_text( $arg->{args} ) . ';';
-        }
-        elsif ( $arg->{type} eq 'variable' ) {
-            my $value = $arg->{value};
-            $expr_text .= "<$value>";
-        }
-        elsif ( exists $arg->{value} ) {
-            $expr_text .= $arg->{value};
-        }
-    }
-    return $expr_text;
-}
-
 sub get_completions {
     my $self = shift;
     return
@@ -3136,32 +3064,6 @@ sub show_parse {
     return $self->{show_parse};
 }
 
-sub help_topics {
-    return \%H;
-}
-
-sub builtins {
-    return \%BUILTINS;
-}
-
-sub msg_counter {
-    my $self = shift;
-    $MSG_COUNTER = ( $MSG_COUNTER + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
-}
-
-sub set_local {
-    my $self = shift;
-    unshift @LOCAL, @_;
-    return;
-}
-
-sub restore_local {
-    my $self = shift;
-    shift @LOCAL;
-    return;
-}
-
 sub get_fragmented_name {
     my $self = shift;
     my $args = shift;
@@ -3198,6 +3100,7 @@ sub get_var_args {
         @{$args} ? $self->expand_expression( shift @{$args} )->[0] : undef;
 
     shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
+    pop @{$args}   while ( @{$args} and $args->[-1]->{type} eq 'whitespace' );
 
     # Check if we have a compound assignment (e.g., bar=<foo> + 5)
     my $value = undef;
@@ -3211,12 +3114,123 @@ sub get_var_args {
     return ( $key, $op, $value );
 }
 
+sub fake_expression {
+    my $self      = shift;
+    my $args      = shift;
+    my $expr_text = $self->fake_expr_text($args);
+    my $ast       = undef;
+    my $value     = [];
+
+    # Evaluate the combined expression
+    my $okay = eval {
+        my $tmp    = Tachikoma::Nodes::Shell3->new;
+        my $tokens = $tmp->tokenize("($expr_text)");
+        $tmp->token_index(0);
+        $tmp->tokens($tokens);
+        $ast = $tmp->parse_parenthesized_expr;
+        return 1;
+    };
+    if ($okay) {
+        $value = $self->execute_expression($ast);
+    }
+    return $value;
+}
+
+sub fake_expr_text {
+    my $self      = shift;
+    my $args      = shift;
+    my $expr_text = q();
+
+    # Create a new expression combining all parts
+    for my $arg ( @{$args} ) {
+        if ( $arg->{type} eq 'parenthesized_expr' ) {
+            $expr_text .= '(';
+            $expr_text .= $self->fake_expr_text( $arg->{expressions} );
+            $expr_text .= ')';
+        }
+        elsif ( $arg->{type} eq 'binary_expression' ) {
+            $expr_text
+                .= $self->fake_expr_text( [ $arg->{left} ] )
+                . $arg->{operator}
+                . $self->fake_expr_text( [ $arg->{right} ] );
+        }
+        elsif ( $arg->{type} eq 'unary_expression' ) {
+            $expr_text .= $arg->{operator}
+                . $self->fake_expr_text( [ $arg->{expression} ] );
+        }
+        elsif ( $arg->{type} eq 'block' ) {
+            $expr_text .= '{';
+            $expr_text .= $self->fake_expr_text( $arg->{commands} );
+            $expr_text .= '}';
+        }
+        elsif ( $arg->{type} eq 'bracket' ) {
+            $expr_text .= '[';
+            $expr_text .= $self->fake_expr_text( $arg->{commands} );
+            $expr_text .= ']';
+        }
+        elsif ( $arg->{type} eq 'command' ) {
+            $expr_text .= $arg->{name} . q( )
+                . $self->fake_expr_text( $arg->{args} ) . ';';
+        }
+        elsif ( $arg->{type} eq 'variable' ) {
+            my $value = $arg->{value};
+            $expr_text .= "<$value>";
+        }
+        elsif ( exists $arg->{value} ) {
+            $expr_text .= $arg->{value};
+        }
+    }
+    return $expr_text;
+}
+
 sub get_args {
     my $self = shift;
     my $node = shift;
     my $args =
         [ grep { $_->{type} ne 'whitespace' } @{ $node->{args} // [] } ];
     return $args;
+}
+
+sub token_index {
+    my $self = shift;
+    if (@_) {
+        $self->{token_index} = shift;
+    }
+    return $self->{token_index};
+}
+
+sub tokens {
+    my $self = shift;
+    if (@_) {
+        $self->{tokens} = shift;
+    }
+    return $self->{tokens};
+}
+
+sub help_topics {
+    return \%H;
+}
+
+sub builtins {
+    return \%BUILTINS;
+}
+
+sub msg_counter {
+    my $self = shift;
+    $MSG_COUNTER = ( $MSG_COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
+}
+
+sub set_local {
+    my $self = shift;
+    unshift @LOCAL, @_;
+    return;
+}
+
+sub restore_local {
+    my $self = shift;
+    shift @LOCAL;
+    return;
 }
 
 sub get_shared {
