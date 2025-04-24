@@ -11,6 +11,7 @@ use Tachikoma::Job;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Shell;
 use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
 use parent             qw( Tachikoma::Job );
 
@@ -26,9 +27,16 @@ sub initialize_graph {
         $shell = Tachikoma::Nodes::Shell->new;
         $shell->{counter}++;
     }
-    else {
+    elsif ( @lines and $lines[0] eq "v2\n" ) {
         $shell = Tachikoma::Nodes::Shell2->new;
         if ( @lines and $lines[0] eq "v2\n" ) {
+            shift @lines;
+            $shell->{counter}++;
+        }
+    }
+    else {
+        $shell = Tachikoma::Nodes::Shell3->new;
+        if ( @lines and $lines[0] eq "v3\n" ) {
             shift @lines;
             $shell->{counter}++;
         }

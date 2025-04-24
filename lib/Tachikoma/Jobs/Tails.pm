@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::CommandInterpreter;
-use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Nodes::FileWatcher;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Tail;
@@ -34,7 +34,7 @@ sub initialize_graph {
     my $self         = shift;
     my $name         = $self->name;
     my $interpreter  = Tachikoma::Nodes::CommandInterpreter->new;
-    my $shell        = Tachikoma::Nodes::Shell2->new;
+    my $shell        = Tachikoma::Nodes::Shell3->new;
     my $file_watcher = Tachikoma::Nodes::FileWatcher->new;
     Tachikoma->nodes->{_responder}->shell($shell);
     $shell->sink($interpreter);

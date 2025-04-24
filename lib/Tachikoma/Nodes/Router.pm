@@ -228,7 +228,11 @@ sub expire_callbacks {
     my $self      = shift;
     my $responder = $Tachikoma::Nodes{_responder};
     my $shell     = $responder ? $responder->shell : undef;
-    if ( $shell and $shell->isa('Tachikoma::Nodes::Shell2') ) {
+    if ($shell
+        and (  $shell->isa('Tachikoma::Nodes::Shell2')
+            or $shell->isa('Tachikoma::Nodes::Shell3') )
+        )
+    {
         my $callbacks = $shell->callbacks;
         for my $id ( sort keys %{$callbacks} ) {
             my $timestamp = ( split m{:}, $id, 2 )[0];

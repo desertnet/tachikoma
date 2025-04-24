@@ -17,7 +17,7 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Tachikoma::Crypto;
-use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Shell3;
 use Data::Dumper;
 use Getopt::Long  qw( GetOptionsFromString );
 use POSIX         qw( strftime SIGHUP );
@@ -170,7 +170,7 @@ sub interpret {
     }
     elsif ( $cmd_name eq 'help' ) {
         if ( $message->type & TM_COMPLETION ) {
-            my $b = Tachikoma::Nodes::Shell2::builtins;
+            my $b = Tachikoma::Nodes::Shell3::builtins;
             my %u = ( %C, %{$b}, %{$functions} );
             return $self->send_response( $message,
                 $self->response( $message, join( "\n", keys %u ) . "\n" ) );

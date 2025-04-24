@@ -39,7 +39,13 @@ sub arguments {
             my $name     = $self->{name};
             my $commands = $self->{arguments};
             my $shell    = $self->shell;
-            $self->{parse_tree} = $shell->parse($commands);
+            if ( $shell->can('parse') ) {
+                $self->{parse_tree} = $shell->parse($commands);
+            }
+            else {
+                my $tokens = $shell->tokenize($commands);
+                $self->{parse_tree} = $shell->build_ast($tokens);
+            }
         }
         else {
             die "ERROR: bad arguments for Function\n";
@@ -130,7 +136,8 @@ sub shell {
     my $responder = $Tachikoma::Nodes{_responder};
     die "ERROR: couldn't find _responder\n" if ( not $responder );
     die "ERROR: Shell v1 does not support functions\n"
-        if ( not $responder->shell->isa('Tachikoma::Nodes::Shell2') );
+        if (not $responder->shell->isa('Tachikoma::Nodes::Shell2')
+        and not $responder->shell->isa('Tachikoma::Nodes::Shell3') );
     return $responder->shell;
 }
 

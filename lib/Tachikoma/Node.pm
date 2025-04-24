@@ -681,7 +681,7 @@ L<Tachikoma::Nodes::FileHandle>
 
 L<Tachikoma::Nodes::Socket>
 
-L<Tachikoma::Nodes::Shell2>
+L<Tachikoma::Nodes::Shell3>
 
 L<Tachikoma::Nodes::CommandInterpreter>
 

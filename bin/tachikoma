@@ -9,7 +9,7 @@ use warnings;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::TTY qw( TK_R TK_SYNC );
-use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Responder;
 use Tachikoma::Nodes::Echo;
@@ -63,7 +63,7 @@ $verbose = 'true' if ($debug_level);
 $config->debug_level($debug_level);
 
 my $stdin     = undef;
-my $shell     = Tachikoma::Nodes::Shell2->new;
+my $shell     = Tachikoma::Nodes::Shell3->new;
 my $tachikoma = Tachikoma::Nodes::CommandInterpreter->new;
 my $responder = Tachikoma::Nodes::Responder->new;
 my $echo      = Tachikoma::Nodes::Echo->new;

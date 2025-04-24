@@ -9,6 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::Shell;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_PING TM_EOF
@@ -215,6 +216,7 @@ sub process_command {
         $self->report_error($error);
     }
     elsif ($parse_tree) {
+        $self->stderr( Dumper($parse_tree) ) if ( $self->show_parse );
         if ( not $self->{validate} ) {
             $okay = eval {
                 $self->send_command($parse_tree);
@@ -768,7 +770,7 @@ $BUILTINS{'catn'} = sub {
     my $self       = shift;
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
-    $self->fatal_parse_error('bad arguments for grep')
+    $self->fatal_parse_error('bad arguments for catn')
         if ( @{ $parse_tree->{value} } > 3 );
     my $arg1  = $parse_tree->{value}->[1];
     my $lines = join q(), @{ $self->evaluate($arg1) };
@@ -1221,6 +1223,11 @@ $BUILTINS{'include'} = sub {
     if ( $lines[0] eq "v1\n" ) {
         shift @lines;
         $shell = Tachikoma::Nodes::Shell->new;
+        $shell->sink( $self->sink );
+    }
+    elsif ( $lines[0] eq "v3\n" ) {
+        shift @lines;
+        $shell = Tachikoma::Nodes::Shell3->new;
         $shell->sink( $self->sink );
     }
     else {
@@ -1838,7 +1845,7 @@ sub assignment {
 }
 
 sub operate {
-    my ( $self, $hash, $key, $op, $value_tree, ) = @_;
+    my ( $self, $hash, $key, $op, $value_tree ) = @_;
     my $rv = [];
     if ($value_tree) {
         my $v = $self->operate_with_value( $hash, $key, $op, $value_tree );

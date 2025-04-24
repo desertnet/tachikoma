@@ -115,7 +115,7 @@ $parse_tree = $shell->parse('date; bar = <foo> + 7');
 $answer     = q();
 $shell->send_command($parse_tree);
 is( $answer,     "[date][]\n", 'semicolon terminates commands' );
-is( $var->{bar}, 12,           'expressions after semicolon are evaluted' );
+is( $var->{bar}, 12,           'expressions after semicolon are evaluated' );
 
 #####################################################################
 
@@ -348,7 +348,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -362,7 +362,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -380,7 +380,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -398,7 +398,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -416,7 +416,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -434,7 +434,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -452,7 +452,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -470,7 +470,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators without parenthesized expressions are evaluted correctly'
+    'logical operators without parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -488,7 +488,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -509,7 +509,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[uptime][]\n",
-    'logical operators with parenthesized expressions are evaluted correctly'
+    'logical operators with parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -527,7 +527,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[date][]\n[uptime][]\n",
-    'logical operators without parenthesized expressions are evaluted correctly'
+    'logical operators without parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -548,7 +548,7 @@ $parse_tree = $shell->parse( '
 $answer = q();
 $shell->send_command($parse_tree);
 is( $answer, "[uptime][]\n",
-    'logical operators without parenthesized expressions are evaluted correctly'
+    'logical operators without parenthesized expressions are evaluated correctly'
 );
 
 #####################################################################
@@ -868,7 +868,7 @@ is( $answer,
 $parse_tree = $shell->parse('send echo ((foo eq foo)"\n");');
 $answer     = q();
 $shell->send_command($parse_tree);
-is( $answer, "{1\n}\n", 'nested parenthesis are evaluted for operators' );
+is( $answer, "{1\n}\n", 'nested parenthesis are evaluated for operators' );
 
 #####################################################################
 
@@ -963,7 +963,7 @@ $answer = q();
 $shell->send_command($parse_tree);
 is( $answer,
     "{one  two\n}\n",
-    'variables with last values still preserve whitespace'
+    'variables with list values still preserve whitespace'
 );
 
 #####################################################################

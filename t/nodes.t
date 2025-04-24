@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3482;
+use Test::More tests => 3486;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -159,6 +159,7 @@ my %skip_all_tests = (
     'Tachikoma::Nodes::SerialPort'     => 1,
     'Tachikoma::Nodes::Shell'          => 1,
     'Tachikoma::Nodes::Shell2'         => 1,
+    'Tachikoma::Nodes::Shell3'         => 1,
     'Tachikoma::Nodes::SQL'            => 1,
     'Tachikoma::Nodes::StorableToJSON' => 1,
     'Tachikoma::Nodes::TailTop'        => 1,
@@ -167,12 +168,14 @@ my %skip_all_tests = (
 
 my $router    = test_construction('Tachikoma::Nodes::Router');
 my $responder = test_construction('Tachikoma::Nodes::Responder');
-my $shell     = test_construction('Tachikoma::Nodes::Shell2');
+my $shell1    = test_construction('Tachikoma::Nodes::Shell');
+my $shell2    = test_construction('Tachikoma::Nodes::Shell2');
+my $shell3    = test_construction('Tachikoma::Nodes::Shell3');
 my $trap      = test_construction('Tachikoma::Nodes::Callback');
 
 $router->name('_router');
 $responder->name('_responder');
-$responder->shell($shell);
+$responder->shell($shell3);
 
 my $taint = undef;
 {
