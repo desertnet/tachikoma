@@ -10,21 +10,21 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD
-    TM_BYTESTREAM TM_STORABLE
+    TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use File::Temp qw( tempfile );
-use POSIX qw( strftime );
+use POSIX      qw( strftime );
 use Time::Local;
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Nodes::Timer );
-@EXPORT_OK = qw( get_time log_entry cached_strftime );
+@EXPORT_OK = qw( get_time log_entry cached_strftime send404 );
 
 use version; our $VERSION = qv('v2.0.314');
 
-my $Time_String     = undef;
-my $Last_Time       = 0;
-my $Log_Time_String = undef;
-my $Log_Last_Time   = 0;
+my $TIME_STRING     = undef;
+my $LAST_TIME       = 0;
+my $LOG_TIME_STRING = undef;
+my $LOG_LAST_TIME   = 0;
 
 sub new {
     my $class = shift;
@@ -210,6 +210,29 @@ sub get_time {
     return $time;
 }
 
+sub send404 {
+    my $self     = shift;
+    my $message  = shift;
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_BYTESTREAM;
+    $response->[TO]      = $message->[FROM];
+    $response->[STREAM]  = $message->[STREAM];
+    $response->[PAYLOAD] = join q(),
+        "HTTP/1.1 404 NOT FOUND\n",
+        'Date: ', cached_strftime(), "\n",
+        "Server: Tachikoma\n",
+        "Connection: close\n",
+        "Content-Type: text/plain; charset=utf8\n",
+        "\n",
+        "Requested URL not found.\n";
+    $self->{sink}->fill($response);
+    $response         = Tachikoma::Message->new;
+    $response->[TYPE] = TM_EOF;
+    $response->[TO]   = $message->[FROM];
+    log_entry( $self, 404, $message );
+    return $self->{sink}->fill($response);
+}
+
 sub log_entry {
     my $self    = shift;
     my $status  = shift;
@@ -218,8 +241,8 @@ sub log_entry {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request    = $message->payload;
     my $headers    = $request->{headers};
-    my $host       = $headers->{'host'} || q("");
-    my $referer    = $headers->{'referer'} || q();
+    my $host       = $headers->{'host'}       || q("");
+    my $referer    = $headers->{'referer'}    || q();
     my $user_agent = $headers->{'user-agent'} || q();
     my $log_entry  = Tachikoma::Message->new;
     $log_entry->[TYPE]    = TM_BYTESTREAM;
@@ -237,21 +260,21 @@ sub log_entry {
 }
 
 sub cached_log_strftime {
-    if ( $Tachikoma::Now > $Log_Last_Time ) {
-        $Log_Time_String =
+    if ( $Tachikoma::Now > $LOG_LAST_TIME ) {
+        $LOG_TIME_STRING =
             strftime( '%d/%b/%Y:%T %z', localtime $Tachikoma::Now );
-        $Log_Last_Time = $Tachikoma::Now;
+        $LOG_LAST_TIME = $Tachikoma::Now;
     }
-    return $Log_Time_String;
+    return $LOG_TIME_STRING;
 }
 
 sub cached_strftime {
-    if ( $Tachikoma::Now > $Last_Time ) {
-        $Time_String =
+    if ( $Tachikoma::Now > $LAST_TIME ) {
+        $TIME_STRING =
             strftime( '%a, %d %b %Y %T GMT', gmtime $Tachikoma::Now );
-        $Last_Time = $Tachikoma::Now;
+        $LAST_TIME = $Tachikoma::Now;
     }
-    return $Time_String;
+    return $TIME_STRING;
 }
 
 sub payloads {

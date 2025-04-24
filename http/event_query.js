@@ -70,7 +70,10 @@ function _execute_query() {
                 if (this.responseText) {
                     var msg     = JSON.parse(this.responseText);
                     var running = 1;
-                    if (msg[0].error) {
+                    if (!msg[0]) {
+                        document.getElementById("output").innerHTML = "<em> - no results - </em>";
+                    }
+                    else if (msg[0].error) {
                         document.getElementById("output").innerHTML = "<em>"
                             + msg[0].error + "</em>";
                     }
@@ -84,6 +87,7 @@ function _execute_query() {
                             var date  = new Date();
                             var queue = ev.queue || "";
                             var value = ev.value || "";
+                            var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
                             date.setTime(
                                 ( ev.timestamp - date.getTimezoneOffset() * 60 )
                                 * 1000
@@ -105,7 +109,7 @@ function _execute_query() {
                                          + "<td>" + queue             + "</td>"
                                          + "<td>" + ev.type           + "</td>"
                                          + "<td>" + ev.key            + "</td>"
-                                         + "<td>" + value             + "</td></tr>";
+                                         + "<td>" + escaped           + "</td></tr>";
                             output.push(row);
                             if (ev.type == "MSG_CANCELED") {
                                 running = 0;

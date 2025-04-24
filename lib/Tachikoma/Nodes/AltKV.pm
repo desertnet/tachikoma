@@ -10,7 +10,7 @@ use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_STORABLE
+    TM_BYTESTREAM TM_STORABLE TM_PERSIST
 );
 use parent qw( Tachikoma::Node );
 
@@ -53,16 +53,23 @@ sub fill {
     else {
         return;
     }
+    $response->[TYPE] |= TM_PERSIST if ( $message->[TYPE] & TM_PERSIST );
     return $self->SUPER::fill($response);
 }
 
 sub expand_bytestream {
     my ( $self, $message, $response ) = @_;
-    my %new = split q( ), $message->[PAYLOAD];
-    if ( scalar keys %new > 1 ) {
-        $self->print_less_often('ERROR: expand batches not supported');
+    my @new = split q( ), $message->[PAYLOAD];
+    if ( not @new ) {
+        $self->print_less_often('ERROR: empty payload');
+    }
+    elsif ( @new > 2 ) {
+        $self->print_less_often( 'ERROR: expand batches not supported [',
+            join( q(], [), @new ), ']' );
     }
     else {
+        push @new, q() if ( @new == 1 );
+        my %new = @new;
         for my $key ( keys %new ) {
             my $value = $new{$key};
             chomp $value;

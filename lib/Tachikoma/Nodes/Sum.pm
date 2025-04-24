@@ -15,13 +15,16 @@ use version; our $VERSION = qv('v2.0.686');
 sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
     chomp $value;
-    return 1 if ( not $value );
+    return 1 if ( not length $value );
     my $bucket = $self->get_bucket( $i, $timestamp );
     if ( not $bucket or not defined $bucket->{$key} ) {
         $self->SUPER::collect( $i, $timestamp, $key, $value );
     }
     else {
         $bucket->{$key} += $value;
+        $self->stderr(
+            "DEBUG: SUM::COLLECT $i, $timestamp, $key => " . $bucket->{$key} )
+            if ( $self->{debug_state} and $self->{debug_state} >= 5 );
     }
     return;
 }

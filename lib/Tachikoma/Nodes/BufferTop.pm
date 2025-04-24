@@ -9,16 +9,14 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::TopicTop qw( smart_sort );
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM TM_EOF );
-use POSIX qw( strftime );
-use vars qw( @ISA );
-use parent qw( Tachikoma::Nodes::TopicTop );
+use POSIX              qw( strftime );
+use vars               qw( @ISA );
+use parent             qw( Tachikoma::Nodes::TopicTop );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Buffer_Timeout          = 10;
-my $Default_Output_Interval = 4.0;                                 # seconds
-my $Numeric                 = qr{^-?(?:\d+(?:[.]\d*)?|[.]\d+)$};
-my $Winch                   = undef;
+my $BUFFER_TIMEOUT          = 10;
+my $DEFAULT_OUTPUT_INTERVAL = 4.0;    # seconds
 
 sub new {
     my $class = shift;
@@ -29,7 +27,7 @@ sub new {
     $self->{height}    = undef;
     $self->{width}     = undef;
     $self->{threshold} = 1;
-    $self->{delay}     = $Default_Output_Interval;
+    $self->{delay}     = $DEFAULT_OUTPUT_INTERVAL;
     $self->{fields}    = {
         hostname       => { label => 'HOSTNAME',    size => '16',  pad => 0 },
         buff_name      => { label => 'BUFFER_NAME', size => '-16', pad => 0 },
@@ -52,7 +50,7 @@ sub new {
     $self->{fields}->{buff_name}->{dynamic} = 'true';
     $self->{buffers} = {};
     bless $self, $class;
-    $self->set_timer( $Default_Output_Interval * 1000 );
+    $self->set_timer( $DEFAULT_OUTPUT_INTERVAL * 1000 );
     return $self;
 }
 
@@ -63,6 +61,7 @@ sub fill {
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $buffers = $self->{buffers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        next if ( $line !~ m{^hostname:} );
         my $stats     = { map { split m{:}, $_, 2 } split q( ), $line };
         my $buffer_id = join q(:), $stats->{hostname}, $stats->{buff_name};
         $stats->{last_update} = $Tachikoma::Right_Now;
@@ -181,12 +180,12 @@ COLLECT: for my $buffer_id ( keys %{$buffers} ) {
     my $reset    = "\e[0m";
     my $output =
         sprintf '%3d buffers; key: AGE > %d IN_BUF > 1000 UNANSWERED >= MAX',
-        $total, $Buffer_Timeout;
+        $total, $BUFFER_TIMEOUT;
     $output =
           sprintf "\e[H%3d buffers; key:"
         . " \e[41mAGE > %d\e[0m \e[91mIN_BUF > 1000\e[0m"
         . " \e[93mUNANSWERED >= MAX\e[0m%s\n",
-        $total, $Buffer_Timeout, q( ) x ( $width - length $output );
+        $total, $BUFFER_TIMEOUT, q( ) x ( $width - length $output );
     $totals->{$_} = sprintf '%.2f', $totals->{"_$_"} // 0
         for (qw( recv_rate send_rate ));
     $output .= join q(),
@@ -204,9 +203,9 @@ OUTPUT: for my $key ( sort { smart_sort( $a, $b ) } keys %{$sorted} ) {
             next
                 if ($sort eq 'msg_in_buf'
                 and $key < $threshold
-                and $buffer->{age} < $Buffer_Timeout );
+                and $buffer->{age} < $BUFFER_TIMEOUT );
             $color = q();
-            if ( $buffer->{age} > $Buffer_Timeout ) {
+            if ( $buffer->{age} > $BUFFER_TIMEOUT ) {
                 $color = "\e[41m";
             }
             elsif ( $buffer->{msg_in_buf} > 1000 ) {

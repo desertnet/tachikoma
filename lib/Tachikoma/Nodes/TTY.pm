@@ -10,16 +10,16 @@ package Tachikoma::Nodes::TTY;
 use strict;
 use warnings;
 use Tachikoma::Nodes::STDIO qw( TK_R TK_W TK_SYNC );
-use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
-use Term::ReadLine qw();
-use vars qw( @EXPORT_OK );
-use parent qw( Tachikoma::Nodes::STDIO );
+use Tachikoma::Message      qw( TYPE FROM PAYLOAD TM_BYTESTREAM );
+use Term::ReadLine          qw();
+use vars                    qw( @EXPORT_OK );
+use parent                  qw( Tachikoma::Nodes::STDIO );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Winch = undef;
-my $Home  = ( getpwuid $< )[7];
+my $WINCH = undef;
+my $HOME  = ( getpwuid $< )[7];
 
 sub new {
     my $proto = shift;
@@ -40,7 +40,7 @@ sub new {
 sub drain_fh {
     my $self = shift;
     if ( $self->{use_readline} ) {
-        $self->width if ($Winch);
+        $self->width if ($WINCH);
         $self->{term}->callback_read_char;
         for my $message ( @{ $self->{queue} } ) {
             $self->{sink}->fill($message);
@@ -118,7 +118,7 @@ sub close_filehandle {
     my $self = shift;
     if ( $self->use_readline ) {
         $self->term->callback_handler_remove;
-        $self->term->WriteHistory("$Home/.tachikoma/history");
+        $self->term->WriteHistory("$HOME/.tachikoma/history");
     }
     $self->SUPER::close_filehandle;
     return;
@@ -135,9 +135,9 @@ sub use_readline {
             return;
         }
         ## no critic (RequireLocalizedPunctuationVars)
-        $SIG{WINCH} = sub { $Winch = 1 };
+        $SIG{WINCH} = sub { $WINCH = 1 };
         $self->term($term);
-        $term->ReadHistory("$Home/.tachikoma/history");
+        $term->ReadHistory("$HOME/.tachikoma/history");
         $self->resume;
         my $attribs = $term->Attribs;
         $attribs->{completion_query_items}        = 0;
@@ -196,9 +196,9 @@ sub line_length {
 
 sub width {
     my $self = shift;
-    if ( $Winch or not defined $self->{width} ) {
-        if ($Winch) {
-            $Winch = undef;
+    if ( $WINCH or not defined $self->{width} ) {
+        if ($WINCH) {
+            $WINCH = undef;
             $self->{term}->resize_terminal;
         }
         $self->{width} = ( $self->{term}->get_screen_size )[1];

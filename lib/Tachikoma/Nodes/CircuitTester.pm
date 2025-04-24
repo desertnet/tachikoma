@@ -17,8 +17,8 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Default_Interval = 0.1;
-my $Default_Timeout  = 900;
+my $DEFAULT_INTERVAL = 0.1;
+my $DEFAULT_TIMEOUT  = 900;
 my %C                = ();
 
 sub new {
@@ -29,8 +29,8 @@ sub new {
     $self->{waiting}          = {};
     $self->{offline}          = {};
     $self->{round_trip_times} = {};
-    $self->{interval}         = $Default_Interval;
-    $self->{timeout}          = $Default_Timeout;
+    $self->{interval}         = $DEFAULT_INTERVAL;
+    $self->{timeout}          = $DEFAULT_TIMEOUT;
     $self->{interpreter}      = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
@@ -51,8 +51,8 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $interval, $timeout ) =
             split q( ), $self->{arguments}, 3;
-        $self->{interval} = $interval || $Default_Interval;
-        $self->{timeout}  = $timeout  || $Default_Timeout;
+        $self->{interval} = $interval || $DEFAULT_INTERVAL;
+        $self->{timeout}  = $timeout  || $DEFAULT_TIMEOUT;
         $self->set_timer( $self->{interval} * 1000 );
     }
     return $self->{arguments};

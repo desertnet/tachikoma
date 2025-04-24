@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>D3 Visualizer</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <style>
+        body {
+            background-color: #2b2b2b;
+            color: #a9b7c6;
+        }
+
+        circle {
+            fill: #6897bb;
+        }
+
+        .links line {
+            stroke-opacity: 0.6;
+        }
+
+        .nodes circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <svg></svg>
+    <script>
+        let svg = d3.select("svg")
+            .attr("width", window.innerWidth)
+            .attr("height", window.innerHeight),
+            width = +svg.attr("width"),
+            height = +svg.attr("height");
+
+        let zoom = d3.zoom()
+            .scaleExtent([0.1, 10])
+            .on("zoom", zoomed);
+
+        svg.call(zoom);
+
+        let g = svg.append("g"),
+            link = g.append("g").attr("class", "links").selectAll(".link"),
+            node = g.append("g").attr("class", "nodes").selectAll(".node");
+
+        let simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(function (d) { return d.id; }))
+            .force("charge", d3.forceManyBody().strength(-100))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .velocityDecay(0.8);
+
+        let previousData = null;
+        let previousTransformedData = null;
+        let previousNodeCount = 0;
+
+        function transformData(data) {
+            let nodes = data.map(function (d) {
+                let previousNode = previousData ? previousData.find(function (p) { return p.name === d.name; }) : null;
+                let messageRate = previousNode ? d.counter - previousNode.counter : 0;
+                return { name: d.name, sink: d.sink, edge: d.edge, owner: d.owner, messageRate: messageRate };
+            });
+
+            let links = [];
+            data.forEach(function (d) {
+                let sourceIndex = nodes.findIndex(function (e) { return e.name === d.name; });
+                let targetIndex = nodes.findIndex(function (e) { return e.name === d.sink; });
+                let edgeIndex = nodes.findIndex(function (e) { return e.name === d.edge; });
+                if (sourceIndex === -1) return;
+                if (targetIndex !== -1) {
+                    links.push({
+                        source: nodes[sourceIndex],
+                        target: nodes[targetIndex],
+                        edge: 0,
+                        owner: 0
+                    });
+                }
+                if (edgeIndex !== -1) {
+                    links.push({
+                        source: nodes[sourceIndex],
+                        target: nodes[edgeIndex],
+                        edge: 1,
+                        owner: 0
+                    });
+                }
+                if (!Array.isArray(d.owner)) {
+                    let ownerIndex = nodes.findIndex(function (e) { return e.name === d.owner; });
+                    if (ownerIndex !== -1) {
+                        links.push({
+                            source: nodes[sourceIndex],
+                            target: nodes[ownerIndex],
+                            edge: 0,
+                            owner: 1
+                        });
+                    }
+                } else {
+                    for (var i = 0; i < d.owner.length; i++) {
+                        let owner = typeof d.owner[i] === 'string' ? d.owner[i].split('/')[0] : d.owner[i];
+                        let ownerIndex = nodes.findIndex(function (e) { return e.name === owner; });
+                        if (ownerIndex !== -1) {
+                            links.push({
+                                source: nodes[sourceIndex],
+                                target: nodes[ownerIndex],
+                                edge: 0,
+                                owner: 1
+                            });
+                        }
+                    }
+                }
+            });
+
+            return {
+                nodes: nodes,
+                links: links
+            };
+        }
+
+        let sizeScale = d3.scaleLog().range([5, 15]);
+
+        function updateGraph() {
+            let params = new URLSearchParams(window.location.search);
+            let service = params.get('service');
+            d3.json("/v/" + service)
+                .then(function (data) {
+                    let transformedData = transformData(data);
+
+                    // if the node count is unchanged, only update the message rate
+                    if (previousNodeCount !== transformedData.nodes.length) {
+                        link = link.data(transformedData.links, function (d) { return d.source.id + "-" + d.target.id; });
+                        link.exit().remove();
+                        link = link.enter().append("path")
+                            .attr("fill", "none")
+                            .attr("stroke", function (d) {
+                                return d.edge ? "red" : d.owner ? "blue" : "#999";
+                            })
+                            .merge(link);
+
+                        node = node.data(transformedData.nodes, function (d) { return d.id; });
+                        node.exit().remove();
+                        let nodeEnter = node.enter().append("circle")
+                            .attr("r", function (d) { return sizeScale(1 + d.messageRate); })
+                            .style("fill", function (d) {
+                                if (d.edge) return "blue"; // nodes that have edges
+                                else if (d.owner) return "green"; // nodes that have owners
+                                else return "red"; // nodes that have sinks
+                            })
+                            .call(d3.drag()
+                                .on("start", dragstarted)
+                                .on("drag", dragged)
+                                .on("end", dragended));
+
+                        // Add tooltips
+                        nodeEnter.append("title")
+                            .text(function (d) { return d.name; });
+
+                        node = nodeEnter.merge(node);
+
+                        simulation
+                            .nodes(transformedData.nodes)
+                            .on("tick", ticked);
+                        simulation.force("link")
+                            .links(transformedData.links);
+                        simulation.alpha(1).restart();
+                    }
+                    else {
+                        // Update the message rate
+                        d3.selectAll("circle")
+                            .each(function (d, i) {
+                                d.messageRate = transformedData.nodes[i].messageRate;
+                            })
+                            .attr("r", function (d) { return sizeScale(1 + d.messageRate); });
+                        // Update charge strength based on new messageRate sizeScale to prevent nodes from overlapping
+                        simulation.force("charge", d3.forceManyBody().strength(function (d) { return -50 * sizeScale(1 + d.messageRate); }));
+                        simulation.alphaTarget(0.3).restart();
+                    }
+
+                    // Store the data string for the next update
+                    previousData = data;
+                    previousTransformedData = transformedData;
+                    previousNodeCount = transformedData.nodes.length;
+                })
+                .catch(function (error) {
+                    console.log("Error:", error);
+                });
+        }
+
+        function ticked() {
+            link
+                .attr("d", function (d) {
+                    if (d.owner) {
+                        // Draw a Bezier curve for links between owner nodes
+                        let dx = d.target.x - d.source.x,
+                            dy = d.target.y - d.source.y,
+                            dr = Math.sqrt(dx * dx + dy * dy);
+                        return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+                    } else {
+                        // Draw a straight line for other links
+                        return "M" + d.source.x + "," + d.source.y + "L" + d.target.x + "," + d.target.y;
+                    }
+                });
+
+            node
+                .attr("cx", function (d) { return d.x; })
+                .attr("cy", function (d) { return d.y; });
+
+        }
+
+        function zoomed() {
+            g.attr("transform", d3.event.transform);
+        }
+
+        function dragstarted(d) {
+            if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(d) {
+            d.fx = d3.event.x;
+            d.fy = d3.event.y;
+        }
+
+        function dragended(d) {
+            if (!d3.event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        function resize() {
+            let width = window.innerWidth,
+                height = window.innerHeight;
+
+            svg.attr("width", width)
+                .attr("height", height);
+
+            simulation.force("center", d3.forceCenter(width / 2, height / 2));
+        }
+
+        window.addEventListener('resize', resize);
+        setInterval(updateGraph, 10000);
+        updateGraph();
+    </script>
+</body>
+
+</html>

@@ -8,19 +8,19 @@ package Tachikoma::Nodes::HTTP_Fetch;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime );
-use Tachikoma::Message qw(
+use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime send404 );
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use CGI;
-use JSON;    # -support_by_pp;
+use JSON;
 use URI::Escape;
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.314');
 
 # TODO: configurate mime types
-my %Types = (
+my %TYPES = (
     gif  => 'image/gif',
     jpg  => 'image/jpeg',
     png  => 'image/png',
@@ -71,8 +71,8 @@ sub fill {
     my $allowed = $self->{allowed};
     $path =~ s{^$prefix}{};
     $path =~ s{^/+}{};
-    my $type            = ( $path =~ m{[.]([^.]+)$} )[0] || 'json';
-    my $accept_encoding = $headers->{'accept-encoding'}  || q();
+    my $type            = lc( ( $path =~ m{[.]([^.]+)$} )[0] // q() );
+    my $accept_encoding = $headers->{'accept-encoding'} || q();
     my ( $node_name, $escaped ) = split m{/}, $path, 2;
     my $value = undef;
 
@@ -89,7 +89,11 @@ sub fill {
                     };
             }
             else {
-                push @{$value}, $name;
+                push @{$value},
+                    {
+                    name => $name,
+                    size => 0
+                    };
             }
         }
     }
@@ -97,6 +101,7 @@ sub fill {
         my $node = $Tachikoma::Nodes{$node_name};
         return $self->send404($message)
             if ( $node_name !~ m{$allowed}
+            or $node_name =~ m{:table|:index$}
             or not $node
             or not $node->can('lookup') );
         my $key = uri_unescape( $escaped // q() );
@@ -117,7 +122,7 @@ sub fill {
         "Server: Tachikoma\n",
         "Connection: close\n",
         'Content-Type: ',
-        $Types{$type} || $Types{'json'},
+        $TYPES{$type} || $TYPES{'json'},
         "\n",
         'Content-Length: ',
         length($value),
@@ -130,30 +135,7 @@ sub fill {
     $self->{sink}->fill($response);
     $self->{counter}++;
     log_entry( $self, 200, $message );
-    return 1;
-}
-
-sub send404 {
-    my $self     = shift;
-    my $message  = shift;
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_BYTESTREAM;
-    $response->[TO]      = $message->[FROM];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q(),
-        "HTTP/1.1 404 NOT FOUND\n",
-        'Date: ', cached_strftime(), "\n",
-        "Server: Tachikoma\n",
-        "Connection: close\n",
-        "Content-Type: text/plain; charset=utf8\n",
-        "\n",
-        "Requested URL not found.\n";
-    $self->{sink}->fill($response);
-    $response         = Tachikoma::Message->new;
-    $response->[TYPE] = TM_EOF;
-    $response->[TO]   = $message->[FROM];
-    log_entry( $self, 404, $message );
-    return $self->{sink}->fill($response);
+    return;
 }
 
 sub prefix {

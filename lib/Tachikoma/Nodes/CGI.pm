@@ -8,17 +8,26 @@ package Tachikoma::Nodes::CGI;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime );
-use Tachikoma::Message qw(
+use Tachikoma::Nodes::HTTP_Responder qw( log_entry cached_strftime send404 );
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_RESPONSE TM_EOF TM_KILLME
 );
 use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Node );
+use parent      qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Max_Requests = 500;
+my $MAX_REQUESTS = 500;
+
+my $home = ( getpwuid $< )[7];
+$Tachikoma::Nodes::CGI::Config = {
+    protocol      => 'https',
+    document_root => "$home/.tachikoma/http",
+    script_paths  => { '/cgi-bin' => "$home/.tachikoma/http/cgi-bin/" },
+    broker_ids    => ['localhost:5501'],
+    engines_http  => ['localhost:5201'],
+};
 
 sub new {
     my $class = shift;
@@ -41,14 +50,16 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my ( $config_file, $tmp_path ) = split q( ), $self->{arguments}, 2;
-        my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
-        my $rv   = do $path;
-        die "couldn't parse $path: $@" if ($@);
-        die "couldn't do $path: $!"    if ( not defined $rv );
-        die "couldn't run $path"       if ( not $rv );
-        $self->{config_file} = $path;
-        $self->{config}      = $Tachikoma::Nodes::CGI::Config;
-        $self->{tmp_path}    = $tmp_path;
+        if ( length $config_file ) {
+            my $path = ( $config_file =~ m{^([\w:./-]+)$} )[0];
+            my $rv   = do $path;
+            die "couldn't parse $path: $@" if ($@);
+            die "couldn't do $path: $!"    if ( not defined $rv );
+            die "couldn't run $path"       if ( not $rv );
+            $self->{config_file} = $path;
+        }
+        $self->{config}   = $Tachikoma::Nodes::CGI::Config;
+        $self->{tmp_path} = $tmp_path // '/tmp';
     }
     return $self->{arguments};
 }
@@ -113,27 +124,7 @@ FIND_SCRIPT: while ($test_path) {
     $self->{counter}++;
 
     # couldn't find script, so let's bail
-    if ( not $found ) {
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE]    = TM_BYTESTREAM;
-        $response->[TO]      = $message->[FROM];
-        $response->[STREAM]  = $message->[STREAM];
-        $response->[PAYLOAD] = join q(),
-            "HTTP/1.1 404 NOT FOUND\n",
-            'Date: ', cached_strftime(), "\n",
-            "Server: Tachikoma\n",
-            "Connection: close\n",
-            "Content-Type: text/plain; charset=utf8\n\n",
-            "Requested URL not found.\n";
-        $self->{sink}->fill($response);
-        log_entry( $self, 404, $message );
-
-        # send TM_EOF to signal completion of the request
-        #      TM_RESPONSE to notify Load Balancer
-        $response->[TYPE] = TM_EOF | TM_RESPONSE;
-        $response->[TO]   = $message->[FROM];
-        return $self->{sink}->fill($response);
-    }
+    return $self->send404($message) if ( not $found );
 
     # copy HTTP headers to environment
     ## no critic (RequireLocalizedPunctuationVars)
@@ -168,9 +159,9 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{QUERY_STRING}   = $query_string;
     $ENV{REMOTE_ADDR}    = $request->{remote_addr};
     $ENV{REMOTE_PORT}    = $request->{remote_port};
-    $ENV{AUTH_TYPE}      = $request->{auth_type} || q();
+    $ENV{AUTH_TYPE}      = $request->{auth_type}   || q();
     $ENV{REMOTE_USER}    = $request->{remote_user} || q();
-    $ENV{CONTENT_TYPE}   = $headers->{'content-type'} if ($is_post);
+    $ENV{CONTENT_TYPE}   = $headers->{'content-type'}   if ($is_post);
     $ENV{CONTENT_LENGTH} = $headers->{'content-length'} if ($is_post);
     $ENV{UNIQUE_ID}      = md5_hex(rand);
 
@@ -224,7 +215,6 @@ FIND_SCRIPT: while ($test_path) {
             my $header = Tachikoma::Message->new;
             $header->[TYPE]    = TM_BYTESTREAM;
             $header->[TO]      = $message->[FROM];
-            $header->[STREAM]  = $message->[STREAM];
             $header->[PAYLOAD] = join q(),
                 "HTTP/1.1 500 NOT OK\n\n",
                 "Sorry, an error occurred while processing your request.\n";
@@ -250,15 +240,15 @@ FIND_SCRIPT: while ($test_path) {
     untie *STDOUT;
 
     # send TM_EOF to signal completion of the request
-    #      TM_RESPONSE to notify Load Balancer
+    #      set stream to notify Load Balancer
     my $response = Tachikoma::Message->new;
-    $response->[TYPE]   = TM_EOF | TM_RESPONSE;
+    $response->[TYPE]   = TM_EOF;
     $response->[TO]     = $message->[FROM];
     $response->[STREAM] = $message->[STREAM];
     $self->{sink}->fill($response);
 
-    # see if we've hit $Max_Requests
-    if ( $dirty or $Max_Requests and $self->{counter} > $Max_Requests ) {
+    # see if we've hit $MAX_REQUESTS
+    if ( $dirty or $MAX_REQUESTS and $self->{counter} > $MAX_REQUESTS ) {
         my $shutdown = Tachikoma::Message->new;
         $shutdown->[TYPE] = TM_KILLME;
         $shutdown->[TO]   = '_parent';
@@ -319,7 +309,6 @@ sub WRITE {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
-        $header->[STREAM]  = $request->[STREAM];
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
         ${$self}->{sink}->fill($header);
         ${$self}->{sent_header} = 'true';
@@ -329,7 +318,6 @@ sub WRITE {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
-    $message->[STREAM]  = $request->[STREAM];
     $message->[PAYLOAD] = $payload;
     ${$self}->{sink}->fill($message);
     return $length;
@@ -343,7 +331,6 @@ sub PRINT {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
-        $header->[STREAM]  = $request->[STREAM];
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
         ${$self}->{sink}->fill($header);
         ${$self}->{sent_header} = 'true';
@@ -353,7 +340,6 @@ sub PRINT {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
-    $message->[STREAM]  = $request->[STREAM];
     $message->[PAYLOAD] = $payload;
     return ${$self}->{sink}->fill($message);
 }
@@ -365,7 +351,6 @@ sub PRINTF {
         my $header = Tachikoma::Message->new;
         $header->[TYPE]    = TM_BYTESTREAM;
         $header->[TO]      = $request->[FROM];
-        $header->[STREAM]  = $request->[STREAM];
         $header->[PAYLOAD] = "HTTP/1.1 200 OK\n";
         ${$self}->{sink}->fill($header);
         ${$self}->{sent_header} = 'true';
@@ -376,7 +361,6 @@ sub PRINTF {
     my $message = Tachikoma::Message->new;
     $message->[TYPE]    = TM_BYTESTREAM;
     $message->[TO]      = $request->[FROM];
-    $message->[STREAM]  = $request->[STREAM];
     $message->[PAYLOAD] = $payload;
     return ${$self}->{sink}->fill($message);
 }

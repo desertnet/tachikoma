@@ -10,18 +10,18 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::STDIO qw( TK_R );
-use Tachikoma::Message qw(
+use Tachikoma::Message      qw(
     TYPE FROM TO ID STREAM
     TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use IPC::Open3;
 use Symbol qw( gensym );
-use POSIX qw( :sys_wait_h SIGINT SIGKILL );
+use POSIX  qw( :sys_wait_h SIGINT SIGKILL );
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Check_Proc_Interval = 15;
+my $CHECK_PROC_INTERVAL = 15;
 
 sub initialize_graph {
     my $self = shift;
@@ -30,7 +30,7 @@ sub initialize_graph {
     my $timer = Tachikoma::Nodes::Timer->new;
     $timer->name('_timer');
     $timer->sink($self);
-    $timer->set_timer( $Check_Proc_Interval * 1000 );
+    $timer->set_timer( $CHECK_PROC_INTERVAL * 1000 );
     $self->initialize_shell_graph;
     $self->connector->sink($self);
     $self->sink( $self->router );
@@ -83,10 +83,9 @@ sub fill {
         if ( not $type & TM_PERSIST ) {
             my $response = Tachikoma::Message->new;
             $response->[TYPE]   = TM_RESPONSE;
-            $response->[TO]     = '_parent';
             $response->[STREAM] = $message->[STREAM];
             $response->[ID]     = $message->[ID];
-            $self->{sink}->fill($response);
+            $self->SUPER::fill($response);
         }
     }
     elsif ( $from eq '_shell:stdout' ) {

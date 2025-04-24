@@ -16,19 +16,18 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Getopt::Long qw( GetOptionsFromString );
-use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Nodes::Timer );
+use Time::HiRes  qw( usleep );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Poll_Interval   = 1;             # poll for new messages this often
-my $Startup_Delay   = 5;             # wait at least this long on startup
-my $Timeout         = 900;           # default message timeout
-my $Expire_Interval = 15;            # check message timeouts
-my $Commit_Interval = 60;            # commit offsets
-my $Hub_Timeout     = 300;           # timeout waiting for hub
-my $Cache_Type      = 'snapshot';    # save complete state
-my %Targets         = ();
+my $ASYNC_INTERVAL  = 15;           # sanity check for new messages this often
+my $POLL_INTERVAL   = 0.1;          # sync check for new messages this often
+my $DEFAULT_TIMEOUT = 900;          # default message timeout
+my $EXPIRE_INTERVAL = 15;           # check message timeouts
+my $COMMIT_INTERVAL = 60;           # commit offsets
+my $HUB_TIMEOUT     = 300;          # timeout waiting for hub
+my $CACHE_TYPE      = 'snapshot';   # save complete state
 
 sub new {
     my $class      = shift;
@@ -41,13 +40,14 @@ sub new {
     $self->{offset}          = undef;
     $self->{next_offset}     = undef;
     $self->{buffer}          = \$new_buffer;
-    $self->{poll_interval}   = $Poll_Interval;
-    $self->{hub_timeout}     = $Hub_Timeout;
+    $self->{async_interval}  = $ASYNC_INTERVAL;
+    $self->{timeout}         = $DEFAULT_TIMEOUT;
+    $self->{hub_timeout}     = $HUB_TIMEOUT;
     $self->{last_receive}    = Time::HiRes::time;
     $self->{cache}           = undef;
-    $self->{cache_type}      = $Cache_Type;
+    $self->{cache_type}      = $CACHE_TYPE;
     $self->{last_cache_size} = undef;
-    $self->{auto_commit}     = $self->{offsetlog} ? $Commit_Interval : undef;
+    $self->{auto_commit}     = $self->{offsetlog} ? $COMMIT_INTERVAL : undef;
     $self->{default_offset}  = 'end';
     $self->{last_commit}     = 0;
     $self->{last_commit_offset}      = -1;
@@ -57,19 +57,18 @@ sub new {
     $self->{last_expire}             = $Tachikoma::Now;
     $self->{msg_unanswered}          = 0;
     $self->{max_unanswered}          = 1;
-    $self->{timeout}                 = $Timeout;
-    $self->{startup_delay}           = 0;
     $self->{status}                  = $self->{offsetlog} ? 'INIT' : 'ACTIVE';
     $self->{registrations}->{ACTIVE} = {};
     $self->{registrations}->{READY}  = {};
 
     # sync support
     if ( length $self->{partition} ) {
-        $self->{host}       = 'localhost';
-        $self->{port}       = 4230;
-        $self->{target}     = undef;
-        $self->{eos}        = undef;
-        $self->{sync_error} = undef;
+        $self->{host}          = 'localhost';
+        $self->{port}          = 4230;
+        $self->{target}        = undef;
+        $self->{poll_interval} = $POLL_INTERVAL;
+        $self->{eos}           = undef;
+        $self->{sync_error}    = undef;
     }
     bless $self, $class;
     return $self;
@@ -82,7 +81,6 @@ make_node Consumer <node name> --partition=<path>            \
                                --offsetlog=<path>            \
                                --max_unanswered=<int>        \
                                --timeout=<seconds>           \
-                               --poll_interval=<seconds>     \
                                --hub_timeout=<seconds>       \
                                --cache_type=<string>         \
                                --auto_commit=<seconds>       \
@@ -96,20 +94,15 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ($partition,     $offsetlog,     $max_unanswered,
-            $timeout,       $poll_interval, $hub_timeout,
-            $startup_delay, $cache_type,    $auto_commit,
-            $default_offset,
-        );
+        my ( $partition, $offsetlog, $max_unanswered, $timeout, $hub_timeout,
+            $cache_type, $auto_commit, $default_offset, );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'partition=s'      => \$partition,
             'offsetlog=s'      => \$offsetlog,
             'max_unanswered=i' => \$max_unanswered,
             'timeout=i'        => \$timeout,
-            'poll_interval=i'  => \$poll_interval,
             'hub_timeout=i'    => \$hub_timeout,
-            'startup_delay=i'  => \$startup_delay,
             'cache_type=s'     => \$cache_type,
             'auto_commit=i'    => \$auto_commit,
             'default_offset=s' => \$default_offset,
@@ -126,13 +119,12 @@ sub arguments {
         $self->{buffer}             = \$new_buffer;
         $self->{msg_unanswered}     = 0;
         $self->{max_unanswered}     = $max_unanswered // 1;
-        $self->{timeout}            = $timeout || $Timeout;
-        $self->{poll_interval}      = $poll_interval || $Poll_Interval;
-        $self->{hub_timeout}        = $hub_timeout || $Hub_Timeout;
+        $self->{timeout}            = $timeout     || $DEFAULT_TIMEOUT;
+        $self->{hub_timeout}        = $hub_timeout || $HUB_TIMEOUT;
         $self->{last_receive}       = $Tachikoma::Now;
-        $self->{cache_type}         = $cache_type // $Cache_Type;
+        $self->{cache_type}         = $cache_type // $CACHE_TYPE;
         $self->{last_cache_size}    = undef;
-        $self->{auto_commit}        = $auto_commit // $Commit_Interval;
+        $self->{auto_commit}        = $auto_commit // $COMMIT_INTERVAL;
         $self->{auto_commit}        = undef if ( not $offsetlog );
         $self->{default_offset}     = $default_offset // 'end';
         $self->{last_commit}        = 0;
@@ -141,7 +133,6 @@ sub arguments {
         $self->{saved_offset}       = undef;
         $self->{inflight}           = [];
         $self->{last_expire}        = $Tachikoma::Now;
-        $self->{startup_delay}      = $startup_delay // $Startup_Delay;
         $self->{status}             = $offsetlog ? 'INIT' : 'ACTIVE';
         $self->{set_state}          = {};
     }
@@ -151,7 +142,10 @@ sub arguments {
 sub fill {
     my $self    = shift;
     my $message = shift;
-    if ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
+    if ( $message->[TYPE] == TM_REQUEST ) {
+        $self->set_timer(0);
+    }
+    elsif ( $message->[TYPE] == ( TM_PERSIST | TM_RESPONSE ) ) {
         $self->handle_response($message);
     }
     elsif ( $message->[TYPE] & TM_ERROR ) {
@@ -260,12 +254,12 @@ sub handle_EOF {
         $self->load_cache_complete;
         $self->next_offset( $self->{saved_offset} );
         $self->set_timer(0) if ( $self->{timer_interval} );
-        $self->set_state( 'ACTIVE' => $self->{partition_id} )
-            if ( not $self->{set_state}->{ACTIVE} );
+        $self->set_state('ACTIVE')
+            if ( not length $self->{set_state}->{ACTIVE} );
     }
     else {
         $self->{next_offset} = $offset;
-        $self->set_state( 'READY' => $self->{partition_id} )
+        $self->set_state('READY')
             if ( not length $self->{set_state}->{READY} );
     }
     return;
@@ -273,7 +267,7 @@ sub handle_EOF {
 
 sub fire {
     my $self = shift;
-    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
         if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
@@ -284,19 +278,19 @@ sub fire {
         return;
     }
     if (    $self->{status} eq 'ACTIVE'
-        and $Tachikoma::Now - $self->{last_expire} >= $Expire_Interval )
+        and $Tachikoma::Now - $self->{last_expire} >= $EXPIRE_INTERVAL )
     {
         $self->expire_messages or return;
     }
     if ( not $self->{timer_interval}
-        or $self->{timer_interval} != $self->{poll_interval} * 1000 )
+        or $self->{timer_interval} != $self->{async_interval} * 1000 )
     {
         if ( defined $self->{partition_id} ) {
             $self->stop_timer;
-            $self->{timer_interval} = $self->{poll_interval} * 1000;
+            $self->{timer_interval} = $self->{async_interval} * 1000;
         }
         else {
-            $self->set_timer( $self->{poll_interval} * 1000 );
+            $self->set_timer( $self->{async_interval} * 1000 );
         }
     }
     if ( length ${ $self->{buffer} } ) {
@@ -413,10 +407,16 @@ sub drain_buffer_persist {
             : $self->{name};
         $message->[TO] = $self->{owner};
         $message->[ID] = $offset;
-        $message->[TYPE] |= TM_PERSIST;
-        push @{ $self->{inflight} }, [ $offset => $Tachikoma::Now ];
+        if ( $message->[TYPE] & TM_EOF ) {
+            $message->[TYPE] ^= TM_PERSIST
+                if ( $message->[TYPE] & TM_PERSIST );
+        }
+        else {
+            $message->[TYPE] |= TM_PERSIST;
+            push @{ $self->{inflight} }, [ $offset => $Tachikoma::Now ];
+            $self->{msg_unanswered}++;
+        }
         $self->{counter}++;
-        $self->{msg_unanswered}++;
         $self->{sink}->fill($message);
         $offset += $size;
         $got    -= $size;
@@ -518,6 +518,9 @@ sub commit_offset {
         cache      => $cache,
     };
     return if ( not $self->{sink} );
+    $self->stderr( 'DEBUG: COMMIT_OFFSET ', $offset )
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+
     if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
         $self->{edge}->on_save_snapshot( $i, $stored )
@@ -588,11 +591,10 @@ sub load_cache_complete {
     if ( defined $self->{saved_offset} ) {
         $self->{last_commit_offset} = $self->{saved_offset};
     }
-    else {
+    if ( $self->{debug_state} ) {
         $self->stderr(
-            'INFO: beginning at ',
-            $self->{default_offset},
-            ' offset'
+            'DEBUG: LOAD_CACHE_COMPLETE beginning at ',
+            $self->{saved_offset} // $self->{default_offset}
         );
     }
     $self->{last_commit} = $Tachikoma::Now;
@@ -601,12 +603,13 @@ sub load_cache_complete {
 
 sub restart {
     my $self = shift;
+    $self->stderr('DEBUG: RESTART') if ( $self->{debug_state} );
     if ( defined $self->partition_id ) {
         $self->remove_node;
     }
     else {
         $self->arguments( $self->arguments );
-        $self->set_timer( $self->{startup_delay} * 1000 );
+        $self->set_timer(0);
     }
     return;
 }
@@ -616,8 +619,8 @@ sub owner {
     if (@_) {
         $self->{owner} = shift;
         $self->last_receive($Tachikoma::Now);
-        $self->set_timer( $self->{startup_delay} * 1000 );
-        $self->set_state( 'ACTIVE' => $self->{partition} )
+        $self->set_timer(0);
+        $self->set_state('ACTIVE')
             if (not $self->{offsetlog}
             and not $self->{set_state}->{ACTIVE} );
     }
@@ -638,8 +641,8 @@ sub edge {
             else {
                 $edge->new_cache if ( $edge->can('new_cache') );
             }
-            $self->set_timer( $self->{startup_delay} * 1000 );
-            $self->set_state( 'ACTIVE' => $self->{partition} )
+            $self->set_timer(0);
+            $self->set_state('ACTIVE')
                 if (not $self->{offsetlog}
                 and not $self->{set_state}->{ACTIVE} );
         }
@@ -659,7 +662,8 @@ sub remove_node {
             $self->{edge}->new_cache;
         }
     }
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub dump_config {
@@ -738,12 +742,20 @@ sub buffer {
     return $self->{buffer};
 }
 
-sub poll_interval {
+sub async_interval {
     my $self = shift;
     if (@_) {
-        $self->{poll_interval} = shift;
+        $self->{async_interval} = shift;
     }
-    return $self->{poll_interval};
+    return $self->{async_interval};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
 }
 
 sub hub_timeout {
@@ -865,22 +877,6 @@ sub max_unanswered {
         $self->{max_unanswered} = shift;
     }
     return $self->{max_unanswered};
-}
-
-sub timeout {
-    my $self = shift;
-    if (@_) {
-        $self->{timeout} = shift;
-    }
-    return $self->{timeout};
-}
-
-sub startup_delay {
-    my $self = shift;
-    if (@_) {
-        $self->{startup_delay} = shift;
-    }
-    return $self->{startup_delay};
 }
 
 sub status {
@@ -1009,6 +1005,9 @@ sub get_batch_sync {
                 ${ $self->{buffer} } .= $response->[PAYLOAD];
             }
             $expecting = undef;
+        }
+        elsif ( $response->[TYPE] & TM_REQUEST ) {
+            $expecting = 1;
         }
         elsif ( $response->[PAYLOAD] ) {
             die $response->[PAYLOAD];
@@ -1155,6 +1154,14 @@ sub target {
     return $self->{target};
 }
 
+sub poll_interval {
+    my $self = shift;
+    if (@_) {
+        $self->{poll_interval} = shift;
+    }
+    return $self->{poll_interval};
+}
+
 sub eos {
     my $self = shift;
     if (@_) {
@@ -1170,4 +1177,5 @@ sub sync_error {
     }
     return $self->{sync_error};
 }
+
 1;

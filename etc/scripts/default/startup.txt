@@ -1,75 +1,77 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
-include config.tsl
 
-make_node CommandInterpreter hosts
-make_node JobController      jobs
-make_node Tee                system_log:link
-make_node Tee                server_log:link
-make_node Ruleset            local_system_log:ruleset
-make_node Ruleset            server_log:ruleset
-make_node Ruleset            system_log:ruleset
-make_node LogColor           server_log:color
-make_node LogColor           system_log:color
-make_node Tee                server_log
-make_node Tee                system_log
-make_node Tee                http_log
-make_node Null               null
-make_node Echo               echo
-make_node Scheduler          scheduler
+# TRIGGER:
+# http://localhost:4242/trigger/test.json
+# http://localhost:4242/trigger/IMG001.JPG
+ 
+# STORE:
+# curl -d '{ "foo": "bar" }' \
+#     http://localhost:4242/store/topic1/test.json
+# curl --data-binary @Pictures/IMG001.JPG \
+#     http://localhost:4242/store/topic1/IMG001.JPG
 
+# FETCH:
+# http://localhost:4242/fetch/topic1:table/test.json
+# http://localhost:4242/fetch/topic1:table/IMG001.JPG
+
+
+# persistent storage
+var home     = `echo ~`;
+var hostname = `hostname -s`;
+make_node Partition topic1 --filename=<home>/.tachikoma/partitions/topic1.log \
+                           --segment_size=(8 * 1024 * 1024)
+make_node Partition cache  --filename=<home>/.tachikoma/partitions/cache.log \
+                           --segment_size=1
+
+
+# in-memory table
+make_node Consumer       topic1:consumer --partition=topic1 \
+                                         --offsetlog=cache \
+                                         --max_unanswered=0
+make_node HTTP_Trigger   topic1:dir      /trigger 
+make_node Tee            topic1:tee
+make_node Table          topic1:table    --window_size=0 \
+                                         --num_buckets=1
+connect_edge topic1:dir      topic1:table
+connect_node topic1:tee      topic1:table
+connect_node topic1:tee      topic1:dir
+connect_node topic1:consumer topic1:tee
+connect_edge topic1:consumer topic1:table
+
+
+# http interface
+make_node HTTP_Responder http:responder  /tmp/http 4242
+make_node HTTP_Timeout   http:timeout
+make_node Tee            access:log
+make_node HTTP_Route     root
+make_node HTTP_File      root:dir        /home/tachikoma/.tachikoma/http
+make_node HTTP_Fetch     fetch:dir       /fetch    topic1:table
+make_node HTTP_Store     store:dir       /tmp/http /store topic1
+make_node JobFarmer      CGI             4 CGI
+make_node JSONvisualizer visualizer
+command root add /        root:dir
+command root add /fetch   fetch:dir
+command root add /store   store:dir
+command root add /trigger topic1:dir
+command root add /cgi-bin CGI
+command root add /v       visualizer
+connect_node http:responder root
+listen_inet --io 0.0.0.0:4242
+connect_sink 0.0.0.0:4242 http:responder
+
+
+# server log
+#   - support bin/tachikoma-client --connect-log
+make_node Tail     server_log:tail <home>/.tachikoma/log/tachikoma-server.log
+make_node Ruleset  server_log:ruleset
+make_node LogColor server_log:color
+make_node Tee      server_log
 cd server_log:ruleset:config
     add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"
     add 1000 allow
 cd ..
+connect_node server_log:color   server_log
+connect_node server_log:ruleset server_log:color
+connect_node server_log:tail    server_log:ruleset
 
-cd local_system_log:ruleset:config
-    add 1000 allow
-cd ..
-
-cd system_log:ruleset:config
-    add 1000 allow
-cd ..
-
-command jobs start_job Tails tails
-cd tails
-    add_tail <home>/.tachikoma/log/tachikoma-server.log _parent/server_log:link
-    add_tail <home>/.tachikoma/log/http-access.log      _parent/http_log
-    add_tail <home>/.tachikoma/log/tasks-access.log     _parent/http_log
-    add_tail <home>/.tachikoma/log/tables-access.log    _parent/http_log
-    if ( `uname` eq "Darwin\n" ) {
-        add_tail /var/log/system.log       _parent/system_log:link;
-        add_tail /var/log/local/system.log _parent/system_log:link;
-    } else {
-        add_tail /var/log/syslog       _parent/system_log:link;
-        add_tail /var/log/local/syslog _parent/system_log:link;
-    }
-cd ..
-
-connect_node http_log                 _responder
-connect_node system_log               _responder
-connect_node server_log               _responder
-connect_node system_log:color         system_log
-connect_node server_log:color         server_log
-connect_node system_log:ruleset       system_log:color
-connect_node server_log:ruleset       server_log:color
-connect_node local_system_log:ruleset system_log:ruleset
-connect_node server_log:link          server_log:ruleset
-connect_node system_log:link          local_system_log:ruleset
-
-# services
-for service (<tachikoma.services>) {
-    start_service <service>;
-}
-for service ([var "tachikoma.services.<hostname>"]) {
-    start_service <service>;
-}
-
-# ingest server logs
-# connect_node server_log:link sounds:service/server_log:sounds
-connect_node server_log:link server_logs:service/server_log
-
-cd tails
-    tail_probe
-    insecure
-cd ..
-insecure
+secure 2

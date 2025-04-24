@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE FROM TM_INFO TM_ERROR TM_EOF );
-use parent qw( Tachikoma::Node );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
 

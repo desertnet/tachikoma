@@ -15,12 +15,12 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_PERSIST
 );
 use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent      qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.905');
 
-my $Default_Timeout = 900;
-my $Default_Expires = 3300;
+my $DEFAULT_TIMEOUT = 900;
+my $DEFAULT_EXPIRES = 3300;
 
 sub new {
     my $class = shift;
@@ -46,8 +46,8 @@ sub arguments {
         $self->{arguments} = shift;
         my ( $timeout, $expires, $interval ) = split q( ),
             $self->{arguments}, 2;
-        $timeout  ||= $Default_Timeout;
-        $expires  ||= $Default_Expires;
+        $timeout  ||= $DEFAULT_TIMEOUT;
+        $expires  ||= $DEFAULT_EXPIRES;
         $interval ||= $timeout / 60;
         $self->{timeout}           = $timeout;
         $self->{expires}           = $expires;

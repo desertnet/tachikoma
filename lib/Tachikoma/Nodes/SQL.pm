@@ -81,9 +81,9 @@ sub respond {
     my $type     = shift;
     my $payload  = shift;
     my $response = Tachikoma::Message->new;
-    $response->[TYPE] = $type;
-    $response->[TO]   = $message->[FROM]
-        if ( $message->[TO] eq '_return_to_sender' );
+    $response->[TYPE]    = $type;
+    $response->[FROM]    = $message->[FROM];
+    $response->[TO]      = $message->[TO];
     $response->[ID]      = $message->[ID];
     $response->[STREAM]  = $message->[STREAM];
     $response->[PAYLOAD] = $payload;
@@ -93,7 +93,8 @@ sub respond {
 sub remove_node {
     my $self = shift;
     $self->dbh->disconnect if ( $self->dbh );
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub dbh {

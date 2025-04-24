@@ -1,17 +1,23 @@
 ############################################################################
-# TO GET READLINE SUPPORT ON THE MAC
+# DOCKER INSTALL
 ############################################################################
 
-port -v install readline
+git clone https://github.com/datapoke/tachikoma
+cd tachikoma
+cp docker/* docker/.env .
+sudo -u docker docker-compose up -d
+sudo -u docker docker-compose exec -u tachikoma tachikoma1 tachikoma-client
 
-# fetch and extract the source for Term::ReadLine::Gnu and run:
-perl Makefile.PL --includedir=/opt/local/include --libdir=/opt/local/lib
-make && make test && sudo make install
 
 
 ############################################################################
+# LOCAL INSTALL
+############################################################################
+
+
+# ------------------------------------
 # TO GET READLINE SUPPORT ON GNU/LINUX
-############################################################################
+# ------------------------------------
 
 # have curses-dev and libreadline-dev dependencies installed and get
 # Term::ReadLine::Gnu running
@@ -20,9 +26,9 @@ make && make test && sudo make install
 sudo apt install libterm-readline-gnu-perl
 
 
-############################################################################
+# -------------------------------------------------
 # TO GET OTHER DEPENDENCIES ON Ubuntu, Pop!_OS, etc
-############################################################################
+# -------------------------------------------------
 
 sudo apt install libcgi-pm-perl
 sudo apt install libcrypt-openssl-rsa-perl
@@ -33,9 +39,9 @@ sudo apt install libdbd-sqlite3-perl
 sudo apt install libperl-critic-perl
 
 
-############################################################################
+# -------------
 # QUICK INSTALL
-############################################################################
+# -------------
 
 # To quickly get up and running with the example server,
 # run this from the distribution directory:
@@ -67,21 +73,24 @@ make && make test && sudo make install
 # SERVER CONFIG
 # -------------
 
-sudo cp etc/tachikoma.conf /usr/local/etc/
+# we put everything in ~/.tachikoma by default now:
+mkdir ~/.tachikoma
 
 # make directories for log and pidfile
-mkdir -p /var/log/tachikoma
-mkdir -p /var/run/tachikoma
+mkdir -p ~/.tachikoma/log
+mkdir -p ~/.tachikoma/run
 
-# user keys and config overrides will go here:
-mkdir ~/.tachikoma
+# copy config:
+mkdir -p ~/.tachikoma/etc
+cp etc/tachikoma_conf/default.conf ~/.tachikoma/etc/tachikoma.conf
+
 
 
 # -----------
 # PRIVATE KEY
 # -----------
 
-bin/gen_server_key ~/.tachikoma/id 4096
+bin/gen_server_key ~/.tachikoma/etc/id 4096
 
 # (the public key is printed on STDOUT--copy it to the appropriate place
 # in etc/authorized_keys/config.pl and run etc/authorized_keys/regenerate.pl)
@@ -91,16 +100,17 @@ bin/gen_server_key ~/.tachikoma/id 4096
 # IF USING THE EXAMPLE SERVER
 # ---------------------------
 
-sudo cp etc/Devel/CGI.conf /usr/local/etc/tachikoma/
-cp cgi-bin/* ~/Sites/cgi-bin/
+cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
+mkdir -p ~/.tachikoma/http/cgi-bin
+cp cgi-bin/* ~/.tachikoma/http/cgi-bin/
 
 # install the default startup.txt file from etc/scripts:
 etc/scripts/regenerate.pl
-cp etc/scripts/workstation/default.tsl    ~/.tachikoma/startup.txt
+cp etc/scripts/default/startup.txt ~/.tachikoma/startup.txt
 
-# install the example services from etc/scripts:
+# install services from etc/services if you have any:
 mkdir ~/.tachikoma/services/
-cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
+cp etc/services/*.tsl ~/.tachikoma/services/
 
 
 # -----------------------------------------------------
@@ -111,4 +121,4 @@ cp etc/scripts/workstation/services/*.tsl ~/.tachikoma/services/
 # starting point.
 
 etc/authorized_keys/regenerate.pl
-cp etc/authorized_keys/workstation.keys ~/.tachikoma/authorized_keys
+cp etc/authorized_keys/server.keys ~/.tachikoma/authorized_keys

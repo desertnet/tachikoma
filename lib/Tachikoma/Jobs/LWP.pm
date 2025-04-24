@@ -10,7 +10,7 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::LWP;
 use Tachikoma::Message qw( TO TM_BYTESTREAM );
-use parent qw( Tachikoma::Job );
+use parent             qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.349');
 
@@ -35,14 +35,6 @@ sub initialize_graph {
         $self->sink( $self->router );
     }
     return;
-}
-
-sub fill {
-    my $self    = shift;
-    my $message = shift;
-    $message->[TO] = join q(/), '_parent', $message->[TO]
-        if ( $message->[TO] !~ m{^_parent} );
-    return $self->SUPER::fill($message);
 }
 
 1;

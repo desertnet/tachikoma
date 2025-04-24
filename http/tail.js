@@ -1,16 +1,16 @@
-var parsed_url      = new URL(window.location.href);
-var server_host     = window.location.hostname;
-var server_port     = window.location.port;
-var server_path     = "/cgi-bin/tail.cgi"
-var _topic          = parsed_url.searchParams.get("topic")    || topic;
-var _offset         = parsed_url.searchParams.get("offset")   || offset;
-var _count          = parsed_url.searchParams.get("count")    || count;
-var _interval       = parsed_url.searchParams.get("interval") || interval;
-var xhttp           = null;
-var fetch_timers    = [];
-var display_timer   = null;
-var output          = [];
-var dirty           = 1;
+var parsed_url    = new URL(window.location.href);
+var server_host   = window.location.hostname;
+var server_port   = window.location.port;
+var server_path   = "/cgi-bin/tail.cgi"
+var _topic        = parsed_url.searchParams.get("topic")    || topic;
+var _offset       = parsed_url.searchParams.get("offset")   || offset;
+var _count        = parsed_url.searchParams.get("count")    || count;
+var _interval     = parsed_url.searchParams.get("interval") || interval;
+var xhttp         = null;
+var fetch_timer   = null;
+var display_timer = null;
+var output        = [];
+var dirty         = 1;
 
 function start_timer() {
     if (_topic) {
@@ -25,11 +25,15 @@ function start_timer() {
 }
 
 function start_tail() {
-    var prefix_url  = "https://" + server_host + ":" + server_port
-                    + server_path + "/"
-                    + _topic;
-    var server_url  = prefix_url  + "/" + offset + "/" + _count;
+    var prefix_url  = window.location.protocol + "//"
+                    + server_host + ":" + server_port
+                    + server_path + "/" + _topic;
+    var server_url  = prefix_url  + "/" + _offset + "/" + _count;
+    if (double_encode) {
+        server_url += "/1";
+    }
     xhttp = new XMLHttpRequest();
+    // xhttp.timeout = 15000;
     xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
@@ -49,24 +53,21 @@ function start_tail() {
             fetch_timer = setTimeout(tick, 1000, server_url);
         }
     };
-    fetch_timers = setTimeout(tick, 100, server_url);
+    fetch_timer = setTimeout(tick, 100, server_url);
 }
 
 function update_table(msg) {
     if (msg.payload.length) {
-        output.unshift(msg.payload.join(''));
+        output.unshift(msg.payload.reverse().join(''));
+        while (output.length > _count) {
+            output.pop();
+        }
+        dirty = 1;
     }
-    while (output.length > count) {
-        output.pop();
-    }
-    dirty = msg.payload.length;
 }
 
 function display_table() {
     if (dirty) {
-        while (output.length > count) {
-            output.pop();
-        }
         document.getElementById("output").innerHTML = "<pre>"
             + output.join('') + "</pre>";
         dirty = 0;
@@ -74,6 +75,8 @@ function display_table() {
 }
 
 function tick(server_url) {
+    // rewrite server_url match current window.location.protocol
+    server_url = window.location.protocol + "//" + server_url.split("//")[1];
     xhttp.open("GET", server_url, true);
     xhttp.send();
 }
@@ -86,6 +89,8 @@ function playOrPause() {
         clearInterval(display_timer);
         display_timer = null;
         document.getElementById("toggle").innerHTML = "play";
+        xhttp.abort();
+        xhttp = null
     }
     else {
         start_timer();

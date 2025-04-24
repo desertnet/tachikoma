@@ -13,7 +13,7 @@ use Tachikoma::Message qw(
     TYPE FROM STREAM PAYLOAD
     TM_REQUEST TM_ERROR TM_EOF
 );
-use POSIX qw( strftime );
+use POSIX  qw( strftime );
 use parent qw( Tachikoma::Nodes::FileHandle );
 
 use version; our $VERSION = qv('v2.0.280');

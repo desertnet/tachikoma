@@ -14,7 +14,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PING TM_RESPONSE TM_NOREPLY TM_INFO TM_EOF
 );
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent        qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
@@ -66,7 +66,7 @@ sub arguments {
     return $self->{arguments};
 }
 
-sub fill {    ## no critic (ProhibitExcessComplexity)
+sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
@@ -74,51 +74,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         return $self->interpreter->fill($message);
     }
     elsif ( $type & TM_PING ) {
-        my $id      = $message->[ID] or return;
-        my $offline = $self->{offline};
-        if ( $offline->{$id} ) {
-            my $load_balancers = $self->{load_balancers};
-            for my $name ( keys %{$load_balancers} ) {
-                next if ( not $Tachikoma::Nodes{$name} );
-                my $path = $load_balancers->{$name};
-                $self->connect_node( $name, $path
-                    ? join q(/),
-                    $id, $path
-                    : $id );
-            }
-            my $misc = $self->{misc};
-            for my $name ( keys %{$misc} ) {
-                next if ( not $Tachikoma::Nodes{$name} );
-                my $path = $misc->{$name};
-                $self->connect_node( $name, $path
-                    ? join q(/),
-                    $id, $path
-                    : $id );
-            }
-            my $tester = (
-                  $self->{circuit_tester}
-                ? $Tachikoma::Nodes{ $self->{circuit_tester} }
-                : undef
-            );
-            if ( $tester and $tester->isa('Tachikoma::Nodes::CircuitTester') )
-            {
-                $tester->circuits->{ join q(/), $id, $_ } = 1
-                    for ( keys %{ $self->{circuits} } );
-            }
-            for my $path ( keys %{ $self->{controllers}->{$id} } ) {
-                my $port = $self->{controllers}->{$id}->{$path};
-                my $note = Tachikoma::Message->new;
-                $note->[TYPE]    = TM_INFO;
-                $note->[TO]      = join q(/), $id, $path;
-                $note->[PAYLOAD] = hostname();
-                $note->[PAYLOAD] .= q(:) . $port if ($port);
-                $note->[PAYLOAD] .= "\n";
-                $self->SUPER::fill($note);
-            }
-            delete $offline->{$id};
-            $self->{connectors}->{$id} = $Tachikoma::Now;
-            $self->{should_kick} = $Tachikoma::Right_Now + $Kick_Delay;
-        }
+        $self->handle_ping($message);
     }
     elsif ( $type & TM_INFO ) {
         if ( $message->[STREAM] eq 'RECONNECT' ) {
@@ -128,25 +84,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             $self->note_authenticated( $message->[FROM] );
         }
         else {
-            my $payload = $message->[PAYLOAD];
-            chomp $payload;
-            my ( $host, $port, $use_SSL ) = split m{:}, $payload, 3;
-            my $id_regex       = $self->{id_regex};
-            my $hostname_regex = $self->{hostname_regex};
-            my $id             = ( $payload =~ m{$id_regex} )[0];
-            my $hostname       = ( $host =~ m{$hostname_regex} )[0];
-            if ( $id and $hostname ) {
-                $self->add_connector(
-                    id      => $id,
-                    host    => $hostname,
-                    port    => $port,
-                    use_SSL => $use_SSL
-                );
-            }
-            else {
-                $self->stderr(
-                    "WARNING: couldn't get id and hostname from: $payload");
-            }
+            $self->handle_connection($message);
         }
     }
     $self->{counter}++;
@@ -210,6 +148,58 @@ sub fire {
     return;
 }
 
+sub handle_ping {
+    my $self    = shift;
+    my $message = shift;
+    my $id      = $message->[ID] or return;
+    my $offline = $self->{offline};
+    if ( $offline->{$id} ) {
+        my $load_balancers = $self->{load_balancers};
+        for my $name ( keys %{$load_balancers} ) {
+            next if ( not $Tachikoma::Nodes{$name} );
+            my $path = $load_balancers->{$name};
+            $self->connect_node(
+                $name, $path
+                ? join q(/), $id, $path
+                : $id
+            );
+        }
+        my $misc = $self->{misc};
+        for my $name ( keys %{$misc} ) {
+            next if ( not $Tachikoma::Nodes{$name} );
+            my $path = $misc->{$name};
+            $self->connect_node(
+                $name, $path
+                ? join q(/), $id, $path
+                : $id
+            );
+        }
+        my $tester = (
+              $self->{circuit_tester}
+            ? $Tachikoma::Nodes{ $self->{circuit_tester} }
+            : undef
+        );
+        if ( $tester and $tester->isa('Tachikoma::Nodes::CircuitTester') ) {
+            $tester->circuits->{ join q(/), $id, $_ } = 1
+                for ( keys %{ $self->{circuits} } );
+        }
+        for my $path ( keys %{ $self->{controllers}->{$id} } ) {
+            my $port = $self->{controllers}->{$id}->{$path};
+            my $note = Tachikoma::Message->new;
+            $note->[TYPE]    = TM_INFO;
+            $note->[TO]      = join q(/), $id, $path;
+            $note->[PAYLOAD] = hostname();
+            $note->[PAYLOAD] .= q(:) . $port if ($port);
+            $note->[PAYLOAD] .= "\n";
+            $self->SUPER::fill($note);
+        }
+        delete $offline->{$id};
+        $self->{connectors}->{$id} = $Tachikoma::Now;
+        $self->{should_kick} = $Tachikoma::Right_Now + $Kick_Delay;
+    }
+    return;
+}
+
 sub note_reconnect {
     my $self           = shift;
     my $id             = shift;
@@ -219,7 +209,6 @@ sub note_reconnect {
     my $misc           = $self->{misc};
     my $offline        = $self->{offline};
     if ( not $offline->{$id} ) {
-
         for my $name ( keys %{$buffers} ) {
             my $path = $buffers->{$name} or next;
             $self->disconnect_node( $name, $path );
@@ -252,6 +241,31 @@ sub note_authenticated {
         $self->{should_kick} = $Tachikoma::Right_Now + $Kick_Delay;
     }
     $self->set_timer;
+    return;
+}
+
+sub handle_connection {
+    my $self    = shift;
+    my $message = shift;
+    my $payload = $message->[PAYLOAD];
+    chomp $payload;
+    my ( $host, $port, $use_SSL ) = split m{:}, $payload, 3;
+    my $id_regex       = $self->{id_regex};
+    my $hostname_regex = $self->{hostname_regex};
+    my $id             = ( $payload =~ m{$id_regex} )[0];
+    my $hostname       = ( $host    =~ m{$hostname_regex} )[0];
+
+    if ( $id and $hostname ) {
+        $self->add_connector(
+            id      => $id,
+            host    => $hostname,
+            port    => $port,
+            use_SSL => $use_SSL
+        );
+    }
+    else {
+        $self->stderr("WARNING: couldn't get id and hostname from: $payload");
+    }
     return;
 }
 
@@ -648,8 +662,8 @@ sub add_connector {
         $tester->circuits->{ join q(/), $id, $_ } = 1
             for ( keys %{ $self->{circuits} } );
     }
-    $Tachikoma::Nodes{$id}->register( 'RECONNECT'     => $self->name );
-    $Tachikoma::Nodes{$id}->register( 'AUTHENTICATED' => $self->name );
+    $connection->register( 'RECONNECT'     => $self->name );
+    $connection->register( 'AUTHENTICATED' => $self->name );
     return;
 }
 
@@ -701,7 +715,8 @@ sub remove_node {
         $Tachikoma::Nodes{$name}->unregister( 'AUTHENTICATED' => $self->name )
             if ( $Tachikoma::Nodes{$name} );
     }
-    return $self->SUPER::remove_node(@_);
+    $self->SUPER::remove_node;
+    return;
 }
 
 sub dump_config {

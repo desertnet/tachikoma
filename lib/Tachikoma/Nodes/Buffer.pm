@@ -14,18 +14,18 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_RESPONSE TM_ERROR TM_EOF
 );
 use Data::Dumper;
-use POSIX qw( strftime );
+use POSIX  qw( strftime );
 use parent qw( Tachikoma::Nodes::Scheduler );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Clear_Interval  = 900;
-my $Default_Timeout = 900;
-my $Timer_Interval  = 15;
-my $Home            = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir          = "$Home/.tachikoma/buffers";
-my $Counter         = 0;
-my $Default_Max_Attempts = 10;
+my $CLEAR_INTERVAL  = 900;
+my $DEFAULT_TIMEOUT = 900;
+my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR          = "$HOME/.tachikoma/buffers";
+my $COUNTER         = 0;
+my $DEFAULT_MAX_ATTEMPTS = 10;
+my $HEARTBEAT_INTERVAL   = 15;    # seconds
 my %C                    = ();
 
 sub new {
@@ -50,7 +50,7 @@ sub new {
     $self->{last_expire_time} = $Tachikoma::Now;
     $self->{last_buffer}      = undef;
     $self->{delay}            = 0;
-    $self->{timeout}          = $Default_Timeout;
+    $self->{timeout}          = $DEFAULT_TIMEOUT;
     $self->{is_active}        = undef;
     $self->{interpreter}->commands( \%C );
     $self->{registrations}->{MSG_RECEIVED} = {};
@@ -176,7 +176,7 @@ sub handle_response {
 
 sub fire {
     my $self = shift;
-    $self->set_timer( $Timer_Interval * 1000 );
+    $self->set_timer;
 
     # maintain stats
     if ( $Tachikoma::Now - $self->{last_expire_time} > 86400 ) {
@@ -198,7 +198,8 @@ sub fire {
         }
         else {
             $self->set_timer( $timeout - $span )
-                if ( $timeout - $span < $self->{timer_interval} );
+                if ( $timeout - $span
+                < ( $self->{timer_interval} // $HEARTBEAT_INTERVAL * 1000 ) );
         }
     }
     if ( not $self->{owner} ) {
@@ -217,7 +218,7 @@ sub fire {
             # untie and unlink and create a fresh buffer:
             if ( $i == 1 and not $self->get_buffer_size ) {
                 if ( $Tachikoma::Now - $self->{last_clear_time}
-                    > $Clear_Interval )
+                    > $CLEAR_INTERVAL )
                 {
                     if ( tied %{ $self->{tiedhash} } ) {
                         untie %{ $self->{tiedhash} } or warn;
@@ -255,7 +256,7 @@ sub refill {
     my $key            = shift;
     my $tiedhash       = $self->{tiedhash};
     my $msg_unanswered = $self->{msg_unanswered};
-    my $max_attempts   = $self->{max_attempts} || $Default_Max_Attempts;
+    my $max_attempts   = $self->{max_attempts} || $DEFAULT_MAX_ATTEMPTS;
     my $value          = $tiedhash->{$key};
     return if ( $msg_unanswered->{$key} or not defined $value );
     my ( $next_attempt, $attempts, $packed ) = unpack 'F N a*', $value;
@@ -413,8 +414,8 @@ $C{list_messages} = sub {
             my ( $timestamp, $attempts, $packed ) =
                 ( unpack 'F N a*', $tiedhash->{$key} );
             my $message = Tachikoma::Message->unpacked( \$packed );
-            $response .=
-                sprintf "%-31s %8d %8d %25s\n", $key, $attempts,
+            $response
+                .= sprintf "%-31s %8d %8d %25s\n", $key, $attempts,
                 $Tachikoma::Now - $message->[TIMESTAMP],
                 $timestamp
                 ? strftime( '%F %T %Z', localtime $timestamp )
@@ -517,7 +518,7 @@ $C{set_default_max_attempts} = sub {
     if ( $command->arguments =~ m{\D} ) {
         die qq(count must be an integer\n);
     }
-    $Default_Max_Attempts = $command->arguments;
+    $DEFAULT_MAX_ATTEMPTS = $command->arguments;
     return $self->okay($envelope);
 };
 
@@ -637,7 +638,7 @@ $C{stats} = sub {
                 . "persistent messages sent:   $pmsg_sent\n"
                 . "responses received:         $rsp_received\n"
                 . "errors passed:              $errors_passed\n"
-                . "default max attempts:       $Default_Max_Attempts\n"
+                . "default max attempts:       $DEFAULT_MAX_ATTEMPTS\n"
                 . "max attempts:               $max_attempts\n"
                 . "on max attempts:            $on_max_attempts\n"
                 . "delay:                      $delay\n"
@@ -743,7 +744,7 @@ sub dump_config {
         if ( $buffer_mode ne 'normal' );
     $settings .= "  set_delay $delay\n" if ($delay);
     $settings .= "  set_timeout $timeout\n"
-        if ( $timeout ne $Default_Timeout );
+        if ( $timeout ne $DEFAULT_TIMEOUT );
     $response .= "cd $self->{name}\n" . $settings . "cd ..\n" if ($settings);
     return $response;
 }
@@ -757,8 +758,8 @@ sub get_buffer_size {
 
 sub msg_counter {
     my $self = shift;
-    $Counter = ( $Counter + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $Counter;
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
 }
 
 sub msg_sent {
@@ -916,7 +917,7 @@ sub timer {
 
 sub set_timer {
     my ( $self, $span, @args ) = @_;
-    $self->{timer} = $Tachikoma::Right_Now + $span / 1000;
+    $self->{timer} = $Tachikoma::Right_Now + ( $span // 0 ) / 1000;
     return $self->SUPER::set_timer( $span, @args );
 }
 
@@ -940,17 +941,17 @@ sub owner {
 sub default_max_attempts {
     my $self = shift;
     if (@_) {
-        $Default_Max_Attempts = shift;
+        $DEFAULT_MAX_ATTEMPTS = shift;
     }
-    return $Default_Max_Attempts;
+    return $DEFAULT_MAX_ATTEMPTS;
 }
 
 sub db_dir {
     my $self = shift;
     if (@_) {
-        $DB_Dir = shift;
+        $DB_DIR = shift;
     }
-    return $DB_Dir;
+    return $DB_DIR;
 }
 
 1;

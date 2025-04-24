@@ -1,0 +1,102 @@
+#######################################################################
+# fsync destination
+#######################################################################
+
+func fsync_destination {
+    local name             ||= 'fsync';
+    local path             ||= '/usr/local/sync';
+    local user;
+    local count            ||= 4;
+    local delete_threshold //= 60;
+    local mode             ||= 'update';
+    local sources;
+    local listen;
+    local port = [var fsync_ports.<name>];
+    if ( <user> ) [
+        local count = 1;
+    ];
+    if ( ! <port> ) {
+        die "invalid fsync channel: <name>";
+    };
+    if ( <port> !~ '00$' ) {
+        die "invalid fsync port: <port>\n";
+    };
+    if ( ! <sources> ) {
+        return;
+    };
+
+    command jobs start_job CommandInterpreter <name>:destination;
+    cd <name>:destination;
+        set_priority 19;
+        make_node JobController      jobs;
+        make_node CommandInterpreter hosts;
+        make_node Null               null;
+        local args = <path> <delete_threshold> <mode>;
+        if (<user>) {
+            make_node SudoFarmer DirCheck <user> <count> DirCheck <args>;
+        }
+        else {
+            make_node JobFarmer DirCheck <count> DirCheck <args>;
+        };
+        if ( <mode> eq 'update') {
+            if (<user>) {
+                for i (1 .. <count>) {
+                    command jobs start_job CommandInterpreter <name>:destination<i>
+                        make_node SudoFarmer FileReceiver <user> 1 FileReceiver <path>;
+                };
+            }
+            else {
+                for i (1 .. <count>) {
+                    command jobs start_job CommandInterpreter <name>:destination<i>
+                        make_node FileReceiver FileReceiver <path>;
+                };
+            };
+        };
+        local j = 1;
+        for source (<sources>) {
+            if (<mode> eq 'update') {
+                for i (1 .. <count>) {
+                    local bridge_port = <port> + (<i> * 10) + 1;
+                    command <name>:destination<i> connect_inet --scheme=rsa
+                                                               --use-ssl
+                                                               --owner=FileReceiver
+                                                               --host=<source>
+                                                               --port=<bridge_port>;
+                };
+            };
+            command hosts connect_inet --scheme=rsa
+                                       --use-ssl
+                                       --owner=DirCheck
+                                       --host=<source>
+                                       --port=(<port> + 2)
+                                       --name=dirstats<j>;
+            j++;
+        };
+        for listen (<listen>) {
+            print "  listen_inet --scheme=rsa <listen>";
+        };
+        if ( <mode> eq 'update') {
+            for i (1 .. <count>) {
+                command <name>:destination<i> secure 3;
+            };
+        };
+        secure 3;
+    cd ..;
+    return;
+};
+
+
+
+var fsync_ports.fsync = 5600;
+
+{
+    local name             = fsync;
+    local path             = /home/tachikoma/.tachikoma/fsync;
+    local user             = ;
+    local count            = 4;
+    local delete_threshold = 60;
+    local mode             = ;
+    local sources          = docker1.lan;
+    local listen           = ;
+    fsync_destination;
+};

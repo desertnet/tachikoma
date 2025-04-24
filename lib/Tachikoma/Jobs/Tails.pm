@@ -9,8 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::CommandInterpreter;
-use Tachikoma::Nodes::Shell2;
-use Tachikoma::Nodes::Responder;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Nodes::FileWatcher;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Tail;
@@ -20,30 +19,29 @@ use Tachikoma::Message qw(
 );
 use BerkeleyDB;
 use Digest::MD5 qw( md5 );
-use parent qw( Tachikoma::Job );
+use parent      qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Home   = Tachikoma->configuration->home || ( getpwuid $< )[7];
-my $DB_Dir = "$Home/.tachikoma/tails";
-my $Offset_Interval = 1;      # write offsets this often
-my $Scan_Interval   = 15;     # check files this often
-my $Startup_Delay   = -10;    # offset from scan interval
-my $Default_Timeout = 300;    # message timeout for tails
+my $HOME            = Tachikoma->configuration->home || ( getpwuid $< )[7];
+my $DB_DIR          = "$HOME/.tachikoma/tails";
+my $OFFSET_INTERVAL = 1;      # write offsets this often
+my $SCAN_INTERVAL   = 15;     # check files this often
+my $STARTUP_DELAY   = -10;    # offset from scan interval
+my $DEFAULT_TIMEOUT = 180;    # message timeout for tails
 
 sub initialize_graph {
     my $self         = shift;
     my $name         = $self->name;
     my $interpreter  = Tachikoma::Nodes::CommandInterpreter->new;
-    my $shell        = Tachikoma::Nodes::Shell2->new;
-    my $responder    = Tachikoma::Nodes::Responder->new;
+    my $shell        = Tachikoma::Nodes::Shell3->new;
     my $file_watcher = Tachikoma::Nodes::FileWatcher->new;
+    Tachikoma->nodes->{_responder}->shell($shell);
+    $shell->sink($interpreter);
     $self->connector->sink($interpreter);
+
     $shell->sink($interpreter);
     $interpreter->name('_command_interpreter');
-    $responder->name('_responder');
-    $responder->shell($shell);
-    $responder->sink( $self->router );
     $self->interpreter($interpreter);
     $file_watcher->name('_file_watcher');
     $file_watcher->sink($self);
@@ -51,8 +49,9 @@ sub initialize_graph {
     $self->tails( {} );
     $self->files( {} );
     $self->sink( $self->router );
-    $self->timer->set_timer( $Offset_Interval * 1000 );
-    $self->last_scan( $Tachikoma::Now + $Startup_Delay );
+    $self->timeout($DEFAULT_TIMEOUT);
+    $self->timer->set_timer( $OFFSET_INTERVAL * 1000 );
+    $self->last_scan( $Tachikoma::Now + $STARTUP_DELAY );
     $interpreter->sink($self);
     $interpreter->commands->{'add_tail'} = sub {
         my $this     = shift;
@@ -91,8 +90,8 @@ sub initialize_graph {
         my $this     = shift;
         my $command  = shift;
         my $envelope = shift;
-        $self->timer->set_timer( $Offset_Interval * 1000 );
-        $self->last_scan( $Tachikoma::Now + $Startup_Delay );
+        $self->timer->set_timer( $OFFSET_INTERVAL * 1000 );
+        $self->last_scan( $Tachikoma::Now + $STARTUP_DELAY );
         return $this->okay($envelope);
     };
     $interpreter->commands->{'stop_tail'} = sub {
@@ -105,6 +104,19 @@ sub initialize_graph {
             $watcher->remove_node if ($watcher);
         }
         $self->timer->stop_timer;
+        return $this->okay($envelope);
+    };
+    $interpreter->commands->{'set_timeout'} = sub {
+        my $this     = shift;
+        my $command  = shift;
+        my $envelope = shift;
+        my $interval = $command->arguments;
+        die "usage: set_timeout <interval>\n" if ( not $interval );
+        $self->timeout($interval);
+        for my $file ( keys %{ $self->tails } ) {
+            my $node = $Tachikoma::Nodes{"$file:tail"};
+            $node->timeout($interval) if ($node);
+        }
         return $this->okay($envelope);
     };
     $interpreter->commands->{'list_files'} = sub {
@@ -160,7 +172,7 @@ sub fill {
     elsif ( $message->from eq '_timer' ) {
         my $tiedhash = $self->tiedhash;
         my $files    = $self->{files};
-        if ( $Tachikoma::Now - $self->{last_scan} >= $Scan_Interval ) {
+        if ( $Tachikoma::Now - $self->{last_scan} >= $SCAN_INTERVAL ) {
             $self->rescan_files;
         }
         for my $file ( keys %{$files} ) {
@@ -197,13 +209,13 @@ sub rescan_files {
             $tail->arguments($arguments);
             $tail->buffer_mode('line-buffered');
             $tail->max_unanswered(256);
-            $tail->timeout($Default_Timeout);
+            $tail->timeout( $self->timeout );
             $tail->owner($node_path);
             $tail->sink( $self->router );
             my $message = Tachikoma::Message->new;
             $message->type(TM_BYTESTREAM);
             $message->payload($path);
-            $self->{file_watcher}->fill($message);
+            $self->file_watcher->fill($message);
         }
     }
     my $tiedhash = $self->tiedhash;
@@ -279,7 +291,7 @@ sub tiedhash {
             # defunk
             tie %h, 'BerkeleyDB::Btree',
                 -Filename => $path,
-                -Mode     => 0600
+                -Mode     => oct 600
                 or warn "couldn't tie $path: $!";
             %copy = %h;
             untie %h     or warn "couldn't untie $path: $!";
@@ -288,7 +300,7 @@ sub tiedhash {
         tie %h, 'BerkeleyDB::Btree',
             -Filename => $path,
             -Flags    => DB_CREATE,
-            -Mode     => 0600
+            -Mode     => oct 600
             or die "couldn't tie $path: $!\n";
         %h = %copy if ( keys %copy );
         return $self->{tiedhash} = \%h;
@@ -299,9 +311,9 @@ sub tiedhash {
 sub db_dir {
     my $self = shift;
     if (@_) {
-        $DB_Dir = shift;
+        $DB_DIR = shift;
     }
-    return $DB_Dir;
+    return $DB_DIR;
 }
 
 sub filename {
@@ -313,6 +325,14 @@ sub filename {
         $self->{filename} = $self->{name} . '.db';
     }
     return $self->{filename};
+}
+
+sub timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{timeout} = shift;
+    }
+    return $self->{timeout};
 }
 
 sub timer {

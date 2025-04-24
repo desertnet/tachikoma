@@ -14,13 +14,13 @@ use Tachikoma::Message qw(
 );
 use Digest::MD5;
 use File::Path qw( remove_tree );
-use parent qw( Tachikoma::Job );
+use parent     qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.368');
 
-# my $Separator   = chr 0;
-my $Separator = join q(), chr 30, q( -> ), chr 30;
-my %Dot_Include = map { $_ => 1 } qw(
+# my $SEPARATOR   = chr 0;
+my $SEPARATOR   = join q(), chr 30, q( -> ), chr 30;
+my %DOT_INCLUDE = map { $_ => 1 } qw(
     .htaccess
     .svn
     .git
@@ -72,7 +72,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my ( $stat, $size, $perms, $last_modified, $digest, $entry ) =
             ( split m{\s}, $line, 6 );
         my $link;
-        ( $entry, $link ) = split $Separator, $entry, 2
+        ( $entry, $link ) = split $SEPARATOR, $entry, 2
             if ( $stat eq 'L' );
         $other{$entry} =
             [ $stat, $size, $perms, $last_modified, $digest, $link ];
@@ -109,7 +109,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
         my @lstat         = lstat $my_path_entry;
         next if ( not @lstat );
         my $last_modified = $lstat[9];
-        if ( $entry =~ m{^[.]} and not $Dot_Include{$entry} ) {
+        if ( $entry =~ m{^[.]} and not $DOT_INCLUDE{$entry} ) {
             if (    $entry =~ m{^[.]temp-\w{16}$}
                 and $mode eq 'update'
                 and $Tachikoma::Now - $last_modified > 3600 )
@@ -121,15 +121,15 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
             }
             next;
         }
-        my $stat = ( -l _ )         ? 'L'       : ( -d _ ) ? 'D' : 'F';
-        my $size = ( $stat eq 'F' ) ? $lstat[7] : q(-);
-        my $perms         = sprintf '%04o', $lstat[2] & 07777;
+        my $stat          = ( -l _ ) ? 'L' : ( -d _ ) ? 'D' : 'F';
+        my $size          = ( $stat eq 'F' ) ? $lstat[7] : q(-);
+        my $perms         = sprintf '%04o', $lstat[2] & oct 7777;
         my $other_entry   = $other{$entry};
-        my $their_stat    = $other_entry ? $other_entry->[0] : q();
-        my $their_size    = $other_entry ? $other_entry->[1] : q(-);
-        my $their_perms   = $other_entry ? $other_entry->[2] : q();
-        my $my_is_dir     = ( $stat eq 'D' ) ? 1 : 0;
-        my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1 : 0;
+        my $their_stat    = $other_entry           ? $other_entry->[0] : q();
+        my $their_size    = $other_entry           ? $other_entry->[1] : q(-);
+        my $their_perms   = $other_entry           ? $other_entry->[2] : q();
+        my $my_is_dir     = ( $stat eq 'D' )       ? 1                 : 0;
+        my $theirs_is_dir = ( $their_stat eq 'D' ) ? 1                 : 0;
         my $digest        = q(-);
         my $theirs_exists = exists $other{$entry};
 

@@ -9,15 +9,16 @@ use warnings;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::TTY qw( TK_R TK_SYNC );
-use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Nodes::CommandInterpreter;
 use Tachikoma::Nodes::Responder;
+use Tachikoma::Nodes::Echo;
 use Tachikoma::Nodes::Dumper;
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Message qw( TYPE FROM PAYLOAD TM_BYTESTREAM TM_EOF );
 use Tachikoma::Config;
 use Getopt::Long qw( GetOptions );
-use POSIX qw( isatty );
+use POSIX        qw( isatty );
 
 use version; our $VERSION = qv('v2.0.192');
 
@@ -48,6 +49,8 @@ my $r = GetOptions(
 );
 my @arguments = @ARGV;
 my $filename  = $arguments[0];
+$debug_level = 1 if ( defined $debug_level and not $debug_level );
+$debug_state = 1 if ( defined $debug_state and not $debug_state );
 
 usage() if ( $help or not $r );
 my $config = Tachikoma->configuration;
@@ -60,9 +63,10 @@ $verbose = 'true' if ($debug_level);
 $config->debug_level($debug_level);
 
 my $stdin     = undef;
-my $shell     = Tachikoma::Nodes::Shell2->new;
+my $shell     = Tachikoma::Nodes::Shell3->new;
 my $tachikoma = Tachikoma::Nodes::CommandInterpreter->new;
 my $responder = Tachikoma::Nodes::Responder->new;
+my $echo      = Tachikoma::Nodes::Echo->new;
 my $dumper    = Tachikoma::Nodes::Dumper->new;
 my $shutdown  = Tachikoma::Nodes::Shutdown->new;
 my $stdout    = Tachikoma::Nodes::TTY->filehandle( *STDOUT, TK_SYNC );
@@ -80,8 +84,13 @@ $responder->name('_responder');
 $responder->owner('_stdout');
 $responder->shell($shell);
 attach($responder);
+
+$echo->name('_return_to_sender');
+$echo->sink($router);
+
 $node = $router;
 $tachikoma->name('_command_interpreter');
+$tachikoma->debug_state($debug_state);
 attach($tachikoma);
 $shell->show_commands($verbose);
 $shell->want_reply($verbose);
@@ -92,8 +101,8 @@ $Tachikoma::Right_Now = $Tachikoma::Now;
 
 if ( length $filename ) {
     my @values = @arguments;
-    $config->{var}->{$_} = $values[$_] for ( 1 .. $#values );
-    $config->{var}->{q(0)} = shift @values;
+    $config->{var}->{$_}    = $values[$_] for ( 1 .. $#values );
+    $config->{var}->{q(0)}  = shift @values;
     $config->{var}->{q(@)}  = join q( ), @values;
     $config->{var}->{q(_C)} = scalar @values;
     my @lines = ();

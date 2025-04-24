@@ -9,6 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::Shell;
+use Tachikoma::Nodes::Shell3;
 use Tachikoma::Message qw(
     TYPE FROM TO PAYLOAD
     TM_BYTESTREAM TM_STORABLE TM_COMMAND TM_PING TM_EOF
@@ -17,7 +18,7 @@ use Tachikoma::Message qw(
 use Tachikoma::Command;
 use Carp;
 use Data::Dumper qw( Dumper );
-use Storable qw( nfreeze );
+use Storable     qw( nfreeze );
 my $USE_JSON;
 
 BEGIN {
@@ -40,7 +41,7 @@ my $ident_re  = qr{[^ . + \- * / # () {} \[\] ! = & | ; " ' ` \s \\ ]+}x;
 my $not_op_re = qr{(?: [.](?![.=]) | [+](?![+=]) | -(?![-=])
                                    | [*](?![=])  | /(?![/=]) )*}x;
 my $math_re    = qr{ [+](?![+=]) | -(?![-=]) | [*](?![=]) | /(?![/=]) }x;
-my $logical_re = qr{ !~ | =~ | !=? | <=? | >=? | == }x;
+my $logical_re = qr{ !~ | =~ | != | <=? | >=? | == }x;
 
 my %TOKENS = (
     whitespace => qr{\s+},
@@ -51,6 +52,7 @@ my %TOKENS = (
                        | //=? | [+]=   | -= | [*]= | /= | = )}x,
     and           => qr{&&},
     or            => qr{[|][|]},
+    not           => qr{!},
     command       => qr{[;&]},
     pipe          => qr{[|]},
     open_paren    => qr{[(]},
@@ -76,6 +78,7 @@ my @TOKEN_TYPES = qw(
     op
     and
     or
+    not
     command
     pipe
     open_paren
@@ -101,17 +104,13 @@ $re = $re ? "$re|$TOKENS{$_}(?{'$_'})" : "$TOKENS{$_}(?{'$_'})"
 my $TRIE = qr{\G(?:$re)};
 no re 'eval';
 
-my %IDENT   = map { $_ => 1 } qw( ident whitespace number leaf );
-my %STRINGS = map { $_ => 1 } qw( string1 string2 string3 string4 );
-my %PARTIAL = map { $_ => 1 } qw( string1 string2 string3 );
-my %LOGICAL = map { $_ => 1 } qw( command and or pipe );
-my %SYNTAX  = map { $_ => 1 } qw(
-    open_paren   close_paren
-    open_brace   close_brace
-    open_bracket close_bracket leaf );
-my %OPEN    = map { $_ => 1 } qw( open_paren open_brace open_bracket );
-my %CLOSE   = map { $_ => 1 } qw( close_paren close_brace close_bracket );
-my %COMMAND = map { $_ => 1 } qw( open_brace open_bracket command pipe );
+my %IDENT    = map { $_ => 1 } qw( ident whitespace number leaf );
+my %STRINGS  = map { $_ => 1 } qw( string1 string2 string3 string4 );
+my %PARTIAL  = map { $_ => 1 } qw( string1 string2 string3 );
+my %LOGICAL  = map { $_ => 1 } qw( and or not command pipe );
+my %OPEN     = map { $_ => 1 } qw( open_paren open_brace open_bracket );
+my %CLOSE    = map { $_ => 1 } qw( close_paren close_brace close_bracket );
+my %COMMAND  = map { $_ => 1 } qw( open_brace open_bracket command pipe );
 my %MATCHING = (
     open_paren   => 'close_paren',
     open_brace   => 'close_brace',
@@ -132,7 +131,7 @@ my %SPECIAL = (
 my %EVALUATORS = ();
 my %BUILTINS   = ();
 my %OPERATORS  = ();
-my %LOCAL      = ();
+my @LOCAL      = ( {} );
 my %SHARED     = ();
 ## no critic (ProhibitTies)
 tie %SHARED, 'Tachikoma::Nodes::Shell2';
@@ -259,18 +258,19 @@ sub process_bytestream {
     }
     else {
         $message->to( $self->path );
-        $message->stream( $LOCAL{'message.stream'} );
+        $message->stream( $self->get_shared('message.stream') );
         $self->sink->fill($message);
     }
     return;
 }
 
 sub parse {    ## no critic (ProhibitExcessComplexity)
-    my $self       = shift;
-    my $proto      = shift;
-    my $expecting  = shift;
-    my $parse_tree = undef;
-    my $input_ref  = ref $proto ? $proto : \$proto;
+    my $self        = shift;
+    my $proto       = shift;
+    my $expecting   = shift;
+    my $parse_tree  = undef;
+    my $last_branch = undef;
+    my $input_ref   = ref $proto ? $proto : \$proto;
     $expecting ||= 'eos';
     while ( my $tok = $self->get_next_token($input_ref) ) {
         next
@@ -312,6 +312,10 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $tok->{value} = [$inner];
             $this_branch = $tok;
         }
+        elsif ( $tok->{type} eq 'not' ) {
+            $tok->{value} = [];
+            $this_branch = $tok;
+        }
         elsif ( $LOGICAL{ $tok->{type} } ) {
             $self->fatal_parse_error('unexpected logical operator')
                 if ( not $parse_tree );
@@ -347,11 +351,28 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
             $this_branch = $tok;
         }
         if ($this_branch) {
+            $self->stderr(
+                sprintf "%s -> %s -> %s",
+                $parse_tree ? $parse_tree->{type} : '/',
+                $this_branch->{type},
+                Dumper( $this_branch->{value} )
+            ) if ( $self->show_parse );
             my $cursor = undef;
-            $cursor = $parse_tree->{value}->[-1]
-                if ($parse_tree
+            if (    $parse_tree
                 and $LOGICAL{ $parse_tree->{type} }
-                and $this_branch->{type} ne 'leaf' );
+                and $this_branch->{type} ne 'leaf' )
+            {
+                $cursor = $parse_tree->{value}->[-1];
+            }
+            if (    $last_branch
+                and $last_branch->{type} eq 'not'
+                and $this_branch->{type} ne 'leaf' )
+            {
+                $cursor = $last_branch;
+            }
+            else {
+                $last_branch = $this_branch;
+            }
             my $branch = $cursor || $parse_tree;
             if ($branch) {
                 push @{ $branch->{value} }, $this_branch;
@@ -493,19 +514,18 @@ $EVALUATORS{'open_bracket'} = sub {
 
 # localize variables and evaluate statements
 $EVALUATORS{'open_brace'} = sub {
-    my $self      = shift;
-    my $raw_tree  = shift;
-    my $values    = $raw_tree->{value};
-    my $rv        = [];
-    my %old_local = ();
-    %old_local = %LOCAL;
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $values   = $raw_tree->{value};
+    my $rv       = [];
+    unshift @LOCAL, {};
 
     # send contents of braces as a command:
     my $command = $values->[0];
     my $result  = undef;
     $result = $self->send_command($command) if ( ref $command );
     push @{$rv}, @{$result} if ( defined $result );
-    %LOCAL = %old_local;
+    shift @LOCAL;
 
     # evaluate statements after the close bracket:
     $self->evaluate_splice( $values, $rv, 1 );
@@ -518,8 +538,8 @@ $EVALUATORS{'open_paren'} = sub {
     my $raw_tree = shift;
     my $values   = $raw_tree->{value};
     my $first    = $values->[0];
-    my $trimmed  = ref $first ? $self->trim($first) : undef;
-    my $inner    = $trimmed ? $trimmed->{value} : [];
+    my $trimmed  = ref $first     ? $self->trim($first)       : undef;
+    my $inner    = $trimmed       ? $trimmed->{value}         : [];
     my $op       = @{$inner} == 3 ? $inner->[1]->{value}->[0] : undef;
     my $rv       = undef;
 
@@ -572,6 +592,18 @@ $EVALUATORS{'logical'} = sub {
     return [ $raw_tree->{value}->[0] ];
 };
 
+$EVALUATORS{'not'} = sub {
+    my $self      = shift;
+    my $raw_tree  = shift;
+    my $test_tree = $self->fake_tree( 'open_paren', $raw_tree->{value} );
+    my $rv        = $self->evaluate($test_tree);
+    shift @{$rv} while ( @{$rv} and $rv->[0]  !~ m{\S} );
+    pop @{$rv}   while ( @{$rv} and $rv->[-1] !~ m{\S} );
+    my $test = join q(), @{$rv};
+    $test =~ s{^\s*|\s*$}{}g;
+    return ( $test ? [0] : [1] );
+};
+
 $EVALUATORS{'and'} = sub {
     my $self     = shift;
     my $raw_tree = shift;
@@ -579,7 +611,7 @@ $EVALUATORS{'and'} = sub {
     if ( @{ $raw_tree->{value} } > 1 ) {
         for my $branch ( @{ $raw_tree->{value} } ) {
             $rv = $self->evaluate(
-                  $OPEN{ $branch->{type} }
+                ( $OPEN{ $branch->{type} } or $LOGICAL{ $branch->{type} } )
                 ? $branch
                 : $self->fake_tree( 'open_paren', $branch->{value} )
             );
@@ -599,7 +631,7 @@ $EVALUATORS{'or'} = sub {
     my $rv       = [];
     for my $branch ( @{ $raw_tree->{value} } ) {
         $rv = $self->evaluate(
-              $OPEN{ $branch->{type} }
+            ( $OPEN{ $branch->{type} } or $LOGICAL{ $branch->{type} } )
             ? $branch
             : $self->fake_tree( 'open_paren', $branch->{value} )
         );
@@ -657,10 +689,10 @@ $EVALUATORS{'pipe'} = sub {
     else {
         $self->callbacks->{$id} = $functions[0];
     }
-    my $old_local = $self->set_local( { 'message.from' => '_responder' } );
+    unshift @LOCAL, { 'message.from' => '_responder' };
     $self->send_command($cmd_tree);
-    $self->restore_local($old_local);
-    $self->fatal_parse_error('no command for pipe') if ( $self->message_id );
+    shift @LOCAL;
+    $self->message_id(undef);
     return [];
 };
 
@@ -710,7 +742,7 @@ $BUILTINS{'read'} = sub {
 
     if ($name) {
         chomp $line;
-        $LOCAL{$name} = $line;
+        $LOCAL[0]->{$name} = $line;
         return [];
     }
     else {
@@ -725,9 +757,32 @@ $BUILTINS{'print'} = sub {
     my $raw_tree   = shift;
     my $parse_tree = $self->trim($raw_tree);
     $self->fatal_parse_error('bad arguments for print')
-        if ( @{ $parse_tree->{value} } > 2 );
+        if ( @{ $parse_tree->{value} } != 2 );
     my $argument_tree = $parse_tree->{value}->[1];
     my $output        = join q(), @{ $self->evaluate($argument_tree) };
+    syswrite STDOUT, $output or die if ( length $output );
+    return [];
+};
+
+$H{'catn'} = [qq(<command> | catn\n)];
+
+$BUILTINS{'catn'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for catn')
+        if ( @{ $parse_tree->{value} } > 3 );
+    my $arg1  = $parse_tree->{value}->[1];
+    my $lines = join q(), @{ $self->evaluate($arg1) };
+    $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
+    $self->fatal_parse_error('bad arguments for catn')
+        if ( not defined $lines );
+    my $output = q();
+    my $i      = 1;
+
+    for my $line ( split m{^}, $lines ) {
+        $output .= sprintf "%5d %s", $i++, $line;
+    }
     syswrite STDOUT, $output or die if ( length $output );
     return [];
 };
@@ -744,7 +799,9 @@ $BUILTINS{'grep'} = sub {
     my $arg2  = $parse_tree->{value}->[2];
     my $regex = join q(), @{ $self->evaluate($arg1) };
     my $lines = join q(), @{ $self->evaluate($arg2) };
-    $lines = $LOCAL{q(@)} if ( not length $lines );
+    $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
+    $self->fatal_parse_error('bad arguments for grep')
+        if ( not defined $lines );
     my $output = q();
 
     for my $line ( split m{^}, $lines ) {
@@ -752,6 +809,61 @@ $BUILTINS{'grep'} = sub {
     }
     syswrite STDOUT, $output or die if ( length $output );
     return [];
+};
+
+$H{'grepv'} = [qq(<command> | grepv <regex>\n)];
+
+$BUILTINS{'grepv'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for grepv')
+        if ( @{ $parse_tree->{value} } > 3 );
+    my $arg1  = $parse_tree->{value}->[1];
+    my $arg2  = $parse_tree->{value}->[2];
+    my $regex = join q(), @{ $self->evaluate($arg1) };
+    my $lines = join q(), @{ $self->evaluate($arg2) };
+    $lines = $LOCAL[0]->{q(@)} if ( not length $lines );
+    $self->fatal_parse_error('bad arguments for grepv')
+        if ( not defined $lines );
+    my $output = q();
+
+    for my $line ( split m{^}, $lines ) {
+        $output .= $line if ( $line !~ m{$regex} );
+    }
+    syswrite STDOUT, $output or die if ( length $output );
+    return [];
+};
+
+$H{'rand'} = [qq(rand [ <int> ]\n)];
+
+$BUILTINS{'rand'} = sub {
+    my $self       = shift;
+    my $raw_tree   = shift;
+    my $parse_tree = $self->trim($raw_tree);
+    $self->fatal_parse_error('bad arguments for rand')
+        if ( @{ $parse_tree->{value} } > 2 );
+    my $arg1 = $parse_tree->{value}->[1];
+    my $int  = join q(), @{ $self->evaluate($arg1) };
+    $self->fatal_parse_error('bad arguments for rand')
+        if ( $int =~ m{\D} );
+    $int ||= 2;
+    return [ int rand $int ];
+};
+
+$H{'randarg'} = [qq(randarg <list>\n)];
+
+$BUILTINS{'randarg'} = sub {
+    my $self     = shift;
+    my $raw_tree = shift;
+    my $line     = join q(), @{ $self->evaluate($raw_tree) };
+    my ( $proto, @args ) = split q( ), $line;
+    $self->fatal_parse_error('bad arguments for randarg')
+        if ( not @args );
+    my $int  = @args;
+    my $rand = int rand($int);
+    my $arg  = $args[$rand];
+    return [$arg];
 };
 
 for my $type (qw( local var env )) {
@@ -781,7 +893,7 @@ for my $type (qw( local var env )) {
         my $hash = undef;
 
         if ( $type eq 'local' ) {
-            $hash = \%LOCAL;
+            $hash = $LOCAL[0];
         }
         elsif ( $type eq 'env' ) {
             $hash = \%ENV;
@@ -794,6 +906,7 @@ for my $type (qw( local var env )) {
         my $rv  = [];
 
         if ( length $op ) {
+            $hash->{$key} = $self->get_local($key) if ( $type eq 'local' );
             if ( $type eq 'env' ) {
                 $rv = $self->operate_env( $hash, $key, $op, $value_tree );
             }
@@ -802,6 +915,7 @@ for my $type (qw( local var env )) {
             }
         }
         elsif ( length $key ) {
+            $hash->{$key} = $self->get_local($key) if ( $type eq 'local' );
             $hash->{$key} //= q();
             if ( ref $hash->{$key} ) {
                 $rv = $hash->{$key};
@@ -809,6 +923,30 @@ for my $type (qw( local var env )) {
             else {
                 $rv = [ $hash->{$key} ];
             }
+        }
+        elsif ( $type eq 'local' ) {
+            my $layer = 0;
+            for my $hash (@LOCAL) {
+                push @{$rv}, sprintf "### LAYER %d:\n", $layer++;
+                for my $key ( sort keys %{$hash} ) {
+                    my $output = "$key=";
+                    if ( ref $hash->{$key} ) {
+                        $output
+                            .= '["'
+                            . join( q(", "), grep m{\S}, @{ $hash->{$key} } )
+                            . '"]';
+                    }
+                    else {
+                        $output .= $hash->{$key} // q();
+                    }
+                    chomp $output;
+                    push @{$rv}, "$output\n";
+                }
+                push @{$rv}, "\n" if $layer < @LOCAL;
+            }
+            my $output = join q(), @{$rv};
+            syswrite STDOUT, $output or die if ($output);
+            $rv = [];
         }
         else {
             for my $key ( sort keys %{$hash} ) {
@@ -844,24 +982,23 @@ $BUILTINS{'shift'} = sub {
     $key = join q(), @{ $self->evaluate($key_tree) } if ($key_tree);
     $self->fatal_parse_error('bad arguments for shift')
         if ( @{ $parse_tree->{value} } > 2 );
-    my $hash = undef;
+    my $hash = $self->get_local_hash($key);
 
-    if ( defined $LOCAL{$key} ) {
-        $hash = \%LOCAL;
-    }
-    elsif ( defined $self->{configuration}->{var}->{$key} ) {
-        $hash = $self->{configuration}->{var};
-    }
-    else {
-        $self->stderr( "WARNING: use of uninitialized value <$key>,",
-            " line $self->{counter}\n" );
-        return [];
+    if ( not defined $hash ) {
+        if ( defined $self->{configuration}->{var}->{$key} ) {
+            $hash = $self->{configuration}->{var};
+        }
+        else {
+            $self->stderr( "WARNING: use of uninitialized value <$key>,",
+                " line $self->{counter}\n" );
+            return [];
+        }
     }
     my $value = $hash->{$key};
     my $rv    = undef;
     if ( ref $value ) {
         $rv = [ shift @{$value} // q() ];
-        shift @{$value} if ( @{$value} and $value->[0] =~ m{^\s*$} );
+        shift @{$value}     if ( @{$value} and $value->[0] =~ m{^\s*$} );
         $hash->{$key} = q() if ( not @{$value} );
     }
     else {
@@ -972,22 +1109,6 @@ $BUILTINS{'else'} = sub {
     return [];
 };
 
-$H{'not'} = [
-    qq(not <expression>;\n),
-    qq(    ex: if (not 0 > 1;) { print "nope\\n" }\n)
-];
-
-# XXX: requires a semicolon in expressions to execute...
-# e.g. if (not 0 > 1;) { ... }
-$BUILTINS{'not'} = sub {
-    my $self      = shift;
-    my $raw_tree  = shift;
-    my $test_tree = $self->fake_tree( 'open_paren', $raw_tree->{value}, 1 );
-    my $test      = join q(), @{ $self->evaluate($test_tree) };
-    $test =~ s{^\s*|\s*$}{}g;
-    return [ not $test ];
-};
-
 $H{'for'} = [
     "for <var> (<commands>) { <commands> }\n",
     qq(    ex: for i (one two three) { print "<i>\\n" }\n)
@@ -1016,28 +1137,19 @@ $BUILTINS{'for'} = sub {
         or not ref $do_tree
         or not @{ $do_tree->{value} }
         or @{ $raw_tree->{value} } > $i );
-    my %old_local = ();
-    $old_local{$_} = $LOCAL{$_}
-        for ( grep exists $LOCAL{$_}, qw( index total ), $var );
+    unshift @LOCAL, {};
     my $result = $self->evaluate($each_tree);
-    $LOCAL{index} = [1];
-    $LOCAL{total} = [ scalar grep m{\S}, @{$result} ];
+    $LOCAL[0]->{index} = [1];
+    $LOCAL[0]->{total} = [ scalar grep m{\S}, @{$result} ];
     my $rv = [];
 
     for my $i ( @{$result} ) {
         next if ( $i !~ m{\S} );
-        $LOCAL{$var} = [$i];
+        $LOCAL[0]->{$var} = [$i];
         $rv = $self->evaluate($do_tree);
-        $LOCAL{index}->[0]++;
+        $LOCAL[0]->{index}->[0]++;
     }
-    for my $key ( qw( index total ), $var ) {
-        if ( exists $old_local{$key} ) {
-            $LOCAL{$key} = $old_local{$key};
-        }
-        else {
-            delete $LOCAL{$key};
-        }
-    }
+    shift @LOCAL;
     return $rv;
 };
 
@@ -1113,11 +1225,16 @@ $BUILTINS{'include'} = sub {
         $shell = Tachikoma::Nodes::Shell->new;
         $shell->sink( $self->sink );
     }
+    elsif ( $lines[0] eq "v3\n" ) {
+        shift @lines;
+        $shell = Tachikoma::Nodes::Shell3->new;
+        $shell->sink( $self->sink );
+    }
     else {
         shift @lines if ( $lines[0] eq "v2\n" );
         $shell = $self;
     }
-    my $old_local = $self->set_local( \%new_local );
+    unshift @LOCAL, \%new_local;
     for my $line (@lines) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_BYTESTREAM;
@@ -1125,7 +1242,7 @@ $BUILTINS{'include'} = sub {
         $message->[PAYLOAD] = $line;
         $shell->fill($message);
     }
-    $self->restore_local($old_local);
+    shift @LOCAL;
     return [];
 };
 
@@ -1202,8 +1319,6 @@ $BUILTINS{'die'} = sub {
     my $value_tree = $parse_tree->{value}->[1];
     $self->fatal_parse_error('bad arguments for die')
         if ( @{ $parse_tree->{value} } > 2 );
-    delete $self->callbacks->{ $self->message_id }
-        if ( $self->{message_id} );
     my $value = join q(), @{ $self->evaluate($value_tree) };
     die "DIE:$value\n";
 };
@@ -1217,8 +1332,6 @@ $BUILTINS{'confess'} = sub {
     my $value_tree = $parse_tree->{value}->[1];
     $self->fatal_parse_error('bad arguments for confess')
         if ( @{ $parse_tree->{value} } > 2 );
-    delete $self->callbacks->{ $self->message_id }
-        if ( $self->{message_id} );
     my $value = join q(), @{ $self->evaluate($value_tree) };
     confess "CONFESS:$value\n";
 };
@@ -1315,8 +1428,9 @@ $BUILTINS{'tell_node'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_INFO);
-    $message->from( $LOCAL{'message.from'}     // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} // q() );
+    $message->from( $self->get_shared('message.from')     // '_responder' );
+    $message->stream( $self->get_shared('message.stream') // q() );
+    $message->id( $self->message_id                       // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1334,8 +1448,9 @@ $BUILTINS{'request_node'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_REQUEST);
-    $message->from( $LOCAL{'message.from'}     // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} // q() );
+    $message->from( $self->get_shared('message.from')     // '_responder' );
+    $message->stream( $self->get_shared('message.stream') // q() );
+    $message->id( $self->message_id                       // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1368,8 +1483,9 @@ $BUILTINS{'send_node'} = sub {
     my $payload = join q(), @{$payload_rv};
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
-    $message->from( $LOCAL{'message.from'} // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} );
+    $message->from( $self->get_shared('message.from') // '_responder' );
+    $message->stream( $self->get_shared('message.stream') );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
     return [ $self->sink->fill($message) ];
@@ -1388,8 +1504,9 @@ $BUILTINS{'send_hash'} = sub {
     my ( $proto, $path, $payload ) = split q( ), $line, 3;
     my $message = Tachikoma::Message->new;
     $message->type(TM_STORABLE);
-    $message->from( $LOCAL{'message.from'} // '_responder' );
-    $message->stream( $LOCAL{'message.stream'} );
+    $message->from( $self->get_shared('message.from') // '_responder' );
+    $message->stream( $self->get_shared('message.stream') );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $json->decode($payload) );
     return [ $self->sink->fill($message) ];
@@ -1423,7 +1540,7 @@ $BUILTINS{'ping'} = sub {
     my ( $proto, $path ) = split q( ), $line, 2;
     my $message = Tachikoma::Message->new;
     $message->type(TM_PING);
-    $message->from( $LOCAL{'message.from'} // '_responder' );
+    $message->from( $self->get_shared('message.from') // '_responder' );
     $message->to( $self->prefix($path) );
     $message->payload($Tachikoma::Right_Now);
     return [ $self->sink->fill($message) ];
@@ -1567,16 +1684,16 @@ $BUILTINS{'exit'} = sub {
     exit $value;
 };
 
-$OPERATORS{'lt'} = sub { $_[0] lt $_[1] };
-$OPERATORS{'gt'} = sub { $_[0] gt $_[1] };
-$OPERATORS{'le'} = sub { $_[0] le $_[1] };
-$OPERATORS{'ge'} = sub { $_[0] ge $_[1] };
-$OPERATORS{'ne'} = sub { $_[0] ne $_[1] };
-$OPERATORS{'eq'} = sub { $_[0] eq $_[1] };
+$OPERATORS{'lt'}  = sub { $_[0] lt $_[1] };
+$OPERATORS{'gt'}  = sub { $_[0] gt $_[1] };
+$OPERATORS{'le'}  = sub { $_[0] le $_[1] };
+$OPERATORS{'ge'}  = sub { $_[0] ge $_[1] };
+$OPERATORS{'ne'}  = sub { $_[0] ne $_[1] };
+$OPERATORS{'eq'}  = sub { $_[0] eq $_[1] };
 $OPERATORS{q(=~)} = sub {
     my @rv = ( ( $_[0] // q() ) =~ ( $_[1] // q() ) );
     for my $i ( 0 .. $#rv ) {
-        $LOCAL{ '_' . ( $i + 1 ) } = [ $rv[$i] ];
+        $LOCAL[0]->{ '_' . ( $i + 1 ) } = [ $rv[$i] ];
     }
     return @rv;
 };
@@ -1610,13 +1727,8 @@ sub get_values {
         if ( $value =~ m{^<([^<>]+)>(\s*)$} ) {
             my $key        = $1;
             my $whitespace = $2;
-            if ( defined $LOCAL{$key} ) {
-                $values = $LOCAL{$key};
-            }
-            elsif ( defined $self->{configuration}->{var}->{$key} ) {
-                $values = $self->{configuration}->{var}->{$key};
-            }
-            else {
+            $values = $self->get_shared($key);
+            if ( not defined $values ) {
                 $self->stderr( "WARNING: use of uninitialized value <$key>,",
                     " line $self->{counter}\n" );
                 $values = [];
@@ -1714,14 +1826,13 @@ sub assignment {
     $i++ if ( $values->[$i]->{type} eq 'whitespace' );
     my $op_tree = $values->[$i];
     $i++ if ( $values->[$i]->{type} eq 'op' );
-    $self->fatal_parse_error('bad arguments for assigment')
-        if ( $i > $#{$values} );
     $i++ if ( $i < @{$values} and $values->[$i]->{type} eq 'whitespace' );
     my $value_tree = $self->fake_tree( 'open_paren', $values, $i );
     my $op         = join q(), @{ $self->evaluate($op_tree) };
+    my $hash       = $self->get_local_hash($key);
 
-    if ( exists $LOCAL{$key} ) {
-        $self->operate( \%LOCAL, $key, $op, $value_tree );
+    if ($hash) {
+        $self->operate( $hash, $key, $op, $value_tree );
     }
     elsif ( exists $self->{configuration}->{var}->{$key} ) {
         $self->operate( $self->{configuration}->{var},
@@ -1734,7 +1845,7 @@ sub assignment {
 }
 
 sub operate {
-    my ( $self, $hash, $key, $op, $value_tree, ) = @_;
+    my ( $self, $hash, $key, $op, $value_tree ) = @_;
     my $rv = [];
     if ($value_tree) {
         my $v = $self->operate_with_value( $hash, $key, $op, $value_tree );
@@ -1788,21 +1899,21 @@ sub operate_with_value {    ## no critic (ProhibitExcessComplexity)
     my ( $self, $hash, $key, $op, $value_tree ) = @_;
     my $result = $self->evaluate($value_tree);
     my $v      = $hash->{$key};
-    $v = []   if ( not defined $v or not length $v );
+    $v = []   if ( not defined $v );
     $v = [$v] if ( not ref $v );
     shift @{$result} if ( @{$result} and $result->[0]  =~ m{^\s+$} );
     pop @{$result}   if ( @{$result} and $result->[-1] =~ m{^\s+$} );
     my $joined = join q(), @{$result};
-    if    ( $op eq q(.=) and @{$v} ) { unshift @{$result}, q( ); }
     if    ( $op eq q(=) )            { $v = $result; }
+    elsif ( $op eq q(.=) and @{$v} ) { push @{$v}, q( ), @{$result}; }
     elsif ( $op eq q(.=) )           { push @{$v}, @{$result}; }
-    elsif ( $op eq q(+=) ) { $v->[0] //= 0; $v->[0] += $joined; }
-    elsif ( $op eq q(-=) ) { $v->[0] //= 0; $v->[0] -= $joined; }
-    elsif ( $op eq q(*=) ) { $v->[0] //= 0; $v->[0] *= $joined; }
-    elsif ( $op eq q(/=) ) { $v->[0] //= 0; $v->[0] /= $joined; }
+    elsif ( $op eq q(+=) )           { $v->[0] ||= 0; $v->[0] += $joined; }
+    elsif ( $op eq q(-=) )           { $v->[0] ||= 0; $v->[0] -= $joined; }
+    elsif ( $op eq q(*=) )           { $v->[0] ||= 0; $v->[0] *= $joined; }
+    elsif ( $op eq q(/=) )           { $v->[0] ||= 0; $v->[0] /= $joined; }
     elsif ( $op eq q(//=) ) { $v = $result if ( not @{$v} ); }
     elsif ( $op eq q(||=) ) { $v = $result if ( not join q(), @{$v} ); }
-    else { $self->fatal_parse_error("invalid operator: $op"); }
+    else  { $self->fatal_parse_error("invalid operator: $op"); }
     return $v;
 }
 
@@ -1834,17 +1945,17 @@ sub _call_function {
 }
 
 sub call_function {
-    my $self      = shift;
-    my $name      = shift;
-    my $new_local = shift // {};
-    my %old_local = %LOCAL;
-    my $rv        = [];
-    $LOCAL{$_} = $new_local->{$_} for ( keys %{$new_local} );
+    my $self       = shift;
+    my $name       = shift;
+    my $new_local  = shift // {};
+    my $rv         = [];
+    my $stack_size = $#LOCAL;
+    unshift @LOCAL, $new_local;
     my $okay = eval {
         $rv = $self->evaluate( $self->{configuration}->{functions}->{$name} );
         return 1;
     };
-    %LOCAL = %old_local;
+    shift @LOCAL while ( $#LOCAL > $stack_size );
 
     if ( not $okay ) {
         my $trap = $@ || 'call_function: unknown error';
@@ -1870,12 +1981,13 @@ sub _send_command {
     my $arguments = shift // q();
     my $payload   = shift;
     my $path      = shift;
+    my $from      = $self->get_shared('message.from');
     my $message   = $self->command( $name, $arguments, $payload );
     $message->type( TM_COMMAND | TM_NOREPLY )
-        if ( not $LOCAL{'message.from'} and not $self->{want_reply} );
-    $message->from( $LOCAL{'message.from'} // '_responder' );
+        if ( not length $from and not $self->{want_reply} );
+    $message->from( $from // '_responder' );
     $message->to( $self->prefix($path) );
-    $message->id( $self->message_id );
+    $message->id( $self->message_id // q() );
     $self->dirty($name);
     $self->stderr("+ $name $arguments") if ( $self->{show_commands} );
     return [ $self->sink->fill($message) // 0 ];
@@ -1903,18 +2015,18 @@ sub callback {
             $arguments{q(_ERROR)} = $options->{payload};
         }
         $arguments{q(response.from)} = $options->{from};
-        my %old_local = %LOCAL;
-        $LOCAL{$_} = $arguments{$_} for ( keys %arguments );
+        my $stack_size = $#LOCAL;
+        unshift @LOCAL, \%arguments;
         my $okay = eval {
             $self->send_command( $callbacks->{$id} );
             return 1;
         };
+        shift @LOCAL while ( $#LOCAL > $stack_size );
         if ( not $okay ) {
             my $trap = $@ || 'callback failed: unknown error';
             $self->stderr($trap);
         }
-        %LOCAL = %old_local;
-        $rv    = $okay;
+        $rv = $okay;
     }
     else {
         $self->stderr("WARNING: couldn't find callback for id $id");
@@ -1939,21 +2051,6 @@ sub get_completions {
     $message->[TO]   = $self->path;
     $self->sink->fill($message);
     $self->dirty(undef);
-    return;
-}
-
-sub set_local {
-    my $self      = shift;
-    my $new_local = shift;
-    my %old_local = %LOCAL;
-    $LOCAL{$_} = $new_local->{$_} for ( keys %{$new_local} );
-    return \%old_local;
-}
-
-sub restore_local {
-    my $self      = shift;
-    my $old_local = shift;
-    %LOCAL = %{$old_local};
     return;
 }
 
@@ -2044,11 +2141,7 @@ sub message_id {
     if (@_) {
         $self->{message_id} = shift;
     }
-    else {
-        $rv = $self->{message_id};
-        $self->{message_id} = undef;
-    }
-    return $rv;
+    return $self->{message_id};
 }
 
 sub parse_buffer {
@@ -2081,6 +2174,45 @@ sub msg_counter {
     return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
 }
 
+sub set_local {
+    my $self = shift;
+    unshift @LOCAL, @_;
+    return;
+}
+
+sub restore_local {
+    my $self = shift;
+    shift @LOCAL;
+    return;
+}
+
+sub get_shared {
+    my $self = shift;
+    my $key  = shift;
+    for my $hash (@LOCAL) {
+        return $hash->{$key} if ( exists $hash->{$key} );
+    }
+    return $self->{configuration}->{var}->{$key};
+}
+
+sub get_local {
+    my $self = shift;
+    my $key  = shift;
+    for my $hash (@LOCAL) {
+        return $hash->{$key} if ( exists $hash->{$key} );
+    }
+    return;
+}
+
+sub get_local_hash {
+    my $self = shift;
+    my $key  = shift;
+    for my $hash (@LOCAL) {
+        return $hash if ( exists $hash->{$key} );
+    }
+    return;
+}
+
 sub TIEHASH {
     my $self = shift;
     my $node = {};
@@ -2091,15 +2223,20 @@ sub TIEHASH {
 sub FETCH {
     my $self = shift;
     my $key  = shift;
-    my $rv   = q();
-    if ( defined $LOCAL{$key} ) {
-        $rv = $LOCAL{$key};
+    my $rv   = undef;
+    for my $hash (@LOCAL) {
+        next if ( not exists $hash->{$key} );
+        $rv = $hash->{$key};
+        last;
     }
-    elsif ( defined Tachikoma->configuration->var->{$key} ) {
-        $rv = Tachikoma->configuration->var->{$key};
-    }
-    else {
-        print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
+    if ( not defined $rv ) {
+        if ( defined Tachikoma->configuration->var->{$key} ) {
+            $rv = Tachikoma->configuration->var->{$key};
+        }
+        else {
+            $rv = q();
+            print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
+        }
     }
     return ref $rv ? join q(), @{$rv} : $rv;
 }

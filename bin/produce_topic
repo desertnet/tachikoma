@@ -4,10 +4,11 @@ use warnings;
 use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::Tail;
+use Tachikoma::Nodes::SetStream;
 use Tachikoma::Nodes::Shutdown;
 use Tachikoma::Nodes::Topic;
 use Tachikoma::Nodes::Socket qw( TK_R TK_SYNC );
-use Getopt::Long qw( GetOptions );
+use Getopt::Long             qw( GetOptions );
 
 use version; our $VERSION = qv('v2.0.929');
 
@@ -22,53 +23,62 @@ my $port        = 5501;
 my $use_SSL     = undef;
 my $topic_name  = undef;
 my $stream      = undef;
+my $keys        = undef;
 my $partition   = undef;
 my $throttle    = undef;
-my $debug       = undef;
+my $debug_state = undef;
 my $help        = undef;
 
 my $r = GetOptions(
-    'config=s'    => \$config_file,
-    'host=s'      => \$host,
-    'port=i'      => \$port,
-    'use-ssl'     => \$use_SSL,
-    'topic=s'     => \$topic_name,
-    'stream=s'    => \$stream,
-    'partition=i' => \$partition,
-    'throttle:i'  => \$throttle,
-    'debug:i'     => \$debug,
-    'help'        => \$help,
+    'config=s'      => \$config_file,
+    'host=s'        => \$host,
+    'port=i'        => \$port,
+    'use-ssl'       => \$use_SSL,
+    'topic=s'       => \$topic_name,
+    'stream=s'      => \$stream,
+    'keys'          => \$keys,
+    'partition=i'   => \$partition,
+    'throttle:i'    => \$throttle,
+    'debug_state:i' => \$debug_state,
+    'help'          => \$help,
 );
 $topic_name //= $ARGV[0];
-$throttle = defined $throttle ? 1024 : 0 if ( not $throttle );
-$debug    = 1                            if ( defined $debug and not $debug );
+$throttle    = defined $throttle ? 1024 : 0 if ( not $throttle );
+$debug_state = 1 if ( defined $debug_state and not $debug_state );
 
-usage() if ( $help or not $r or not $topic_name );
+usage() if ( $help or not $r or not length $topic_name );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
-my $router   = Tachikoma::Nodes::Router->new;
-my $tail     = Tachikoma::Nodes::Tail->filehandle(*STDIN);
-my $shutdown = Tachikoma::Nodes::Shutdown->new;
-my $topic    = Tachikoma::Nodes::Topic->new;
-my $socket   = undef;
-my $waiting  = undef;
+my $router    = Tachikoma::Nodes::Router->new;
+my $tail      = Tachikoma::Nodes::Tail->filehandle(*STDIN);
+my $setstream = Tachikoma::Nodes::SetStream->new;
+my $shutdown  = Tachikoma::Nodes::Shutdown->new;
+my $topic     = Tachikoma::Nodes::Topic->new;
+my $socket    = undef;
+my $waiting   = undef;
 
 $tail->name('_stdin');
 $tail->buffer_mode('line-buffered');
 $tail->max_unanswered($throttle);
 $tail->stream($stream);
-$tail->debug_state($debug);
+$tail->debug_state($debug_state);
 $tail->on_EOF('close');
-$tail->sink($shutdown);
+if ($keys) {
+    $tail->sink($setstream);
+    $setstream->sink($shutdown);
+}
+else {
+    $tail->sink($shutdown);
+}
 $shutdown->sink($router);
 
 $topic->name('_topic');
 $topic->flags(TK_SYNC);
 $topic->broker_path('_socket/broker');
 $topic->topic($topic_name);
-$topic->debug_state($debug);
+$topic->debug_state($debug_state);
 $topic->set_timer(100);
 $topic->sink($router);
 
@@ -86,11 +96,11 @@ $topic->register(
 );
 
 $router->name('_router');
-$router->debug_state($debug);
+$router->debug_state($debug_state);
 $socket =
     Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
 $socket->name('_socket');
-$socket->debug_state($debug);
+$socket->debug_state($debug_state);
 $socket->on_EOF('reconnect');
 $socket->sink($router);
 $router->drain;
@@ -103,9 +113,10 @@ sub usage {
         . "              [ --use-ssl         ]\n"
         . "              [ --topic=<topic>   ]\n"
         . "              [ --stream=<stream> ]\n"
+        . "              [ --keys            ]\n"
         . "              [ --partition=<int> ]\n"
         . "              [ --throttle        ]\n"
-        . "              [ --debug           ]\n"
+        . "              [ --debug_state     ]\n"
         . "              [ --help            ]\n"
         . "              <node path>\n";
     exit 1;

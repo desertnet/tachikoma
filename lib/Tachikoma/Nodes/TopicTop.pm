@@ -9,17 +9,17 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM TM_EOF );
-use POSIX qw( strftime );
-use vars qw( @EXPORT_OK );
-use parent qw( Exporter Tachikoma::Nodes::Timer );
+use POSIX              qw( strftime );
+use vars               qw( @EXPORT_OK );
+use parent             qw( Exporter Tachikoma::Nodes::Timer );
 @EXPORT_OK = qw( smart_sort );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Topic_Timeout           = 10;
-my $Default_Output_Interval = 4.0;                                 # seconds
-my $Numeric                 = qr/^-?(?:\d+(?:[.]\d*)?|[.]\d+)$/;
-my $Winch                   = undef;
+my $TOPIC_TIMEOUT           = 10;
+my $DEFAULT_OUTPUT_INTERVAL = 4.0;                                 # seconds
+my $NUMERIC                 = qr/^-?(?:\d+(?:[.]\d*)?|[.]\d+)$/;
+my $WINCH                   = undef;
 
 sub new {
     my $class = shift;
@@ -30,7 +30,7 @@ sub new {
     $self->{height}    = undef;
     $self->{width}     = undef;
     $self->{threshold} = 0;
-    $self->{delay}     = $Default_Output_Interval;
+    $self->{delay}     = $DEFAULT_OUTPUT_INTERVAL;
     $self->{fields}    = {
         hostname       => { label => 'HOSTNAME',  size => '16',  pad => 0 },
         partition      => { label => 'PARTITION', size => '-32', pad => 0 },
@@ -56,9 +56,9 @@ sub new {
     $self->{partitions}                     = {};
     $self->{consumers}                      = {};
     bless $self, $class;
-    $self->set_timer( $Default_Output_Interval * 1000 );
+    $self->set_timer( $DEFAULT_OUTPUT_INTERVAL * 1000 );
     ## no critic (RequireLocalizedPunctuationVars)
-    $SIG{WINCH} = sub { $Winch = 1 };
+    $SIG{WINCH} = sub { $WINCH = 1 };
     $SIG{INT}   = sub {
         print "\e[0m\e[?25h";
         ## no critic (RequireCheckedSyscalls)
@@ -76,6 +76,7 @@ sub fill {
     my $partitions = $self->{partitions};
     my $consumers  = $self->{consumers};
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        next if ( $line !~ m{^(?:hostname:|partition:)} );
         my $stats = { map { split m{:}, $_, 2 } split q( ), $line };
         $stats->{last_update} = $Tachikoma::Right_Now;
         $stats->{timestamp}   = $message->[TIMESTAMP];
@@ -122,12 +123,12 @@ sub fire {
     my $reset    = "\e[0m";
     my $output   = sprintf
         '%3d consumers; key: AGE > %d DISTANCE > 10M UNANSWERED >= MAX',
-        $total, $Topic_Timeout;
+        $total, $TOPIC_TIMEOUT;
     $output =
           sprintf "\e[H%3d consumers; key:"
         . " \e[41mAGE > %d\e[0m \e[91mDISTANCE > 10M\e[0m"
         . " \e[93mUNANSWERED >= MAX\e[0m%s\n",
-        $total, $Topic_Timeout, q( ) x ( $width - length $output );
+        $total, $TOPIC_TIMEOUT, q( ) x ( $width - length $output );
     $totals->{$_} = human( $totals->{"_$_"} )
         for (qw( p_offset c_offset distance recv_rate send_rate cache ));
     $totals->{msg_rate} = sprintf '%.2f', $totals->{_msg_rate} // 0;
@@ -148,9 +149,9 @@ OUTPUT:
             next
                 if ($sort eq '_distance'
                 and $key < $threshold
-                and $consumer->{age} < $Topic_Timeout );
+                and $consumer->{age} < $TOPIC_TIMEOUT );
             $color = q();
-            if ( $consumer->{age} > $Topic_Timeout ) {
+            if ( $consumer->{age} > $TOPIC_TIMEOUT ) {
                 $color = "\e[41m";
             }
             elsif ( $consumer->{_distance} > 10485760 ) {
@@ -165,7 +166,7 @@ OUTPUT:
             $consumer->{cache} = human( $consumer->{cache_size} );
             $consumer->{$_} = human( $consumer->{"_$_"} )
                 for (qw( distance recv_rate send_rate ));
-            $consumer->{msg_rate} = sprintf '%.2f', $consumer->{_msg_rate};
+            $consumer->{msg_rate}  = sprintf '%.2f', $consumer->{_msg_rate};
             $consumer->{direction} = (
                 ( $consumer->{_recv_rate} == $consumer->{_send_rate} )  ? q(=)
                 : ( $consumer->{_recv_rate} > $consumer->{_send_rate} ) ? q(>)
@@ -366,7 +367,7 @@ sub smart_sort {
     my $b       = shift;
     my $reverse = shift;
     return $reverse ? $a <=> $b : $b <=> $a
-        if ( $a =~ m{$Numeric} and $b =~ m{$Numeric} );
+        if ( $a =~ m{$NUMERIC} and $b =~ m{$NUMERIC} );
     return $reverse ? lc $b cmp lc $a : lc $a cmp lc $b;
 }
 
@@ -413,7 +414,7 @@ sub select_fields {
 
 sub update_window_size {
     my $self = shift;
-    $Winch = undef;
+    $WINCH = undef;
     ## no critic (ProhibitBacktickOperators)
     my $height = `tput lines`;
     my $width  = `tput cols`;
@@ -463,7 +464,7 @@ sub height {
     if (@_) {
         $self->{height} = shift;
     }
-    $self->update_window_size if ( $Winch or not defined $self->{height} );
+    $self->update_window_size if ( $WINCH or not defined $self->{height} );
     return $self->{height};
 }
 
@@ -472,7 +473,7 @@ sub width {
     if (@_) {
         $self->{width} = shift;
     }
-    $self->update_window_size if ( $Winch or not defined $self->{width} );
+    $self->update_window_size if ( $WINCH or not defined $self->{width} );
     return $self->{width};
 }
 

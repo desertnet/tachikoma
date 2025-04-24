@@ -12,7 +12,7 @@ use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw( TYPE TO PAYLOAD TM_BYTESTREAM );
-use parent qw( Tachikoma::Job );
+use parent             qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.349');
 
@@ -61,7 +61,7 @@ sub fill {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
         $response->[TO]      = join q(/), '_parent', $self->{logger};
-        $response->[PAYLOAD] = join q(), @log;
+        $response->[PAYLOAD] = join q(),  @log;
         $self->SUPER::fill($response);
     }
     $self->cancel($message);

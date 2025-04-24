@@ -11,11 +11,11 @@ use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
 use Time::HiRes;
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent        qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Default_Interval = 5;    # seconds
+my $DEFAULT_INTERVAL = 5;    # seconds
 
 sub new {
     my $class = shift;
@@ -41,11 +41,15 @@ sub arguments {
         my ( $seconds, $prefix ) = split q( ), $self->{arguments}, 2;
         die "ERROR: bad arguments for BufferProbe\n"
             if ( $seconds and $seconds =~ m{\D} );
-        $seconds ||= $Default_Interval;
+        $seconds ||= $DEFAULT_INTERVAL;
         $self->set_timer( $seconds * 1000 );
         $self->prefix( $prefix || $0 );
     }
     return $self->{arguments};
+}
+
+sub fill {
+    return;
 }
 
 sub fire {
@@ -73,8 +77,8 @@ sub fire {
                 ' max_unanswered:' => $node->{max_unanswered},
                 ' msg_in_buf:'     => $node->{buffer_size}
                 // $node->get_buffer_size,
-                ' msg_rcvd:' => $node->{counter},
-                ' msg_sent:' => $node->{msg_sent},
+                ' msg_rcvd:'       => $node->{counter},
+                ' msg_sent:'       => $node->{msg_sent},
                 ' msg_unanswered:' =>
                 scalar( keys %{ $node->{msg_unanswered} } ),
                 ' p_msg_sent:' => $node->{pmsg_sent},

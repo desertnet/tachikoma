@@ -55,7 +55,7 @@ sub fill {
         for my $t_target ( @{ $node->owner } ) {
             my $t_name   = ( split m{/}, $t_target, 2 )[0];
             my $t_node   = $Tachikoma::Nodes{$t_name} or next;
-            my $t_buffer = $t_node->{output_buffer} or next;
+            my $t_buffer = $t_node->{output_buffer}   or next;
             $size = scalar @{$t_buffer} if ( scalar @{$t_buffer} > $size );
         }
     }

@@ -37,7 +37,7 @@ is( ref $router, 'Tachikoma::Nodes::Router',
     'Tachikoma::Nodes::Router->new is ok' );
 
 my $server = Tachikoma::Nodes::STDIO->inet_server( $address, $port );
-is( defined $server->{address}, 1, '$server->address is ok');
+is( defined $server->{address}, 1, '$server->address is ok' );
 
 $server->name('_server');
 is( ref $server, 'Tachikoma::Nodes::STDIO',
@@ -57,7 +57,7 @@ $destination->callback(
 );
 
 my $client = Tachikoma::Nodes::STDIO->inet_client( $address, $port );
-is( defined $client->{address}, 1, '$client->address is ok');
+is( defined $client->{address}, 1, '$client->address is ok' );
 
 $client->name('_client');
 is( ref $client, 'Tachikoma::Nodes::STDIO',

@@ -12,12 +12,12 @@ func main {
 func matgen {
     local count  = <1>;
     local prefix = <2>;
-    local tmp    = (1.0 / <count> / <count>);
+    local tmp    = 1.0 / <count> / <count>;
     # print "tmp: <tmp>\n";
     for i (0 .. (<count> - 1)) {
         for j (0 .. (<count> - 1)) {
             var "<prefix>:<i>:<j>" = <tmp> * (<i> - <j>) * (<i> + <j>);
-            # print ("<prefix>:<i>:<j>" = [var "<prefix>:<i>:<j>"]\n);
+            # print ("<prefix>:<i>:<j>" = [var "<prefix>:<i>:<j>"]"\n");
         };
     };
 };
@@ -32,8 +32,8 @@ func mul {
         for j (0 .. (<count> - 1)) {
             var sum = 0;
             for k (0 .. (<count> - 1)) {
-                # print ("<sum> +=" [var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"]\n);
-                var sum += ([var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"]);
+                # print ("<sum> +=" [var "<a>:<i>:<k>"] "*" [var "<c>:<j>:<k>"]"\n");
+                sum += [var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"];
             };
             var "r:<i>:<j>" = <sum>;
             # print "r:<i>:<j> = <sum>\n";
@@ -48,7 +48,7 @@ func transpose {
     for i (0 .. (<count> - 1)) {
         for j (0 .. (<count> - 1)) {
             var "<b>:<i>:<j>" = [var "<a>:<j>:<i>"];
-            # print ("<a>:<j>:<i>" = [var "<a>:<j>:<i>"]\n);
+            # print ("<a>:<j>:<i>" = [var "<a>:<j>:<i>"]"\n");
         };
     };
 };
@@ -57,11 +57,11 @@ var count = 0;
 if (<_C> > 0) {
     count = <1>;
 };
-if (not <count>;) {
+if (! <count>) {
     print "enter an even number: ";
     count = [read];
 };
-if (not <count>;) {
+if (! <count>) {
     count = 20;
 };
 main <count>;

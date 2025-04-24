@@ -16,15 +16,15 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.400');
 
-my $Counter         = 0;
-my $Default_Timeout = 900;
+my $COUNTER         = 0;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{spool}          = {};
     $self->{spool_dir}      = undef;
-    $self->{timeout}        = $Default_Timeout;
+    $self->{timeout}        = $DEFAULT_TIMEOUT;
     $self->{max_unanswered} = 1;
     bless $self, $class;
     return $self;
@@ -47,7 +47,7 @@ sub arguments {
         my $dir = ( $filename =~ m{^(/.*)$} )[0];
         $self->{spool}          = {};
         $self->{spool_dir}      = $dir;
-        $self->{timeout}        = $timeout || $Default_Timeout;
+        $self->{timeout}        = $timeout        || $DEFAULT_TIMEOUT;
         $self->{max_unanswered} = $max_unanswered || 1;
         $self->make_dirs($dir);
         $self->set_timer;
@@ -125,8 +125,8 @@ sub process_file {
 
 sub msg_counter {
     my $self = shift;
-    $Counter = ( $Counter + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $Counter;
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
 }
 
 sub spool {

@@ -14,11 +14,11 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
 use Digest::MD5 qw( md5 );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent      qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Timeout = 3600;
+my $DEFAULT_TIMEOUT = 3600;
 my %C               = ();
 
 sub new {
@@ -29,7 +29,7 @@ sub new {
     $self->{streams}        = {};
     $self->{msg_unanswered} = {};
     $self->{max_unanswered} = 0;
-    $self->{timeout}        = $Default_Timeout;
+    $self->{timeout}        = $DEFAULT_TIMEOUT;
     $self->{method}         = 'round-robin';
     $self->{mode}           = 'persistent';
     $self->{hash}           = q();
@@ -54,7 +54,7 @@ sub arguments {
         my ( $max_unanswered, $timeout ) =
             split q( ), $self->{arguments}, 2;
         $self->{max_unanswered} = $max_unanswered || 0;
-        $self->{timeout}        = $timeout        || $Default_Timeout;
+        $self->{timeout}        = $timeout        || $DEFAULT_TIMEOUT;
     }
     return $self->{arguments};
 }
@@ -67,7 +67,8 @@ sub fill {
     {
         $self->interpreter->fill($message);
     }
-    elsif ( length $message->[TO] ) {
+    elsif ( length $message->[TO] and $message->[TO] ne '_return_to_sender' )
+    {
         $self->handle_response($message);
         $self->{sink}->fill($message);
     }
@@ -88,7 +89,7 @@ sub fill {
             $self->{msg_unanswered}->{$owner}++;
         }
         $self->{counter}++;
-        $message->[TO] = $owner;
+        $message->[TO] = join q(/), grep length, $owner, $message->[TO];
         if ( $mode ne 'none' and not $self->{timer_is_active} ) {
             $self->set_timer;
         }
@@ -133,7 +134,8 @@ sub fire {
     }
     for my $id ( keys %{$streams} ) {
         my $stream = $streams->{$id};
-        if ($Tachikoma::Now - ( $stream->{timestamps}->[0] || 0 ) > $timeout )
+        if (
+            $Tachikoma::Now - ( $stream->{timestamps}->[0] || 0 ) > $timeout )
         {
             my $owner = $stream->{owner};
             if ( $owner and defined $msg_unanswered->{$owner} ) {
@@ -358,8 +360,8 @@ sub dump_config {
     my $method         = $self->{method};
     my $mode           = $self->{mode};
     $response = "make_node LoadBalancer $self->{name}";
-    $response .= " $max_unanswered"       if ($max_unanswered);
-    $response .= " $timeout"              if ( $timeout ne $Default_Timeout );
+    $response .= " $max_unanswered" if ($max_unanswered);
+    $response .= " $timeout"        if ( $timeout ne $DEFAULT_TIMEOUT );
     $response .= "\n";
     $settings .= "  set_method $method\n" if ( $method ne 'round-robin' );
     $settings .= "  set_mode $mode\n"     if ( $mode ne 'persistent' );

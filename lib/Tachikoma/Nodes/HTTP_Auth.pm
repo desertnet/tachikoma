@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Nodes::HTTP_Responder qw( log_entry );
-use Tachikoma::Message qw(
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD
     TM_STORABLE TM_BYTESTREAM TM_EOF
 );
@@ -48,8 +48,8 @@ sub fill {
     return if ( not $message->[TYPE] & TM_STORABLE );
     my $request = $message->payload;
     my $auth    = $request->{headers}->{'authorization'};
-    my $encoded = $auth ? ( split q( ), $auth, 2 )[1] : undef;
-    my $decoded = $encoded ? decode_base64($encoded) : undef;
+    my $encoded = $auth    ? ( split q( ), $auth, 2 )[1] : undef;
+    my $decoded = $encoded ? decode_base64($encoded)     : undef;
     my ( $user, $passwd ) = $decoded ? split m{:}, $decoded, 2 : undef;
     $self->{counter}++;
 
@@ -82,7 +82,7 @@ sub fill {
     $response->[TO]   = $message->[FROM];
     $self->{sink}->fill($response);
     log_entry( $self, 401, $message );
-    return 1;
+    return;
 }
 
 sub authenticate {

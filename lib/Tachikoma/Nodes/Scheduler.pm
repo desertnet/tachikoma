@@ -74,7 +74,8 @@ sub fire {
     my $next_when = 30;
     for my $message_id ( sort { $a <=> $b } keys %{ $self->tiedhash } ) {
         my ( $time, $repeat, $enabled, $text, $packed ) =
-            unpack 'N N N Z* a*', $self->tiedhash->{$message_id};
+            unpack 'N N N Z* a*',
+            $self->tiedhash->{$message_id};
         my $when = $time - $Tachikoma::Now;
         $next_when = $when if ( $when < $next_when );
         next if ( $when > 0 or not $enabled );
@@ -237,21 +238,25 @@ $C{at} = sub {
     my $envelope = shift;
     $self->verify_key( $envelope, ['meta'], 'schedule' )
         or return $self->error("verification failed\n");
-    my $text    = join q( ), $command->name, $command->arguments;
-    my $pattern = qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(\d+):(\d+)(?::(\d+))? (.+)}s;
+    my $text = join q( ), $command->name, $command->arguments;
+    my $pattern =
+        qr{^(?:(\d+)-(\d+)-(\d+)\s+)?(?:(\d+):(\d+))?(?::(\d+))? (.+)}s;
     if ( $command->arguments =~ m{$pattern} ) {
         my ( $year, $month, $day, $hour, $min, $sec, $imperative ) =
             ( $1, $2, $3, $4, $5, $6, $7 );
         $year -= 1900 if ($year);
-        $month-- if ($month);
-        $sec ||= 0;
+        $month--      if ($month);
         my ( $name, $arguments ) = split q( ), $imperative, 2;
         my $message = $self->command( $name, $arguments );
-        my ( $nsec, $nmin, $nhour, $nday, $nmonth, $nyear ) =
-            localtime $Tachikoma::Now;
+        my $now     = $Tachikoma::Now;
+        $now += 60 if ( length $sec and not length $min );
+        my ( $nsec, $nmin, $nhour, $nday, $nmonth, $nyear ) = localtime $now;
         $year  ||= $nyear;
         $month ||= $nmonth;
         $day   ||= $nday;
+        $hour = $nhour if ( length $sec and not length $hour );
+        $min  = $nmin  if ( length $sec and not length $min );
+        $sec ||= 0;
         my $time = timelocal( $sec, $min, $hour, $day, $month, $year );
         $time += 86400 if ( $time < $Tachikoma::Now );
         my $own_name = $self->patron->name;
@@ -320,7 +325,7 @@ $C{enable_event} = sub {
     }
     my ( $time, $repeat, $enabled, $text, $packed ) = unpack 'N N N Z* a*',
         $event;
-    $enabled = 1;
+    $enabled          = 1;
     $tiedhash->{$key} = pack 'N N N Z* a*', $time, $repeat, $enabled, $text,
         $packed;
     return $self->okay($envelope);
@@ -342,7 +347,7 @@ $C{disable_event} = sub {
     }
     my ( $time, $repeat, $enabled, $text, $packed ) = unpack 'N N N Z* a*',
         $event;
-    $enabled = 0;
+    $enabled          = 0;
     $tiedhash->{$key} = pack 'N N N Z* a*', $time, $repeat, $enabled, $text,
         $packed;
     return $self->okay($envelope);
@@ -447,14 +452,14 @@ sub tiedhash {
                 tie %h, 'BerkeleyDB::Btree',
                     -Filename => $path,
                     -Flags    => DB_CREATE,
-                    -Mode     => 0600
+                    -Mode     => oct 600
                     or die "couldn't tie $path: $!\n";
             }
             elsif ( $ext eq 'hash' ) {
                 tie %h, 'BerkeleyDB::Hash',
                     -Filename => $path,
                     -Flags    => DB_CREATE,
-                    -Mode     => 0600
+                    -Mode     => oct 600
                     or die "couldn't tie $path: $!\n";
             }
             $self->{tiedhash} = \%h;

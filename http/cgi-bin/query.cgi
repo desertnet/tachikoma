@@ -23,12 +23,12 @@ if ($Tachikoma::Nodes::CGI::Config) {
     $broker_ids = $Tachikoma::Nodes::CGI::Config->{broker_ids};
     $host_ports = $Tachikoma::Nodes::CGI::Config->{engines_http};
 }
-$broker_ids ||= [ 'localhost:5501', 'localhost:5502' ];
+$broker_ids ||= ['localhost:5501'];
 $host_ports ||= ['localhost:5201'];
 my $cgi   = CGI->new;
 my $topic = $cgi->path_info;
 $topic =~ s(^/)();
-die "no topic\n" if ( not $topic );
+die "no topic\n" if ( not length $topic );
 my $postdata = $cgi->param('POSTDATA') or die "ERROR: wrong method\n";
 my $json     = JSON->new;
 my $query    = $json->decode($postdata);
@@ -49,6 +49,7 @@ print $cgi->header(
     -charset => 'utf-8'
 );
 $engine{$topic}->query($query);
+print "[";
 my $comma = undef;
 while ( my $value = $engine{$topic}->fetchrow ) {
     my $output = undef;
@@ -68,8 +69,8 @@ while ( my $value = $engine{$topic}->fetchrow ) {
     if ( ref $output ) {
         my $json_output = undef;
         if ( not $comma ) {
-            $json_output = "[\n";
-            $comma       = 1;
+            $comma = 1;
+            $json_output = "\n";
         }
         else {
             $json_output = ",\n";
@@ -80,4 +81,4 @@ while ( my $value = $engine{$topic}->fetchrow ) {
     }
     print $output;
 }
-print "\n]\n" if ($comma);
+print "\n]\n";

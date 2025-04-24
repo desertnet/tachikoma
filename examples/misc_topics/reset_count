@@ -10,7 +10,7 @@ Tachikoma->configuration->load_config_file(
 );
 
 my $topic   = $ARGV[0] or die "usage: reset_count <topic> [ <group> ]\n";
-my $name    = $ARGV[1] // "count";
+my $name    = $ARGV[1] // "word_count";
 my $group   = Tachikoma::Nodes::ConsumerBroker->new( $topic, $name );
 my $mapping = $group->broker->get_mapping($topic);
 my $cache   = 0;

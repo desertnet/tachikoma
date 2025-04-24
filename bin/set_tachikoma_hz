@@ -7,6 +7,8 @@ use strict;
 use warnings;
 use Tachikoma;
 
+use version; our $VERSION = qv('v2.1.12');
+
 my $home            = ( getpwuid $< )[7];
 my @default_configs = (
     "$home/.tachikoma/etc/tachikoma.conf",
@@ -32,11 +34,6 @@ use Tachikoma;
 
 # Set our Hz
 Tachikoma->configuration->hz($hz);
-
-eval q(
-    use Tachikoma::Config qw( \%Tachikoma );
-    \$Tachikoma{Hz} = $hz;
-);
 
 1;
 EOF

@@ -8,19 +8,20 @@ package Tachikoma::Nodes::HTTP_File;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry cached_strftime );
+use Tachikoma::Nodes::HTTP_Responder
+    qw( get_time log_entry cached_strftime send404 );
 use Tachikoma::Message qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
-use POSIX qw( strftime );
+use POSIX  qw( strftime );
 use parent qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Default_Expires = 900;
+my $DEFAULT_EXPIRES = 900;
 
 # TODO: configurate mime types
-my %Types = (
+my %TYPES = (
     gif  => 'image/gif',
     jpg  => 'image/jpeg',
     png  => 'image/png',
@@ -93,20 +94,7 @@ sub fill {
         return $self->{sink}->fill($response);
     }
     elsif ( not -r _ ) {
-        $response->[PAYLOAD] = join q(),
-            "HTTP/1.1 404 NOT FOUND\n",
-            'Date: ', cached_strftime(), "\n",
-            "Server: Tachikoma\n",
-            "Connection: close\n",
-            "Content-Type: text/plain; charset=utf8\n",
-            "\n",
-            "Requested URL not found.\n";
-        $self->{sink}->fill($response);
-        $response         = Tachikoma::Message->new;
-        $response->[TYPE] = TM_EOF;
-        $response->[TO]   = $message->[FROM];
-        log_entry( $self, 404, $message );
-        return $self->{sink}->fill($response);
+        return $self->send404($message);
     }
     elsif ($if_modified) {
         my $last_modified = ( stat _ )[9];
@@ -127,7 +115,7 @@ sub fill {
     }
     my $type = ( $path =~ m{[.]([^.]+)$} )[0] || 'txt';
     $self->stderr("WARNING: no mime type set for $type")
-        if ( not $Types{$type} );
+        if ( not $TYPES{$type} );
     my @stat = stat $filename;
     $response->[PAYLOAD] = join q(),
         "HTTP/1.1 200 OK\n",
@@ -135,12 +123,12 @@ sub fill {
         strftime( "Last-Modified: %a, %d %b %Y %T GMT\n", gmtime $stat[9] ),
         strftime(
         "Expires: %a, %d %b %Y %T GMT\n",
-        gmtime $Tachikoma::Now + $Default_Expires
+        gmtime $Tachikoma::Now + $DEFAULT_EXPIRES
         ),
         "Server: Tachikoma\n",
         "Connection: close\n",
         'Content-Type: ',
-        $Types{$type} || $Types{'txt'},
+        $TYPES{$type} || $TYPES{'txt'},
         "\n",
         'Content-Length: ',
         $stat[7],
@@ -162,7 +150,7 @@ sub fill {
     $self->{sink}->fill($response);
     $self->{counter}++;
     log_entry( $self, 200, $message, $stat[7] );
-    return 1;
+    return;
 }
 
 sub path {

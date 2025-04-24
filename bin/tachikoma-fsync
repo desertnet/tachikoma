@@ -13,7 +13,7 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Tachikoma::Jobs::DirStats qw( stat_directory );
-use POSIX qw( isatty );
+use POSIX                     qw( isatty );
 my $USE_RESOLVER;
 
 BEGIN {
@@ -34,8 +34,8 @@ my $disabled_file =
 my $Upper = 64;
 my $Lower = $Upper / 2;
 
-# my $Separator = chr(0);
-my $Separator       = join q(), chr 30, ' -> ', chr 30;
+# my $SEPARATOR = chr(0);
+my $SEPARATOR       = join q(), chr 30, ' -> ', chr 30;
 my $home            = ( getpwuid $< )[7];
 my @default_configs = (
     "$home/.tachikoma/etc/tachikoma.conf",
@@ -47,7 +47,7 @@ my $port        = 5601;
 my $use_SSL     = undef;
 my $prefix      = undef;
 my $quiet       = undef;
-my $timeout     = 180;
+my $timeout     = 480;
 my $withsums    = undef;
 my $pedantic    = undef;
 my $nosync      = undef;
@@ -195,7 +195,7 @@ $tachikoma->callback(
             print {*STDERR} join q(),
                 'wrong intent: "', $payload, q("),
                 ' should be: "',   $intent,  q("),
-                ' from ', $message->from, "\n";
+                ' from ',          $message->from, "\n";
             $fail = 1;
         }
         pop @targets;

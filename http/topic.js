@@ -27,12 +27,14 @@ function start_timer() {
 }
 
 function start_partition(partition) {
-    var prefix_url  = "https://" + server_host + ":" + server_port
+    var prefix_url  = window.location.protocol + "//"
+                    + server_host + ":" + server_port
                     + server_path + "/"
                     + _topic      + "/"
-                    + partition   + "/";
+                    + partition;
     var server_url  = prefix_url  + "/" + offset + "/" + _count;
     xhttp[partition] = new XMLHttpRequest();
+    // xhttp[partition].timeout = 15000;
     xhttp[partition].onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             var msg = JSON.parse(this.responseText);
@@ -69,17 +71,17 @@ function start_partition(partition) {
 
 function update_table(msg) {
     if (msg.payload.length) {
-        output.unshift(msg.payload.join(''));
+        output.unshift(msg.payload.reverse().join(''));
     }
-    while (output.length > count) {
+    while (output.length > _count) {
         output.pop();
     }
-    dirty = msg.payload.length;
+    dirty = 1;
 }
 
 function display_table() {
     if (dirty) {
-        while (output.length > count) {
+        while (output.length > _count) {
             output.pop();
         }
         document.getElementById("output").innerHTML = "<pre>"
@@ -89,6 +91,8 @@ function display_table() {
 }
 
 function tick(partition, server_url) {
+    // rewrite server_url match current window.location.protocol
+    server_url = window.location.protocol + "//" + server_url.split("//")[1];
     xhttp[partition].open("GET", server_url, true);
     xhttp[partition].send();
 }
@@ -98,7 +102,9 @@ function playOrPause() {
     if (state == "pause") {
         for (var i = 0; i < _num_partitions; i++) {
             clearTimeout(fetch_timers[i]);
+            xhttp[i].abort();
         }
+        xhttp = [];
         fetch_timers = [];
         clearInterval(display_timer);
         display_timer = null;

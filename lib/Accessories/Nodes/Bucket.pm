@@ -9,13 +9,13 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR TM_EOF );
-use POSIX qw( strftime );
-use parent qw( Tachikoma::Nodes::Timer );
+use POSIX              qw( strftime );
+use parent             qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Counter          = 0;
-my $Default_Interval = 900;
+my $COUNTER          = 0;
+my $DEFAULT_INTERVAL = 900;
 
 sub new {
     my $class = shift;
@@ -40,7 +40,7 @@ sub arguments {
         my ( $filename, $interval ) = split q( ), $self->{arguments}, 2;
         my $base = ( $filename =~ m{^(/.*)$} )[0];
         $self->{base}     = $base;
-        $self->{interval} = $interval || $Default_Interval;
+        $self->{interval} = $interval || $DEFAULT_INTERVAL;
         $self->make_dirs($base);
         $self->set_timer;
     }
@@ -104,8 +104,8 @@ sub process_dir {
 
 sub msg_counter {
     my $self = shift;
-    $Counter = ( $Counter + 1 ) % $Tachikoma::Max_Int;
-    return sprintf '%d:%010d', $Tachikoma::Now, $Counter;
+    $COUNTER = ( $COUNTER + 1 ) % $Tachikoma::Max_Int;
+    return sprintf '%d:%010d', $Tachikoma::Now, $COUNTER;
 }
 
 sub base {

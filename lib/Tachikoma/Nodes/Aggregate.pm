@@ -13,16 +13,16 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_STORABLE TM_PERSIST
 );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Node );
+use parent       qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Default_Num_Partitions = 1;
+my $DEFAULT_NUM_PARTITIONS = 1;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{num_partitions} = $Default_Num_Partitions;
+    $self->{num_partitions} = $DEFAULT_NUM_PARTITIONS;
     $self->{last_timestamp} = 0;
     $self->{partitions}     = {};
     bless $self, $class;
@@ -47,7 +47,7 @@ sub arguments {
         die "ERROR: num_partitions must be greater than or equal to 1\n"
             if ( defined $num_partitions and $num_partitions < 1 );
         $self->{arguments}      = $arguments;
-        $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
+        $self->{num_partitions} = $num_partitions // $DEFAULT_NUM_PARTITIONS;
         $self->{last_timestamp} = 0;
         $self->{partitions}     = {};
     }

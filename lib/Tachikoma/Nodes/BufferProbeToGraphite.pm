@@ -9,12 +9,12 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE TIMESTAMP PAYLOAD TM_BYTESTREAM );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent             qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Default_Interval = 60;
-my @Fields           = qw(
+my $DEFAULT_INTERVAL = 60;
+my @FIELDS           = qw(
     buff_fills
     err_sent
     max_unanswered
@@ -41,7 +41,7 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         $self->{prefix}    = $self->{arguments};
-        $self->set_timer( $Default_Interval * 1000 );
+        $self->set_timer( $DEFAULT_INTERVAL * 1000 );
     }
     return $self->{arguments};
 }
@@ -55,11 +55,11 @@ sub fill {
     my $timestamp = $message->[TIMESTAMP];
     for my $line ( split m{^}, $message->[PAYLOAD] ) {
         my $buffer    = { map { split m{:}, $_, 2 } split q( ), $line };
-        my $hostname  = $buffer->{hostname} or next;
+        my $hostname  = $buffer->{hostname}  or next;
         my $buff_name = $buffer->{buff_name} or next;
         $hostname  =~ s{[.].*}{};
         $buff_name =~ s{[^\w\d]+}{_}g;
-        for my $field (@Fields) {
+        for my $field (@FIELDS) {
             my $key = join q(.),
                 $prefix, $hostname, 'tachikoma',
                 'buffers', $buff_name, $field;
@@ -73,7 +73,7 @@ sub fire {
     my $self   = shift;
     my @output = values %{ $self->output };
     while (@output) {
-        my (@seg) = splice @output, 0, 16;
+        my (@seg)    = splice @output, 0, 16;
         my $response = Tachikoma::Message->new;
         $response->type(TM_BYTESTREAM);
         $response->payload( join q(), @seg );

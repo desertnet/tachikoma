@@ -2,17 +2,34 @@
 if (<_C> > 0) {
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
-            var <_1> = <_2>
+            var <_1> = <_2>;
         }
         elsif ([var <i>] =~ '^--([^=]+)$') {
-            var <_1> = 1
+            var <_1> = 1;
         }
         else {
-            var startup = [var <i>]
+            var startup = [var <i>];
         }
     }
 }
 var args
+if ([var help]) {
+    print 'Usage:
+tachikoma-client [ --socket=<socket>   ]
+                 [ --host=<host>       ]
+                 [ --port=<port>       ]
+                 [ --use-ssl           ]
+                 [ --scheme=<scheme>   ]
+                 [ --timeout=<timeout> ]
+                 [ --debug=<debug>     ]
+                 [ --verbose           ]
+                 [ --path=<path>       ]
+                 [ --connect-log       ]
+                 [ --help              ]
+                 [ <file>              ]
+';
+    exit;
+}
 if ([var socket])  { args .= --socket=<socket>     }
 if ([var host])    { args .= --host=<host>         }
 if ([var port])    { args .= --port=<port>         }
@@ -23,6 +40,7 @@ pivot_client <args>
 if ([var debug])   { debug_level <debug>           }
 if ([var verbose]) { show_commands 1; want_reply 1 }
 if ([var path])    { cd <path>                     }
+if ([var connect-log]) { connect server_log        }
 if ([var startup]) {
     include <startup>
 } else {

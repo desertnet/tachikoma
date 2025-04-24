@@ -16,17 +16,18 @@ use Tachikoma::Message qw(
     TM_BYTESTREAM TM_BATCH TM_STORABLE TM_REQUEST
     TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Digest::MD5 qw( md5 );
-use Time::HiRes qw( usleep );
-use parent qw( Tachikoma::Nodes::Timer );
+use Digest::MD5  qw( md5 );
+use Getopt::Long qw( GetOptionsFromString );
+use Time::HiRes  qw( usleep );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Batch_Interval  = 0.25;     # how long to wait if below threshold
-my $Batch_Threshold = 65536;    # low water mark before sending batches
-my $Poll_Interval   = 1;        # delay between polls
-my $Startup_Delay   = 0;        # offset from poll interval
-my $Hub_Timeout     = 60;       # synchronous timeout waiting for hub
+my $BATCH_INTERVAL  = 0.25;     # how long to wait if below threshold
+my $BATCH_THRESHOLD = 65536;    # low water mark before sending batches
+my $ASYNC_INTERVAL  = 5;        # check partition map this often
+my $BATCH_TIMEOUT   = 45;       # timeout before expiring responses
+my $HUB_TIMEOUT     = 60;       # synchronous timeout waiting for hub
 
 sub new {
     my $class = shift;
@@ -35,9 +36,9 @@ sub new {
     $self->{flags}                  = 0;
     $self->{broker_path}            = undef;
     $self->{partitions}             = undef;
-    $self->{batch_interval}         = $Batch_Interval;
-    $self->{batch_threshold}        = $Batch_Threshold;
-    $self->{poll_interval}          = $Poll_Interval;
+    $self->{batch_interval}         = 0;
+    $self->{batch_threshold}        = $BATCH_THRESHOLD;
+    $self->{async_interval}         = $ASYNC_INTERVAL;
     $self->{next_partition}         = 0;
     $self->{last_check}             = 0;
     $self->{batch}                  = {};
@@ -46,15 +47,16 @@ sub new {
     $self->{batch_timestamp}        = {};
     $self->{responses}              = {};
     $self->{batch_responses}        = {};
+    $self->{batch_timeout}          = $BATCH_TIMEOUT;
     $self->{valid_broker_paths}     = undef;
     $self->{registrations}->{RESET} = {};
     $self->{registrations}->{READY} = {};
 
     # sync support
     if ( length $self->{topic} ) {
-        $self->{broker_ids}  = [ 'localhost:5501', 'localhost:5502' ];
+        $self->{broker_ids}  = ['localhost:5501'];
         $self->{persist}     = 'cancel';
-        $self->{hub_timeout} = $Hub_Timeout;
+        $self->{hub_timeout} = $HUB_TIMEOUT;
         $self->{targets}     = {};
         $self->{sync_error}  = undef;
     }
@@ -65,7 +67,12 @@ sub new {
 sub help {
     my $self = shift;
     return <<'EOF';
-make_node Topic <name> <broker path> [ <topic> ]
+make_node Topic <name> <broker>
+make_node Topic <name> --broker=<broker>        \
+                       --topic=<topic>          \
+                       --batch_interval=<float> \
+                       --batch_threshold=<int>  \
+                       --batch_timeout=<int>
 EOF
 }
 
@@ -74,20 +81,34 @@ sub arguments {
     if (@_) {
         my $arguments = shift;
         $self->{arguments} = $arguments;
-        my ( $broker, $topic ) = split q( ), $arguments, 2;
+        my ( $broker, $topic, $batch_interval, $batch_threshold,
+            $batch_timeout );
+        my ( $r, $argv ) = GetOptionsFromString(
+            $arguments,
+            'broker=s'          => \$broker,
+            'topic=s'           => \$topic,
+            'batch_interval=f'  => \$batch_interval,
+            'batch_threshold=i' => \$batch_threshold,
+            'batch_timeout=i'   => \$batch_timeout,
+        );
+        $broker //= shift @{$argv};
+        die "ERROR: bad arguments for Topic\n"
+            if ( not $r or not $broker );
         die "ERROR: bad arguments for Topic\n" if ( not $broker );
         $self->{broker_path}     = $broker;
         $self->{topic}           = $topic // $self->{name};
         $self->{partitions}      = undef;
+        $self->{batch_interval}  = $batch_interval  // $BATCH_INTERVAL;
+        $self->{batch_threshold} = $batch_threshold // $BATCH_THRESHOLD;
         $self->{next_partition}  = 0;
-        $self->{last_check}      = $Tachikoma::Now + $Startup_Delay;
+        $self->{last_check}      = 0;
         $self->{batch}           = {};
         $self->{batch_offset}    = {};
         $self->{batch_size}      = {};
         $self->{batch_timestamp} = {};
         $self->{responses}       = {};
         $self->{batch_responses} = {};
-        $self->set_timer( $self->{poll_interval} * 1000 );
+        $self->set_timer( $self->{async_interval} * 1000 );
     }
     return $self->{arguments};
 }
@@ -97,18 +118,18 @@ sub fill {
     if ( $message->[TYPE] & TM_RESPONSE ) {
         $self->handle_response($message);
     }
+    elsif ( $message->[TYPE] & TM_ERROR ) {
+        $self->handle_error($message);
+    }
     elsif ( $self->is_broker_path( $message->[FROM] ) ) {
-        if ( $message->[TYPE] & TM_ERROR ) {
-            $self->handle_error($message);
-        }
-        elsif ( $message->[TYPE] & TM_STORABLE ) {
+        if ( $message->[TYPE] & TM_STORABLE ) {
             my $okay = $self->update_partitions($message);
             $self->set_state('READY')
                 if ( $okay and not $self->{set_state}->{READY} );
         }
         else {
-            $self->stderr( $message->type_as_string, ' from ',
-                $message->from );
+            $self->stderr( 'ERROR: unexpected ',
+                $message->type_as_string, ' from ', $message->from );
         }
     }
     elsif ( not $message->[TYPE] & TM_ERROR ) {
@@ -134,7 +155,7 @@ sub fire {
     my $partitions     = $self->{partitions};
     my $batch          = $self->{batch};
     my $batch_interval = $self->{batch_interval};
-    $self->stderr( 'DEBUG: FIRE (', $self->{timer_interval}, 'ms)' )
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
         if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ($partitions) {
         my $topic           = $self->{topic};
@@ -156,7 +177,7 @@ sub fire {
             $message->[FROM]    = $self->{name};
             $message->[TO]      = "$topic:partition:$i";
             $message->[ID]      = join q(:), $i, $batch_offset->{$i};
-            $message->[PAYLOAD] = join q(), @{ $batch->{$i} };
+            $message->[PAYLOAD] = join q(),  @{ $batch->{$i} };
             $self->stderr( "DEBUG: FILL $broker_id ",
                 $batch_size->{$i}, ' bytes' )
                 if ( $self->{debug_state} and $self->{debug_state} >= 3 );
@@ -167,6 +188,7 @@ sub fire {
                 {
                 last_commit_offset => $batch_offset->{$i},
                 batch              => $responses->{$i},
+                timestamp          => $Tachikoma::Now,
                 }
                 if ($persist);
             delete $batch->{$i};
@@ -176,32 +198,24 @@ sub fire {
         }
     }
     if ( $Tachikoma::Right_Now - $self->{last_check}
-        >= $self->{poll_interval} )
+        >= $self->{async_interval} )
     {
-        $self->{valid_broker_paths} = undef;
-        my $message = Tachikoma::Message->new;
-        $message->[TYPE]    = TM_REQUEST;
-        $message->[FROM]    = $self->{name};
-        $message->[TO]      = $self->{broker_path};
-        $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
-        $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-            if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-        $self->{sink}->fill($message);
-        $self->{last_check} = $Tachikoma::Right_Now;
+        $self->get_partitions_async;
+        $self->expire_responses;
     }
     if ( keys %{$batch} ) {
         $self->set_timer( $batch_interval * 1000 )
             if ( $self->{timer_interval} != $batch_interval * 1000 );
     }
-    elsif ( $self->{timer_interval} != $self->{poll_interval} * 1000 ) {
-        $self->set_timer( $self->{poll_interval} * 1000 );
+    elsif ( $self->{timer_interval} != $self->{async_interval} * 1000 ) {
+        $self->set_timer( $self->{async_interval} * 1000 );
     }
     return;
 }
 
 sub handle_response {
-    my ( $self, $message )            = @_;
-    my ( $i,    $last_commit_offset ) = split m{:}, $message->[ID], 2;
+    my ( $self, $message ) = @_;
+    my ( $i, $last_commit_offset ) = split m{:}, $message->[ID], 2;
     my $batch_responses = $self->{batch_responses}->{$i} // [];
     my $responses       = $batch_responses->[0];
     if (    $responses
@@ -241,8 +255,8 @@ sub handle_error {
     }
     my $error = $message->[PAYLOAD];
 
-    # $self->stderr("INFO: reset_topic - got $error");
-    $self->reset_topic;
+    # $self->stderr("INFO: restart - got $error");
+    $self->restart;
     for my $sender ( keys %senders ) {
         my $copy = bless [ @{$message} ], ref $message;
         $copy->[TO]     = $sender;
@@ -266,7 +280,8 @@ sub batch_message {
         $i %= scalar @{$partitions};
     }
     else {
-        $i = $self->{next_partition};
+        $i = ( $self->{next_partition} + 1 ) % @{$partitions};
+        $self->{next_partition} = $i;
     }
     my $packed = $message->packed;
     if ( not exists $self->{batch}->{$i} ) {
@@ -282,11 +297,10 @@ sub batch_message {
     $self->{counter}++;
 
     if ( $message->[TYPE] & TM_PERSIST ) {
-        $message->[PAYLOAD] = q();
-        push @{ $self->{responses}->{$i} }, $message;
+        push @{ $self->{responses}->{$i} },
+            bless [ @{$message}[ 0 .. PAYLOAD - 1 ] ], ref $message;
     }
     if ( $self->{batch_size}->{$i} >= $self->{batch_threshold} ) {
-        $self->{next_partition} = ( $i + 1 ) % @{$partitions};
         $self->set_timer(0)
             if ( not defined $self->{timer_interval}
             or $self->{timer_interval} != 0 );
@@ -296,6 +310,21 @@ sub batch_message {
     {
         $self->set_timer( $self->{batch_interval} * 1000 );
     }
+    return;
+}
+
+sub get_partitions_async {
+    my $self = shift;
+    $self->{valid_broker_paths} = undef;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]    = TM_REQUEST;
+    $message->[FROM]    = $self->{name};
+    $message->[TO]      = $self->{broker_path};
+    $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
+    $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    $self->{sink}->fill($message);
+    $self->{last_check} = $Tachikoma::Right_Now;
     return;
 }
 
@@ -311,6 +340,8 @@ sub update_partitions {
         my $node = $Tachikoma::Nodes{$broker_id};
         if ( not $node ) {
             my ( $host, $port ) = split m{:}, $broker_id, 2;
+            $self->stderr("DEBUG: CREATE $broker_id")
+                if ( $self->debug_state );
             if ( $self->flags & TK_SYNC ) {
                 $node = Tachikoma::Nodes::Socket->inet_client( $host, $port,
                     TK_SYNC );
@@ -333,23 +364,39 @@ sub update_partitions {
     my $new_partitions = $partitions ? join q(|), @{$partitions} : q();
     if ( not $okay ) {
         $self->stderr("WARNING: got partial partition map: $new_partitions");
-        $self->reset_topic;
+        $self->restart;
     }
     elsif ( $old_partitions ne $new_partitions ) {
-
-        # $self->stderr(
-        #     "INFO: partition remap: $old_partitions -> $new_partitions");
-        $self->reset_topic;
+        $self->stderr("DEBUG: REMAP $old_partitions -> $new_partitions")
+            if ( $self->{debug_state} );
+        $self->restart;
     }
     $self->{partitions} = $partitions if ($okay);
     return $okay;
 }
 
-sub reset_topic {
+sub expire_responses {
+    my $self           = shift;
+    my $should_restart = undef;
+CHECK_BATCH: for my $i ( keys %{ $self->{batch_responses} } ) {
+        my $batch_responses = $self->{batch_responses}->{$i};
+        for my $responses ( @{$batch_responses} ) {
+            my $timestamp = $responses->{timestamp};
+            if ( $Tachikoma::Now - $timestamp > $self->{batch_timeout} ) {
+                $should_restart = 1;
+                last CHECK_BATCH;
+            }
+        }
+    }
+    $self->restart if ($should_restart);
+    return;
+}
+
+sub restart {
     my $self = shift;
     $self->{partitions}      = undef;
-    $self->{next_partition}  = 0;
-    $self->{last_check}      = $Tachikoma::Now + $Startup_Delay;
+    $self->{next_partition}  = int rand 1_000_000;
+    $self->{last_check}      = $Tachikoma::Now;
     $self->{batch}           = {};
     $self->{batch_offset}    = {};
     $self->{batch_size}      = {};
@@ -358,6 +405,8 @@ sub reset_topic {
     $self->{batch_responses} = {};
     $self->{set_state}       = {};
     $self->notify( 'RESET' => $self->{name} );
+    $self->stderr('DEBUG: RESTART') if ( $self->{debug_state} );
+    $self->set_timer( $self->{async_interval} * 1000 );
     return;
 }
 
@@ -429,12 +478,12 @@ sub batch_threshold {
     return $self->{batch_threshold};
 }
 
-sub poll_interval {
+sub async_interval {
     my $self = shift;
     if (@_) {
-        $self->{poll_interval} = shift;
+        $self->{async_interval} = shift;
     }
-    return $self->{poll_interval};
+    return $self->{async_interval};
 }
 
 sub next_partition {
@@ -501,6 +550,14 @@ sub batch_responses {
     return $self->{batch_responses};
 }
 
+sub batch_timeout {
+    my $self = shift;
+    if (@_) {
+        $self->{batch_timeout} = shift;
+    }
+    return $self->{batch_timeout};
+}
+
 sub valid_broker_paths {
     my $self = shift;
     if (@_) {
@@ -519,7 +576,7 @@ sub send_messages {    ## no critic (ProhibitExcessComplexity)
     my $payloads   = shift;
     my $topic      = $self->{topic};
     my $partitions = $self->{partitions} || $self->get_partitions or return;
-    my $broker_id  = $partitions->[ $i % @{$partitions} ] or return;
+    my $broker_id  = $partitions->[ $i % @{$partitions} ]         or return;
     my $target =
         $self->{targets}->{$broker_id} || $self->get_target($broker_id)
         or return;
@@ -582,7 +639,7 @@ sub send_kv {    ## no critic (ProhibitExcessComplexity)
     my $payloads   = shift;
     my $topic      = $self->{topic};
     my $partitions = $self->{partitions} || $self->get_partitions or return;
-    my $broker_id  = $partitions->[ $i % @{$partitions} ] or return;
+    my $broker_id  = $partitions->[ $i % @{$partitions} ]         or return;
     my $target =
         $self->{targets}->{$broker_id} || $self->get_target($broker_id)
         or return;
@@ -663,13 +720,15 @@ sub get_partitions {
     die "ERROR: no topic\n" if ( not $self->topic );
     my $partitions = undef;
     $self->sync_error(undef);
-    for my $broker_id ( @{ $self->broker_ids } ) {
+    my $broker_ids = $self->broker_ids;
+    for my $broker_id ( @{$broker_ids} ) {
         $partitions = $self->request_partitions($broker_id);
         if ($partitions) {
             $self->sync_error(undef);
             last;
         }
     }
+    push @{$broker_ids}, shift @{$broker_ids};
     $self->partitions($partitions);
     return $partitions;
 }

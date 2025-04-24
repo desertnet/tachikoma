@@ -9,12 +9,12 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TO TM_BYTESTREAM TM_PERSIST );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent             qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Max_Unanswered = 50;
-my $Default_Payload_Size   = 100;
+my $DEFAULT_MAX_UNANSWERED = 50;
+my $DEFAULT_PAYLOAD_SIZE   = 100;
 
 sub new {
     my $class = shift;
@@ -41,8 +41,8 @@ sub arguments {
         my ( $time, $max_unanswered, $payload_size ) = split q( ),
             $self->{arguments}, 3;
         $self->{msg_unanswered} = 0;
-        $self->{max_unanswered} = $max_unanswered // $Default_Max_Unanswered;
-        $self->{payload_size}   = $payload_size // $Default_Payload_Size;
+        $self->{max_unanswered} = $max_unanswered // $DEFAULT_MAX_UNANSWERED;
+        $self->{payload_size}   = $payload_size   // $DEFAULT_PAYLOAD_SIZE;
         $self->{timer_interval} = $time;
         $self->cached_message(undef);
     }

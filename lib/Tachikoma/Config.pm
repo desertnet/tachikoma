@@ -8,7 +8,7 @@ package Tachikoma::Config;
 use strict;
 use warnings;
 use Exporter;
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
     %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config
@@ -32,6 +32,7 @@ our %Aliases             = ();
 my $CONFIGURATION = undef;
 my %FORBIDDEN     = ();
 my %LEGACY_MAP    = (
+    scheme         => 'scheme',
     Listen         => 'listen_sockets',
     Prefix         => 'prefix',
     Log_Dir        => 'log_dir',
@@ -128,8 +129,6 @@ sub include_conf {
     my $script = <$fh>;
     close $fh or die $!;
     my $config = global();
-    $config->load_legacy;
-    $config->set_legacy;
     ## no critic (ProhibitStringyEval)
     my $okay = eval join q(),
         'package ', $package, ";\n",
@@ -143,48 +142,32 @@ sub include_conf {
     return;
 }
 
-sub set_legacy {
-    my $self = shift;
-    for my $legacy_key ( keys %LEGACY_MAP ) {
-        my $modern_key = $LEGACY_MAP{$legacy_key};
-        if ( $self->{$modern_key} ) {
-            $Tachikoma{$legacy_key} = $self->{$modern_key};
-        }
-    }
-    for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
-        my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
-        if ( $self->{$modern_key} ) {
-            $SSL_Config{$legacy_key} = $self->{$modern_key};
-        }
-    }
-    $ID          = $self->{id}          if ( $self->{id} );
-    $Private_Key = $self->{private_key} if ( $self->{private_key} );
-    $Private_Ed25519_Key = $self->{private_ed25519_key}
-        if ( $self->{private_ed25519_key} );
-    $Keys{$_} = $self->{public_keys}->{$_}
-        for ( keys %{ $self->{public_keys} } );
-    return;
-}
-
 sub load_legacy {
     my $self = shift;
     for my $legacy_key ( keys %LEGACY_MAP ) {
         my $modern_key = $LEGACY_MAP{$legacy_key};
-        if ( $Tachikoma{$legacy_key} ) {
+        if ( exists $Tachikoma{$legacy_key} ) {
             $self->{$modern_key} = $Tachikoma{$legacy_key};
         }
     }
     for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
         my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
-        if ( $SSL_Config{$legacy_key} ) {
+        if ( exists $SSL_Config{$legacy_key} ) {
             $self->{$modern_key} = $SSL_Config{$legacy_key};
         }
     }
-    $self->{id}          = $ID          if ($ID);
-    $self->{private_key} = $Private_Key if ($Private_Key);
-    $self->{private_ed25519_key} = $Private_Ed25519_Key
-        if ($Private_Ed25519_Key);
-    $self->{public_keys}->{$_} = $Keys{$_} for ( keys %Keys );
+    if ( length $ID ) {
+        $self->{id} = $ID;
+    }
+    if ( length $Private_Key ) {
+        $self->{private_key} = $Private_Key;
+    }
+    if ( length $Private_Ed25519_Key ) {
+        $self->{private_ed25519_key} = $Private_Ed25519_Key;
+    }
+    for my $legacy_key ( keys %Keys ) {
+        $self->{public_keys}->{$legacy_key} = $Keys{$legacy_key};
+    }
     return $self;
 }
 
@@ -294,7 +277,7 @@ sub log_dir {
         $self->{log_dir} = shift;
     }
     elsif ( not defined $self->{log_dir} ) {
-        $self->{log_dir} = '/tmp';
+        $self->{log_dir} = '/var/log/tachikoma';
     }
     return $self->{log_dir};
 }
@@ -313,7 +296,7 @@ sub pid_dir {
         $self->{pid_dir} = shift;
     }
     elsif ( not defined $self->{pid_dir} ) {
-        $self->{pid_dir} = '/tmp';
+        $self->{pid_dir} = '/var/run/tachikoma';
     }
     return $self->{pid_dir};
 }

@@ -8,58 +8,43 @@ package Tachikoma::Jobs::Inet_AtoN;
 use strict;
 use warnings;
 use Tachikoma::Job;
-use Tachikoma::Nodes::Timer;
+use Tachikoma::Nodes::Socket;
 use Tachikoma::Message qw(
-    TYPE FROM TO PAYLOAD
-    TM_BYTESTREAM TM_EOF TM_KILLME
+    TYPE FROM TO PAYLOAD TM_REQUEST TM_RESPONSE
 );
 use Socket;
 use parent qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Job_Timeout = 5;     # seconds
-my $DNS_Timeout = 30;    # seconds
+my $DNS_TIMEOUT = 30;    # seconds
 
 sub initialize_graph {
     my $self = shift;
+    my $path = "/tmp/Inet_AtoN.$<";
     $self->connector->sink($self);
     $self->sink( $self->router );
-    $self->timer( Tachikoma::Nodes::Timer->new );
-    $self->timer->name('_timer');
-    $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' );
-    $self->timer->sink($self);
+    Tachikoma->check_pid("Inet_AtoN.$<");
+    Tachikoma->write_pid("Inet_AtoN.$<");
+    unlink $path if ( -e $path );
+    my $node = Tachikoma::Nodes::Socket->unix_server( $path, 700 );
+    $node->name('_socket');
+    $node->owner( $self->name );
+    $node->sink( $self->router );
     return;
 }
 
 sub fill {
     my $self    = shift;
     my $message = shift;
-    return if ( $message->[TYPE] & TM_EOF );
-
-    # timeout, send a TM_KILLME request
-    if ( $message->[FROM] eq '_timer' ) {
-        my $response = Tachikoma::Message->new;
-        $response->[TYPE] = TM_KILLME;
-        $self->timer->stop_timer;
-        return $self->SUPER::fill($response);
-    }
-
-    # looks like we're ready to die
-    return $self->shutdown_all_nodes
-        if ( $message->[TYPE] & TM_KILLME );
-
-    # otherwise make sure it's a TM_BYTESTREAM
-    return if ( not $message->[TYPE] & TM_BYTESTREAM );
-    $self->timer->set_timer( $Job_Timeout * 1000, 'oneshot' )
-        if ( $self->timer );
+    return if ( not $message->[TYPE] & TM_REQUEST );
 
     my $arguments = $message->[PAYLOAD];
     chomp $arguments;
     my $number = undef;
     my $okay   = eval {
         local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-        alarm $DNS_Timeout;
+        alarm $DNS_TIMEOUT;
         $number = inet_aton($arguments);
         alarm 0;
         return 1;
@@ -73,18 +58,17 @@ sub fill {
             die $@ if ( $@ ne "alarm\n" );    # propagate unexpected errors
         }
     }
+    $message->[TYPE]    = TM_RESPONSE;
     $message->[TO]      = $message->[FROM];
     $message->[FROM]    = q();
     $message->[PAYLOAD] = $number ? join q(), inet_ntoa($number), "\n" : q();
     return $self->SUPER::fill($message);
 }
 
-sub timer {
+sub remove_node {
     my $self = shift;
-    if (@_) {
-        $self->{timer} = shift;
-    }
-    return $self->{timer};
+    Tachikoma->remove_pid("Inet_AtoN.$<");
+    return $self->SUPER::remove_node;
 }
 
 1;

@@ -9,8 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE STREAM PAYLOAD TM_BYTESTREAM );
-use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Node );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
@@ -35,7 +34,12 @@ sub arguments {
     if (@_) {
         $self->{arguments} = shift;
         my $regex = $self->{arguments} || '(.*)';
-        $self->{regex} = qr{$regex};
+        if ( $regex =~ m{[(]} ) {
+            $self->{regex} = qr{$regex};
+        }
+        else {
+            $self->{force} = $regex;
+        }
     }
     return $self->{arguments};
 }
@@ -50,7 +54,9 @@ sub fill {
     elsif ( $message->[TYPE] & TM_BYTESTREAM
         and $message->[PAYLOAD] =~ m{$regex} )
     {
-        $message->[STREAM] = md5_hex($1);
+        my $stream = $1;
+        chomp $stream;
+        $message->[STREAM] = $stream;
     }
     return $self->SUPER::fill($message);
 }

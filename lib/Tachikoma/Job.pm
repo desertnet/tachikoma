@@ -15,10 +15,11 @@ use Tachikoma::Message qw(
 use Tachikoma::Nodes::FileHandle qw( TK_R setsockopts );
 use Tachikoma::Nodes::STDIO;
 use Tachikoma::Nodes::Callback;
+use Tachikoma::Nodes::JobSpawnTimer;
 use POSIX qw( F_SETFD dup2 );
 use Socket;
 use Scalar::Util qw( blessed );
-use parent qw( Tachikoma::Node );
+use parent       qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.101');
 
@@ -29,6 +30,8 @@ if ( -f '/usr/bin/sudo' ) {
 elsif ( -f '/usr/local/bin/sudo' ) {
     $SUDO = '/usr/local/bin/sudo';
 }
+
+my @SPAWN_QUEUE = ();
 
 use constant {
     MAX_RECENT_LOG => 100,
@@ -47,6 +50,7 @@ sub new {
     $self->{config_file}    = undef;
     $self->{original_name}  = undef;
     $self->{router}         = undef;
+    $self->{spawn_buffer}   = undef;
     $self->{connector}      = undef;
     bless $self, $class;
     return $self;
@@ -70,7 +74,7 @@ sub prepare {
             my $message = shift;
             my $sink    = $self->{connector}->{sink};
             my $owner   = $self->{connector}->{owner};
-            $self->spawn($options);
+            $self->_spawn($options);
             if ( $self->{connector}->{type} ) {
                 $self->{connector}->sink($sink);
                 $self->{connector}->owner($owner) if ( length $owner );
@@ -83,6 +87,50 @@ sub prepare {
 }
 
 sub spawn {
+    my $self    = shift;
+    my $options = shift;
+    $self->{arguments}      = $options->{arguments};
+    $self->{type}           = $options->{type};
+    $self->{pid}            = q(-);
+    $self->{username}       = $options->{username};
+    $self->{config_file}    = $options->{config_file};
+    $self->{original_name}  = $options->{name};
+    $self->{arguments}      = $options->{arguments};
+    $self->{owner}          = $options->{owner};
+    $self->{should_restart} = $options->{should_restart};
+    $self->{spawn_buffer}   = [];
+    $self->{connector}      = Tachikoma::Nodes::Callback->new;
+    $self->{connector}->name( $options->{name} );
+    $self->{connector}->callback(
+        sub {
+            my $message = shift;
+            push @{ $self->{spawn_buffer} }, $message;
+            return;
+        }
+    );
+    if ( not Tachikoma->nodes->{'_spawn_timer'} ) {
+        my $spawn_timer = Tachikoma::Nodes::JobSpawnTimer->new;
+        $spawn_timer->name('_spawn_timer');
+        $spawn_timer->set_timer(250);
+        $spawn_timer->sink($self);
+        Tachikoma->nodes->{'_spawn_timer'} = $spawn_timer;
+    }
+    push @SPAWN_QUEUE, sub {
+        my $sink  = $self->{connector}->{sink};
+        my $owner = $self->{connector}->{owner};
+        $self->_spawn($options);
+        if ( $self->{connector}->{type} ) {
+            $self->{connector}->sink($sink);
+            $self->{connector}->owner($owner) if ( length $owner );
+            $self->{connector}->fill($_) for ( @{ $self->{spawn_buffer} } );
+            $self->{spawn_buffer} = undef;
+        }
+        return;
+    };
+    return;
+}
+
+sub _spawn {
     my $self        = shift;
     my $options     = shift;
     my $filehandles = {
@@ -105,25 +153,18 @@ sub spawn {
 
         # connect parent filehandles
         $self->connect_parent( $filehandles, $options->{name} );
-        $self->{type}           = $options->{type};
-        $self->{pid}            = $pid;
-        $self->{last_restart}   = $Tachikoma::Now;
-        $self->{username}       = $options->{username};
-        $self->{config_file}    = $options->{config_file};
-        $self->{original_name}  = $options->{name};
-        $self->{arguments}      = $options->{arguments};
-        $self->{owner}          = $options->{owner};
-        $self->{should_restart} = $options->{should_restart};
+        $self->{pid}          = $pid;
+        $self->{last_restart} = $Tachikoma::Now;
         return;
     }
     else {
         my $location      = $self->configuration->prefix || '/usr/local/bin';
         my $tachikoma_job = join q(), $location, '/tachikoma-job';
-        my $type          = ( $options->{type} =~ m{^([\w:]+)$} )[0];
-        my $username      = ( $options->{username} =~ m{^(\S*)$} )[0];
+        my $type          = ( $options->{type}        =~ m{^([\w:]+)$} )[0];
+        my $username      = ( $options->{username}    =~ m{^(\S*)$} )[0];
         my $config_file   = ( $options->{config_file} =~ m{^(\S*)$} )[0];
-        my $name          = ( $options->{name} =~ m{^(\S*)$} )[0];
-        my $arguments     = ( $options->{arguments} =~ m{^(.*)$}s )[0];
+        my $name          = ( $options->{name}        =~ m{^(\S*)$} )[0];
+        my $arguments     = ( $options->{arguments}   =~ m{^(.*)$}s )[0];
 
         # search for module here in case we're sudoing a job without config
         my $class = $self->determine_class($type) or exit 1;
@@ -215,12 +256,7 @@ sub make_stdio {
         sub {
             my $message = shift;
             if ( not $message->[TYPE] & TM_EOF ) {
-                if ( $message->[PAYLOAD] =~ m{^\d{4}-\d\d-\d\d} ) {
-                    print {*STDERR} $message->[PAYLOAD];
-                }
-                else {
-                    $self->{connector}->stderr( $message->[PAYLOAD] );
-                }
+                $self->{connector}->stderr( $message->[PAYLOAD] );
             }
             return;
         }
@@ -284,8 +320,8 @@ sub fill {
 
 sub execute {
     my $self        = shift;
-    my $safe_part   = shift || q();
-    my $unsafe_part = shift || q();
+    my $safe_part   = shift                                           || q();
+    my $unsafe_part = shift                                           || q();
     my $now_safe = ( $unsafe_part =~ m{^([\d\s\w@%"'/:,.=_-]*)$} )[0] || q();
     if ( $unsafe_part eq $now_safe ) {
         my $command = join q( ), $safe_part, $now_safe;
@@ -300,8 +336,8 @@ sub execute {
 
 sub execute_unsafe {
     my $self        = shift;
-    my $safe_part   = shift || q();
-    my $unsafe_part = shift || q();
+    my $safe_part   = shift                            || q();
+    my $unsafe_part = shift                            || q();
     my $now_safe    = ( $unsafe_part =~ m{^(.*)$} )[0] || q();
     if ( $unsafe_part eq $now_safe ) {
         my $command = join q( ), $safe_part, $now_safe;
@@ -394,12 +430,25 @@ sub router {
     return $self->{router};
 }
 
+sub spawn_buffer {
+    my $self = shift;
+    if (@_) {
+        $self->{spawn_buffer} = shift;
+    }
+    return $self->{spawn_buffer};
+}
+
 sub connector {
     my $self = shift;
     if (@_) {
         $self->{connector} = shift;
     }
     return $self->{connector};
+}
+
+sub spawn_queue {
+    my $self = shift;
+    return \@SPAWN_QUEUE;
 }
 
 1;

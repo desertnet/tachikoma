@@ -17,17 +17,17 @@ use Tachikoma::Message qw(
     VECTOR_SIZE
 );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
-use POSIX qw( F_SETFL O_NONBLOCK EAGAIN );
-use vars qw( @EXPORT_OK );
+use POSIX  qw( F_SETFL O_NONBLOCK EAGAIN );
+use vars   qw( @EXPORT_OK );
 use parent qw( Exporter Tachikoma::Node );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
 use version; our $VERSION = qv('v2.0.195');
 
 # flags for new()
-use constant TK_R    => 000001;    #    1
-use constant TK_W    => 000002;    #    2
-use constant TK_SYNC => 000004;    #    4
+use constant TK_R    => oct 1;    #    1
+use constant TK_W    => oct 2;    #    2
+use constant TK_SYNC => oct 4;    #    4
 
 sub filehandle {
     my $class = shift;
@@ -47,26 +47,27 @@ sub filehandle {
 sub new {
     my $proto        = shift;
     my $class        = ref($proto) || $proto;
-    my $flags        = shift || 0;
+    my $flags        = shift       || 0;
     my $self         = $class->SUPER::new;
     my $input_buffer = q();
-    $self->{type}             = 'filehandle';
-    $self->{flags}            = $flags;
-    $self->{on_EOF}           = 'close';
-    $self->{drain_fh}         = \&drain_fh;
-    $self->{drain_buffer}     = \&drain_buffer_normal;
-    $self->{fill_fh}          = \&fill_fh;
-    $self->{input_buffer}     = \$input_buffer;
-    $self->{output_buffer}    = [];
-    $self->{output_cursor}    = undef;
-    $self->{id}               = undef;
-    $self->{fd}               = undef;
-    $self->{fh}               = undef;
-    $self->{bytes_read}       = 0;
-    $self->{bytes_written}    = 0;
-    $self->{high_water_mark}  = 0;
-    $self->{largest_msg_sent} = 0;
-    $self->{fill_modes}       = {
+    $self->{type}                 = 'filehandle';
+    $self->{flags}                = $flags;
+    $self->{on_EOF}               = 'close';
+    $self->{drain_fh}             = \&drain_fh;
+    $self->{drain_buffer}         = \&drain_buffer_normal;
+    $self->{fill_fh}              = \&fill_fh;
+    $self->{input_buffer}         = \$input_buffer;
+    $self->{output_buffer}        = [];
+    $self->{output_cursor}        = undef;
+    $self->{id}                   = undef;
+    $self->{fd}                   = undef;
+    $self->{fh}                   = undef;
+    $self->{bytes_read}           = 0;
+    $self->{bytes_written}        = 0;
+    $self->{high_water_mark}      = 0;
+    $self->{largest_msg_sent}     = 0;
+    $self->{registrations}->{EOF} = {};
+    $self->{fill_modes}           = {
         null => \&null_cb,
         fill => $flags & TK_SYNC ? \&fill_fh_sync : \&fill_buffer
     };
@@ -170,10 +171,7 @@ sub drain_buffer_normal {
         #     ? VECTOR_SIZE + unpack 'N', ${$buffer}
         #     : 0;
         $size = $got > VECTOR_SIZE ? unpack 'N', ${$buffer} : 0;
-        $message->[FROM] =
-            length $message->[FROM]
-            ? join q(/), $name, $message->[FROM]
-            : $name;
+        $message->[FROM] = join q(/), grep length, $name, $message->[FROM];
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
                 $self->drop_message( $message,
@@ -265,6 +263,7 @@ sub handle_EOF {
     my $on_EOF = $self->{on_EOF};
     if ( $on_EOF ne 'send' ) {
         $self->unregister_reader_node;
+        $self->set_state('EOF');
     }
     if ( $on_EOF eq 'close' ) {
         $self->send_EOF;
@@ -428,7 +427,6 @@ sub fh {
     if (@_) {
         my $fh = shift;
         my $fd = fileno $fh;
-        $self->{name} ||= $fd;
         $self->{fd} = $fd;
         $self->{fh} = $fh;
         if ( $self->{flags} & TK_SYNC ) {

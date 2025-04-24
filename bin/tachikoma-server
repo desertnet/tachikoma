@@ -1,9 +1,11 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
 if (<_C> > 0) {
-    log "commandline arguments: <@>";
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
-            var <_1> = <_2>
+            var <_1> = <_2>;
+        }
+        elsif ([var <i>] =~ '^--([^=]+)$') {
+            var <_1> = 1;
         }
         else {
             log (ERROR: couldn\'t parse argument: [var <i>]);
@@ -11,14 +13,33 @@ if (<_C> > 0) {
         }
     }
 }
-if (not [var startup];) {
-    var startup = startup.txt
+if ([var help]) {
+    print 'Usage:
+tachikoma-server [ --debug=<level>   ]
+                 [ --daemon=[yes|no] ]
+                 [ --startup=<file>  ]
+                 [ --help            ]
+';
+    exit;
+}
+if ([var debug]) {
+    debug_state _command_interpreter <debug>;
+    debug_state _router              <debug>;
+} else {
+    var debug = 0;
+}
+if (! [var startup]) {
+    var startup = startup.txt;
 }
 if ([var daemon] eq "no") {
-    initialize [var name]
+    initialize [var name];
+    open_log_file;
 } else {
-    daemonize [var name]
+    daemonize [var name];
 }
 listen_inet
+log "arguments: <@>";
 log "running <startup>"
+make_node JobController jobs
+command_node jobs start_job Inet_AtoN
 include <startup>

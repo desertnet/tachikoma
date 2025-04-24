@@ -23,7 +23,7 @@ sub fill {
     return $self->cancel($message)
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
-    my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
+    my $offset    = ( split m{:}, $message->[ID],      2 )[0] // 0;
     my $process   = ( split q( ), $message->[PAYLOAD], 6 )[4] // q(-);
     $process =~ s{\[\d+\]:$}{};
     $process =~ s{--\d+--.*?:tail}{--XXX:tail}g;

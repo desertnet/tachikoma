@@ -22,7 +22,7 @@ while (1) {
     my $time  = time;
     printf "%d %-50s %10s\n", $time, 'PARTITION', 'COUNT';
     for my $partition_id ( sort keys %$group_cache ) {
-        my $count = $group_cache->{$partition_id} // 0;
+        my $count = $group_cache->{$partition_id}->{cache} // 0;
         printf "%d %-50s %10d\n", $time, $partition_id, $count;
         $total += $count;
     }

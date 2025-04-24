@@ -12,7 +12,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_HEARTBEAT TM_COMPLETION TM_ERROR
 );
-use POSIX qw( :sys_wait_h );
+use POSIX  qw( :sys_wait_h );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.195');
@@ -21,6 +21,9 @@ my $PROFILES           = undef;
 my @STACK              = ();
 my $LAST_UTIME         = 0;
 my $HEARTBEAT_INTERVAL = 15;      # seconds
+my $SHUTDOWN_TIMEOUT   = 300;
+my $LOG_TIMEOUT        = 300;
+my $TOUCH_INTERVAL     = 300;
 
 sub new {
     my $class = shift;
@@ -50,7 +53,7 @@ sub drain {
     if ( $self->type eq 'root' ) {
         $self->stderr('waiting for child processes...');
     }
-    alarm 300;
+    alarm $SHUTDOWN_TIMEOUT;
     local $SIG{ALRM} = sub { die "timeout\n" };
     my $okay = eval {
         do { }
@@ -74,6 +77,7 @@ sub drain {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    $self->{counter}++;
     return $self->drop_message( $message, 'message not addressed' )
         if ( not length $message->[TO] );
     return $self->drop_message( $message, 'path exceeded 1024 bytes' )
@@ -82,6 +86,7 @@ sub fill {
     return $self->send_error( $message, "NOT_AVAILABLE\n" )
         if ( not $Tachikoma::Nodes{$name} );
     $message->[TO] = $path;
+
     if ($PROFILES) {
         my $before = $self->push_profile($name);
         my $rv     = $Tachikoma::Nodes{$name}->fill($message);
@@ -122,11 +127,11 @@ sub send_error {
 sub fire_cb {
     my $self   = shift;
     my $config = $self->configuration;
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( $config->secure_level ) {
         my @again        = ();
         my $reconnecting = Tachikoma->nodes_to_reconnect;
-        $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, ' ms' )
-            if ( $self->{debug_state} and $self->{debug_state} >= 3 );
         while ( my $node = shift @{$reconnecting} ) {
             my $okay = eval {
                 push @again, $node if ( $node->reconnect );
@@ -158,7 +163,7 @@ sub heartbeat {
     my $self  = shift;
     my $var   = shift;
     my $stale = $var->{stale_connector_threshold} || 900;
-    my $slow  = $var->{slow_connector_threshold} || 900;
+    my $slow  = $var->{slow_connector_threshold}  || 900;
     for my $name ( keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
         if ( not $node ) {
@@ -207,9 +212,12 @@ sub update_logs {
     my $recent_log_timers = Tachikoma->recent_log_timers;
     for my $text ( keys %{$recent_log_timers} ) {
         delete $recent_log_timers->{$text}
-            if ( $Tachikoma::Now - $recent_log_timers->{$text}->[0] > 300 );
+            if ( $Tachikoma::Now - $recent_log_timers->{$text}->[0]
+            > $LOG_TIMEOUT );
     }
-    if ( $self->{type} eq 'root' and $Tachikoma::Now - $LAST_UTIME > 300 ) {
+    if (    $self->{type} eq 'root'
+        and $Tachikoma::Now - $LAST_UTIME > $TOUCH_INTERVAL )
+    {
         Tachikoma->touch_log_file;
         $LAST_UTIME = $Tachikoma::Now;
     }
@@ -220,12 +228,15 @@ sub expire_callbacks {
     my $self      = shift;
     my $responder = $Tachikoma::Nodes{_responder};
     my $shell     = $responder ? $responder->shell : undef;
-    if ( $shell and $shell->isa('Tachikoma::Nodes::Shell2') ) {
+    if ($shell
+        and (  $shell->isa('Tachikoma::Nodes::Shell2')
+            or $shell->isa('Tachikoma::Nodes::Shell3') )
+        )
+    {
         my $callbacks = $shell->callbacks;
         for my $id ( sort keys %{$callbacks} ) {
             my $timestamp = ( split m{:}, $id, 2 )[0];
             last if ( $Tachikoma::Now - $timestamp < 900 );
-            $self->stderr("WARNING: expiring callback $id");
             delete $callbacks->{$id};
         }
     }

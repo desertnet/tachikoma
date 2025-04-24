@@ -8,15 +8,15 @@ package Tachikoma::Nodes::HTTP_Store;
 use strict;
 use warnings;
 use Tachikoma::Node;
-use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry );
-use Tachikoma::Message qw(
+use Tachikoma::Nodes::HTTP_Responder qw( get_time log_entry send404 );
+use Tachikoma::Message               qw(
     TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM TM_STORABLE TM_EOF
 );
 use CGI;
 use POSIX qw( strftime );
 use URI::Escape;
 use Digest::MD5 qw( md5_hex );
-use parent qw( Tachikoma::Node );
+use parent      qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
@@ -36,7 +36,7 @@ sub arguments {
         my ( $tmp_path, $prefix, @topics ) = split q( ), $self->{arguments};
         $self->{topics}   = { map { $_ => 1 } @topics };
         $self->{tmp_path} = $tmp_path if ( defined $tmp_path );
-        $self->{prefix}   = $prefix if ( defined $prefix );
+        $self->{prefix}   = $prefix   if ( defined $prefix );
     }
     return $self->{arguments};
 }
@@ -115,30 +115,7 @@ sub fill {
     $self->{sink}->fill($response);
     $self->{counter}++;
     log_entry( $self, 200, $message );
-    return 1;
-}
-
-sub send404 {
-    my $self     = shift;
-    my $message  = shift;
-    my $response = Tachikoma::Message->new;
-    $response->[TYPE]    = TM_BYTESTREAM;
-    $response->[TO]      = $message->[FROM];
-    $response->[STREAM]  = $message->[STREAM];
-    $response->[PAYLOAD] = join q(),
-        "HTTP/1.1 404 NOT FOUND\n",
-        strftime( "Date: %a, %d %b %Y %T GMT\n", gmtime $Tachikoma::Now ),
-        "Server: Tachikoma\n",
-        "Connection: close\n",
-        "Content-Type: text/plain; charset=utf8\n",
-        "\n",
-        "Requested URL not found.\n";
-    $self->{sink}->fill($response);
-    $response         = Tachikoma::Message->new;
-    $response->[TYPE] = TM_EOF;
-    $response->[TO]   = $message->[FROM];
-    log_entry( $self, 404, $message );
-    return $self->{sink}->fill($response);
+    return;
 }
 
 sub tmp_path {

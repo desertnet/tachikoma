@@ -23,7 +23,7 @@ sub fill {
     return $self->cancel($message)
         if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $partition = ( $message->[FROM] =~ m{(\d+)$} )[0];
-    my $offset    = ( split m{:}, $message->[ID], 2 )[0] // 0;
+    my $offset    = ( split m{:}, $message->[ID],      2 )[0] // 0;
     my $hostname  = ( split q( ), $message->[PAYLOAD], 5 )[3] // q(-);
     my $response  = Tachikoma::Message->new;
     $response->[TYPE]      = TM_BYTESTREAM | TM_PERSIST;

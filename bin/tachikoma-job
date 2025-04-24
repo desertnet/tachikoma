@@ -8,8 +8,10 @@ use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Nodes::Router;
+use Tachikoma::Nodes::Responder;
+use Tachikoma::Nodes::Echo;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_SYNC );
-use Tachikoma::Config qw( load_module );
+use Tachikoma::Config            qw( load_module );
 
 use version; our $VERSION = qv('v2.0.192');
 
@@ -30,12 +32,18 @@ $Tachikoma::Right_Now = $Tachikoma::Now;
 open my $child_fh, q(+<&=), 5 or usage();
 my $connector =
     Tachikoma::Nodes::FileHandle->filehandle( $child_fh, TK_R | TK_SYNC );
-my $router = Tachikoma::Nodes::Router->new;
+my $router    = Tachikoma::Nodes::Router->new;
+my $responder = Tachikoma::Nodes::Responder->new;
+my $echo      = Tachikoma::Nodes::Echo->new;
 $connector->name('_parent');
 $connector->type('job');
 $connector->on_EOF('shutdown');
 $router->name('_router');
 $router->type('job');
+$responder->name('_responder');
+$responder->sink($router);
+$echo->name('_return_to_sender');
+$echo->sink($router);
 
 load_module($class);
 my $job = $class->new;

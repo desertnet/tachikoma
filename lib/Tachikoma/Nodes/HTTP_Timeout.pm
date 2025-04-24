@@ -12,13 +12,13 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Default_Request_Timeout = 300;
+my $DEFAULT_REQUEST_TIMEOUT = 300;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{watched} = {};
-    $self->{timeout} = $Default_Request_Timeout;
+    $self->{timeout} = $DEFAULT_REQUEST_TIMEOUT;
     bless $self, $class;
     return $self;
 }
@@ -27,7 +27,7 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{timeout}   = $self->{arguments} || $Default_Request_Timeout;
+        $self->{timeout}   = $self->{arguments} || $DEFAULT_REQUEST_TIMEOUT;
         $self->set_timer;
     }
     return $self->{arguments};

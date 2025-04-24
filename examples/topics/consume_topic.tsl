@@ -8,11 +8,12 @@ var topic=<1>
 var name
 include config.tsl
 connect_hub
-make_x - ConsumerBroker consumer_broker --broker=<broker>      \
-                                        --default_offset=start \
-                                        --startup_delay=0      \
-                                        --poll_interval=0.1    \
-                                        --topic=<topic>
+make ConsumerBroker consumer_broker --broker=<broker>      \
+                                    --topic=<topic>        \
+                                    --max_unanswered=0     \
+                                    --default_offset=start \
+                                    --startup_interval=0.1
 # debug_state consumer_broker 9
 on consumer_broker READY exit 0
-secure 3
+on <hub> AUTHENTICATED connect consumer_broker
+secure 2

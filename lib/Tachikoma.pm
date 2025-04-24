@@ -7,8 +7,13 @@
 package Tachikoma;
 use strict;
 use warnings;
+use Tachikoma::Message qw(
+    TYPE FROM TO ID STREAM PAYLOAD
+    TM_PERSIST TM_RESPONSE
+);
 use Tachikoma::Config qw( load_module include_conf );
-use POSIX qw( setsid );
+use Fcntl             qw( :flock );
+use POSIX             qw( setsid );
 
 use version; our $VERSION = qv('v2.0.101');
 
@@ -17,9 +22,9 @@ use constant {
     DEFAULT_TIMEOUT => 900,
     MAX_INT         => 2**32,
     BUFSIZ          => 262144,
-    TK_R            => 000001,    #    1
-    TK_W            => 000002,    #    2
-    TK_SYNC         => 000004,    #    4
+    TK_R            => oct 1,    #    1
+    TK_W            => oct 2,    #    2
+    TK_SYNC         => oct 4,    #    4
 };
 
 $Tachikoma::Max_Int         = MAX_INT;
@@ -39,6 +44,7 @@ my @NODES_TO_RECONNECT = ();
 my @RECENT_LOG         = ();
 my %RECENT_LOG_TIMERS  = ();
 my $SHUTTING_DOWN      = undef;
+my $PID_FH             = undef;
 
 sub inet_client {
     my ( $class, $host, $port, $use_SSL ) = @_;
@@ -55,6 +61,7 @@ sub inet_client {
     $self->{connector} =
         Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
         $use_SSL );
+    $self->{connector}->{sink} = $self->{sink};
     $self->restore_framework;
     return $self;
 }
@@ -77,7 +84,9 @@ sub callback {
     my ( $self, $callback ) = @_;
     my $node = Tachikoma::Nodes::Callback->new(
         sub {
-            $self->{sink}->stop if ( not &{$callback}(@_) );
+            my $message = shift;
+            $message->[FROM] =~ s{^\d+/}{};
+            $self->{sink}->stop if ( not &{$callback}($message) );
             return;
         }
     );
@@ -166,6 +175,32 @@ sub sink {
     return $self->{sink};
 }
 
+sub answer {
+    my ( $self, $message ) = @_;
+    return if ( not $message->[TYPE] & TM_PERSIST );
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
+    $response->[TO]      = $message->[FROM] or return;
+    $response->[ID]      = $message->[ID];
+    $response->[STREAM]  = $message->[STREAM];
+    $response->[PAYLOAD] = 'answer';
+    $self->{connector}->fill($response);
+    return;
+}
+
+sub cancel {
+    my ( $self, $message ) = @_;
+    return if ( not $message->[TYPE] & TM_PERSIST );
+    my $response = Tachikoma::Message->new;
+    $response->[TYPE]    = TM_PERSIST | TM_RESPONSE;
+    $response->[TO]      = $message->[FROM] or return;
+    $response->[ID]      = $message->[ID];
+    $response->[STREAM]  = $message->[STREAM];
+    $response->[PAYLOAD] = 'cancel';
+    $self->{connector}->fill($response);
+    return;
+}
+
 sub fh {
     my ( $self, @args ) = shift;
     return $self->{connector}->fh(@args);
@@ -200,9 +235,11 @@ sub initialize {
     $0 = $name if ($name);    ## no critic (RequireLocalizedPunctuationVars)
     srand;
     $self->check_pid;
-    $self->daemonize if ($daemonize);
+    if ($daemonize) {
+        $self->daemonize;
+        $self->open_log_file;
+    }
     $self->reset_signal_handlers;
-    $self->open_log_file;
     $self->write_pid;
     $self->load_event_framework;
     return;
@@ -210,8 +247,9 @@ sub initialize {
 
 sub check_pid {
     my $self    = shift;
-    my $old_pid = $self->get_pid;
-    if ( $old_pid and kill 0, $old_pid ) {
+    my $name    = shift;
+    my $old_pid = $self->get_pid($name);
+    if ($old_pid) {
         print {*STDERR} "ERROR: $0 already running as pid $old_pid\n";
         exit 3;
     }
@@ -220,13 +258,25 @@ sub check_pid {
 
 sub daemonize {    # from perlipc manpage
     my $self = shift;
-    open STDIN,  '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
+    open STDIN, '<', '/dev/null' or die "ERROR: couldn't read /dev/null: $!";
     open STDOUT, '>', '/dev/null'
         or die "ERROR: couldn't write /dev/null: $!";
     defined( my $pid = fork ) or die "ERROR: couldn't fork: $!";
     exit 0 if ($pid);
     setsid() or die "ERROR: couldn't start session: $!";
     open STDERR, '>&', STDOUT or die "ERROR: couldn't dup STDOUT: $!";
+    return;
+}
+
+sub open_log_file {
+    my $self = shift;
+    my $log  = $self->log_file or die "ERROR: no log file specified\n";
+    if ( not defined $LOG_FILE_HANDLE ) {
+        chdir q(/) or die "ERROR: couldn't chdir /: $!";
+        open $LOG_FILE_HANDLE, '>>', $log
+            or die "ERROR: couldn't open log file $log: $!\n";
+        $LOG_FILE_HANDLE->autoflush(1);
+    }
     return;
 }
 
@@ -241,27 +291,15 @@ sub reset_signal_handlers {
     return;
 }
 
-sub open_log_file {
-    my $self = shift;
-    my $log  = $self->log_file or die "ERROR: no log file specified\n";
-    chdir q(/) or die "ERROR: couldn't chdir /: $!";
-    open $LOG_FILE_HANDLE, '>>', $log
-        or die "ERROR: couldn't open log file $log: $!\n";
-    $LOG_FILE_HANDLE->autoflush(1);
-    ## no critic (ProhibitTies)
-    tie *STDOUT, 'Tachikoma', $self or die "ERROR: couldn't tie STDOUT: $!";
-    tie *STDERR, 'Tachikoma', $self or die "ERROR: couldn't tie STDERR: $!";
-    ## use critic
-    return 'success';
-}
-
 sub write_pid {
     my $self = shift;
-    my $file = $self->pid_file or die "ERROR: no pid file specified\n";
+    my $name = shift;
+    my $file = $self->pid_file($name) or die "ERROR: no pid file specified\n";
     $MY_PID = $$;
-    open my $fh, '>', $file or die "ERROR: couldn't open pid file $file: $!";
-    print {$fh} "$MY_PID\n";
-    close $fh or die $!;
+    open $PID_FH, '>', $file or die "ERROR: couldn't open pid file $file: $!";
+    flock $PID_FH, LOCK_EX | LOCK_NB
+        or die "ERROR: couldn't lock pid file $file: $!";
+    syswrite $PID_FH, "$MY_PID\n";
     return;
 }
 
@@ -287,18 +325,19 @@ sub load_event_framework {
 sub touch_log_file {
     my $self = shift;
     my $log  = $self->log_file or die "ERROR: no log file specified\n";
-    $self->close_log_file;
-    $self->open_log_file;
-    utime $Tachikoma::Now, $Tachikoma::Now, $log
-        or die "ERROR: couldn't utime $log: $!";
+    if ( defined $LOG_FILE_HANDLE ) {
+        $self->close_log_file;
+        $self->open_log_file;
+        utime $Tachikoma::Now, $Tachikoma::Now, $log
+            or die "ERROR: couldn't utime $log: $!";
+    }
     return;
 }
 
 sub close_log_file {
     my $self = shift;
-    untie *STDOUT;
-    untie *STDERR;
     close $LOG_FILE_HANDLE or die $!;
+    undef $LOG_FILE_HANDLE;
     return;
 }
 
@@ -319,14 +358,24 @@ sub get_pid {
     $pid = <$fh>;
     close $fh or die $!;
     chomp $pid if ($pid);
-    return $pid;
+
+    if ( kill 0, $pid ) {
+        return $pid;
+    }
+    else {
+        return;
+    }
 }
 
 sub remove_pid {
     my $self = shift;
-    my $file = $self->pid_file or die "ERROR: no pid file specified\n";
+    my $name = shift;
+    my $file = $self->pid_file($name) or die "ERROR: no pid file specified\n";
+    flock $PID_FH, LOCK_UN
+        or warn "ERROR: couldn't unlock pid file $file: $!";
+    close $PID_FH or warn $!;
     if ( $file and $$ == $MY_PID ) {
-        unlink $file or die $!;
+        unlink $file or warn "ERROR: couldn't unlink pid file $file: $!";
     }
     return;
 }
@@ -336,11 +385,11 @@ sub pid_file {
     my $name     = shift // $0;
     my $pid_file = undef;
     my $config   = Tachikoma->configuration;
-    if ( $config->pid_file ) {
-        $pid_file = $config->pid_file;
-    }
-    elsif ( $config->pid_dir ) {
+    if ( $config->pid_dir ) {
         $pid_file = join q(), $config->pid_dir, q(/), $name, '.pid';
+    }
+    elsif ( $config->pid_file ) {
+        $pid_file = $config->pid_file;
     }
     else {
         die "ERROR: couldn't determine pid_file\n";
@@ -353,11 +402,11 @@ sub log_file {
     my $name     = $0;
     my $log_file = undef;
     my $config   = Tachikoma->configuration;
-    if ( $config->log_file ) {
-        $log_file = $config->log_file;
-    }
-    elsif ( $config->log_dir ) {
+    if ( $config->log_dir ) {
         $log_file = join q(), $config->log_dir, q(/), $name, '.log';
+    }
+    elsif ( $config->log_file ) {
+        $log_file = $config->log_file;
     }
     else {
         die "ERROR: couldn't determine log_file\n";
@@ -456,7 +505,18 @@ sub print_less_often {
 
 sub stderr {
     my ( $self, @args ) = @_;
-    return Tachikoma::Node->stderr(@args);
+    my $msg = join q(), grep { defined and $_ ne q() } @args;
+    return if ( not length $msg );
+    my $rv = undef;
+    push @RECENT_LOG, $msg;
+    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
+    if ( defined *STDERR ) {
+        $rv = print {*STDERR} $msg;
+    }
+    if ( defined $LOG_FILE_HANDLE ) {
+        $rv = print {$LOG_FILE_HANDLE} $msg;
+    }
+    return $rv;
 }
 
 sub log_prefix {
@@ -472,49 +532,6 @@ sub configuration {
 sub scheme {
     my ( $self, @args ) = @_;
     return $self->configuration->scheme(@args);
-}
-
-sub TIEHANDLE {
-    my $class  = shift;
-    my $self   = shift;
-    my $scalar = \$self;
-    return bless $scalar, $class;
-}
-
-sub OPEN {
-    my $self = shift;
-    my $path = shift;
-    return $self;
-}
-
-sub FILENO {
-    my $self = shift;
-    return fileno $LOG_FILE_HANDLE;
-}
-
-sub WRITE {
-    my ( $self, $buf, $length, $offset ) = @_;
-    $length //= 0;
-    $offset //= 0;
-    return syswrite $LOG_FILE_HANDLE, $buf, $length, $offset;
-}
-
-sub PRINT {
-    my ( $self, @args ) = @_;
-    my @msg = grep { defined and $_ ne q() } @args;
-    return if ( not @msg );
-    push @RECENT_LOG, @msg;
-    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
-    return print {$LOG_FILE_HANDLE} @msg;
-}
-
-sub PRINTF {
-    my ( $self, $fmt, @args ) = @_;
-    my @msg = grep { defined and $_ ne q() } @args;
-    return if ( not @msg );
-    push @RECENT_LOG, sprintf $fmt, @msg;
-    shift @RECENT_LOG while ( @RECENT_LOG > 100 );
-    return print {$LOG_FILE_HANDLE} sprintf $fmt, @msg;
 }
 
 1;
@@ -636,4 +653,4 @@ Christopher Reaume C<< <chris@desert.net> >>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2020 DesertNet
+Copyright (c) 2025 DesertNet

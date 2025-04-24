@@ -17,21 +17,21 @@ use Tachikoma::Message qw(
 );
 use Tachikoma::Command;
 use Tachikoma::Crypto;
-use Tachikoma::Nodes::Shell2;
+use Tachikoma::Nodes::Shell3;
 use Data::Dumper;
-use Getopt::Long qw( GetOptionsFromString );
-use POSIX qw( strftime SIGHUP );
-use Storable qw( thaw );
+use Getopt::Long  qw( GetOptionsFromString );
+use POSIX         qw( strftime SIGHUP );
+use Storable      qw( thaw );
 use Sys::Hostname qw( hostname );
-use Time::HiRes qw();
-use parent qw( Tachikoma::Node Tachikoma::Crypto );
+use Time::HiRes   qw();
+use parent        qw( Tachikoma::Node Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.280');
 
 use constant DEFAULT_PORT => 4230;
-use constant TK_R         => 000001;    #    1
-use constant TK_W         => 000002;    #    2
-use constant TK_SYNC      => 000004;    #    4
+use constant TK_R         => oct 1;    #    1
+use constant TK_W         => oct 2;    #    2
+use constant TK_SYNC      => oct 4;    #    4
 
 $Data::Dumper::Indent   = 1;
 $Data::Dumper::Sortkeys = 1;
@@ -43,11 +43,17 @@ my %H        = ();
 my %L        = ();
 my %C        = ();
 my %DISABLED = (
-    1 => { map { $_ => 1 } qw( config func make_node remote_env slurp var ) },
+    1 => { map { $_ => 1 } qw( make_node slurp config env var func ) },
     2 => { map { $_ => 1 } qw( command_node ) },
     3 => { map { $_ => 1 } qw( connect_node ) },
 );
 my @CONFIG_VARIABLES = qw(
+    wire_version
+    config_file
+    help
+    debug_level
+    secure_level
+    scheme
     prefix
     log_dir
     log_file
@@ -58,6 +64,7 @@ my @CONFIG_VARIABLES = qw(
     low_water_mark
     keep_alive
     hz
+    id
     ssl_client_ca_file
     ssl_client_cert_file
     ssl_client_key_file
@@ -163,7 +170,7 @@ sub interpret {
     }
     elsif ( $cmd_name eq 'help' ) {
         if ( $message->type & TM_COMPLETION ) {
-            my $b = Tachikoma::Nodes::Shell2::builtins;
+            my $b = Tachikoma::Nodes::Shell3::builtins;
             my %u = ( %C, %{$b}, %{$functions} );
             return $self->send_response( $message,
                 $self->response( $message, join( "\n", keys %u ) . "\n" ) );
@@ -399,9 +406,9 @@ $C{list_nodes} = sub {
     if ( $show_owner or $show_sink or $show_edge ) {
         my $header = ['NAME'];
         unshift @{$header}, 'COUNT' if ($show_count);
-        push @{$header}, 'SINK'  if ($show_sink);
-        push @{$header}, 'EDGE'  if ($show_edge);
-        push @{$header}, 'OWNER' if ($show_owner);
+        push @{$header},   'SINK'  if ($show_sink);
+        push @{$header},   'EDGE'  if ($show_edge);
+        push @{$header},   'OWNER' if ($show_owner);
         push @{$response}, $header;
     }
     if ( @{$argv} ) {
@@ -522,26 +529,6 @@ $C{list_disabled} = sub {
         $response .= "$cmd_name\n";
     }
     return $self->response( $envelope, $response );
-};
-
-$H{scheme} = ["scheme <rsa,rsa-sha256,ed25519>\n"];
-
-$C{scheme} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'make_node' )
-        or return $self->error("verification failed\n");
-    my $response = undef;
-    if ( $command->arguments ) {
-        $self->configuration->scheme( $command->arguments );
-        $response = $self->okay($envelope);
-    }
-    else {
-        my $scheme = $self->configuration->scheme;
-        $response = $self->response( $envelope, "$scheme\n" );
-    }
-    return $response;
 };
 
 $H{make_node} = [
@@ -700,38 +687,42 @@ $C{remove_node} = sub {
         or return $self->error("verification failed\n");
     my ( $options, $glob ) = ( $command->arguments =~ m{^(-a)?\s*(.*?)$} );
     my $list_matches = $options ? $options =~ m{a} : undef;
-    if ( not $glob ) {
+    if ( not length $glob ) {
         return $self->error( $envelope, qq(no node specified\n) );
-    }
-    if ( not $list_matches and not $Tachikoma::Nodes{$glob} ) {
-        return $self->error( $envelope, qq(can't find node "$glob"\n) );
     }
     my @names = (
         $list_matches
         ? grep m{^$glob$},
         sort keys %Tachikoma::Nodes
-        : $glob
+        : ( split q( ), $glob )
     );
-    my $out = q();
+    my $out    = q();
+    my @errors = ();
     for my $name (@names) {
+        if ( not $Tachikoma::Nodes{$name} ) {
+            push @errors, qq(can't find node "$name"\n);
+            next;
+        }
         my $node = $Tachikoma::Nodes{$name};
         my $sink = $node->{sink};
         if ( $sink and $sink->isa('Tachikoma::Nodes::JobController') ) {
-            return $self->error( $envelope,
-                      $out
-                    . qq(ERROR: "$name" is a job,)
-                    . qq( use "cmd $sink->{name} stop $name"\n) );
+            push @errors, qq(ERROR: "$name" is a job,)
+                . qq( use "cmd $sink->{name} stop $name"\n);
+            next;
         }
         else {
             if ( $node eq $self ) {
-                return $self->error( $envelope,
-                    $out . qq(ERROR: refusing to destroy interpreter\n) );
+                push @errors, qq(ERROR: refusing to destroy interpreter\n);
+                next;
             }
             $node->remove_node;
             $out .= "removed $name\n";
         }
     }
-    if ($list_matches) {
+    if (@errors) {
+        return $self->error( $envelope, join q(), $out, @errors );
+    }
+    if ( $list_matches or @names > 1 ) {
         if ($out) {
             $out .= "ok\n";
             return $self->response( $envelope, $out );
@@ -800,8 +791,7 @@ $C{dump_metadata} = sub {
                 $n += $node->{msg_unanswered}->{$_}
                     for ( keys %{ $node->{msg_unanswered} } );
                 @extra = (
-                    $n,
-                    $node->{max_unanswered} ? $node->{max_unanswered} : $n
+                    $n, $node->{max_unanswered} ? $node->{max_unanswered} : $n
                 );
             }
             elsif ( $node->isa('Tachikoma::Nodes::Router') ) {
@@ -811,7 +801,7 @@ $C{dump_metadata} = sub {
         $owner = join q(, ), @{$owner} if ( ref $owner eq 'ARRAY' );
         $response .= join( q(|),
             $received, $sent, $name, $sink, $owner || q(),
-            $class, $type, @extra )
+            $class,    $type, @extra )
             . "\n";
     }
     return $self->response( $envelope, $response );
@@ -973,16 +963,14 @@ $C{list_connections} = sub {
     for my $name ( sort keys %Tachikoma::Nodes ) {
         next if ( length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
-        next
-            if ( not $node->isa('Tachikoma::Nodes::Socket')
-            or $node->type ne 'connect' );
+        next if ( not $node->isa('Tachikoma::Nodes::Socket') );
         my $address = '...';
         if ( $node->{port} ) {
             $address =
                 join q(:),
                 $node->{address}
-                ? join q(.),
-                map sprintf( '%d', ord ), split m{}, $node->{address}
+                ? join q(.), map sprintf( '%d', ord ), split m{},
+                $node->{address}
                 : '...',
                 $node->{port};
         }
@@ -1033,37 +1021,7 @@ $C{listen_inet} = sub {
         or return $self->error("verification failed\n");
 
     if ( not $command->arguments ) {
-        my $config = $self->configuration;
-        for my $listen ( @{ $config->listen_sockets } ) {
-            my $server_node = undef;
-            if ( $listen->{Socket} ) {
-                require Tachikoma::Nodes::Socket;
-                $server_node =
-                    Tachikoma::Nodes::Socket->unix_server(
-                    $listen->{Socket} );
-                $server_node->name('_listener');
-            }
-            else {
-                require Tachikoma::Nodes::Socket;
-                die qq(inet sockets disabled for keyless servers\n)
-                    if ( not length $id );
-                $server_node =
-                    Tachikoma::Nodes::Socket->inet_server( $listen->{Addr},
-                    $listen->{Port} );
-                $server_node->name( join q(:), $listen->{Addr},
-                    $listen->{Port} );
-            }
-            $server_node->use_SSL( $listen->{use_SSL} );
-            my $okay = eval {
-                $server_node->scheme( $listen->{Scheme} )
-                    if ( $listen->{Scheme} );
-                return 1;
-            };
-            $self->stderr( $@ || 'FAILED: Tachikoma::Socket::scheme()' )
-                if ( not $okay );
-            $server_node->sink($self);
-        }
-        return $self->okay($envelope);
+        return $self->listen_startup($envelope);
     }
 
     my ( $r, $argv ) = GetOptionsFromString(
@@ -1103,6 +1061,7 @@ $C{listen_inet} = sub {
         $node = Tachikoma::Nodes::Socket->inet_server( $address, $port );
     }
     $node->name( join q(:), $address, $port );
+    $node->debug_state( $self->debug_state );
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->owner($owner) if ( length $owner );
@@ -1148,6 +1107,11 @@ $C{listen_unix} = sub {
     my $owner        = undef;
     $self->verify_key( $envelope, ['meta'], 'make_node' )
         or return $self->error("verification failed\n");
+
+    if ( not $command->arguments ) {
+        return $self->listen_startup($envelope);
+    }
+
     my ( $r, $argv ) = GetOptionsFromString(
         $command->arguments,
         'filename=s'     => \$filename,
@@ -1186,6 +1150,7 @@ $C{listen_unix} = sub {
     $owner = $envelope->from
         if ( defined $owner and ( not length $owner or $owner eq q(-) ) );
     $node->name($name);
+    $node->debug_state( $self->debug_state );
     $node->owner($owner) if ( length $owner );
     $node->use_SSL( $ssl_verify ? 'verify' : 'noverify' ) if ($use_SSL);
     $node->delegates->{ssl}       = $ssl_delegate if ($ssl_delegate);
@@ -1216,6 +1181,7 @@ $C{connect_inet} = sub {
     my $name        = undef;
     my $io_mode     = undef;
     my $use_SSL     = undef;
+    my $ssl_verify  = undef;
     my $ssl_ca_file = undef;
     my $scheme      = undef;
     my $reconnect   = undef;
@@ -1232,6 +1198,7 @@ $C{connect_inet} = sub {
         'name=s'        => \$name,
         'io'            => \$io_mode,
         'use-ssl'       => \$use_SSL,
+        'ssl-verify'    => \$ssl_verify,
         'ssl-ca-file=s' => \$ssl_ca_file,
         'scheme=s'      => \$scheme,
         'reconnect'     => \$reconnect,
@@ -1254,7 +1221,7 @@ $C{connect_inet} = sub {
         port        => $port,
         name        => $name,
         mode        => $io_mode ? 'io' : 'message',
-        use_SSL     => $use_SSL,
+        use_SSL     => $use_SSL ? $ssl_verify ? 'verify' : 'noverify' : undef,
         SSL_ca_file => $ssl_ca_file,
         scheme      => $scheme,
         reconnect   => $reconnect,
@@ -1281,6 +1248,7 @@ $C{connect_unix} = sub {
     my $name        = undef;
     my $io_mode     = undef;
     my $use_SSL     = undef;
+    my $ssl_verify  = undef;
     my $ssl_ca_file = undef;
     my $scheme      = undef;
     my $reconnect   = undef;
@@ -1293,6 +1261,7 @@ $C{connect_unix} = sub {
         'name=s'        => \$name,
         'io'            => \$io_mode,
         'use-ssl'       => \$use_SSL,
+        'ssl-verify'    => \$ssl_verify,
         'ssl-ca-file=s' => \$ssl_ca_file,
         'scheme=s'      => \$scheme,
         'reconnect'     => \$reconnect,
@@ -1312,7 +1281,7 @@ $C{connect_unix} = sub {
         filename    => $filename,
         name        => $name,
         mode        => $io_mode ? 'io' : 'message',
-        use_SSL     => $use_SSL,
+        use_SSL     => $use_SSL ? $ssl_verify ? 'verify' : 'noverify' : undef,
         SSL_ca_file => $ssl_ca_file,
         scheme      => $scheme,
         reconnect   => $reconnect,
@@ -1450,6 +1419,7 @@ $C{slurp_file} = sub {
                 : 8,
             }
         );
+        $node->debug_state( $self->debug_state );
         $node->owner($owner) if ( length $owner );
         $node->sink($sink);
         $node->on_EOF('close');
@@ -1674,15 +1644,26 @@ $C{on} = sub {
     return $self->okay($envelope);
 };
 
-$H{debug_state} = ["debug_state <node name> [ <level> ]\n"];
+$H{debug_state} = ["debug_state [ <node name> <level> ]\n"];
 
 $C{debug_state} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
     my ( $name, $level ) = split q( ), $command->arguments, 2;
-    die qq(no node specified\n) if ( not length $name );
-    my $node = $Tachikoma::Nodes{$name};
+    my $node = undef;
+    if ( not length $name ) {
+        $name = $self->name;
+        $node = $self;
+    }
+    elsif ( $name =~ m{^\d+$} ) {
+        $level = $name;
+        $name  = $self->name;
+        $node  = $self;
+    }
+    elsif ( $Tachikoma::Nodes{$name} ) {
+        $node = $Tachikoma::Nodes{$name};
+    }
     die qq(can't find node "$name"\n) if ( not $node );
     $node->debug_state( $level // not $node->debug_state );
     return $self->okay($envelope);
@@ -1815,23 +1796,6 @@ $C{dump_config} = sub {
     return $self->response( $envelope, $response );
 };
 
-$H{dump_tachikoma_conf} = ["dump_tachikoma_conf\n"];
-
-$C{dump_tachikoma_conf} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $copy     = { %{ $self->configuration } };
-    for my $key (qw( private_key private_ed25519_key )) {
-        $copy->{$key} = $copy->{$key} ? q(...) : undef;
-    }
-    for my $key (qw( public_keys help functions var )) {
-        $copy->{$key} = keys %{ $copy->{$key} } ? q({...}) : undef;
-    }
-    my $response = Dumper $copy;
-    return $self->response( $envelope, $response );
-};
-
 $H{reload_config} = ["reload_config\n"];
 
 $C{reload_config} = sub {
@@ -1846,24 +1810,75 @@ $L{reload} = $H{reload_config};
 
 $C{reload} = $C{reload_config};
 
+$H{config} = ["config [ <name> [ = <value> ] ]\n"];
+
+$C{config} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my ( $key, $op, $value ) =
+        split m{\s*(=)\s*}, $command->arguments, 2;
+    if ( length $value or length $op ) {
+        $self->verify_key( $envelope, ['meta'], 'config' )
+            or return $self->error("verification failed\n");
+    }
+    my $var = {};
+    $var->{$_} = $self->configuration->{$_} for (@CONFIG_VARIABLES);
+    return $self->error("invalid key: $key\n")
+        if ( length $key and not exists $var->{$key} );
+    return $self->error("invalid operator: $op\n")
+        if ( length $op and $op ne q(=) );
+
+    if ( length $value ) {
+        $self->configuration->{$key} = $value;
+    }
+    elsif ( length $op ) {
+        $self->configuration->{$key} = undef;
+    }
+    elsif ( length $key ) {
+        if ( defined $var->{$key} ) {
+            my $line = $var->{$key};
+            chomp $line;
+            return $self->response( $envelope, "$line\n" );
+        }
+        else {
+            return $self->response( $envelope, "\n" );
+        }
+    }
+    else {
+        my @response = ();
+        for my $key ( sort keys %{$var} ) {
+            next if ( ref $var->{$key} );
+            my $line = "$key=" . ( $var->{$key} // q() );
+            chomp $line;
+            push @response, $line, "\n";
+        }
+        return $self->response( $envelope, join q(), @response );
+    }
+    return $self->okay($envelope);
+};
+
 $H{remote_env} = ["env [ <name> [ = <value> ] ]\n"];
 
 $C{remote_env} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'remote_env' )
-        or return $self->error("verification failed\n");
     my ( $key, $op, $value ) =
         split m{\s*(=)\s*}, $command->arguments, 2;
-    return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
+    if ( length $value or length $op ) {
+        $self->verify_key( $envelope, ['meta'], 'env' )
+            or return $self->error("verification failed\n");
+    }
+    return $self->error("invalid operator: $op\n")
+        if ( length $op and $op ne q(=) );
     if ( length $value ) {
         $ENV{$key} = $value;    ## no critic (RequireLocalizedPunctuationVars)
     }
-    elsif ( defined $op ) {
+    elsif ( length $op ) {
         delete $ENV{$key};
     }
-    elsif ( defined $key ) {
+    elsif ( length $key ) {
         if ( defined $ENV{$key} ) {
             my $line = $ENV{$key};
             chomp $line;
@@ -1892,61 +1907,18 @@ $C{remote_env} = sub {
     return $self->okay($envelope);
 };
 
-$H{config} = ["config [ <name> [ = <value> ] ]\n"];
-
-$C{config} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'config' )
-        or return $self->error("verification failed\n");
-    my ( $key, $op, $value ) =
-        split m{\s*(=)\s*}, $command->arguments, 2;
-    my $var = {};
-    $var->{$_} = $self->configuration->{$_} for (@CONFIG_VARIABLES);
-    return $self->error("invalid key: $key\n")
-        if ( $key and not exists $var->{$key} );
-    return $self->error("invalid operator: $op\n") if ( $op and $op ne q(=) );
-
-    if ( length $value ) {
-        $self->configuration->{$key} = $value;
-    }
-    elsif ( defined $op ) {
-        $self->configuration->{$key} = undef;
-    }
-    elsif ( defined $key ) {
-        if ( defined $var->{$key} ) {
-            my $line = $var->{$key};
-            chomp $line;
-            return $self->response( $envelope, "$line\n" );
-        }
-        else {
-            return $self->response( $envelope, "\n" );
-        }
-    }
-    else {
-        my @response = ();
-        for my $key ( sort keys %{$var} ) {
-            next if ( ref $var->{$key} );
-            my $line = "$key=" . ( $var->{$key} // q() );
-            chomp $line;
-            push @response, $line, "\n";
-        }
-        return $self->response( $envelope, join q(), @response );
-    }
-    return $self->okay($envelope);
-};
-
 $H{remote_var} = ["remote_var [ <name> [ = <value> ] ]\n"];
 
 $C{remote_var} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    $self->verify_key( $envelope, ['meta'], 'var' )
-        or return $self->error("verification failed\n");
     my ( $key, $op, $value ) =
         split m{\s*([.]=|[|][|]=|=)\s*}, $command->arguments, 2;
+    if ( length $value or length $op ) {
+        $self->verify_key( $envelope, ['meta'], 'var' )
+            or return $self->error("verification failed\n");
+    }
     my $var = $self->configuration->var;
     if ( length $value ) {
         my $v = $var->{$key};
@@ -1961,7 +1933,7 @@ $C{remote_var} = sub {
         elsif ( $op eq q(/=) )           { $v->[0] //= 0; $v->[0] /= $value; }
         elsif ( $op eq q(//=) and not @{$v} )           { $v = [$value]; }
         elsif ( $op eq q(||=) and not join q(), @{$v} ) { $v = [$value]; }
-        else { return $self->error("invalid operator: $op"); }
+        else  { return $self->error("invalid operator: $op"); }
 
         if ( @{$v} > 1 ) {
             $var->{$key} = $v;
@@ -1970,11 +1942,11 @@ $C{remote_var} = sub {
             $var->{$key} = $v->[0];
         }
     }
-    elsif ( defined $op ) {
+    elsif ( length $op ) {
         return $self->error("invalid operator: $op\n") if ( $op ne q(=) );
         delete $var->{$key};
     }
-    elsif ( defined $key ) {
+    elsif ( length $key ) {
         if ( defined $var->{$key} ) {
             if ( ref $var->{$key} ) {
                 return $self->response( $envelope,
@@ -2034,6 +2006,15 @@ $C{remote_func} = sub {
         return $self->response( $envelope, join q(), @response );
     }
     return $self->okay($envelope);
+};
+
+$C{whoami} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $id       = ( split m{\n}, $command->{signature}, 2 )[0];
+    my $response = "$id\n";
+    return $self->response( $envelope, $response );
 };
 
 $C{list_callbacks} = sub {
@@ -2371,6 +2352,61 @@ $H{daemonize} = ["daemonize [ <process name> ]\n"];
 
 $C{daemonize} = $C{initialize};
 
+$H{open_log_file} = ["open_log_file\n"];
+
+$C{open_log_file} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $okay     = eval {
+        Tachikoma->open_log_file;
+        return 1;
+    };
+    if ( not $okay ) {
+        print {*STDERR} $@ || "ERROR: open_log_file: unknown error\n";
+    }
+    return;
+};
+
+$H{get_priority} = ["get_priority\n"];
+
+$C{get_priority} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $priority = undef;
+    my $okay     = eval {
+        $priority = getpriority 0, 0;
+        return 1;
+    };
+    if ( not $okay ) {
+        print {*STDERR} $@ || "ERROR: get_priority: unknown error\n";
+    }
+    return $self->response( $envelope, "$priority\n" );
+};
+
+$H{set_priority} = ["set_priority <int>\n"];
+
+$C{set_priority} = sub {
+    my $self     = shift;
+    my $command  = shift;
+    my $envelope = shift;
+    my $okay     = eval {
+        my $priority = $command->arguments;
+
+        # PRIO_PROCESS = 0,		/* WHO is a process ID.  */
+        # PRIO_PGRP = 1,		/* WHO is a process group ID.  */
+        # PRIO_USER = 2			/* WHO is a user ID.  */
+        my $result = setpriority 1, 0, $priority;
+        die "ERROR: setpriority failed: $!" if ( $result == -1 );
+        return 1;
+    };
+    if ( not $okay ) {
+        print {*STDERR} $@ || "ERROR: set_priority: unknown error\n";
+    }
+    return;
+};
+
 $H{set_timeout} = ["set_timeout <seconds>\n"];
 
 $C{set_timeout} = sub {
@@ -2470,7 +2506,7 @@ $C{pivot_client} = sub {
         $shell->sink($tachikoma);
         $tachikoma->name('_socket');
         $tachikoma->on_EOF('die');
-        $tachikoma->sink( $Tachikoma::Nodes{_router} );
+        $tachikoma->sink($responder);
         $self->remove_node;
         return 1;
     };
@@ -2516,7 +2552,7 @@ sub verify_command {
     my $config       = $self->configuration;
     my $my_id        = $config->id;
     my $secure_level = $config->secure_level;
-    return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
+    return 1 if ( $self->verify_startup( $message, $secure_level ) );
     my ( $id, $proto ) = split m{\n}, $command->{signature}, 2;
 
     if ( not $id ) {
@@ -2534,8 +2570,12 @@ sub verify_command {
             $message->[FROM], ' failed: ', $id, ' not in authorized_keys' );
         return;
     }
-    $self->verify_key( $message, ['command'], $command->{name} )
-        or return;
+
+    # Just see if they can send commands at all.
+    # Important commands will have their own verify_key()
+    if ( not $self->verify_key( $message, ['command'] ) ) {
+        return;
+    }
     my $response = undef;
     my $signed   = join q(:),
         $id, $message->[TIMESTAMP], $command->{name},
@@ -2578,7 +2618,7 @@ sub verify_key {
     my $config       = $self->configuration;
     my $my_id        = $config->id;
     my $secure_level = $config->secure_level;
-    return 1 if ( $self->verify_startup( $message, $my_id, $secure_level ) );
+    return 1 if ( $self->verify_startup( $message, $secure_level ) );
     my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
     my $id      = ( split m{\n}, $command->{signature}, 2 )[0];
     my $entry   = $config->public_keys->{$id};
@@ -2589,10 +2629,12 @@ sub verify_key {
 
     my $allow_tag = 1;
     for my $tag ( @{$tags} ) {
-        next if ( $tag eq 'meta' and $id eq $my_id );
+
+        # local key automatically has meta
+        next               if ( $tag eq 'meta' and $id eq $my_id );
         $allow_tag = undef if ( not $entry->{allow}->{$tag} );
     }
-    if ( $allow_tag or $secure_level < 0 ) {
+    if ($allow_tag) {
         if ($cmd_name) {
             return 1 if ( not $self->disabled->{$secure_level}->{$cmd_name} );
         }
@@ -2612,7 +2654,6 @@ sub verify_key {
 sub verify_startup {
     my $self         = shift;
     my $message      = shift;
-    my $id           = shift;
     my $secure_level = shift;
     return 1
         if (defined $secure_level
@@ -2681,6 +2722,7 @@ sub make_node {
     my $okay = eval {
         $node->name($name);
         $node->arguments( $arguments // q() );
+        $node->debug_state( $self->debug_state );
         $node->sink($self);
         $self->connect_node( $name, $owner ) if ( length $owner );
         return 1;
@@ -2696,6 +2738,41 @@ sub make_node {
         die $error;
     }
     return;
+}
+
+sub listen_startup {
+    my ( $self, $envelope ) = @_;
+    my $config = $self->configuration;
+    my $id     = $self->configuration->id;
+    for my $listen ( @{ $config->listen_sockets } ) {
+        my $server_node = undef;
+        if ( $listen->{Socket} ) {
+            require Tachikoma::Nodes::Socket;
+            $server_node =
+                Tachikoma::Nodes::Socket->unix_server( $listen->{Socket} );
+            $server_node->name('_listener');
+        }
+        else {
+            require Tachikoma::Nodes::Socket;
+            die qq(inet sockets disabled for keyless servers\n)
+                if ( not length $id );
+            $server_node =
+                Tachikoma::Nodes::Socket->inet_server( $listen->{Addr},
+                $listen->{Port} );
+            $server_node->name( join q(:), $listen->{Addr}, $listen->{Port} );
+        }
+        $server_node->use_SSL( $listen->{use_SSL} );
+        my $okay = eval {
+            $server_node->scheme( $listen->{Scheme} )
+                if ( $listen->{Scheme} );
+            return 1;
+        };
+        $self->stderr( $@ || 'FAILED: Tachikoma::Socket::scheme()' )
+            if ( not $okay );
+        $server_node->debug_state( $self->debug_state );
+        $server_node->sink($self);
+    }
+    return $self->okay($envelope);
 }
 
 sub connect_inet {
@@ -2725,6 +2802,7 @@ sub connect_inet {
             Tachikoma::Nodes::STDIO->inet_client_async( $host, $port );
     }
     $connection->name($name);
+    $connection->debug_state( $self->debug_state );
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2762,6 +2840,7 @@ sub connect_unix {
         $connection = Tachikoma::Nodes::STDIO->unix_client_async($filename);
     }
     $connection->name($name);
+    $connection->debug_state( $self->debug_state );
     $connection->on_EOF('reconnect') if ($reconnect);
     if ( $options{SSL_ca_file} ) {
         $connection->configuration( bless { %{ $self->configuration } },
@@ -2892,7 +2971,11 @@ sub dump_flat {
     elsif ( ref $copy->{$key} eq 'ARRAY' ) {
         my $first = $copy->{$key}->[0];
         my $count = scalar @{ $copy->{$key} };
-        if ($count) {
+        if ( ref($first) =~ m{Tachikoma::Message} ) {
+            $copy->{$key} = join q( ), map $_->type_as_string,
+                @{ $copy->{$key} };
+        }
+        elsif ($count) {
             $copy->{$key} = [ $first, $count ];
         }
         else {

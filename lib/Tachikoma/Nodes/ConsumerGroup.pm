@@ -18,19 +18,7 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.256');
 
-my $Consumer_Timeout = 900;    # wait before abandoning ConsumerBroker
-
-sub new {
-    my $class = shift;
-    my $self  = $class->SUPER::new;
-    $self->{topics}     = undef;
-    $self->{is_leader}  = undef;
-    $self->{mapping}    = undef;
-    $self->{timestamps} = {};
-    $self->{waiting}    = {};
-    bless $self, $class;
-    return $self;
-}
+my $CONSUMER_TIMEOUT = 900;    # wait before abandoning ConsumerBroker
 
 sub help {
     my $self = shift;
@@ -116,9 +104,8 @@ sub get_partitions {
             or return $self->stderr('ERROR: no partitions');
         return $self->send_error( $message, "TOO_MANY_CONSUMERS\n" )
             if ( keys %{$timestamps} >= @{$partitions} );
-
-        # $self->print_less_often( "INFO: GET_PARTITIONS $topic",
-        #     " - from $from" );
+        $self->stderr( "DEBUG: GET_PARTITIONS $topic", " - from $from" )
+            if ( $self->{debug_state} );
         $self->rebalance_consumers($topic);
     }
     $timestamps->{$from} = $Tachikoma::Now;
@@ -164,7 +151,7 @@ sub check_timestamps {
     my $timestamps = shift;
     my $rebalance  = undef;
     for my $consumer ( keys %{$timestamps} ) {
-        if ( $Tachikoma::Now - $timestamps->{$consumer} > $Consumer_Timeout )
+        if ( $Tachikoma::Now - $timestamps->{$consumer} > $CONSUMER_TIMEOUT )
         {
             delete $timestamps->{$consumer};
             $rebalance = 1;
@@ -189,10 +176,13 @@ sub send_error {
     $response->[PAYLOAD] = $error;
     chomp $error;
 
-    if (    $error ne 'TOO_MANY_CONSUMERS'
-        and $error ne 'REBALANCING_CONSUMERS' )
-    {
-        $self->stderr( "$error for ", $message->[FROM] );
+    if ( $error ne 'TOO_MANY_CONSUMERS' ) {
+        if ( $self->{debug_state} ) {
+            $self->stderr( "DEBUG: $error for ", $message->[FROM] );
+        }
+        elsif ( $error ne 'REBALANCING_CONSUMERS' ) {
+            $self->stderr( "$error for ", $message->[FROM] );
+        }
     }
     return $self->{sink}->fill($response);
 }

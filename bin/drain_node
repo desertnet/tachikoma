@@ -5,7 +5,7 @@ use Tachikoma::EventFrameworks::Select;
 use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::STDIO;
 use Tachikoma::Nodes::Socket qw( TK_SYNC );
-use Getopt::Long qw( GetOptions );
+use Getopt::Long             qw( GetOptions );
 
 use version; our $VERSION = qv('v2.0.929');
 

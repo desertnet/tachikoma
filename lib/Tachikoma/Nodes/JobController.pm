@@ -15,13 +15,13 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX qw( SIGKILL );
+use POSIX  qw( SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Throttle_Delay = 60;
-my $Job_Counter    = 0;
+my $THROTTLE_DELAY = 60;
+my $JOB_COUNTER    = 0;
 my %C              = ();
 
 sub new {
@@ -102,7 +102,7 @@ sub fire {
             next;
         }
         my $since_last = $Tachikoma::Now - $job->{last_restart};
-        my $delay      = $Throttle_Delay - $since_last;
+        my $delay      = $THROTTLE_DELAY - $since_last;
         if (    $delay < 1
             and not kill 0, $job->{pid}
             and $! ne 'Operation not permitted' )
@@ -530,7 +530,9 @@ sub dump_config {
             my $start =
                 (       $job->{should_restart}
                     and $job->{should_restart} eq 'forever' )
-                ? 'maintain_job'
+                ? $job->{lazy}
+                    ? 'lazy_job'
+                    : 'maintain_job'
                 : 'start_job';
             my $line = "command $self->{name} $start $job->{type} $name";
             if ( $job->{arguments} ) {
@@ -552,9 +554,9 @@ sub dump_config {
 sub job_counter {
     my $self = shift;
     if (@_) {
-        $Job_Counter = shift;
+        $JOB_COUNTER = shift;
     }
-    return $Job_Counter++;
+    return $JOB_COUNTER++;
 }
 
 sub jobs {

@@ -15,14 +15,14 @@ use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_ERROR TM_EOF
 );
-use Fcntl qw( SEEK_SET SEEK_CUR SEEK_END );
-use Getopt::Long qw( GetOptionsFromString );
+use Fcntl         qw( SEEK_SET SEEK_CUR SEEK_END );
+use Getopt::Long  qw( GetOptionsFromString );
 use Sys::Hostname qw( hostname );
-use parent qw( Tachikoma::Nodes::FileHandle );
+use parent        qw( Tachikoma::Nodes::FileHandle );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Timeout = 900;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $class = shift;
@@ -43,7 +43,7 @@ sub new {
     $self->{on_EOF}          = 'ignore';
     $self->{on_ENOENT}       = 'retry';
     $self->{on_timeout}      = 'expire';
-    $self->{timeout}         = $Default_Timeout;
+    $self->{timeout}         = $DEFAULT_TIMEOUT;
     $self->{sent_EOF}        = undef;
     $self->{reattempt}       = undef;
     $self->{msg_timer}       = undef;
@@ -125,7 +125,7 @@ sub arguments {
         $self->{msg_unanswered} = 0;
         $self->{max_unanswered} = $max_unanswered || 0;
         $self->{on_ENOENT}      = $on_enoent if ($on_enoent);
-        $self->{timeout}        = $timeout if ($timeout);
+        $self->{timeout}        = $timeout   if ($timeout);
 
         if ( not open $fh, '<', $path ) {
             $self->{on_EOF} = $on_eof if ($on_eof);
@@ -687,8 +687,6 @@ sub reattempt {
 sub handle_EOF {
     my $self   = shift;
     my $on_eof = $self->{on_EOF};
-    $self->stderr('DEBUG: EOF')
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     if ( $on_eof eq 'delete' ) {
         $self->delete_EOF;
     }
@@ -706,9 +704,15 @@ sub delete_EOF {
 }
 
 sub send_EOF {
-    my $self = shift;
-    $self->{sent_EOF} = 'true';
-    return $self->SUPER::send_EOF(@_);
+    my $self    = shift;
+    my $message = Tachikoma::Message->new;
+    $message->[TYPE]   = TM_EOF;
+    $message->[FROM]   = $self->{name};
+    $message->[TO]     = $self->{owner};
+    $message->[STREAM] = $self->{stream};
+    $self->{sent_EOF}  = 'true';
+    $self->{sink}->fill($message) if ( $self->{sink} );
+    return;
 }
 
 sub sent_EOF {

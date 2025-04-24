@@ -9,11 +9,11 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TIMESTAMP );
-use parent qw( Tachikoma::Node );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.280');
 
-my $Default_Window = 60;
+my $DEFAULT_WINDOW = 60;
 
 sub new {
     my $class = shift;
@@ -40,7 +40,7 @@ sub arguments {
         my ( $max_rate, $window, $should_warn ) =
             split q( ), $self->{arguments}, 3;
         $self->{max_rate}    = $max_rate // 1;
-        $self->{window}      = $window || $Default_Window;
+        $self->{window}      = $window || $DEFAULT_WINDOW;
         $self->{should_warn} = $should_warn;
         $self->{timestamps}  = [];
     }

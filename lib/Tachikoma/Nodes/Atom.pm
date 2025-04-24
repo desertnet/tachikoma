@@ -9,8 +9,8 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM TM_ERROR TM_EOF );
-use File::Temp qw( tempfile );
-use parent qw( Tachikoma::Node );
+use File::Temp         qw( tempfile );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.367');
 
@@ -64,8 +64,10 @@ sub fill {
         my $error = $@ || 'unknown error';
         return $self->stderr("ERROR: couldn't tempfile $path: $error");
     }
-    syswrite $fh, $message->[PAYLOAD]
-        or return $self->stderr("ERROR: couldn't write $template: $!");
+    my $rv = syswrite $fh, $message->[PAYLOAD];
+    if ( not defined $rv or $rv != length $message->[PAYLOAD] ) {
+        return $self->stderr("ERROR: couldn't write $template: $!");
+    }
     close $fh
         or return $self->stderr("ERROR: couldn't close $template: $!");
     chmod 0644, $template

@@ -13,23 +13,23 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Nodes::Socket qw( TK_R TK_W TK_SYNC setsockopts );
-use Tachikoma::Message qw(
+use Tachikoma::Message       qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
-use POSIX qw( EAGAIN );
-use vars qw( @EXPORT_OK );
+use POSIX  qw( EAGAIN );
+use vars   qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
 use version; our $VERSION = qv('v2.0.195');
 
-my $Default_Timeout = 900;
+my $DEFAULT_TIMEOUT = 900;
 
 sub new {
     my $proto = shift;
     my $class = ref($proto) || $proto;
-    my $flags = shift || 0;
+    my $flags = shift       || 0;
     my $self  = $class->SUPER::new($flags);
     $self->{last_fill}    = undef;
     $self->{got_EOF}      = undef;
@@ -50,7 +50,9 @@ sub init_connect {
     $self->{fill_fh}   = \&fill_fh;
     $self->{drain_fh}  = \&drain_fh;
     $self->{last_fill} = 0;
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    delete $self->{set_state}->{EOF};
+    delete $self->{set_state}->{RECONNECT};
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -59,7 +61,7 @@ sub init_accept {
     $self->{fill_fh}   = \&fill_fh;
     $self->{drain_fh}  = \&drain_fh;
     $self->{last_fill} = 0;
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -142,7 +144,8 @@ sub fill_buffer {
     my $self    = shift;
     my $message = shift;
     my $size    = length $message->[PAYLOAD];
-    return if ( not $message->[TYPE] & TM_BYTESTREAM or not $size );
+    return $self->cancel($message)
+        if ( not $message->[TYPE] & TM_BYTESTREAM or not $size );
     $self->{counter}++;
     my $buffer = $self->{output_buffer};
     push @{$buffer}, $message;

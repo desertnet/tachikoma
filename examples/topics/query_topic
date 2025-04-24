@@ -32,9 +32,8 @@ my ( $r, $argv ) = GetOptions(
     'help'    => \$help,
 );
 $topic //= $ARGV[0];
-usage() if ( $help or not $r or not $topic );
+usage() if ( $help or not $r or not length $topic );
 
-die "ERROR: no topic\n" if ( not $topic );
 my $engine = Tachikoma::Nodes::QueryEngine->new;
 $engine->host_ports( [ 'localhost:5201', 'localhost:5202' ] );
 $engine->topic($topic);

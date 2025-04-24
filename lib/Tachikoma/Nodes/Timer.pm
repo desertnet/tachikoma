@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Node;
 use Tachikoma::Message qw( TYPE FROM TO STREAM PAYLOAD TM_BYTESTREAM );
-use parent qw( Tachikoma::Node );
+use parent             qw( Tachikoma::Node );
 
 use version; our $VERSION = qv('v2.0.197');
 
@@ -76,9 +76,15 @@ sub set_timer {
         $Tachikoma::Nodes_By_ID->{ $self->{id} } = $self;
     }
     if ( defined $time ) {
+        $self->stop_timer
+            if ( $self->{timer_is_active}
+            and not defined $self->{timer_interval} );
         $Tachikoma::Event_Framework->set_timer( $self, $time, $oneshot );
     }
     elsif ( not defined $oneshot ) {
+        $self->stop_timer
+            if ( $self->{timer_is_active}
+            and defined $self->{timer_interval} );
         $Tachikoma::Nodes{_router}->register( 'TIMER' => $self->{name} );
     }
     else {

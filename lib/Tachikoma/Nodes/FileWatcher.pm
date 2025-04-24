@@ -9,12 +9,12 @@ use strict;
 use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw( TYPE FROM TO PAYLOAD TM_BYTESTREAM );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent             qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.367');
 
-my $Check_Interval_Min = 0.02;
-my $Check_Interval_Max = 10;
+my $CHECK_INTERVAL_MIN = 0.02;
+my $CHECK_INTERVAL_MAX = 10;
 
 sub new {
     my $class = shift;
@@ -102,8 +102,8 @@ sub queue {
         $self->{queue} = $queue;
         my $count = @{$queue};
         if ($count) {
-            my $time = $Check_Interval_Max / $count;
-            $time = $Check_Interval_Min if ( $time < $Check_Interval_Min );
+            my $time = $CHECK_INTERVAL_MAX / $count;
+            $time = $CHECK_INTERVAL_MIN if ( $time < $CHECK_INTERVAL_MIN );
             $self->set_timer( $time * 1000 );
         }
         else {

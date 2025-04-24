@@ -1,0 +1,74 @@
+#!/usr/bin/env /usr/local/bin/tachikoma
+include config.tsl
+
+make_node CommandInterpreter hosts
+make_node Tee                system_log:link
+make_node Tee                server_log:link
+make_node Ruleset            local_system_log:ruleset
+make_node Ruleset            server_log:ruleset
+make_node Ruleset            system_log:ruleset
+make_node LogColor           server_log:color
+make_node LogColor           system_log:color
+make_node Tee                server_log
+make_node Tee                system_log
+make_node Tee                http_log
+make_node Null               null
+make_node Echo               echo
+make_node Scheduler          scheduler
+
+cd server_log:ruleset:config
+    add  100 cancel where payload=".* FROM: .* ID: tachikoma@<hostname>(?:[.].*)? COMMAND: .*"
+    add 1000 allow
+cd ..
+
+cd local_system_log:ruleset:config
+    add 1000 allow
+cd ..
+
+cd system_log:ruleset:config
+    add 1000 allow
+cd ..
+
+command jobs start_job Tails tails
+cd tails
+    add_tail <home>/.tachikoma/log/tachikoma-server.log _parent/server_log:link
+    add_tail <home>/.tachikoma/log/http-access.log      _parent/http_log
+    add_tail <home>/.tachikoma/log/tasks-access.log     _parent/http_log
+    add_tail <home>/.tachikoma/log/tables-access.log    _parent/http_log
+    if ( `uname` eq "Darwin\n" ) {
+        add_tail /var/log/system.log       _parent/system_log:link;
+        add_tail /var/log/local/system.log _parent/system_log:link;
+    } else {
+        add_tail /var/log/syslog       _parent/system_log:link;
+        add_tail /var/log/local/syslog _parent/system_log:link;
+    }
+cd ..
+
+connect_node http_log                 _responder
+connect_node system_log               _responder
+connect_node server_log               _responder
+connect_node system_log:color         system_log
+connect_node server_log:color         server_log
+connect_node system_log:ruleset       system_log:color
+connect_node server_log:ruleset       server_log:color
+connect_node local_system_log:ruleset system_log:ruleset
+connect_node server_log:link          server_log:ruleset
+connect_node system_log:link          local_system_log:ruleset
+
+# services
+for service (<tachikoma.services>) {
+    start_service <service>;
+}
+for service ([var "tachikoma.services.<hostname>"]) {
+    start_service <service>;
+}
+
+# ingest server logs
+# connect_node server_log:link sounds:service/server_log:sounds
+connect_node server_log:link server_logs:service/server_log
+
+cd tails
+    tail_probe
+    insecure
+cd ..
+insecure

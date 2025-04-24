@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw( TM_BYTESTREAM );
-use parent qw( Tachikoma::Job );
+use parent             qw( Tachikoma::Job );
 
 use version; our $VERSION = qv('v2.0.349');
 
@@ -30,7 +30,6 @@ sub fill {
     my $message = shift;
     return if ( not $message->type & TM_BYTESTREAM );
     my $arguments = $message->payload;
-    $message->to( $message->from );
     $message->payload( $self->execute( '/usr/bin/host', $arguments ) );
     return $self->SUPER::fill($message);
 }

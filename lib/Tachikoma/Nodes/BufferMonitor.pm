@@ -17,11 +17,11 @@ use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.368');
 
-my $Timer_Interval = 60;
-my $Alert_Delay    = 600;
-my $Alert_Interval = 3600;
-my $Email_After    = 300;
-my $Trap_After     = 1200;
+my $TIMER_INTERVAL = 60;
+my $ALERT_DELAY    = 600;
+my $ALERT_INTERVAL = 3600;
+my $EMAIL_AFTER    = 300;
+my $TRAP_AFTER     = 1200;
 my %C              = ();
 
 sub new {
@@ -53,7 +53,7 @@ sub arguments {
         $self->{buffers}      = {};
         $self->{email_alerts} = {};
         $self->{trap_alerts}  = {};
-        $self->set_timer( $Timer_Interval * 1000 );
+        $self->set_timer( $TIMER_INTERVAL * 1000 );
     }
     return $self->{arguments};
 }
@@ -64,15 +64,17 @@ sub fill {
     if ( $message->[TYPE] & TM_COMMAND or $message->[TYPE] & TM_EOF ) {
         return $self->interpreter->fill($message);
     }
-    if ( $message->[TYPE] & TM_INFO ) {
-        $self->arguments( $self->arguments );
-        return;
-    }
+
+    # if ( $message->[TYPE] & TM_INFO ) {
+    #     $self->arguments( $self->arguments );
+    #     return;
+    # }
     return if ( not $message->[TYPE] & TM_BYTESTREAM );
     my $thresholds  = $self->{email_thresholds};
     my $buffers     = $self->{buffers};
     my $new_buffers = {};
 LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
+        next if ( $line !~ m{^hostname:} );
         my $buffer     = { map { split m{:}, $_, 2 } split q( ), $line };
         my $buffer_id  = join q(:), $buffer->{hostname}, $buffer->{buff_name};
         my $old_buffer = $buffers->{$buffer_id};
@@ -80,17 +82,17 @@ LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
         $buffer->{id}              = $buffer_id;
         $buffer->{last_update}     = $Tachikoma::Right_Now;
         $buffer->{last_timestamp}  = $message->[TIMESTAMP];
-        $buffer->{last_email} = $old_buffer->{last_email} || 0;
-        $buffer->{last_trap}  = $old_buffer->{last_trap}  || 0;
-        $buffer->{lag}        = sprintf '%.1f',
+        $buffer->{last_email}      = $old_buffer->{last_email} || 0;
+        $buffer->{last_trap}       = $old_buffer->{last_trap}  || 0;
+        $buffer->{lag}             = sprintf '%.1f',
             $buffer->{last_update} - $buffer->{last_timestamp};
         $buffer->{age} ||= 0;
 
-        if ( $buffer->{lag} > $Email_After ) {
+        if ( $buffer->{lag} > $EMAIL_AFTER ) {
             $self->alert(
                 'email', $buffer,
-                "lag exceeded $Email_After seconds",
-                sub { $_[0]->{lag} > $Email_After }
+                "lag exceeded $EMAIL_AFTER seconds",
+                sub { $_[0]->{lag} > $EMAIL_AFTER }
             );
             next LINE;
         }
@@ -119,11 +121,11 @@ LINE: for my $line ( split m{^}, $message->[PAYLOAD] ) {
 AGAIN: for my $buffer_id ( keys %{$new_buffers} ) {
         my $buffer = $new_buffers->{$buffer_id};
         $buffers->{$buffer_id} = $buffer;
-        if ( $buffer->{lag} > $Trap_After ) {
+        if ( $buffer->{lag} > $TRAP_AFTER ) {
             $self->alert(
                 'trap', $buffer,
-                "lag exceeded $Trap_After seconds",
-                sub { $_[0]->{lag} > $Trap_After }
+                "lag exceeded $TRAP_AFTER seconds",
+                sub { $_[0]->{lag} > $TRAP_AFTER }
             );
             next AGAIN;
         }
@@ -157,18 +159,18 @@ sub fire {
     for my $buffer_id ( keys %{$buffers} ) {
         my $buffer = $buffers->{$buffer_id};
         $buffer->{age} = $Tachikoma::Right_Now - $buffer->{last_update};
-        if ( $buffer->{age} > $Email_After ) {
+        if ( $buffer->{age} > $EMAIL_AFTER ) {
             $self->alert(
                 'email', $buffer,
-                "age exceeded $Email_After seconds",
-                sub { $_[0]->{age} > $Email_After }
+                "age exceeded $EMAIL_AFTER seconds",
+                sub { $_[0]->{age} > $EMAIL_AFTER }
             );
         }
-        if ( $buffer->{age} > $Trap_After ) {
+        if ( $buffer->{age} > $TRAP_AFTER ) {
             $self->alert(
                 'trap', $buffer,
-                "age exceeded $Trap_After seconds",
-                sub { $_[0]->{age} > $Trap_After }
+                "age exceeded $TRAP_AFTER seconds",
+                sub { $_[0]->{age} > $TRAP_AFTER }
             );
         }
     }
@@ -319,7 +321,7 @@ sub get_alerts {
         my $chunk    = q();
         for my $subject ( sort keys %{$subjects} ) {
             my ( $timestamp, $callback ) = @{ $subjects->{$subject} };
-            next if ( $Tachikoma::Now - $timestamp < $Alert_Delay );
+            next if ( $Tachikoma::Now - $timestamp < $ALERT_DELAY );
             if ( not &{$callback}($buffer) ) {
                 delete $subjects->{$subject};
                 next;
@@ -362,7 +364,7 @@ sub send_alerts {
     if ( $type eq 'email' ) {
         return
             if ( not $self->{email}
-            or $Tachikoma::Now - $self->{last_email} < $Alert_Interval );
+            or $Tachikoma::Now - $self->{last_email} < $ALERT_INTERVAL );
         $self->{'last_email'} = $Tachikoma::Now;
         my $email = $self->{email_address};
         delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};

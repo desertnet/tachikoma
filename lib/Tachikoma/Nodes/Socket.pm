@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------esn't s
 # Tachikoma::Nodes::Socket
 # ----------------------------------------------------------------------
 #
@@ -14,13 +14,13 @@ package Tachikoma::Nodes::Socket;
 use strict;
 use warnings;
 use Tachikoma::Nodes::FileHandle qw( TK_R TK_W TK_SYNC setsockopts );
-use Tachikoma::Message qw(
+use Tachikoma::Message           qw(
     TYPE FROM TO ID TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_HEARTBEAT TM_RESPONSE TM_ERROR
+    TM_BYTESTREAM TM_HEARTBEAT TM_REQUEST TM_RESPONSE TM_ERROR
     VECTOR_SIZE
 );
 use Tachikoma::Crypto;
-use Digest::MD5 qw( md5 );
+use Digest::MD5     qw( md5 );
 use IO::Socket::SSL qw(
     SSL_WANT_WRITE SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT
 );
@@ -42,7 +42,7 @@ BEGIN {
         return 1;
     };
 }
-use vars qw( @EXPORT_OK );
+use vars   qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
 @EXPORT_OK = qw( TK_R TK_W TK_SYNC setsockopts );
 
@@ -135,6 +135,7 @@ sub inet_server {
     my $server = $class->new;
     $server->{type}    = 'listen';
     $server->{address} = $iaddr;
+    $server->{port}    = $port;
     $server->fh($socket);
     return $server->register_server_node;
 }
@@ -196,7 +197,7 @@ sub inet_client_async {
 sub new {
     my $proto        = shift;
     my $class        = ref($proto) || $proto;
-    my $flags        = shift || 0;
+    my $flags        = shift       || 0;
     my $self         = $class->SUPER::new;
     my $input_buffer = q();
     $self->{type}             = 'socket';
@@ -225,7 +226,6 @@ sub new {
     $self->{registrations}->{CONNECTED}     = {};
     $self->{registrations}->{AUTHENTICATED} = {};
     $self->{registrations}->{RECONNECT}     = {};
-    $self->{registrations}->{EOF}           = {};
     $self->{fill_modes}                     = {
         null            => \&Tachikoma::Nodes::FileHandle::null_cb,
         unauthenticated => \&do_not_enter,
@@ -280,14 +280,14 @@ sub accept_connection {
 
             # SSL_cipher_list     => $config->{ssl_ciphers},
             SSL_version         => $config->{ssl_version},
-            SSL_verify_callback => $self->get_ssl_verify_callback,
-            SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+            SSL_verify_callback => SSL_verify_mode => $self->{use_SSL} eq
+                'verify'
             ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
             : 0
         );
         if ( not $ssl_client or not ref $ssl_client ) {
             $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
-                grep $_, $!, IO::Socket::SSL::errstr() );
+                grep length, $!, IO::Socket::SSL::errstr() );
             return;
         }
         $node->{type}     = 'accept';
@@ -391,6 +391,9 @@ sub start_SSL_connection {
         # SSL_cipher_list     => $config->ssl_ciphers,
         SSL_version         => $config->ssl_version,
         SSL_verify_callback => $self->get_ssl_verify_callback,
+        SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+        ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+        : 0
     );
     if ( not $ssl_socket or not ref $ssl_socket ) {
         my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
@@ -398,12 +401,12 @@ sub start_SSL_connection {
         if ( $self->{flags} & TK_SYNC ) {
             die join q(: ),
                 q(ERROR: couldn't start_SSL),
-                grep $_, $!, $ssl_error, "\n";
+                grep length, $!, $ssl_error, "\n";
         }
         else {
             $self->print_less_often( join q(: ),
                 q(WARNING: couldn't start_SSL),
-                grep $_, $!, $ssl_error );
+                grep length, $!, $ssl_error );
             return;
         }
     }
@@ -450,13 +453,9 @@ sub init_SSL_connection {
     my $method = $type eq 'connect' ? 'connect_SSL' : 'accept_SSL';
     if ( $fh and $fh->$method ) {
         my $peer = join q(),
-            'authority: "',
-            $fh->peer_certificate('authority'),
-            '" owner: "',
-            $fh->peer_certificate('owner'),
-            '" cipher: "',
-            $fh->get_cipher,
-            qq("\n);
+            'authority: "', $fh->peer_certificate('authority'),
+            '" owner: "',   $fh->peer_certificate('owner'),
+            '" cipher: "',  $fh->get_cipher, qq("\n);
 
         # $self->stderr($method, '() verified peer: ', $peer);
         if ( $type eq 'connect' ) {
@@ -469,9 +468,6 @@ sub init_SSL_connection {
             }
             $self->init_accept;
         }
-        $self->unregister_writer_node
-            if ( ref $self eq 'Tachikoma::Nodes::STDIO' );
-        $self->register_reader_node;
     }
     elsif ( $! != EAGAIN ) {
         $self->log_SSL_error($method);
@@ -490,12 +486,6 @@ sub init_SSL_connection {
         $self->{fh} = undef;
         $self->handle_EOF;
     }
-    elsif ( $IO::Socket::SSL::SSL_ERROR == SSL_WANT_WRITE ) {
-        $self->register_writer_node;
-    }
-    else {
-        $self->unregister_writer_node;
-    }
     return;
 }
 
@@ -507,14 +497,14 @@ sub log_SSL_error {
     my $names = undef;
     if ( $method eq 'connect_SSL' ) {
         $names = $self->{name};
-        Tachikoma->print_least_often( join q(: ), grep $_,
+        Tachikoma->print_least_often( join q(: ), grep length,
             $names, "WARNING: $method failed",
             $!,     $ssl_error );
     }
     else {
         $names = join q( -> ), $self->{parent},
             ( split m{:}, $self->{name}, 2 )[0];
-        Tachikoma->print_less_often( join q(: ), grep $_,
+        Tachikoma->print_less_often( join q(: ), grep length,
             $names, "WARNING: $method failed",
             $!,     $ssl_error );
     }
@@ -531,7 +521,9 @@ sub init_connect {
         $self->{drain_fh} = \&reply_to_server_challenge;
         $self->{fill_fh}  = \&Tachikoma::Nodes::FileHandle::null_cb;
     }
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    delete $self->{set_state}->{EOF};
+    delete $self->{set_state}->{RECONNECT};
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -547,7 +539,7 @@ sub init_accept {
     $self->{auth_timestamp} = $message->[TIMESTAMP];
     push @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
-    $self->set_state( 'CONNECTED' => $self->{name} );
+    $self->set_state('CONNECTED');
     return;
 }
 
@@ -601,7 +593,7 @@ sub reply_to_client_challenge {
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
     $self->{auth_complete} = $Tachikoma::Now;
-    $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    $self->set_state('AUTHENTICATED');
     $self->{fill} = $self->{fill_modes}->{fill};
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
@@ -615,7 +607,7 @@ sub auth_server_response {
         \&Tachikoma::Nodes::FileHandle::fill_fh
     );
     $self->{auth_complete} = $Tachikoma::Now;
-    $self->set_state( 'AUTHENTICATED' => $self->{name} );
+    $self->set_state('AUTHENTICATED');
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
     return;
 }
@@ -723,7 +715,7 @@ sub verify_signature {
 
 sub read_block {
     my $self     = shift;
-    my $buf_size = shift or die 'FAILED: missing buf_size';
+    my $buf_size = shift       or die 'FAILED: missing buf_size';
     my $fh       = $self->{fh} or return;
     my $buffer   = $self->{input_buffer};
     my $got      = length ${$buffer};
@@ -821,10 +813,7 @@ sub drain_buffer_normal {
             $self->reply_to_heartbeat($message);
             next;
         }
-        $message->[FROM] =
-            length $message->[FROM]
-            ? join q(/), $name, $message->[FROM]
-            : $name;
+        $message->[FROM] = join q(/), grep length, $name, $message->[FROM];
         if ( not $message->[TYPE] & TM_RESPONSE ) {
             if ( length $message->[TO] and length $owner ) {
                 $self->drop_message( $message,
@@ -879,8 +868,7 @@ sub do_not_enter {
 sub fill_buffer_init {
     my $self    = shift;
     my $message = shift;
-    if (    $message->[TYPE] & TM_BYTESTREAM
-        and $message->[FROM] =~ m{^Inet_AtoN(?:-\d+)?$} )
+    if ( $message->[TYPE] & TM_RESPONSE and $message->[FROM] eq 'Inet_AtoN' )
     {
         #
         # we're a connection starting up, and our Inet_AtoN job is
@@ -935,13 +923,9 @@ sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
     if ( $on_EOF eq 'reconnect' ) {
-        $self->notify( 'RECONNECT' => $self->{name} );
         push @Tachikoma::Closing, sub {
             $self->close_filehandle('reconnect');
         };
-    }
-    else {
-        $self->set_state( 'EOF' => $self->{name} );
     }
     $self->SUPER::handle_EOF;
     return;
@@ -958,12 +942,14 @@ sub close_filehandle {
         $self->{last_upbeat}   = $Tachikoma::Now;
         $self->{last_downbeat} = $Tachikoma::Now;
     }
+    delete $self->{set_state}->{CONNECTED};
+    delete $self->{set_state}->{AUTHENTICATED};
     if ( $reconnect and $self->{on_EOF} eq 'reconnect' ) {
         my $reconnecting = Tachikoma->nodes_to_reconnect;
         my $exists       = ( grep $_ eq $self, @{$reconnecting} )[0];
         push @{$reconnecting}, $self if ( not $exists );
+        $self->set_state('RECONNECT');
     }
-    $self->{set_state} = {};
     return;
 }
 
@@ -1014,7 +1000,6 @@ sub reconnect_unix {
         $self->close_filehandle;
         return 'try again';
     }
-    $self->stderr( 'reconnect: ', $! || 'success' );
     if ( $self->{use_SSL} ) {
         if ( not $self->start_SSL_connection ) {
             $self->close_filehandle;
@@ -1067,23 +1052,37 @@ sub dns_lookup {
     my $secure = Tachikoma->configuration->{secure_level};
     return $self->close_filehandle('reconnect')
         if ( defined $secure and $secure == 0 );
-    my $job_controller = $Tachikoma::Nodes{'jobs'};
-    if ( not $job_controller ) {
-        require Tachikoma::Nodes::JobController;
-        my $sink =
-               $Tachikoma::Nodes{'_command_interpreter'}
-            || $Tachikoma::Nodes{'_router'}
-            || die q(FAILED: couldn't find a suitable sink);
-        $job_controller = Tachikoma::Nodes::JobController->new;
-        $job_controller->name('jobs');
-        $job_controller->sink($sink);
-    }
+    my $sink =
+           $Tachikoma::Nodes{'_command_interpreter'}
+        || $Tachikoma::Nodes{'_router'}
+        || die q(FAILED: couldn't find a suitable sink);
     my $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
+    my $wait      = undef;
     if ( not $inet_aton ) {
-        $inet_aton = $job_controller->start_job( { type => 'Inet_AtoN' } );
-        $Tachikoma::Inet_AtoN_Serial++;
+        if ( Tachikoma->get_pid("Inet_AtoN.$<") ) {
+            $inet_aton =
+                Tachikoma::Nodes::Socket->unix_client("/tmp/Inet_AtoN.$<");
+            $inet_aton->name('Inet_AtoN');
+            $inet_aton->sink($sink);
+            $wait = 1;
+        }
+        else {
+            my $job_controller = $Tachikoma::Nodes{'jobs'};
+            if ( not $job_controller ) {
+                require Tachikoma::Nodes::JobController;
+                $job_controller = Tachikoma::Nodes::JobController->new;
+                $job_controller->name('jobs');
+                $job_controller->sink($sink);
+            }
+            $inet_aton = $Tachikoma::Nodes{'Inet_AtoN'};
+            if ( not $inet_aton ) {
+                $inet_aton =
+                    $job_controller->start_job( { type => 'Inet_AtoN' } );
+                $Tachikoma::Inet_AtoN_Serial++;
+            }
+            $self->{inet_aton_serial} = $Tachikoma::Inet_AtoN_Serial;
+        }
     }
-    $self->{inet_aton_serial} = $Tachikoma::Inet_AtoN_Serial;
     #
     # Send the hostname to our Inet_AtoN job.
     # When it sends the reply, we pick it up with fill_buffer_init().
@@ -1091,13 +1090,15 @@ sub dns_lookup {
     # see also inet_client_async(), fill_buffer_init(), init_socket(),
     #      and reconnect()
     #
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_BYTESTREAM;
-    $message->[FROM]    = $self->{name};
-    $message->[PAYLOAD] = $self->{hostname};
-    $inet_aton->fill($message);
-    $self->{fill}    = $self->{fill_modes}->{init};
-    $self->{address} = undef;
+    if ( not $wait ) {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE]    = TM_REQUEST;
+        $message->[FROM]    = $self->{name};
+        $message->[PAYLOAD] = $self->{hostname};
+        $inet_aton->fill($message);
+        $self->{fill}    = $self->{fill_modes}->{init};
+        $self->{address} = undef;
+    }
     return;
 }
 
@@ -1165,7 +1166,7 @@ sub sink {
         and not length $self->{filename} )
     {
         if ( $self->{name} ) {
-            $self->dns_lookup;
+            $self->dns_lookup if ( $self->{sink} );
         }
         else {
             $self->stderr('ERROR: async connections must be named');

@@ -10,28 +10,30 @@ use warnings;
 use Tachikoma::Nodes::Timer;
 use Tachikoma::Message qw(
     TYPE FROM TO ID STREAM TIMESTAMP PAYLOAD
-    TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST TM_ERROR TM_EOF
+    TM_BYTESTREAM TM_STORABLE TM_INFO TM_REQUEST
+    TM_PERSIST TM_ERROR TM_EOF
 );
-use Digest::MD5 qw( md5 );
+use Digest::MD5  qw( md5 );
 use Getopt::Long qw( GetOptionsFromString );
-use parent qw( Tachikoma::Nodes::Timer );
+use parent       qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.197');
 
-my $Default_Num_Partitions = 1;
-my $Default_Num_Buckets    = 2;
-my $Default_Window_Size    = 300;
+my $DEFAULT_NUM_PARTITIONS = 1;
+my $DEFAULT_NUM_BUCKETS    = 2;
+my $DEFAULT_WINDOW_SIZE    = 300;
 
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{caches}         = [];
     $self->{on_save_window} = [];
-    $self->{num_partitions} = $Default_Num_Partitions;
-    $self->{num_buckets}    = $Default_Num_Buckets;
+    $self->{num_partitions} = $DEFAULT_NUM_PARTITIONS;
+    $self->{num_buckets}    = $DEFAULT_NUM_BUCKETS;
     $self->{window_size}    = undef;
     $self->{bucket_size}    = undef;
     $self->{next_window}    = [];
+    $self->{queue}          = undef;
     $self->{host}           = undef;
     $self->{port}           = undef;
     $self->{field}          = undef;
@@ -46,7 +48,8 @@ sub help {
 make_node Table <node name> --num_partitions=<int> \
                             --num_buckets=<int>    \
                             --window_size=<int>    \
-                            --bucket_size=<int>
+                            --bucket_size=<int>    \
+                            --queue
 EOF
 }
 
@@ -54,13 +57,16 @@ sub arguments {
     my $self = shift;
     if (@_) {
         my $arguments = shift;
-        my ( $num_partitions, $num_buckets, $window_size, $bucket_size );
+        my ($num_partitions, $num_buckets, $window_size,
+            $bucket_size,    $should_queue
+        );
         my ( $r, $argv ) = GetOptionsFromString(
             $arguments,
             'num_partitions=i' => \$num_partitions,
             'num_buckets=i'    => \$num_buckets,
             'window_size=i'    => \$window_size,
             'bucket_size=i'    => \$bucket_size,
+            'queue'            => \$should_queue,
         );
         die "ERROR: invalid option\n" if ( not $r );
         die "ERROR: num_partitions must be greater than or equal to 1\n"
@@ -76,16 +82,17 @@ sub arguments {
             if ( $window_size and $bucket_size );
         $self->{arguments}      = $arguments;
         $self->{caches}         = [];
-        $self->{num_partitions} = $num_partitions // $Default_Num_Partitions;
-        $self->{num_buckets}    = $num_buckets // $Default_Num_Buckets;
+        $self->{num_partitions} = $num_partitions // $DEFAULT_NUM_PARTITIONS;
+        $self->{num_buckets}    = $num_buckets    // $DEFAULT_NUM_BUCKETS;
 
         if ($bucket_size) {
             $self->{bucket_size} = $bucket_size;
         }
         else {
-            $self->{window_size} = $window_size // $Default_Window_Size;
+            $self->{window_size} = $window_size // $DEFAULT_WINDOW_SIZE;
         }
         $self->{next_window} = [];
+        $self->{queue}       = $should_queue ? [] : undef;
     }
     return $self->{arguments};
 }
@@ -108,34 +115,58 @@ sub fill {
             $self->send_stats( $message->[FROM] );
         }
         else {
-            $self->stderr(
-                'ERROR: bad request: ', $message->[PAYLOAD],
-                ' - from: ',            $message->[FROM]
-            );
+            my $payload = $message->[PAYLOAD];
+            chomp $payload;
+            $self->stderr( 'ERROR: bad request: ',
+                $payload, ' - from: ', $message->[FROM] );
         }
     }
     elsif ( $message->[TYPE] & TM_INFO ) {
-        $self->set_timer
-            if ( $message->[STREAM] eq 'READY'
-            and not $self->{timer_is_active} );
+        my $payload = $message->[PAYLOAD];
+        chomp $payload;
+        if ( $payload eq 'READY' ) {
+            $self->set_timer if ( not $self->{timer_is_active} );
+        }
+        elsif ( $payload eq 'RESET' ) {
+            $self->stop_timer if ( $self->{timer_is_active} );
+        }
     }
     elsif ( not $message->[TYPE] & TM_ERROR
         and not $message->[TYPE] & TM_EOF )
     {
+        $self->stderr( 'DEBUG: FILL ', join q(, ), $message->[ID],
+            $message->[TIMESTAMP], $message->[STREAM] )
+            if ( $self->{debug_state} and $self->{debug_state} >= 4 );
         $self->store( $message->[TIMESTAMP], $message->[STREAM],
             $message->payload );
-        $self->cancel($message);
+        $self->cancel($message) if ( $message->[TYPE] & TM_PERSIST );
     }
     return;
 }
 
 sub fire {
     my $self = shift;
+    $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval} )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     if ( $self->{window_size} ) {
         for my $i ( 0 .. $self->{num_partitions} - 1 ) {
             my $next_window = $self->{next_window}->[$i] // 0;
-            $self->roll_window( $i, $Tachikoma::Now )
+            $self->roll_window( $i, $Tachikoma::Now, $next_window )
                 if ( $Tachikoma::Now >= $next_window );
+        }
+    }
+    if ( $self->{queue} ) {
+        my $queue = $self->{queue};
+        while ( @{$queue} ) {
+            if ( $Tachikoma::Now - $queue->[0]->{timestamp}
+                > $queue->[0]->{delay} )
+            {
+                &{ $queue->[0]->{send_cb} }();
+                shift @{$queue};
+            }
+            else {
+                last;
+            }
         }
     }
     return;
@@ -199,9 +230,11 @@ sub store {
     my ( $self, $timestamp, $key, $value ) = @_;
     my $i = $self->get_partition_id($key);
     $self->{caches}->[$i] ||= [];
+    $self->stderr("DEBUG: STORE $i, $timestamp, $key => $value")
+        if ( $self->{debug_state} and $self->{debug_state} >= 6 );
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
-        $self->roll_window( $i, $timestamp )
+        $self->roll_window( $i, $timestamp, $next_window )
             if ( $timestamp >= $next_window );
     }
     elsif ( $self->{bucket_size} ) {
@@ -220,10 +253,11 @@ sub store {
 }
 
 sub roll_window {
-    my ( $self, $i, $timestamp ) = @_;
-    my $next_window = $self->{next_window}->[$i] // 0;
-    my $span        = $timestamp - $next_window;
-    my $count       = int $span / $self->{window_size};
+    my ( $self, $i, $timestamp, $next_window ) = @_;
+    $self->stderr("DEBUG: ROLL_WINDOW $i, $timestamp >= $next_window")
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    my $span  = $timestamp - $next_window;
+    my $count = int $span / $self->{window_size};
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
     $self->roll_count( $i, $next_window, $count );
     my $delay = $self->{window_size};
@@ -236,16 +270,15 @@ sub roll_window {
 }
 
 sub roll_count {
-    my ( $self, $i, $timestamp, $count ) = @_;
-    my $cache   = $self->{caches}->[$i];
-    my $save_cb = $self->{on_save_window}->[$i];
-    if ($timestamp) {
-        &{$save_cb}( $timestamp, $cache->[0] ) if ($save_cb);
-        $self->send_bucket( $i, $timestamp, $cache->[0] )
-            if ( $self->{edge} );
-    }
+    my ( $self, $i, $window, $count ) = @_;
+    $self->stderr("DEBUG: ROLL_COUNT $i, $window, $count")
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    $self->{caches}->[$i] ||= [];
+    my $cache = $self->{caches}->[$i];
     for ( 0 .. $count ) {
-        unshift @{$cache}, {};
+        $self->roll( $i, $window );
+        $window += $self->{window_size}
+            if ( $window and $self->{window_size} );
     }
     while ( @{$cache} > $self->{num_buckets} ) {
         pop @{$cache};
@@ -253,8 +286,30 @@ sub roll_count {
     return;
 }
 
+sub roll {
+    my ( $self, $i, $window ) = @_;
+    $self->stderr("DEBUG: ROLL $i, $window")
+        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
+    my $cache = $self->{caches}->[$i];
+    if ($window) {
+        my $save_cb = $self->{on_save_window}->[$i];
+        my $bucket  = $cache->[-1];
+        $self->queue(
+            $window => sub {
+                $self->send_bucket( $i, $window, $bucket )
+                    if ( $self->{edge} );
+                &{$save_cb}( $window, $bucket ) if ($save_cb);
+            }
+        );
+    }
+    unshift @{$cache}, {};
+    return;
+}
+
 sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
+    $self->stderr("DEBUG: COLLECT $i, $timestamp, $key => $value")
+        if ( $self->{debug_state} and $self->{debug_state} >= 5 );
     return 1 if ( not length $value );
     my $bucket = $self->get_bucket( $i, $timestamp );
     $bucket->{$key} = $value if ($bucket);
@@ -273,18 +328,19 @@ sub get_partition_id {
 
 sub get_bucket {
     my ( $self, $i, $timestamp ) = @_;
-    my $cache  = $self->{caches}->[$i];
-    my $bucket = undef;
-    my $j      = 0;
-    if ( $self->{window_size} ) {
-        my $span = $self->{next_window}->[$i] - $timestamp;
+    my $cache = $self->{caches}->[$i];
+    my $j     = 0;
+    if ( $timestamp and $self->{window_size} ) {
+        my $span = $self->{next_window}->[$i] - $timestamp - 1;
         $j = int $span / $self->{window_size};
+        $j = 0                        if ( $j < 0 );
+        $j = $self->{num_buckets} - 1 if ( $j >= $self->{num_buckets} );
     }
-    if ( $j >= 0 and $j < $self->{num_buckets} ) {
-        $cache->[$j] ||= {};
-        $bucket = $cache->[$j];
-    }
-    return $bucket;
+    $self->stderr( "DEBUG: GET_BUCKET $i, $timestamp < ",
+        $self->{next_window}->[$i], "; $j" )
+        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
+    $cache->[$j] ||= {};
+    return $cache->[$j];
 }
 
 sub remove_entry {
@@ -311,12 +367,14 @@ sub send_entry {
 }
 
 sub send_bucket {
-    my ( $self, $i, $timestamp, $bucket ) = @_;
+    my ( $self, $i, $window, $bucket ) = @_;
+    $self->stderr("DEBUG: SEND_BUCKET $i, $window")
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]      = TM_STORABLE;
     $response->[FROM]      = $self->{name};
     $response->[STREAM]    = $i;
-    $response->[TIMESTAMP] = $timestamp;
+    $response->[TIMESTAMP] = $window;
     $response->[PAYLOAD]   = $bucket;
     $self->{edge}->fill($response);
     return;
@@ -347,6 +405,20 @@ sub send_stats {
     return;
 }
 
+sub get_table_size {
+    my ($self) = @_;
+    my $total = 0;
+    for my $i ( 0 .. $self->num_partitions - 1 ) {
+        my $cache = $self->caches->[$i];
+        for my $b ( 0 .. $self->num_buckets - 1 ) {
+            my $bucket = $cache->[$b] // {};
+            my $count  = $bucket ? scalar keys %{$bucket} : 0;
+            $total += $count;
+        }
+    }
+    return $total;
+}
+
 sub get_keys {
     my ($self) = @_;
     my %unique = ();
@@ -364,7 +436,7 @@ sub on_load_window {
     my $next_window = $self->{next_window}->[$i] // 0;
     my $timestamp   = $stored->{timestamp}       // 0;
     $self->{caches}->[$i] ||= [];
-    if ( $timestamp > $next_window ) {
+    if ( $timestamp >= $next_window ) {
         my $cache = $self->{caches}->[$i];
         my $span  = $timestamp - $next_window;
         my $count = int $span / $self->{window_size};
@@ -375,20 +447,13 @@ sub on_load_window {
             }
         }
         unshift @{$cache}, $stored->{cache};
-        $self->{next_window}->[$i] = $timestamp
-            if ( $self->{window_size} );
         while ( @{$cache} > $self->{num_buckets} ) {
             pop @{$cache};
         }
+        $self->{next_window}->[$i] = $timestamp if ( $self->{window_size} );
     }
-    return;
-}
-
-sub on_load_window_complete {
-    my ( $self, $i ) = @_;
-    my $next_window = $self->{next_window}->[$i] // 0;
-    $self->roll_window( $i, $Tachikoma::Now )
-        if ( $Tachikoma::Now >= $next_window );
+    $self->stderr("DEBUG: ON_LOAD_WINDOW $i, $timestamp >= $next_window")
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
     return;
 }
 
@@ -426,6 +491,51 @@ sub new_cache {
         $self->{caches}      = [];
         $self->{next_window} = [];
     }
+    return;
+}
+
+sub queue {
+    my $self = shift;
+    if (@_) {
+        my $window  = shift;
+        my $send_cb = shift;
+        if ( $self->{queue} ) {
+            my $queue = $self->{queue};
+            my $delay = $Tachikoma::Now - $window;
+            if ( not @{$queue} and $delay < $self->{window_size} / 2 ) {
+                &{$send_cb}();
+            }
+            else {
+                $delay = $self->{window_size}
+                    if ( $delay > $self->{window_size} );
+                push @{$queue},
+                    {
+                    timestamp => $Tachikoma::Now,
+                    delay     => $delay,
+                    send_cb   => $send_cb,
+                    };
+                my $max_queue =
+                    $self->{num_partitions} * $self->{num_buckets};
+                while ( @{$queue} > $max_queue ) {
+                    &{ $queue->[0]->{send_cb} }()
+                        if ( $queue->[0] and $queue->[0]->{send_cb} );
+                    shift @{$queue};
+                }
+                $self->stderr("DEBUG: QUEUE $window; $delay")
+                    if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+            }
+        }
+        else {
+            &{$send_cb}();
+        }
+    }
+    return $self->{queue};
+}
+
+sub remove_node {
+    my $self = shift;
+    $self->{queue} = undef;
+    $self->SUPER::remove_node;
     return;
 }
 
