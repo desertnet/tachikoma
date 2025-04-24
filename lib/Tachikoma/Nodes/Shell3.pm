@@ -170,7 +170,18 @@ sub process_command {
         $self->{errors}++;
     }
 
-    $self->execute_ast_node($ast);
+    $okay = eval {
+        $self->execute_ast_node($ast);
+        return 1;
+    };
+
+    if ( not $okay ) {
+        my $error = $@ || 'unknown error';
+        $error =~ s{ at /\S+ line \d+\.}{.};
+        chomp $error;
+        $self->stderr("$error\n");
+        $self->{errors}++;
+    }
 
     # Handle TTY prompts as before
     if ( $self->{isa_tty} ) {
@@ -916,8 +927,6 @@ sub execute_expression {
     my $self = shift;
     my $expr = shift;
 
-    confess if not ref $expr;
-
     # Handle different expression types
     if ( $expr->{type} eq 'binary_expression' ) {
         my $left_val  = $self->execute_expression( $expr->{left} );
@@ -1208,7 +1217,7 @@ sub expand_expression {
 sub fatal_parse_error {
     my $self  = shift;
     my $error = shift;
-    confess "ERROR: $error, line $self->{counter}\n";
+    die "ERROR: $error, line $self->{counter}\n";
 }
 
 ###########
