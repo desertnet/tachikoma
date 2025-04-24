@@ -905,21 +905,21 @@ $parse_tree = &parse( '
 ' );
 $answer = q();
 $shell->execute_ast_node($parse_tree);
-is( $answer, "{1\n}\n{101\n\n}\n", 'nested parentheses are otherwise ignored' );
+is( $answer, "{1\n}\n{101\n}\n", 'nested parentheses are otherwise ignored' );
 
 #####################################################################
 
 $parse_tree = &parse(q({ uptime; { echo foo } }));
 $answer     = q();
 $shell->execute_ast_node($parse_tree);
-is( $answer, "[uptime][]\n{foo \n}\n", 'commands can be nested inside blocks' );
+is( $answer, "[uptime][]\n{foo\n}\n", 'commands can be nested inside blocks' );
 
 #####################################################################
 
 $parse_tree = &parse(q({ uptime; { echo foo } date }));
 $answer     = q();
 $shell->execute_ast_node($parse_tree);
-is( $answer, "[uptime][]\n{foo \n}\n[date][]\n",
+is( $answer, "[uptime][]\n{foo\n}\n[date][]\n",
     'expressions after blocks are evaluated' );
 
 #####################################################################
@@ -927,7 +927,7 @@ is( $answer, "[uptime][]\n{foo \n}\n[date][]\n",
 $parse_tree = &parse(q({ uptime; { echo foo } ; date; }));
 $answer     = q();
 $shell->execute_ast_node($parse_tree);
-is( $answer, "[uptime][]\n{foo \n}\n[date][]\n",
+is( $answer, "[uptime][]\n{foo\n}\n[date][]\n",
     'semicolons separate blocks and expressions' );
 
 #####################################################################
@@ -968,13 +968,13 @@ $parse_tree = &parse( '
 ' );
 $answer = q();
 $shell->execute_ast_node($parse_tree);
-is( $answer, '{foo bar 
+is( $answer, '{foo bar
 }
-{one two 
+{one two
 }
-{three 
+{three
 }
-{kk 
+{kk
 }
 ', 'variables with list values are expanded correctly'
 );
@@ -1012,7 +1012,7 @@ $parse_tree = &parse( '
 $answer = q();
 $shell->execute_ast_node($parse_tree);
 is( $answer,
-    "{foo bar\n\n\n}\n",
+    "{foo bar\n\n}\n",
     'logical expressions expand without additional whitespace'
 );
 
@@ -1032,7 +1032,7 @@ $parse_tree = &parse( '
 $answer = q();
 $shell->execute_ast_node($parse_tree);
 is( $answer,
-    "{foo bar \n}\n{baz \n}\n",
+    "{foo bar\n}\n{baz\n}\n",
     'a parenthesized list is a single function argument'
 );
 

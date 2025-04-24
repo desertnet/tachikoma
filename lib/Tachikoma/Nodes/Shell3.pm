@@ -2759,9 +2759,10 @@ sub _call_function_ast {
     $arguments{'0'} = $name;
 
     # Process command arguments
-    my $args   = $node->{args} // [];
+    my $args   = [ @{ $node->{args} // [] } ];
     my @values = ();
     my $j      = 1;
+    pop @{$args} while ( @{$args} and $args->[-1]->{type} eq 'whitespace' );
     for my $i ( 0 .. $#{$args} ) {
         my $arg_val = $self->expand_expression( $args->[$i] );
         push @values, @{$arg_val};
