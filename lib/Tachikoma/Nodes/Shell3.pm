@@ -349,7 +349,7 @@ sub tokenize {
         }
 
         # Handle identifiers
-        if ( $input =~ s/^([\w.:\^\/\@\$]+(?:-[\w.:\^\/\@\$]+)*)// ) {
+        if ( $input =~ s/^([\w.,:\^\/\@\$]+(?:-[\w.,:\^\/\@\$]+)*)// ) {
             push @tokens, { type => 'ident', value => $1 };
             next;
         }
@@ -362,7 +362,7 @@ sub tokenize {
 
         # Handle unknown characters
         $input =~ s/^.//;
-        $self->fatal_parse_error("Unrecognized character: $&");
+        $self->stderr("ERROR: Unrecognized character: $&");
     }
 
     # Add an explicit EOS token
@@ -1096,6 +1096,7 @@ sub execute_expression {
             $value =~ s/\\\\/\\/g;
             $value = `$value`;
             chomp $value;
+            return [ split q( ), $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
@@ -1200,6 +1201,7 @@ sub expand_expression {
             $value =~ s/\\\\/\\/g;
             $value = `$value`;
             chomp $value;
+            return [ split q( ), $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
