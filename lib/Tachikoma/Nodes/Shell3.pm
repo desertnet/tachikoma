@@ -349,7 +349,7 @@ sub tokenize {
         }
 
         # Handle identifiers
-        if ( $input =~ s/^([\w.,:\^\/\@\$]+(?:-[\w.,:\^\/\@\$]+)*)// ) {
+        if ( $input =~ s/^([\w.,:\/\@\$\%\^]+(?:-[\w.,:\/\@\$\%\^]+)*)// ) {
             push @tokens, { type => 'ident', value => $1 };
             next;
         }
