@@ -8,7 +8,7 @@ func fsync_source {
     local user;
     local count      //= 4;
     local probe      //= 1;
-    local broadcasts ||= <path>;
+    local broadcasts //= <path>;
     local interval   ||= 120;
     local max_files  ||= 256;
     local secure     //= 2;
@@ -16,7 +16,7 @@ func fsync_source {
     local targets;
     local peers;
     local listen_ip  //= '0.0.0.0';
-    local port = [var fsync_ports.<name>];
+    local port = [var fsync.ports.<name>];
     if ( <user> ) [
         local count = 1;
     ];
@@ -161,17 +161,19 @@ func fsync_source {
         listen_inet --scheme=rsa --use-ssl <listen_ip>:(<port> + 2);
         register <listen_ip>:(<port> + 2) DirStats:client_connector AUTHENTICATED;
 
-        if ( <probe> and <count> ) {
+        if ( <probe> && <count> ) {
             buffer_probe;
         };
-        secure <secure>;
+        if ( <secure> ) {
+            secure <secure>;
+        };
     cd ..;
     return;
 };
 
 
 
-var fsync_ports.fsync = 5600;
+var fsync.ports.fsync = 5600;
 
 {
     local name       = fsync;
