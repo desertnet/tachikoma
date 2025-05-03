@@ -1462,6 +1462,7 @@ $BUILTINS{'local'} = sub {
 
     # Perform operation based on arguments
     if ( length $op ) {
+        $hash->{$key} = $self->get_local($key);
 
         # Perform variable operation with operator
         return $self->operate( $hash, $key, $op, $value );
