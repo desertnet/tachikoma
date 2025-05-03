@@ -11,7 +11,7 @@ fi
 useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma tachikoma
 
 # copy source
-cp -rfT /services/tachikoma /usr/src/tachikoma
+cp -rfT /services/tachikoma-2.1/sources/tachikoma /usr/src/tachikoma
 
 # make tachikoma log dirs
 mkdir -p /home/tachikoma/.tachikoma/log

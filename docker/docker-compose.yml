@@ -6,7 +6,7 @@ services:
     build: .
     env_file: .env
     volumes:
-      - .:/services/tachikoma
+      - .:/services/tachikoma-2.1/sources/tachikoma
     ports:
       - "127.0.0.1:4242:4242"
     networks:
