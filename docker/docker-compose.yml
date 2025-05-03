@@ -1,4 +1,3 @@
-version: "3"
 services:
 
   tachikoma1:
@@ -6,8 +5,8 @@ services:
     image: tachikoma:2.1
     build: .
     env_file: .env
-#    volumes:
-#      - /var/lib/tachikoma:/home/tachikoma/.tachikoma
+    volumes:
+      - .:/services/tachikoma
     ports:
       - "127.0.0.1:4242:4242"
     networks:

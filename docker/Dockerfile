@@ -1,8 +1,5 @@
 FROM debian:bookworm-slim
 
-ARG CONFIG=default
-ARG TACHIKOMA_UID=1000
-
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -16,18 +13,17 @@ RUN apt-get update && \
         libnet-ssleay-perl \
         libterm-readline-gnu-perl \
         libwww-perl \
+        perl-doc \
     && rm -rf /var/lib/apt/lists/*
 #        libdevice-serialport-perl \
 
-RUN useradd -s /bin/bash -u ${TACHIKOMA_UID} -d /home/tachikoma -m tachikoma
+# add a dir for tachikoma
+RUN mkdir /home/tachikoma
 
-# NOTE: add your own configs to etc/scripts/local
-#       and use --env CONFIG=local
+# default directory for shell access
+WORKDIR /home/tachikoma
 
-COPY ./                     /usr/src/tachikoma
+# copy entrypoint script
 COPY ./docker-entrypoint.sh /usr/local/bin/
-
-RUN    cd /usr/src/tachikoma \
-    && bin/install_tachikoma
 
 ENTRYPOINT ["docker-entrypoint.sh"]
