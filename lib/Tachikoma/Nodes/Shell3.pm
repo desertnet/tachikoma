@@ -2773,7 +2773,7 @@ sub _call_function_ast {
             if ( $args->[$i]->{type} ne 'whitespace' );
     }
     $arguments{'@'}  = \@values;
-    $arguments{'_C'} = $j;
+    $arguments{'_C'} = $j - 1;
 
     # Call the function with the new argument structure
     return $self->call_function( $name, \%arguments );
