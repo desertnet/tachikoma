@@ -258,7 +258,7 @@ sub tokenize {
         }
 
         # Handle variables
-        if ( $input =~ s/^<([a-zA-Z0-9_.:@]*)>// ) {
+        if ( $input =~ s/^<([a-zA-Z0-9_.:@-]*)>// ) {
             push @tokens, { type => 'variable', value => $1 };
             next;
         }
