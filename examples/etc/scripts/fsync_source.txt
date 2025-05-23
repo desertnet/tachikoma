@@ -16,7 +16,7 @@ func fsync_source {
     local targets;
     local peers;
     local listen_ip  //= '0.0.0.0';
-    local port = [var fsync.ports.<name>];
+    local port = [var "fsync.ports.<name>"];
     if ( <user> ) [
         local count = 1;
     ];

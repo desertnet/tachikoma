@@ -11,7 +11,7 @@ func fsync_destination {
     local mode             ||= 'update';
     local sources;
     local listen;
-    local port = [var fsync.ports.<name>];
+    local port = [var "fsync.ports.<name>"];
     if ( <user> ) [
         local count = 1;
     ];
