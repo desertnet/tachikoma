@@ -84,22 +84,21 @@ is_deeply(
     {
         'commands' => [
             {
-                'args' => [
-                    {
-                        'type' => 'ident',
-                        'value' => 'foo'
-                    },
-                    {
-                        'type' => 'ident',
-                        'value' => '='
-                    },
-                    {
-                        'type' => 'number',
-                        'value' => 5
-                    }
-                ],
-                'name' => 'var',
-                'type' => 'command'
+                'name' => { 
+                    'type' => 'ident',
+                    'value' => 'foo'
+                },
+                'operator' => '=',
+                'value' => {
+                    'type' => 'parenthesized_expr',
+                    'expressions' => [
+                        { 
+                            'type' => 'number',
+                            'value' => 5
+                        }
+                    ]
+                },
+                'type' => 'var_assignment'
             }
         ],
         'type' => 'command_list'

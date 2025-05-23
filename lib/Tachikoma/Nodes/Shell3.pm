@@ -462,30 +462,34 @@ sub parse_command {
 }
 
 sub parse_simple_command {
-    my $self           = shift;
-    my $name_token     = $self->consume;
-    my @args           = ();
-    my $ate_whitespace = undef;
-    while ( $self->current_token->{type} eq 'whitespace' ) {
-        $self->consume('whitespace');
-        $ate_whitespace = 1;
-    }
+    my $self       = shift;
+    my $name_token = $self->consume;
+    my @args       = ();
+    if ( $name_token->{type} eq 'ident' ) {
+        if ( $name_token->{value} eq 'env' ) {
+            return $self->parse_env_assignment;
+        }
+        elsif ( $name_token->{value} eq 'var' ) {
+            return $self->parse_var_assignment;
+        }
+        elsif ( $name_token->{value} eq 'local' ) {
+            return $self->parse_local_assignment;
+        }
 
-    # If second token is an assignment operator, the name is a variable
-    if ( $self->current_token->{type} eq 'op'
-        and ( not $ate_whitespace or $self->current_token->{value} ne '--' ) )
-    {
-        my $op = $self->consume('op');
-        my $expr =
-            ( $op->{value} ne '++' and $op->{value} ne '--' )
-            ? $self->parse_expression_list
-            : undef;
-        return {
-            type     => 'assignment',
-            name     => $name_token->{value},
-            operator => $op->{value},
-            value    => $expr
-        };
+        my $ate_whitespace = undef;
+        while ( $self->current_token->{type} eq 'whitespace' ) {
+            $self->consume('whitespace');
+            $ate_whitespace = 1;
+        }
+
+        # If second token is an assignment operator, the name is a variable
+        if ($self->current_token->{type} eq 'op'
+            and
+            ( not $ate_whitespace or $self->current_token->{value} ne '--' )
+            )
+        {
+            return $self->parse_assignment($name_token);
+        }
     }
 
     # Parse arguments until end of command
@@ -493,7 +497,7 @@ sub parse_simple_command {
         my $arg = undef;
 
         if ( $self->current_token->{type}
-            =~ /^(string\d|number|ident|variable|whitespace)$/ )
+            =~ /^(ident|number|string\d|whitespace|variable)$/ )
         {
             $arg = $self->consume;
         }
@@ -528,6 +532,72 @@ sub parse_simple_command {
         : $name_token->{type},
         name => $name_token->{value},
         args => \@args
+    };
+}
+
+sub parse_env_assignment {
+    my $self   = shift;
+    my $branch = $self->parse_local_assignment;
+    $branch->{type} = 'env_assignment';
+    return $branch;
+}
+
+sub parse_var_assignment {
+    my $self   = shift;
+    my $branch = $self->parse_local_assignment;
+    $branch->{type} = 'var_assignment';
+    return $branch;
+}
+
+sub parse_local_assignment {
+    my $self = shift;
+    $self->consume('whitespace')
+        while ( $self->current_token->{type} eq 'whitespace' );
+    my $name_token = undef;
+    my $op         = undef;
+    my $expr       = undef;
+    if ( $self->current_token->{type} =~ /^(ident|string\d|variable)$/ ) {
+        $name_token = $self->consume;
+        $self->consume('whitespace')
+            while ( $self->current_token->{type} eq 'whitespace' );
+        if ( $self->current_token->{type} eq 'op' ) {
+            $op = $self->consume('op');
+            $self->consume('whitespace')
+                while ( $self->current_token->{type} eq 'whitespace' );
+            $expr =
+                (       $op->{value} ne '++'
+                    and $op->{value} ne '--'
+                    and $self->current_token->{type}
+                    !~ /^(command|pipe|eos)$/ )
+                ? $self->parse_expression_list
+                : undef;
+        }
+    }
+    return {
+        type     => 'local_assignment',
+        name     => $name_token,
+        operator => $op ? $op->{value} : undef,
+        value    => $expr
+    };
+}
+
+sub parse_assignment {
+    my $self       = shift;
+    my $name_token = shift;
+    my $op         = $self->consume('op');
+    $self->consume('whitespace')
+        while ( $self->current_token->{type} eq 'whitespace' );
+    my $expr =
+        (       $op->{value} ne '++'
+            and $op->{value} ne '--'
+            and $self->current_token->{type} !~ /^(command|pipe|eos)$/ )
+        ? $self->parse_expression_list
+        : undef;
+    return {
+        type     => 'assignment',
+        name     => $name_token->{value},
+        operator => $op->{value},
+        value    => $expr
     };
 }
 
@@ -704,19 +774,19 @@ sub parse_primary_expression {
         return $self->parse_parenthesized_expr;
     }
 
+    # Handle literals
+    if ( $token->{type} =~ /^(ident|number|op|string\d)$/ ) {
+        return {
+            type  => $1,
+            value => $self->consume->{value}
+        };
+    }
+
     # Handle variables
     if ( $token->{type} eq 'variable' ) {
         return {
             type  => 'variable',
             value => $self->consume('variable')->{value}
-        };
-    }
-
-    # Handle literals
-    if ( $token->{type} =~ /^(string\d|number|ident|op)$/ ) {
-        return {
-            type  => $1,
-            value => $self->consume->{value}
         };
     }
 
@@ -792,7 +862,7 @@ sub execute_ast_node {
         return $result;
     }
 
-    if ( $node->{type} =~ /^(command|variable|string\d)$/ ) {
+    if ( $node->{type} =~ /^(command|string\d|variable)$/ ) {
         my $name = $node->{name};
         $name = $SHARED{$name} if ( $node->{type} eq 'variable' );
 
@@ -814,24 +884,18 @@ sub execute_ast_node {
         }
     }
 
+    # Handle variable assignments
+    if ( $node->{type} eq 'env_assignment' ) {
+        return $self->execute_env_assignment($node);
+    }
+    if ( $node->{type} eq 'var_assignment' ) {
+        return $self->execute_var_assignment($node);
+    }
+    if ( $node->{type} eq 'local_assignment' ) {
+        return $self->execute_local_assignment($node);
+    }
     if ( $node->{type} eq 'assignment' ) {
-        my $name = $node->{name};
-        my $op   = $node->{operator};
-        my $value =
-            defined( $node->{value} )
-            ? $self->execute_expression( $node->{value} )
-            : undef;
-        my $hash = $self->get_local_hash($name);
-        if ($hash) {
-            $self->operate( $hash, $name, $op, $value );
-        }
-        elsif ( exists $self->{configuration}->{var}->{$name} ) {
-            $self->operate( $self->{configuration}->{var},
-                $name, $op, $value );
-        }
-        else {
-            $self->fatal_parse_error("no such variable: $name");
-        }
+        return $self->execute_assignment($node);
     }
 
     # Handle other node types
@@ -922,7 +986,7 @@ sub execute_ast_node {
 
 sub execute_expression {
     my $self = shift;
-    my $expr = shift;
+    my $expr = shift || return [];
 
     # Handle different expression types
     if ( $expr->{type} eq 'binary_expression' ) {
@@ -1036,29 +1100,6 @@ sub execute_expression {
             $self->fatal_parse_error("Unknown unary operator: $op");
         }
     }
-    if ( $expr->{type} eq 'assignment' ) {
-        my $name = $expr->{name};
-        my $op   = $expr->{operator};
-        my $value =
-            defined( $expr->{value} )
-            ? $self->execute_expression( $expr->{value} )
-            : undef;
-        my $hash = $self->get_local_hash($name);
-        if ($hash) {
-            $self->operate( $hash, $name, $op, $value );
-        }
-        elsif ( exists $self->{configuration}->{var}->{$name} ) {
-            $self->operate( $self->{configuration}->{var},
-                $name, $op, $value );
-        }
-        else {
-            $self->fatal_parse_error("no such variable: $name");
-        }
-    }
-    if ( $expr->{type} eq 'variable' ) {
-        my $value = $self->get_shared( $expr->{value} );
-        return ref $value ? $value : [$value];
-    }
     if ( $expr->{type} eq 'parenthesized_expr' ) {
         my $result = [];
         for my $sub_expr ( @{ $expr->{expressions} } ) {
@@ -1069,7 +1110,7 @@ sub execute_expression {
     if ( $expr->{type} eq 'block' or $expr->{type} eq 'bracket' ) {
         return $self->execute_ast_node($expr);
     }
-    if ( $expr->{type} =~ /^(string\d|number|ident|op|whitespace)$/ ) {
+    if ( $expr->{type} =~ /^(ident|number|op|string\d|whitespace)$/ ) {
         my $value = $expr->{value};
         if ( $expr->{type} eq 'string1' ) {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
@@ -1105,12 +1146,16 @@ sub execute_expression {
         }
         return [$value];
     }
+    if ( $expr->{type} eq 'variable' ) {
+        my $value = $self->get_shared( $expr->{value} );
+        return ref $value ? $value : [$value];
+    }
     $self->fatal_parse_error("Unknown expression type: $expr->{type}");
 }
 
 sub expand_expression {
     my $self = shift;
-    my $expr = shift;
+    my $expr = shift || return [];
 
     # Handle different expression types
     if ( $expr->{type} eq 'binary_expression' ) {
@@ -1153,17 +1198,6 @@ sub expand_expression {
             $self->fatal_parse_error("Unknown unary operator: $op");
         }
     }
-    if ( $expr->{type} eq 'assignment' ) {
-        my $name   = $expr->{name};
-        my $op     = $expr->{operator};
-        my $value  = $self->expand_expression( $expr->{value} );
-        my $result = [ $name, $op, $value ];
-        return $result;
-    }
-    if ( $expr->{type} eq 'variable' ) {
-        my $value = $self->get_shared( $expr->{value} );
-        return ref $value ? $value : [$value];
-    }
     if ( $expr->{type} eq 'parenthesized_expr' ) {
         my $result = [];
         for my $sub_expr ( @{ $expr->{expressions} } ) {
@@ -1174,7 +1208,7 @@ sub expand_expression {
     if ( $expr->{type} eq 'block' or $expr->{type} eq 'bracket' ) {
         return $self->execute_ast_node($expr);
     }
-    if ( $expr->{type} =~ /^(string\d|number|ident|op|whitespace)$/ ) {
+    if ( $expr->{type} =~ /^(ident|number|op|string\d|whitespace)$/ ) {
         my $value = $expr->{value};
         if ( $expr->{type} eq 'string1' ) {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
@@ -1209,6 +1243,10 @@ sub expand_expression {
             $value =~ s/\\\\/\\/g;
         }
         return [$value];
+    }
+    if ( $expr->{type} eq 'variable' ) {
+        my $value = $self->get_shared( $expr->{value} );
+        return ref $value ? $value : [$value];
     }
     $self->fatal_parse_error("Unknown expression type: $expr->{type}");
 }
@@ -1451,158 +1489,15 @@ $H{'local'} = [
     "    operators: = .= += -= *= /= //= ||=\n"
 ];
 
-$BUILTINS{'local'} = sub {
-    my $self = shift;
-    my $node = shift;
-
-    # Get the appropriate hash for local variables
-    my $hash = $LOCAL[0];
-    my ( $key, $op, $value ) = $self->get_var_args($node);
-    my $rv = [];
-
-    # Perform operation based on arguments
-    if ( length $op ) {
-        $hash->{$key} = $self->get_local($key);
-
-        # Perform variable operation with operator
-        return $self->operate( $hash, $key, $op, $value );
-    }
-    elsif ( length $key ) {
-
-        # Get variable value
-        $hash->{$key} = $self->get_local($key);
-        $hash->{$key} //= q();
-        if ( ref $hash->{$key} ) {
-            $rv = $hash->{$key};
-        }
-        else {
-            $rv = [ $hash->{$key} ];
-        }
-    }
-    else {
-        # Display all local variables by layer
-        my $layer = 0;
-        for my $scope_hash (@LOCAL) {
-            push @{$rv}, sprintf "### LAYER %d:\n", $layer++;
-            for my $var_key ( sort keys %{$scope_hash} ) {
-                my $output = "$var_key=";
-                if ( ref $scope_hash->{$var_key} ) {
-                    $output .= '["'
-                        . join( q(", "),
-                        grep m{\S}, @{ $scope_hash->{$var_key} } )
-                        . '"]';
-                }
-                else {
-                    $output .= $scope_hash->{$var_key} // q();
-                }
-                chomp $output;
-                push @{$rv}, "$output\n";
-            }
-            push @{$rv}, "\n" if $layer < @LOCAL;
-        }
-        my $output = join q(), @{$rv};
-        syswrite STDOUT, $output or die if ( length $output );
-        $rv = [];
-    }
-
-    return $rv;
-};
-
 $H{'var'} = [
     "var <name> [ <op> [ <value> ] ]\n",
     "    operators: = .= += -= *= /= //= ||=\n"
 ];
 
-$BUILTINS{'var'} = sub {
-    my $self = shift;
-    my $node = shift;
-
-    # Get the appropriate hash for global variables
-    my $hash = $self->{configuration}->{var};
-    my ( $key, $op, $value ) = $self->get_var_args($node);
-    my $rv = [];
-
-    # Perform operation based on arguments
-    if ( length $op ) {
-
-        # Perform variable operation with operator
-        return $self->operate( $hash, $key, $op, $value );
-    }
-    elsif ( length $key ) {
-
-        # Get variable value
-        $hash->{$key} //= q();
-        if ( ref $hash->{$key} ) {
-            $rv = $hash->{$key};
-        }
-        else {
-            $rv = [ $hash->{$key} ];
-        }
-    }
-    else {
-        # Display all global variables
-        for my $var_key ( sort keys %{$hash} ) {
-            my $output = "$var_key=";
-            if ( ref $hash->{$var_key} ) {
-                $output
-                    .= '["'
-                    . join( q(", "), grep m{\S}, @{ $hash->{$var_key} } )
-                    . '"]';
-            }
-            else {
-                $output .= $hash->{$var_key} // q();
-            }
-            chomp $output;
-            push @{$rv}, "$output\n";
-        }
-        my $output = join q(), @{$rv};
-        syswrite STDOUT, $output or die if ( length $output );
-        $rv = [];
-    }
-
-    return $rv;
-};
-
 $H{'env'} = [
     "env <name> [ <op> [ <value> ] ]\n",
     "    operators: = .= += -= *= /= //= ||=\n"
 ];
-
-$BUILTINS{'env'} = sub {
-    my $self = shift;
-    my $node = shift;
-
-    # Get the environment hash
-    my $hash = \%ENV;
-    my ( $key, $op, $value ) = $self->get_var_args($node);
-    my $rv = [];
-
-    # Perform operation based on arguments
-    if ( length $op ) {
-
-        # Perform variable operation with operator
-        return $self->operate( $hash, $key, $op, $value );
-    }
-    elsif ( length $key ) {
-
-        # Get environment variable value
-        $hash->{$key} //= q();
-        $rv = [ $hash->{$key} ];
-    }
-    else {
-        # Display all environment variables
-        for my $var_key ( sort keys %{$hash} ) {
-            my $output = "$var_key=" . ( $hash->{$var_key} // q() );
-            chomp $output;
-            push @{$rv}, "$output\n";
-        }
-        my $output = join q(), @{$rv};
-        syswrite STDOUT, $output or die if ( length $output );
-        $rv = [];
-    }
-
-    return $rv;
-};
 
 $H{'shift'} = ["local foo = { shift [ <var name> ] }\n"];
 
@@ -1727,7 +1622,7 @@ $BUILTINS{'if'} = sub {
             my $keyword = $args->[$i];
 
             # If it's a string literal containing the keyword
-            if ( $keyword->{type} =~ /^(string\d|number|ident)$/ ) {
+            if ( $keyword->{type} eq 'ident' ) {
                 my $sugar = $keyword->{value};
                 $i++;
 
@@ -2633,25 +2528,6 @@ sub send_command {
                 if ( $line =~ m{\S} );
         }
     }
-    elsif ( $node->{type} eq 'assignment' ) {
-
-        # Handle variable assignments
-        my $name   = $node->{name};
-        my $op     = $node->{operator};
-        my $values = $self->execute_expression( $node->{value} );
-        my $hash   = $self->get_local_hash($name);
-        if ($hash) {
-            $self->operate( $hash, $name, $op, $values );
-        }
-        elsif ( exists $self->{configuration}->{var}->{$name} ) {
-            $self->operate( $self->{configuration}->{var},
-                $name, $op, $values );
-        }
-        else {
-            $self->fatal_parse_error("no such variable: $name");
-        }
-        return;
-    }
     elsif ( $node->{type} eq 'block' || $node->{type} eq 'bracket' ) {
 
         # Execute blocks directly
@@ -2679,10 +2555,168 @@ sub send_command {
     return $rv;
 }
 
+sub execute_env_assignment {
+    my $self   = shift;
+    my $node   = shift;
+    my $name   = join q(), @{ $self->execute_expression( $node->{name} ) };
+    my $op     = $node->{operator};
+    my $values = $self->execute_expression( $node->{value} );
+    my $hash   = \%ENV;
+    my $rv     = [];
+    if ( length $op ) {
+
+        # Perform variable operation with operator
+        $rv = $self->operate_env( $hash, $name, $op, $values );
+    }
+    elsif ( length $name ) {
+
+        # Get environment variable value
+        $hash->{$name} //= q();
+        $rv = [ $hash->{$name} ];
+    }
+    else {
+        # Display all environment variables
+        for my $var_name ( sort keys %{$hash} ) {
+            my $output = "$var_name=" . ( $hash->{$var_name} // q() );
+            chomp $output;
+            push @{$rv}, "$output\n";
+        }
+        my $output = join q(), @{$rv};
+        syswrite STDOUT, $output or die if ( length $output );
+        $rv = [];
+    }
+
+    return $rv;
+}
+
+sub execute_var_assignment {
+    my $self   = shift;
+    my $node   = shift;
+    my $name   = join q(), @{ $self->execute_expression( $node->{name} ) };
+    my $op     = $node->{operator};
+    my $values = $self->execute_expression( $node->{value} );
+    my $hash   = $self->{configuration}->{var};
+    my $rv     = [];
+    if ( length $op ) {
+
+        # Perform variable operation with operator
+        $rv = $self->operate( $hash, $name, $op, $values );
+    }
+    elsif ( length $name ) {
+
+        # Get variable value
+        $hash->{$name} //= q();
+        if ( ref $hash->{$name} ) {
+            $rv = $hash->{$name};
+        }
+        else {
+            $rv = [ $hash->{$name} ];
+        }
+    }
+    else {
+        # Display all global variables
+        for my $var_name ( sort keys %{$hash} ) {
+            my $output = "$var_name=";
+            if ( ref $hash->{$var_name} ) {
+                $output
+                    .= '["'
+                    . join( q(", "), grep m{\S}, @{ $hash->{$var_name} } )
+                    . '"]';
+            }
+            else {
+                $output .= $hash->{$var_name} // q();
+            }
+            chomp $output;
+            push @{$rv}, "$output\n";
+        }
+        my $output = join q(), @{$rv};
+        syswrite STDOUT, $output or die if ( length $output );
+        $rv = [];
+    }
+
+    return $rv;
+}
+
+sub execute_local_assignment {
+    my $self   = shift;
+    my $node   = shift;
+    my $name   = join q(), @{ $self->execute_expression( $node->{name} ) };
+    my $op     = $node->{operator};
+    my $values = $self->execute_expression( $node->{value} );
+    my $hash   = $LOCAL[0];
+    my $rv     = [];
+    if ( length $op ) {
+        $hash->{$name} = $self->get_local($name);
+
+        # Perform variable operation with operator
+        $rv = $self->operate( $hash, $name, $op, $values );
+    }
+    elsif ( length $name ) {
+
+        # Get variable value
+        $hash->{$name} = $self->get_local($name);
+        $hash->{$name} //= q();
+        if ( ref $hash->{$name} ) {
+            $rv = $hash->{$name};
+        }
+        else {
+            $rv = [ $hash->{$name} ];
+        }
+    }
+    else {
+        # Display all local variables by layer
+        my $layer = 0;
+        for my $scope_hash (@LOCAL) {
+            push @{$rv}, sprintf "### LAYER %d:\n", $layer++;
+            for my $var_name ( sort keys %{$scope_hash} ) {
+                my $output = "$var_name=";
+                if ( ref $scope_hash->{$var_name} ) {
+                    $output .= '["'
+                        . join( q(", "),
+                        grep m{\S}, @{ $scope_hash->{$var_name} } )
+                        . '"]';
+                }
+                else {
+                    $output .= $scope_hash->{$var_name} // q();
+                }
+                chomp $output;
+                push @{$rv}, "$output\n";
+            }
+            push @{$rv}, "\n" if $layer < @LOCAL;
+        }
+        my $output = join q(), @{$rv};
+        syswrite STDOUT, $output or die if ( length $output );
+        $rv = [];
+    }
+    return $rv;
+}
+
+sub execute_assignment {
+    my $self = shift;
+    my $node = shift;
+    my $name = $node->{name};
+    my $op   = $node->{operator};
+    my $values =
+        defined( $node->{value} )
+        ? $self->execute_expression( $node->{value} )
+        : undef;
+    my $hash = $self->get_local_hash($name);
+    if ($hash) {
+        $self->operate( $hash, $name, $op, $values );
+    }
+    elsif ( exists $self->{configuration}->{var}->{$name} ) {
+        $self->operate( $self->{configuration}->{var}, $name, $op, $values );
+    }
+    else {
+        $self->fatal_parse_error("no such variable: $name");
+    }
+    return;
+}
+
 sub operate {
     my ( $self, $hash, $key, $op, $values ) = @_;
     my $rv = [];
-    if ($values) {
+    if ( $values and @{$values} ) {
         my $v = $self->operate_with_value( $hash, $key, $op, $values );
         if ( @{$v} > 1 ) {
             $hash->{$key} = $v;
@@ -2710,7 +2744,7 @@ sub operate {
 sub operate_env {
     my ( $self, $hash, $key, $op, $values ) = @_;
     my $rv = [];
-    if ($values) {
+    if ( $values and @{$values} ) {
         my $v = $self->operate_with_value( $hash, $key, $op, $values );
         $hash->{$key} = join q(), @{$v};
         $rv = $v;
@@ -3079,112 +3113,6 @@ sub get_fragmented_name {
     }
 
     return $name;
-}
-
-sub get_var_args {
-    my $self = shift;
-    my $node = shift;
-
-    # Get arguments from the AST node
-    my $args = [ @{ $node->{args} // [] } ];
-
-    # Extract key, operator and values from arguments
-    # key is annoying because it often gets fragmented
-    my $key = @{$args} ? q() : undef;
-    while ( @{$args} and $args->[0]->{type} ne 'whitespace' ) {
-        last
-            if ( $args->[0]->{value}
-            =~ /^(?:=|\+\+|\-\-|\.=|\+=|\-=|\*=|\/=|\/\/=|\|\|=)$/ );
-        $key .= $self->expand_expression( shift @{$args} )->[0];
-    }
-
-    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
-
-    my $op =
-        @{$args} ? $self->expand_expression( shift @{$args} )->[0] : undef;
-
-    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
-    pop @{$args}   while ( @{$args} and $args->[-1]->{type} eq 'whitespace' );
-
-    # Check if we have a compound assignment (e.g., bar=<foo> + 5)
-    my $value = undef;
-    if ( @{$args} > 1 ) {
-        $value = $self->fake_expression($args);
-    }
-    elsif ( @{$args} ) {
-        $value = $self->execute_expression( @{$args} );
-    }
-
-    return ( $key, $op, $value );
-}
-
-sub fake_expression {
-    my $self      = shift;
-    my $args      = shift;
-    my $expr_text = $self->fake_expr_text($args);
-    my $ast       = undef;
-    my $value     = [];
-
-    # Evaluate the combined expression
-    my $okay = eval {
-        my $tmp    = Tachikoma::Nodes::Shell3->new;
-        my $tokens = $tmp->tokenize("($expr_text)");
-        $tmp->token_index(0);
-        $tmp->tokens($tokens);
-        $ast = $tmp->parse_parenthesized_expr;
-        return 1;
-    };
-    if ($okay) {
-        $value = $self->execute_expression($ast);
-    }
-    return $value;
-}
-
-sub fake_expr_text {
-    my $self      = shift;
-    my $args      = shift;
-    my $expr_text = q();
-
-    # Create a new expression combining all parts
-    for my $arg ( @{$args} ) {
-        if ( $arg->{type} eq 'parenthesized_expr' ) {
-            $expr_text .= '(';
-            $expr_text .= $self->fake_expr_text( $arg->{expressions} );
-            $expr_text .= ')';
-        }
-        elsif ( $arg->{type} eq 'binary_expression' ) {
-            $expr_text
-                .= $self->fake_expr_text( [ $arg->{left} ] )
-                . $arg->{operator}
-                . $self->fake_expr_text( [ $arg->{right} ] );
-        }
-        elsif ( $arg->{type} eq 'unary_expression' ) {
-            $expr_text .= $arg->{operator}
-                . $self->fake_expr_text( [ $arg->{expression} ] );
-        }
-        elsif ( $arg->{type} eq 'block' ) {
-            $expr_text .= '{';
-            $expr_text .= $self->fake_expr_text( $arg->{commands} );
-            $expr_text .= '}';
-        }
-        elsif ( $arg->{type} eq 'bracket' ) {
-            $expr_text .= '[';
-            $expr_text .= $self->fake_expr_text( $arg->{commands} );
-            $expr_text .= ']';
-        }
-        elsif ( $arg->{type} eq 'command' ) {
-            $expr_text .= $arg->{name} . q( )
-                . $self->fake_expr_text( $arg->{args} ) . ';';
-        }
-        elsif ( $arg->{type} eq 'variable' ) {
-            my $value = $arg->{value};
-            $expr_text .= "<$value>";
-        }
-        elsif ( exists $arg->{value} ) {
-            $expr_text .= $arg->{value};
-        }
-    }
-    return $expr_text;
 }
 
 sub get_args {
