@@ -224,6 +224,9 @@ sub tokenize {
     my $input    = shift;
     my @tokens   = ();
     my $in_quote = undef;
+    my $a        = qr/[\+\-]/o;
+    my $m        = qr/[\*\/]/o;
+    my $x        = qr/[\w.,:\*\/\@\$\%\^]+/o;
 
     while ( length $input ) {
 
@@ -270,17 +273,15 @@ sub tokenize {
         }
 
         # Handle arithmetic operators
-        if ( $input =~ s/^([\+\*\-])// ) {
+        if ( $input =~ s/^($a)// ) {
             push @tokens, { type => 'arithmetic', value => $1 };
             next;
         }
-        if ( $input =~ /^([\/])/ ) {
-            if (    $tokens[-2]
-                and $tokens[-2]->{type} =~ /^(?:variable|number)$/
-                and $tokens[-1]->{type} eq 'whitespace'
-                and $input =~ /^[\/]\s+-?(?:<\S+>|\d)/ )
+        if ( $input =~ /^$m(?!$x)/ ) {
+            if (    $tokens[-1]
+                and $tokens[-1]->{type} eq 'whitespace' )
             {
-                $input =~ s/^([\/])//;
+                $input =~ s/^($m)//;
                 push @tokens, { type => 'arithmetic', value => $1 };
                 next;
             }
@@ -349,7 +350,7 @@ sub tokenize {
         }
 
         # Handle identifiers
-        if ( $input =~ s/^([\w.,:\/\@\$\%\^]+(?:-[\w.,:\/\@\$\%\^]+)*)// ) {
+        if ( $input =~ s/^($x(?:$a$x)*)// ) {
             push @tokens, { type => 'ident', value => $1 };
             next;
         }
@@ -1137,7 +1138,7 @@ sub execute_expression {
             $value =~ s/\\\\/\\/g;
             $value = `$value`;
             chomp $value;
-            return [ split q( ), $value ];
+            return [ split /(\s+)/, $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
@@ -1235,7 +1236,7 @@ sub expand_expression {
             $value =~ s/\\\\/\\/g;
             $value = `$value`;
             chomp $value;
-            return [ split q( ), $value ];
+            return [ split /(\s+)/, $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
             $value =~ s{(?<!\\)<([^<>]+)>}{$SHARED{$1}}g;
