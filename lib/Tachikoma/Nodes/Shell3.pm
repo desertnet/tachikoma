@@ -413,9 +413,10 @@ sub parse_command_list {
         if ( $self->current_token->{type} eq 'command' ) {
             $self->consume('command');
         }
-        else {
+        elsif ( $self->current_token->{type} eq 'eos' ) {
+
             # If no separator and not at end, could be an error
-            last if $self->current_token->{type} eq 'eos';
+            last;
         }
     }
 
@@ -568,11 +569,14 @@ sub parse_local_assignment {
             $expr =
                 (       $op->{value} ne '++'
                     and $op->{value} ne '--'
-                    and $self->current_token->{type}
-                    !~ /^(command|pipe|eos)$/ )
+                    and $self->current_token->{type} !~ /^(command|eos)$/ )
                 ? $self->parse_expression_list
                 : undef;
         }
+    }
+    if ( $self->current_token->{type} !~ /^(command|eos|close_\w+)$/ ) {
+        $self->fatal_parse_error( "Unexpected token in assignment: "
+                . $self->current_token->{type} );
     }
     return {
         type     => 'local_assignment',
