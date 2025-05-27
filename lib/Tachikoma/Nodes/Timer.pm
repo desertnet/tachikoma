@@ -16,12 +16,13 @@ use version; our $VERSION = qv('v2.0.197');
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{type}            = 'timer';
-    $self->{id}              = undef;
-    $self->{stream}          = undef;
-    $self->{timer_interval}  = undef;
-    $self->{timer_is_active} = undef;
-    $self->{fire_cb}         = \&fire_cb;
+    $self->{type}                  = 'timer';
+    $self->{id}                    = undef;
+    $self->{stream}                = undef;
+    $self->{timer_interval}        = undef;
+    $self->{timer_is_active}       = undef;
+    $self->{fire_cb}               = \&fire_cb;
+    $self->{registrations}->{FIRE} = {};
     bless $self, $class;
     return $self;
 }
@@ -50,15 +51,23 @@ sub fire_cb {
 }
 
 sub fire {
-    my $self    = shift;
-    my $message = Tachikoma::Message->new;
-    $message->[TYPE]    = TM_BYTESTREAM;
-    $message->[FROM]    = $self->{name};
-    $message->[TO]      = $self->{owner};
-    $message->[STREAM]  = $self->{stream};
-    $message->[PAYLOAD] = $Tachikoma::Right_Now . "\n";
-    $self->{counter}++;
-    $self->{sink}->fill($message);
+    my $self = shift;
+    if ($self->{owner}
+        or ( $self->{sink}
+            and ref( $self->{sink} ) ne
+            'Tachikoma::Nodes::CommandInterpreter' )
+        )
+    {
+        my $message = Tachikoma::Message->new;
+        $message->[TYPE]    = TM_BYTESTREAM;
+        $message->[FROM]    = $self->{name};
+        $message->[TO]      = $self->{owner};
+        $message->[STREAM]  = $self->{stream};
+        $message->[PAYLOAD] = $Tachikoma::Right_Now . "\n";
+        $self->{counter}++;
+        $self->{sink}->fill($message);
+    }
+    $self->notify( 'FIRE', $Tachikoma::Right_Now );
     return;
 }
 
