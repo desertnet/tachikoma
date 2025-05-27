@@ -255,12 +255,12 @@ sub handle_EOF {
         $self->next_offset( $self->{saved_offset} );
         $self->set_timer(0) if ( $self->{timer_interval} );
         $self->set_state('ACTIVE')
-            if ( not length $self->{set_state}->{ACTIVE} );
+            if ( not $self->{set_state}->{ACTIVE} );
     }
     else {
         $self->{next_offset} = $offset;
         $self->set_state('READY')
-            if ( not length $self->{set_state}->{READY} );
+            if ( not $self->{set_state}->{READY} );
     }
     return;
 }
