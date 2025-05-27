@@ -853,6 +853,9 @@ sub parse_expression_list {
 sub execute_ast_node {
     my $self = shift;
     my $node = shift;
+    if ( not $node or ref $node ne 'HASH' ) {
+        confess "ERROR: Invalid AST node: ", Dumper($node);
+    }
 
     if ( $node->{type} eq 'command_list' ) {
         my $result = [];
@@ -1137,7 +1140,6 @@ sub execute_expression {
             $value =~ s/\\(`)/`/g;
             $value =~ s/\\\\/\\/g;
             $value = `$value`;
-            chomp $value;
             return [ split /(\s+)/, $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
@@ -1235,7 +1237,6 @@ sub expand_expression {
             $value =~ s/\\(`)/`/g;
             $value =~ s/\\\\/\\/g;
             $value = `$value`;
-            chomp $value;
             return [ split /(\s+)/, $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
@@ -1313,6 +1314,52 @@ $BUILTINS{'print'} = sub {
     # Write to standard output
     syswrite STDOUT, $output or die if ( length $output );
     return [];
+};
+
+$H{'split'} = [qq(split ':' <string>\n)];
+
+$BUILTINS{'split'} = sub {
+    my $self = shift;
+    my $node = shift;
+
+    # Get arguments from the AST node
+    my $args = $self->get_args($node);
+    $self->fatal_parse_error('bad arguments for split')
+        if ( @{$args} != 2 );
+
+    # Split the string into words
+    my $separator = join q(), @{ $self->expand_expression( shift @{$args} ) };
+    my @output    = ();
+    for my $arg ( @{$args} ) {
+        push @output, split $separator, join q(),
+            @{ $self->expand_expression($arg) };
+    }
+
+    # Return array
+    return \@output;
+};
+
+$H{'join'} = [qq(join ':' <args>\n)];
+
+$BUILTINS{'join'} = sub {
+    my $self = shift;
+    my $node = shift;
+
+    # Get arguments from the AST node
+    my $args = $self->get_args($node);
+    $self->fatal_parse_error('bad arguments for join')
+        if ( @{$args} < 2 );
+
+    # Join the arguments into a single string
+    my $separator = join q(), @{ $self->expand_expression( shift @{$args} ) };
+    my @list      = ();
+    for my $arg ( @{$args} ) {
+        push @list, @{ $self->expand_expression($arg) };
+    }
+    my $output = join $separator, @list;
+
+    # Return string
+    return [$output];
 };
 
 $H{'catn'} = [qq(<command> | catn\n)];
@@ -2019,7 +2066,7 @@ $BUILTINS{'confess'} = sub {
     confess "CONFESS:$value\n";
 };
 
-$H{'on'} = ["on <node> <event> <commands>\n"];
+$H{'on'} = ["on <node> <event> { <commands> }\n"];
 
 $BUILTINS{'on'} = sub {
     my $self = shift;
@@ -2030,11 +2077,13 @@ $BUILTINS{'on'} = sub {
 
     # Extract node name, event name, and function body
     my $node_name = $self->get_fragmented_name($args);
-    shift @{$args} while ( $args->[0]->{type} eq 'whitespace' );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
     my $event_name = $self->expand_expression( shift @{$args} )->[0];
-    shift @{$args} while ( $args->[0]->{type} eq 'whitespace' );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
     my $func_body = shift @{$args};
-    $self->fatal_parse_error('bad arguments for on') if ( not $func_body );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
+    $self->fatal_parse_error('bad arguments for on')
+        if ( not $func_body or @{$args} );
 
     # Send to the remote node, but only if not in validate mode
     if ( not $self->{validate} ) {
@@ -2083,7 +2132,7 @@ $BUILTINS{'command_node'} = sub {
         if ( @{$trimmed} < 2 );
 
     # Get path and command
-    shift @{$args} if ( $args->[0]->{type} eq 'whitespace' );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
     my $proto = join q(), map { @{ $self->expand_expression($_) } } @{$args};
     my ( $path, $cmd_name, $cmd_args ) = split q( ), $proto, 3;
     $self->fatal_parse_error('bad arguments for command_node')
@@ -2120,7 +2169,7 @@ $BUILTINS{'tell_node'} = sub {
         if ( @{$trimmed} < 2 );
 
     # Get path and payload
-    shift @{$args} if ( $args->[0]->{type} eq 'whitespace' );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
     my $proto = join q(), map { @{ $self->expand_expression($_) } } @{$args};
     my ( $path, $payload ) = split q( ), $proto, 2;
     $self->fatal_parse_error('bad arguments for request_node')
@@ -2154,7 +2203,7 @@ $BUILTINS{'request_node'} = sub {
         if ( @{$trimmed} < 2 );
 
     # Get path and payload
-    shift @{$args} if ( $args->[0]->{type} eq 'whitespace' );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
     my $proto = join q(), map { @{ $self->expand_expression($_) } } @{$args};
     my ( $path, $payload ) = split q( ), $proto, 2;
     $self->fatal_parse_error('bad arguments for request_node')
@@ -2220,7 +2269,7 @@ $BUILTINS{'send_hash'} = sub {
         if ( @{$args} < 2 );
 
     # get path and json payload
-    shift @{$args} if ( $args->[0]->{type} eq 'whitespace' );
+    shift @{$args} while ( @{$args} and $args->[0]->{type} eq 'whitespace' );
     my $proto = join q(), map { @{ $self->expand_expression($_) } } @{$args};
     my ( $path, $payload ) = split q( ), $proto, 2;
     $self->fatal_parse_error('bad arguments for send_hash')
