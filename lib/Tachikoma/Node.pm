@@ -328,7 +328,7 @@ sub drop_message {
         $payload = ' payload: ' . $command->name . q( ) . $command->arguments;
     }
     my @log = (
-        "WARNING: $error - ",
+        ( $error eq 'NOT_AVAILABLE' ? "$error - " : "WARNING: $error - " ),
         $message->type_as_string,
         ( $message->from   ? ' from: ' . $message->from : q() ),
         ( $message->to     ? ' to: ' . $message->to     : q() ),
