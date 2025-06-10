@@ -39,7 +39,7 @@ sub fill {
     my $servers      = $self->{servers};
     my $server_class = (
           $servers
-        ? $servers->{ lc $request->{headers}->{host} || q() }
+        ? $servers->{ lc( $request->{headers}->{host} || q() ) }
         : undef
     );
     my $paths = (
