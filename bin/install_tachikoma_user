@@ -42,7 +42,7 @@ cp -Trf http ~/.tachikoma/http
 cp etc/scripts/$config/startup.txt ~/.tachikoma/
 if [ -e etc/scripts/$config/config.tsl ] ; then
     cp etc/scripts/$config/config.tsl  ~/.tachikoma/
-else
+elif [ -e etc/scripts/default/config.tsl ] ; then
     cp etc/scripts/default/config.tsl  ~/.tachikoma/
 fi
 cp -Trf etc/services ~/.tachikoma/services
