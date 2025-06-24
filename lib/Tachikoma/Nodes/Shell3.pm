@@ -172,8 +172,11 @@ sub process_command {
         $self->{errors}++;
     }
 
+    # Execute command(s) and write output
     $okay = eval {
-        $self->execute_ast_node($ast);
+        my $rv     = $self->execute_ast_node($ast);
+        my $output = join q(), @{$rv};
+        syswrite STDOUT, $output or die if ( length $output );
         return 1;
     };
 
@@ -876,15 +879,18 @@ sub execute_ast_node {
 
         return if ( $self->{validate} );
 
-        # Check for builtin commands
+        my $rv = undef;
         if ( $BUILTINS{$name} ) {
-            return $BUILTINS{$name}->( $self, $node );
-        }
 
-        # Handle other commands
-        my $result = $self->send_command($node);
-        if ($result) {
-            return $result;
+            # Handle builtin commands
+            $rv = $BUILTINS{$name}->( $self, $node );
+        }
+        else {
+            # Handle other commands
+            $rv = $self->send_command($node);
+        }
+        if ($rv) {
+            return $rv;
         }
         else {
             $self->stderr("ERROR: Unknown command: $name\n");
@@ -948,15 +954,14 @@ sub execute_ast_node {
         # If right side is another pipe, collect all commands in the chain
         if ( $right_cmd->{type} eq 'pipe' ) {
             my $pipe_node = $right_cmd;
-            push @functions, $pipe_node->{right};
+            push @functions, $pipe_node->{left};
 
             # Follow the pipe chain to collect all commands
-            while ( $pipe_node->{left}->{type} eq 'pipe' ) {
-                $pipe_node = $pipe_node->{left};
-                push @functions, $pipe_node->{right};
+            while ( $pipe_node->{right}->{type} eq 'pipe' ) {
+                $pipe_node = $pipe_node->{right};
+                push @functions, $pipe_node->{left};
             }
-            push @functions, $pipe_node->{left};
-            @functions = reverse @functions;
+            push @functions, $pipe_node->{right};
         }
         else {
             # Just a simple pipe with two commands
@@ -1397,9 +1402,8 @@ $BUILTINS{'catn'} = sub {
         $output .= sprintf "%5d %s", $i++, $line;
     }
 
-    # Write to standard output
-    syswrite STDOUT, $output or die if ( length $output );
-    return [];
+    # Return string
+    return [$output];
 };
 
 $H{'grep'} = [qq(<command> | grep <regex>\n)];
@@ -1440,9 +1444,8 @@ $BUILTINS{'grep'} = sub {
         $output .= $line if ( $line =~ m{$regex} );
     }
 
-    # Output the result
-    syswrite STDOUT, $output or die if ( length $output );
-    return [];
+    # Return string
+    return [$output];
 };
 
 $H{'grepv'} = [qq(<command> | grepv <regex>\n)];
@@ -1482,9 +1485,8 @@ $BUILTINS{'grepv'} = sub {
         $output .= $line if ( $line !~ m{$regex} );
     }
 
-    # Output the result
-    syswrite STDOUT, $output or die if ( length $output );
-    return [];
+    # Return string
+    return [$output];
 };
 
 $H{'rand'} = [qq(rand [ <int> ]\n)];
@@ -2630,14 +2632,13 @@ sub execute_env_assignment {
     }
     else {
         # Display all environment variables
+        my $output = q();
         for my $var_name ( sort keys %{$hash} ) {
-            my $output = "$var_name=" . ( $hash->{$var_name} // q() );
-            chomp $output;
-            push @{$rv}, "$output\n";
+            my $line = "$var_name=" . ( $hash->{$var_name} // q() );
+            chomp $line;
+            $output .= "$line\n";
         }
-        my $output = join q(), @{$rv};
-        syswrite STDOUT, $output or die if ( length $output );
-        $rv = [];
+        $rv = [$output];
     }
 
     return $rv;
@@ -2669,23 +2670,24 @@ sub execute_var_assignment {
     }
     else {
         # Display all global variables
+        my $output = q();
         for my $var_name ( sort keys %{$hash} ) {
-            my $output = "$var_name=";
+            my $line = "$var_name=";
             if ( ref $hash->{$var_name} ) {
-                $output
+                $line
                     .= '["'
                     . join( q(", "), grep m{\S}, @{ $hash->{$var_name} } )
                     . '"]';
             }
             else {
-                $output .= $hash->{$var_name} // q();
+                $line .= $hash->{$var_name} // q();
             }
-            chomp $output;
-            push @{$rv}, "$output\n";
+            chomp $line;
+            $output .= "$line\n";
         }
-        my $output = join q(), @{$rv};
-        syswrite STDOUT, $output or die if ( length $output );
-        $rv = [];
+
+        # Return string
+        $rv = [$output];
     }
 
     return $rv;
@@ -2719,28 +2721,27 @@ sub execute_local_assignment {
     }
     else {
         # Display all local variables by layer
-        my $layer = 0;
+        my $output = q();
+        my $layer  = 0;
         for my $scope_hash (@LOCAL) {
             push @{$rv}, sprintf "### LAYER %d:\n", $layer++;
             for my $var_name ( sort keys %{$scope_hash} ) {
-                my $output = "$var_name=";
+                my $line = "$var_name=";
                 if ( ref $scope_hash->{$var_name} ) {
-                    $output .= '["'
+                    $line .= '["'
                         . join( q(", "),
                         grep m{\S}, @{ $scope_hash->{$var_name} } )
                         . '"]';
                 }
                 else {
-                    $output .= $scope_hash->{$var_name} // q();
+                    $line .= $scope_hash->{$var_name} // q();
                 }
-                chomp $output;
-                push @{$rv}, "$output\n";
+                chomp $line;
+                $output .= "$line\n";
             }
-            push @{$rv}, "\n" if $layer < @LOCAL;
+            $output .= "\n" if $layer < @LOCAL;
         }
-        my $output = join q(), @{$rv};
-        syswrite STDOUT, $output or die if ( length $output );
-        $rv = [];
+        $rv = [$output];
     }
     return $rv;
 }
@@ -2778,7 +2779,6 @@ sub operate {
         else {
             $hash->{$key} = $v->[0] // q();
         }
-        $rv = $v;
     }
     elsif ( length $op ) {
         my $v = $hash->{$key};
@@ -2801,7 +2801,6 @@ sub operate_env {
     if ( $values and @{$values} ) {
         my $v = $self->operate_with_value( $hash, $key, $op, $values );
         $hash->{$key} = join q(), @{$v};
-        $rv = $v;
     }
     elsif ( length $op ) {
         my $v = $hash->{$key};
@@ -2930,7 +2929,7 @@ sub _send_command {
     $message->id( $self->message_id // q() );
     $self->dirty($name);
     $self->stderr("+ $name $arguments") if ( $self->{show_commands} );
-    return [ $self->sink->fill($message) // 0 ];
+    return [ $self->sink->fill($message) // q() ];
 }
 
 sub callback {
@@ -2968,6 +2967,7 @@ sub callback {
      # Execute first function and set up next callback if more functions exist
             my $stack_size = $#LOCAL;
             unshift @LOCAL, \%arguments;
+            $self->message_id(undef);
 
             if (@pipe_funcs) {
                 my $next_id = $self->msg_counter;
@@ -3012,16 +3012,31 @@ sub callback {
             $arguments{q(response.from)} = $options->{from};
             my $stack_size = $#LOCAL;
             unshift @LOCAL, \%arguments;
+            $self->message_id(undef);
             my $okay = eval {
-                $self->execute_ast_node($callback);
+                my $result = $self->execute_ast_node($callback);
+                if (    $Tachikoma::Nodes{_stdin}
+                    and
+                    $Tachikoma::Nodes{_stdin}->isa('Tachikoma::Nodes::TTY') )
+                {
+                    my $output = join q(), @{$result};
+                    syswrite STDOUT, $output or die if ( length $output );
+                }
                 return 1;
             };
             shift @LOCAL while ( $#LOCAL > $stack_size );
+            $rv = $okay;
             if ( not $okay ) {
                 my $trap = $@ || 'callback failed: unknown error';
-                $self->stderr($trap);
+                chomp $trap;
+                my ( $type, $value ) = split m{:}, $trap, 2;
+                if ( $type eq 'RV' ) {
+                    $rv = [$value] if ( defined $value );
+                }
+                else {
+                    $self->stderr($trap);
+                }
             }
-            $rv = $okay;
         }
     }
     else {
@@ -3263,8 +3278,8 @@ sub FETCH {
         last;
     }
     if ( not defined $rv ) {
-        if ( defined Tachikoma->configuration->var->{$key} ) {
-            $rv = Tachikoma->configuration->var->{$key};
+        if ( defined Tachikoma->configuration->{var}->{$key} ) {
+            $rv = Tachikoma->configuration->{var}->{$key};
         }
         else {
             $rv = q();
