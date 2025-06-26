@@ -1,7 +1,11 @@
 #!/bin/sh -e
 config=$1
+keyconfig=$2
 if [ -z "$config" ] ; then
     config=default
+fi
+if [ -z "$keyconfig" ] ; then
+    keyconfig=$config
 fi
 if [ ! -d lib/Tachikoma/Nodes ] ; then
     echo ERROR: must be run from within tachikoma distribution.
@@ -48,7 +52,7 @@ fi
 cp -Trf etc/services ~/.tachikoma/services
 
 # authorized keys
-cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
+cp etc/authorized_keys/$keyconfig.keys ~/.tachikoma/etc/authorized_keys
 
 echo "NOTE: Remember to add ca.crt, server.crt, and server.key"
 echo "      to ~/.tachikoma/tls/ if you want TLS support."
