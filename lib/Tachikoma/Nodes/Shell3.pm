@@ -216,7 +216,7 @@ sub process_bytestream {
     }
     else {
         $message->to( $self->path );
-        $message->stream( $self->get_shared('message.stream') );
+        $message->stream( $self->FETCH('message.stream') );
         $self->sink->fill($message);
     }
     return;
@@ -1159,7 +1159,7 @@ sub execute_expression {
         return [$value];
     }
     if ( $expr->{type} eq 'variable' ) {
-        my $value = $self->get_shared( $expr->{value} );
+        my $value = $self->get_shared( $expr->{value} ) // q();
         return ref $value ? $value : [$value];
     }
     $self->fatal_parse_error("Unknown expression type: $expr->{type}");
@@ -1256,7 +1256,7 @@ sub expand_expression {
         return [$value];
     }
     if ( $expr->{type} eq 'variable' ) {
-        my $value = $self->get_shared( $expr->{value} );
+        my $value = $self->get_shared( $expr->{value} ) // q();
         return ref $value ? $value : [$value];
     }
     $self->fatal_parse_error("Unknown expression type: $expr->{type}");
@@ -2184,9 +2184,9 @@ $BUILTINS{'tell_node'} = sub {
     # Create and send message
     my $message = Tachikoma::Message->new;
     $message->type(TM_INFO);
-    $message->from( $self->get_shared('message.from')     // '_responder' );
-    $message->stream( $self->get_shared('message.stream') // q() );
-    $message->id( $self->message_id                       // q() );
+    $message->from( $self->get_shared( 'message.from', 1 ) // '_responder' );
+    $message->stream( $self->get_shared( 'message.stream', 1 ) // q() );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
 
@@ -2218,9 +2218,9 @@ $BUILTINS{'request_node'} = sub {
     # Create and send message
     my $message = Tachikoma::Message->new;
     $message->type(TM_REQUEST);
-    $message->from( $self->get_shared('message.from')     // '_responder' );
-    $message->stream( $self->get_shared('message.stream') // q() );
-    $message->id( $self->message_id                       // q() );
+    $message->from( $self->get_shared( 'message.from', 1 ) // '_responder' );
+    $message->stream( $self->get_shared( 'message.stream', 1 ) // q() );
+    $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
 
@@ -2250,8 +2250,8 @@ $BUILTINS{'send_node'} = sub {
     # create and send message
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
-    $message->from( $self->get_shared('message.from') // '_responder' );
-    $message->stream( $self->get_shared('message.stream') );
+    $message->from( $self->get_shared( 'message.from', 1 ) // '_responder' );
+    $message->stream( $self->get_shared( 'message.stream', 1 ) );
     $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $payload // q() );
@@ -2285,8 +2285,8 @@ $BUILTINS{'send_hash'} = sub {
     my $json    = JSON->new;
     my $message = Tachikoma::Message->new;
     $message->type(TM_STORABLE);
-    $message->from( $self->get_shared('message.from') // '_responder' );
-    $message->stream( $self->get_shared('message.stream') );
+    $message->from( $self->get_shared( 'message.from', 1 ) // '_responder' );
+    $message->stream( $self->get_shared( 'message.stream', 1 ) );
     $message->id( $self->message_id // q() );
     $message->to( $self->prefix($path) );
     $message->payload( $json->decode($payload) );
@@ -2334,7 +2334,7 @@ $BUILTINS{'ping'} = sub {
     # Create and send message
     my $message = Tachikoma::Message->new;
     $message->type(TM_PING);
-    $message->from( $self->get_shared('message.from') // '_responder' );
+    $message->from( $self->get_shared( 'message.from', 1 ) // '_responder' );
     $message->to( $self->prefix($path) );
     $message->payload($Tachikoma::Right_Now);
 
@@ -2920,7 +2920,7 @@ sub _send_command {
     my $arguments = shift // q();
     my $payload   = shift;
     my $path      = shift;
-    my $from      = $self->get_shared('message.from');
+    my $from      = $self->get_shared( 'message.from', 1 );
     my $message   = $self->command( $name, $arguments, $payload );
     $message->type( TM_COMMAND | TM_NOREPLY )
         if ( not length $from and not $self->{want_reply} );
@@ -3235,12 +3235,24 @@ sub restore_local {
 }
 
 sub get_shared {
-    my $self = shift;
-    my $key  = shift;
+    my $self   = shift;
+    my $key    = shift;
+    my $silent = shift;
+    my $rv     = undef;
     for my $hash (@LOCAL) {
-        return $hash->{$key} if ( exists $hash->{$key} );
+        next if ( not exists $hash->{$key} );
+        $rv = $hash->{$key};
+        last;
     }
-    return $self->{configuration}->{var}->{$key};
+    if ( not defined $rv ) {
+        if ( defined Tachikoma->configuration->{var}->{$key} ) {
+            $rv = Tachikoma->configuration->{var}->{$key};
+        }
+        elsif ( not $silent ) {
+            print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
+        }
+    }
+    return $rv;
 }
 
 sub get_local {
@@ -3271,22 +3283,8 @@ sub TIEHASH {
 sub FETCH {
     my $self = shift;
     my $key  = shift;
-    my $rv   = undef;
-    for my $hash (@LOCAL) {
-        next if ( not exists $hash->{$key} );
-        $rv = $hash->{$key};
-        last;
-    }
-    if ( not defined $rv ) {
-        if ( defined Tachikoma->configuration->{var}->{$key} ) {
-            $rv = Tachikoma->configuration->{var}->{$key};
-        }
-        else {
-            $rv = q();
-            print {*STDERR} "WARNING: use of uninitialized value <$key>\n";
-        }
-    }
-    return ref $rv ? join q(), @{$rv} : $rv;
+    my $rv   = $self->get_shared($key);
+    return ref $rv ? join q(), @{$rv} : $rv // q();
 }
 
 1;
