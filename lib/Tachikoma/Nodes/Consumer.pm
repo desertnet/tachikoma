@@ -435,7 +435,7 @@ sub drain_buffer_persist {
 sub get_batch {
     my $self   = shift;
     my $offset = $self->{next_offset};
-    return if ( not $self->{sink} );
+    return if ( not $self->{name} );
     if ( not defined $offset ) {
         if ( $self->{status} eq 'INIT' ) {
             if ( $self->{cache_type} eq 'window' ) {
