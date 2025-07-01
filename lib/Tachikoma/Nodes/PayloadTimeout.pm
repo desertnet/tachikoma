@@ -14,8 +14,7 @@ use Tachikoma::Message qw(
     TYPE FROM TO STREAM TIMESTAMP PAYLOAD
     TM_BYTESTREAM TM_PERSIST
 );
-use Digest::MD5 qw( md5_hex );
-use parent      qw( Tachikoma::Nodes::Timer );
+use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.905');
 
@@ -91,7 +90,6 @@ sub fire {
             my $response = Tachikoma::Message->new;
             $response->[TYPE]    = TM_BYTESTREAM | TM_PERSIST;
             $response->[FROM]    = $self->{name};
-            $response->[STREAM]  = md5_hex("$payload\n");
             $response->[PAYLOAD] = "$payload\n";
             $self->SUPER::fill($response);
         }
