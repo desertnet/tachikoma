@@ -128,7 +128,7 @@ sub handle_EOF {
         $self->{restart}->{$name} = 1;
         $self->set_timer if ( not $self->{timer_is_active} );
     }
-    elsif ($self->{shutdown_mode} eq 'wait') {
+    elsif ( $self->{shutdown_mode} eq 'wait' ) {
         delete $self->{jobs}->{$name};
 
         # Sometimes the parent side of the socketpair connector fails
