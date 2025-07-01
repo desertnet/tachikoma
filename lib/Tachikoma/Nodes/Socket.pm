@@ -868,31 +868,8 @@ sub do_not_enter {
 sub fill_buffer_init {
     my $self    = shift;
     my $message = shift;
-    if ( $message->[TYPE] & TM_RESPONSE and $message->[FROM] eq 'Inet_AtoN' )
-    {
-        #
-        # we're a connection starting up, and our Inet_AtoN job is
-        # sending us the results of the DNS lookup.
-        # see also inet_client_async(), dns_lookup(), and init_socket()
-        #
-        my $secure = Tachikoma->configuration->{secure_level};
-        return $self->close_filehandle('reconnect')
-            if ( defined $secure and $secure == 0 );
-        my $okay = eval {
-            $self->init_socket( $message->[PAYLOAD] );
-            return 1;
-        };
-        if ( not $okay ) {
-            my $error = $@ || 'unknown error';
-            $self->stderr("ERROR: init_socket failed: $error");
-            $self->close_filehandle('reconnect');
-        }
-    }
-    else {
-        $message->[TO] = join q(/), grep length, $self->{name},
-            $message->[TO];
-        $Tachikoma::Nodes{'_router'}->send_error( $message, 'NOT_AVAILABLE' );
-    }
+    $message->[TO] = join q(/), grep length, $self->{name}, $message->[TO];
+    $Tachikoma::Nodes{'_router'}->send_error( $message, 'NOT_AVAILABLE' );
     return;
 }
 
@@ -1093,7 +1070,7 @@ sub dns_lookup {
     if ( not $wait ) {
         my $message = Tachikoma::Message->new;
         $message->[TYPE]    = TM_REQUEST;
-        $message->[FROM]    = $self->{name};
+        $message->[FROM]    = join q(/), '_responder', $self->{name};
         $message->[PAYLOAD] = $self->{hostname};
         $inet_aton->fill($message);
         $self->{fill}    = $self->{fill_modes}->{init};

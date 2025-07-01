@@ -61,6 +61,31 @@ sub fill {
         );
         return;
     }
+    elsif ( $type & TM_RESPONSE and $message->[FROM] eq 'Inet_AtoN' ) {
+        my $name = $message->[TO];
+        if ( $Tachikoma::Nodes{$name} ) {
+            #
+            # A connection is starting up, and our Inet_AtoN job is
+            # sending us the results of the DNS lookup.
+            # see also inet_client_async(), dns_lookup(), and init_socket()
+            # in Tachikoma::Nodes::Socket
+            #
+            my $node   = $Tachikoma::Nodes{$name};
+            my $secure = Tachikoma->configuration->{secure_level};
+            return $node->close_filehandle('reconnect')
+                if ( defined $secure and $secure == 0 );
+            my $okay = eval {
+                $node->init_socket( $message->[PAYLOAD] );
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ || 'unknown error';
+                $node->stderr("ERROR: init_socket failed: $error");
+                $node->close_filehandle('reconnect');
+            }
+        }
+        return;
+    }
     if ( $self->{owner} ) {
         $message->[TYPE] ^= TM_PERSIST if ( $type & TM_PERSIST );
         $self->SUPER::fill($message);
