@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX  qw( SIGKILL );
+use POSIX  qw( SIGINT SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -121,14 +121,14 @@ sub handle_EOF {
     my $connector = $job->{connector};
     $self->{bytes_read}    += $connector->{bytes_read};
     $self->{bytes_written} += $connector->{bytes_written};
-    if (    $job->{should_restart}
-        and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer')
-        and not Tachikoma->shutting_down )
+    return if ( Tachikoma->shutting_down );
+    if ( $job->{should_restart}
+        and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') )
     {
         $self->{restart}->{$name} = 1;
         $self->set_timer if ( not $self->{timer_is_active} );
     }
-    elsif ( $self->{shutdown_mode} eq 'wait' ) {
+    else {
         delete $self->{jobs}->{$name};
 
         # Sometimes the parent side of the socketpair connector fails
@@ -467,10 +467,11 @@ sub stop_job {
 }
 
 sub kill_job {
-    my $self = shift;
-    my $name = shift;
-    my $job  = $self->{jobs}->{$name} or die qq(no such job "$name"\n);
-    if ( $job->{pid} ne q(-) and not kill SIGKILL => $job->{pid} ) {
+    my $self   = shift;
+    my $name   = shift;
+    my $job    = $self->{jobs}->{$name} or die qq(no such job "$name"\n);
+    my $signal = $self->{username} ? SIGINT : SIGKILL;
+    if ( $job->{pid} ne q(-) and not kill $signal => $job->{pid} ) {
         $self->stderr("ERROR: kill_job failed: $!");
     }
     $job->{should_restart} = undef;
@@ -501,14 +502,15 @@ sub owner {
 }
 
 sub remove_node {
-    my $self = shift;
-    my $mode = $self->{shutdown_mode};
+    my $self   = shift;
+    my $mode   = $self->{shutdown_mode};
+    my $signal = $self->{username} ? SIGINT : SIGKILL;
     $self->{shutting_down} = 'true';
     for my $name ( keys %{ $self->{jobs} } ) {
         my $job = $self->{jobs}->{$name};
         if (    $mode eq 'kill'
             and $job->{pid} ne q(-)
-            and not kill SIGKILL => $job->{pid} )
+            and not kill $signal => $job->{pid} )
         {
             $self->stderr("ERROR: remove_node couldn't kill $name: $!");
         }
