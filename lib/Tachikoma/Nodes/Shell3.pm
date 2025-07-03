@@ -229,7 +229,7 @@ sub tokenize {
     my $in_quote = undef;
     my $a        = qr/[\+\-]/o;
     my $m        = qr/[\*\/]/o;
-    my $x        = qr/[\w.,:\*\/\@\$\%\^]+/o;
+    my $x        = qr/[\w.,:\*\/\@\$\%\^\&\?]+/o;
 
     while ( length $input ) {
 
