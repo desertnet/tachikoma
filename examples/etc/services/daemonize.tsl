@@ -3,6 +3,7 @@ include config.tsl
 
 var root_port   = [var "tachikoma.<name>.port"]
 var http_port   = [var "tachikoma.<name>.http.port"]
+var https_port  = [var "tachikoma.<name>.https.port"]
 var log_file    = <home>/.tachikoma/log/<name>.log
 config log_file = <log_file>
 config pid_file = <home>/.tachikoma/run/<name>.pid

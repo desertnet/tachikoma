@@ -2,30 +2,34 @@
 var name = http;
 include services/daemonize.tsl
 
-make_node HTTP_Responder http:responder /tmp/<name> <http_port>
+make_node HTTP_Responder http:responder  /tmp/<name> <http_port>
+make_node HTTP_Responder https:responder /tmp/<name> <https_port>
 make_node HTTP_Timeout   http:timeout
-make_node Log            access:log     <home>/.tachikoma/log/<name>-access.log append 134217728
-make_node Log            dump:log       <home>/.tachikoma/log/<name>-dump.log   append 1048576
+make_node Log            access:log      <home>/.tachikoma/log/<name>-access.log append 134217728
+make_node Log            dump:log        <home>/.tachikoma/log/<name>-dump.log   append 1048576
 make_node Dumper         http:dumper
 make_node HTTP_Route     root
-make_node HTTP_Auth      root:auth      <home>/.tachikoma/http/.htpasswd tachikoma-tools
-make_node HTTP_File      root:dir       <home>/.tachikoma/http
-make_node JobFarmer      CGI            4 CGI <home>/.tachikoma/etc/CGI.conf /tmp/<name>
+make_node HTTP_Auth      root:auth       <home>/.tachikoma/http/.htpasswd tachikoma-tools
+make_node HTTP_File      root:dir        <home>/.tachikoma/http
+make_node JobFarmer      CGI             4 CGI <home>/.tachikoma/etc/CGI.conf /tmp/<name>
 command CGI  autokill on
 command CGI  lazy on
 command root add_path /              root:dir
 command root add_path /cgi-bin       CGI
 command root add_path /debug/capture http:dumper
-connect_node root:auth      root
-connect_node http:responder root:auth
-connect_node http:dumper    dump:log
+connect_node root:auth       root
+connect_node http:dumper     dump:log
+connect_node http:responder  root:auth
+connect_node https:responder root:auth
 
 listen_inet localhost:<root_port>
 insecure
 on CGI READY {
-    listen_inet --io --use-ssl <hostname>:<http_port>;
-    listen_inet --io --use-ssl  localhost:<http_port>;
-    connect_sink <hostname>:<http_port> http:responder;
-    connect_sink  localhost:<http_port> http:responder;
+    listen_inet --io 0.0.0.0:<http_port>;
+    connect_sink 0.0.0.0:<http_port> http:responder;
+
+    listen_inet --io --use-ssl 0.0.0.0:<https_port>;
+    connect_sink 0.0.0.0:<https_port> https:responder;
+
     secure 3;
 }
