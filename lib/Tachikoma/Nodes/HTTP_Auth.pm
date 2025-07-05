@@ -33,10 +33,11 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $filename, $realm ) = split q( ), $self->{arguments}, 2;
+        my ( $filename, $realm, $compat ) = split q( ), $self->{arguments}, 3;
         die "ERROR: bad arguments for HTTP_Auth\n" if ( not $filename );
         $self->{filename} = $filename;
         $self->{realm}    = $realm;
+        $self->{compat}   = $compat;
         $self->reload_htpasswd;
     }
     return $self->{arguments};
@@ -90,9 +91,13 @@ sub authenticate {
     my $user   = shift;
     my $passwd = shift;
     my $salt   = $self->{htpasswd}->{$user} or return;
-
-    # my $hash   = crypt $passwd, $salt;
-    my $hash = apache_md5_crypt( $passwd, $salt );
+    my $hash   = undef;
+    if ( $self->{compat} ) {
+        $hash = crypt $passwd, $salt;
+    }
+    else {
+        $hash = apache_md5_crypt( $passwd, $salt );
+    }
     return $hash eq $salt;
 }
 
@@ -128,6 +133,14 @@ sub realm {
         $self->{realm} = shift;
     }
     return $self->{realm};
+}
+
+sub compat {
+    my $self = shift;
+    if (@_) {
+        $self->{compat} = shift;
+    }
+    return $self->{compat};
 }
 
 sub htpasswd {
