@@ -29,10 +29,9 @@ sub check_pack {
     my $then    = time;
     while (1) {
         $message->packed;
-        my $span = time - $then;
-        $count++;
         if ( $check++ >= $Total ) {
             my $span = time - $then;
+            $count += $check;
             if ( $span >= $Delay ) {
                 report( 'pack', $count, $size, $span );
                 last;
@@ -50,10 +49,9 @@ sub check_unpack {
     my $then   = time;
     while (1) {
         Tachikoma::Message->unpacked($packed);
-        my $span = time - $then;
-        $count++;
         if ( $check++ >= $Total ) {
             my $span = time - $then;
+            $count += $check;
             if ( $span >= $Delay ) {
                 report( 'unpack', $count, $size, $span );
                 last;
