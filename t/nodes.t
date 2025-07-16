@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3486;
+use Test::More tests => 3518;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -121,6 +121,7 @@ my %nodes = (
     'Tachikoma::Nodes::Timestamp'            => q(),
     'Tachikoma::Nodes::Topic'                => q(broker),
     'Tachikoma::Nodes::TopicProbe'           => q(1),
+    'Tachikoma::Nodes::TopicProbeToGraphite' => q(),
     'Tachikoma::Nodes::Watchdog'             => q(),
     'Accessories::Nodes::Bucket'             => qq($t/bucket),
     'Accessories::Nodes::Clock'              => q(),

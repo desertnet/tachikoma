@@ -16,16 +16,16 @@ use version; our $VERSION = qv('v2.0.368');
 my $DEFAULT_INTERVAL = 60;
 my @FIELDS           = qw(
     buff_fills
-    err_sent
-    max_unanswered
-    msg_in_buf
-    msg_rcvd
-    msg_sent
-    msg_unanswered
     p_msg_sent
-    resp_rcvd
-    resp_sent
+    msg_in_buf
 );
+    # err_sent
+    # max_unanswered
+    # msg_rcvd
+    # msg_sent
+    # msg_unanswered
+    # resp_rcvd
+    # resp_sent
 
 sub new {
     my $class = shift;
