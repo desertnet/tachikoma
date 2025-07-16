@@ -14,54 +14,57 @@ fi
 set -x
 
 # make dirs
-if [ ! -e "~/.tachikoma/" ] ; then
-    mkdir ~/.tachikoma/
+if [ ! -e "${HOME}/.tachikoma/" ] ; then
+    mkdir ${HOME}/.tachikoma/
 fi
-mkdir -p ~/.tachikoma/etc/
-mkdir -p ~/.tachikoma/http/
-mkdir -p ~/.tachikoma/log/
-mkdir -p ~/.tachikoma/partitions/
-mkdir -p ~/.tachikoma/pool/
-mkdir -p ~/.tachikoma/run/
-mkdir -p ~/.tachikoma/services/
-mkdir -p ~/.tachikoma/tls/
+mkdir -p ${HOME}/.tachikoma/etc/
+mkdir -p ${HOME}/.tachikoma/http/
+mkdir -p ${HOME}/.tachikoma/log/
+mkdir -p ${HOME}/.tachikoma/partitions/
+mkdir -p ${HOME}/.tachikoma/pool/
+mkdir -p ${HOME}/.tachikoma/run/
+mkdir -p ${HOME}/.tachikoma/services/
+mkdir -p ${HOME}/.tachikoma/tls/
 
 # server config
 if [ -e "etc/tachikoma_conf/$config.conf" ] ; then
-    cp etc/tachikoma_conf/$config.conf ~/.tachikoma/etc/tachikoma.conf
+    cp etc/tachikoma_conf/$config.conf ${HOME}/.tachikoma/etc/tachikoma.conf
 else
-    cp etc/tachikoma_conf/default.conf ~/.tachikoma/etc/tachikoma.conf
+    cp etc/tachikoma_conf/default.conf ${HOME}/.tachikoma/etc/tachikoma.conf
 fi
 
 # private key
-bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
+bin/gen_server_key ${HOME}/.tachikoma/etc/id 2048 ignore
 
 # HTTP
 if [ -e "etc/CGI_conf/$config.conf" ] ; then
-    cp etc/CGI_conf/$config.conf ~/.tachikoma/etc/CGI.conf
+    cp etc/CGI_conf/$config.conf ${HOME}/.tachikoma/etc/CGI.conf
 else
-    cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
+    cp etc/CGI_conf/default.conf ${HOME}/.tachikoma/etc/CGI.conf
 fi
-cp -rfT http ~/.tachikoma/http
+cp -rfT http ${HOME}/.tachikoma/http
 
 # init scripts
-cp etc/scripts/$config/startup.txt ~/.tachikoma/
+cp etc/scripts/$config/startup.txt ${HOME}/.tachikoma/
 if [ -e "etc/scripts/$config/config.tsl" ] ; then
-    cp etc/scripts/$config/config.tsl  ~/.tachikoma/
+    cp etc/scripts/$config/config.tsl ${HOME}/.tachikoma/
 elif [ -e "etc/scripts/default/config.tsl" ] ; then
-    cp etc/scripts/default/config.tsl  ~/.tachikoma/
+    cp etc/scripts/default/config.tsl ${HOME}/.tachikoma/
 fi
-cp -rfT etc/services ~/.tachikoma/services
+cp -rfT etc/services ${HOME}/.tachikoma/services
 
 # authorized keys
 if [ -e "etc/authorized_keys/$keyconfig.keys" ] ; then
-    cp etc/authorized_keys/$keyconfig.keys ~/.tachikoma/etc/authorized_keys
+    cp etc/authorized_keys/$keyconfig.keys ${HOME}/.tachikoma/etc/authorized_keys
 else
-    cp etc/authorized_keys/default.keys ~/.tachikoma/etc/authorized_keys
+    cp etc/authorized_keys/default.keys ${HOME}/.tachikoma/etc/authorized_keys
 fi
 
-if [ ! -e "~/.tachikoma/tls/server.crt" ] ; then
-    openssl req -x509 -newkey rsa:2048 -keyout ~/.tachikoma/tls/server.key -out ~/.tachikoma/tls/server.crt -days 365 -nodes -subj /CN=$(hostname)
+if [ ! -e "${HOME}/.tachikoma/tls/server.crt" ] ; then
+    openssl req -x509 -newkey rsa:2048            \
+        -keyout ${HOME}/.tachikoma/tls/server.key \
+        -out ${HOME}/.tachikoma/tls/server.crt    \
+        -days 365 -nodes -subj /CN=$(hostname)
 fi
 # extras
 if which install_tachikoma_user_extra > /dev/null 2>&1 ; then
