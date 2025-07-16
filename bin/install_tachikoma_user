@@ -7,14 +7,14 @@ fi
 if [ -z "$keyconfig" ] ; then
     keyconfig=$config
 fi
-if [ ! -d lib/Tachikoma/Nodes ] ; then
+if [ ! -d "lib/Tachikoma/Nodes" ] ; then
     echo ERROR: must be run from within tachikoma distribution.
     exit 1
 fi
 set -x
 
 # make dirs
-if [ ! -e ~/.tachikoma/ ] ; then
+if [ ! -e "~/.tachikoma/" ] ; then
     mkdir ~/.tachikoma/
 fi
 mkdir -p ~/.tachikoma/etc/
@@ -27,7 +27,7 @@ mkdir -p ~/.tachikoma/services/
 mkdir -p ~/.tachikoma/tls/
 
 # server config
-if [ -e etc/tachikoma_conf/$config.conf ] ; then
+if [ -e "etc/tachikoma_conf/$config.conf" ] ; then
     cp etc/tachikoma_conf/$config.conf ~/.tachikoma/etc/tachikoma.conf
 else
     cp etc/tachikoma_conf/default.conf ~/.tachikoma/etc/tachikoma.conf
@@ -37,7 +37,7 @@ fi
 bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
 
 # HTTP
-if [ -e etc/CGI_conf/$config.conf ] ; then
+if [ -e "etc/CGI_conf/$config.conf" ] ; then
     cp etc/CGI_conf/$config.conf ~/.tachikoma/etc/CGI.conf
 else
     cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
@@ -46,21 +46,21 @@ cp -rfT http ~/.tachikoma/http
 
 # init scripts
 cp etc/scripts/$config/startup.txt ~/.tachikoma/
-if [ -e etc/scripts/$config/config.tsl ] ; then
+if [ -e "etc/scripts/$config/config.tsl" ] ; then
     cp etc/scripts/$config/config.tsl  ~/.tachikoma/
-elif [ -e etc/scripts/default/config.tsl ] ; then
+elif [ -e "etc/scripts/default/config.tsl" ] ; then
     cp etc/scripts/default/config.tsl  ~/.tachikoma/
 fi
 cp -rfT etc/services ~/.tachikoma/services
 
 # authorized keys
-if [ -e etc/authorized_keys/$keyconfig.keys ] ; then
+if [ -e "etc/authorized_keys/$keyconfig.keys" ] ; then
     cp etc/authorized_keys/$keyconfig.keys ~/.tachikoma/etc/authorized_keys
 else
     cp etc/authorized_keys/default.keys ~/.tachikoma/etc/authorized_keys
 fi
 
-if [ ! -e ~/.tachikoma/tls/server.crt ] ; then
+if [ ! -e "~/.tachikoma/tls/server.crt" ] ; then
     openssl req -x509 -newkey rsa:2048 -keyout ~/.tachikoma/tls/server.key -out ~/.tachikoma/tls/server.crt -days 365 -nodes -subj /CN=$(hostname)
 fi
 # extras

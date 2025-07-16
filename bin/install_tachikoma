@@ -1,5 +1,5 @@
 #!/bin/sh -e
-if [ ! -d lib/Tachikoma/Nodes ] ; then
+if [ ! -d "lib/Tachikoma/Nodes" ] ; then
     echo ERROR: must be run from within tachikoma distribution.
     exit 1
 fi
@@ -9,7 +9,7 @@ set -x
 perl Makefile.PL
 make
 make test
-if [ -x /usr/bin/sudo ] ; then
+if [ -x "/usr/bin/sudo" ] ; then
     sudo make install
 else
     make install
