@@ -42,7 +42,7 @@ if [ -e etc/CGI_conf/$config.conf ] ; then
 else
     cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
 fi
-cp -Trf http ~/.tachikoma/http
+cp -rfT http ~/.tachikoma/http
 
 # init scripts
 cp etc/scripts/$config/startup.txt ~/.tachikoma/
@@ -51,7 +51,7 @@ if [ -e etc/scripts/$config/config.tsl ] ; then
 elif [ -e etc/scripts/default/config.tsl ] ; then
     cp etc/scripts/default/config.tsl  ~/.tachikoma/
 fi
-cp -Trf etc/services ~/.tachikoma/services
+cp -rfT etc/services ~/.tachikoma/services
 
 # authorized keys
 if [ -e etc/authorized_keys/$keyconfig.keys ] ; then
