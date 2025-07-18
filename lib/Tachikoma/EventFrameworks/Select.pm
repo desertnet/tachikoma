@@ -77,11 +77,29 @@ sub drain {
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for ( @{$reads_ready}, @{$errors} ) {
-            my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
+            my $fd = fileno($_);
+            if ( not defined $fd ) {
+                $reads->remove($_);
+                next;
+            }
+            my $node = $Tachikoma::Nodes_By_FD->{ $fd };
+            if ( not defined $node ) {
+                $reads->remove($_);
+                next;
+            }
             &{ $node->{drain_fh} }($node);
         }
         for ( @{$writes_ready} ) {
-            my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
+            my $fd = fileno($_);
+            if ( not defined $fd ) {
+                $writes->remove($_);
+                next;
+            }
+            my $node = $Tachikoma::Nodes_By_FD->{ $fd };
+            if ( not defined $node ) {
+                $writes->remove($_);
+                next;
+            }
             &{ $node->{fill_fh} }($node);
         }
         if ($got_signal) {
