@@ -3,7 +3,6 @@ var name = http;
 include services/daemonize.tsl
 
 make_node HTTP_Responder http:responder  /tmp/<name> <http_port>
-make_node HTTP_Responder https:responder /tmp/<name> <https_port>
 make_node HTTP_Timeout   http:timeout
 make_node Log            access:log      <home>/.tachikoma/log/<name>-access.log append 134217728
 make_node Log            dump:log        <home>/.tachikoma/log/<name>-dump.log   append 1048576
@@ -17,19 +16,15 @@ command CGI  lazy on
 command root add_path /              root:dir
 command root add_path /cgi-bin       CGI
 command root add_path /debug/capture http:dumper
-connect_node root:auth       root
-connect_node http:dumper     dump:log
-connect_node http:responder  root:auth
-connect_node https:responder root:auth
+connect_node root:auth      root
+connect_node http:dumper    dump:log
+connect_node http:responder root:auth
 
 listen_inet localhost:<root_port>
 insecure
 on CGI READY {
     listen_inet --io 0.0.0.0:<http_port>;
     connect_sink 0.0.0.0:<http_port> http:responder;
-
-    listen_inet --io --use-ssl 0.0.0.0:<https_port>;
-    connect_sink 0.0.0.0:<https_port> https:responder;
 
     secure 3;
 }

@@ -18,7 +18,6 @@ if ([var help]) {
 tachikoma-client [ --socket=<socket>   ]
                  [ --host=<host>       ]
                  [ --port=<port>       ]
-                 [ --use-ssl           ]
                  [ --scheme=<scheme>   ]
                  [ --timeout=<timeout> ]
                  [ --debug=<debug>     ]
@@ -33,7 +32,6 @@ tachikoma-client [ --socket=<socket>   ]
 if ([var socket])  { args .= --socket=<socket>     }
 if ([var host])    { args .= --host=<host>         }
 if ([var port])    { args .= --port=<port>         }
-if ([var use-ssl]) { args .= --use-ssl             }
 if ([var scheme])  { scheme <scheme>               }
 if ([var timeout]) { set_timeout <timeout>         }
 pivot_client <args>

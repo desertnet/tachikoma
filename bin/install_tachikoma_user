@@ -24,7 +24,6 @@ mkdir -p ${HOME}/.tachikoma/partitions/
 mkdir -p ${HOME}/.tachikoma/pool/
 mkdir -p ${HOME}/.tachikoma/run/
 mkdir -p ${HOME}/.tachikoma/services/
-mkdir -p ${HOME}/.tachikoma/tls/
 
 # server config
 if [ -e "etc/tachikoma_conf/$config.conf" ] ; then
@@ -60,12 +59,6 @@ else
     cp etc/authorized_keys/default.keys ${HOME}/.tachikoma/etc/authorized_keys
 fi
 
-if [ ! -e "${HOME}/.tachikoma/tls/server.crt" ] ; then
-    openssl req -x509 -newkey rsa:2048            \
-        -keyout ${HOME}/.tachikoma/tls/server.key \
-        -out ${HOME}/.tachikoma/tls/server.crt    \
-        -days 365 -nodes -subj /CN=$(hostname)
-fi
 # extras
 if which install_tachikoma_user_extra > /dev/null 2>&1 ; then
     install_tachikoma_user_extra

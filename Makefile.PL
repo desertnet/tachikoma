@@ -20,8 +20,6 @@ WriteMakefile(
     VERSION   => $version,
     PREREQ_PM => {
         'Crypt::OpenSSL::RSA' => '0.10',
-        'Net::SSLeay'         => '1.00',
-        'IO::Socket::SSL'     => '1.00',
 
         # these are only necessary to pass tests:
         'File::Temp' => '0.10',

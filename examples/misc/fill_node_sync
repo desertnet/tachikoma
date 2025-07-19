@@ -16,7 +16,6 @@ my @default_configs = (
 my $config_file = undef;
 my $host        = undef;
 my $port        = undef;
-my $use_SSL     = undef;
 my $batch_size  = undef // 1;
 my $throttle    = undef;
 my $help        = undef;
@@ -25,7 +24,6 @@ my $r = GetOptions(
     'config=s'     => \$config_file,
     'host=s'       => \$host,
     'port=i'       => \$port,
-    'use-ssl'      => \$use_SSL,
     'batch-size=s' => \$batch_size,
     'throttle'     => \$throttle,
     'help'         => \$help,
@@ -36,7 +34,7 @@ usage() if ( $help or not $r or not length $to );
 my $config = Tachikoma->configuration;
 $config->load_config_file( $config_file ? $config_file : @default_configs );
 
-my $tachikoma = Tachikoma->inet_client( $host, $port, $use_SSL );
+my $tachikoma = Tachikoma->inet_client( $host, $port );
 my @lines     = ();
 my $last      = time;
 $tachikoma->timeout(60);
@@ -108,7 +106,6 @@ sub usage {
         . "fill_node [ --config=<path>     ]\n"
         . "          [ --host=<host>       ]\n"
         . "          [ --port=<port>       ]\n"
-        . "          [ --use-ssl           ]\n"
         . "          [ --batch-size=<size> ]\n"
         . "          [ --throttle          ]\n"
         . "          [ --help              ]\n"

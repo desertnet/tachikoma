@@ -4,7 +4,6 @@ use warnings;
 use HTTP::Request::Common qw(GET);
 use JSON -support_by_pp;
 use LWP::UserAgent;
-use Mozilla::CA;
 
 my ( $server, $topic, $offset, $count ) = @ARGV;
 die "ERROR: no topic\n" if not($topic);
@@ -13,7 +12,6 @@ $count     //= 1024;
 my $json = JSON->new;
 my $ua   = LWP::UserAgent->new;
 $ua->timeout(60);
-$ua->ssl_opts( SSL_ca_file => Mozilla::CA::SSL_ca_file() );
 push( @{ $ua->requests_redirectable }, 'GET' );
 $server =~ s{$}{/cgi-bin/tail.cgi} if ( $server !~ m{/} );
 $server =~ s{^}{http://}           if ( $server !~ m{^https?://} );

@@ -47,7 +47,7 @@ my $SHUTTING_DOWN      = undef;
 my $PID_FH             = undef;
 
 sub inet_client {
-    my ( $class, $host, $port, $use_SSL ) = @_;
+    my ( $class, $host, $port ) = @_;
     $host ||= 'localhost';
     $port ||= DEFAULT_PORT;
     require Tachikoma::EventFrameworks::Select;
@@ -59,8 +59,7 @@ sub inet_client {
     $self->set_framework;
     $self->{sink} = Tachikoma::Nodes::Router->new;
     $self->{connector} =
-        Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
-        $use_SSL );
+        Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC );
     $self->{connector}->{sink} = $self->{sink};
     $self->restore_framework;
     return $self;
@@ -634,8 +633,6 @@ L<Tachikoma::Crypto>
 L<Tachikoma::Nodes::Callback>
 
 L<Digest::MD5>
-
-L<IO::Socket::SSL>
 
 L<Socket>
 

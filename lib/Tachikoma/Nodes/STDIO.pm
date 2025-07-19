@@ -72,7 +72,6 @@ sub drain_fh {
     my $got    = length ${$buffer};
     my $read   = sysread $fh, ${$buffer}, 65536, $got;
     my $again  = $! == EAGAIN;
-    $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         $self->print_less_often("WARNING: couldn't read: $!")
             if ( not defined $read and $! ne 'Connection reset by peer' );

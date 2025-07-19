@@ -22,7 +22,7 @@ my $MAX_REQUESTS = 500;
 
 my $home = ( getpwuid $< )[7];
 $Tachikoma::Nodes::CGI::Config = {
-    protocol      => 'https',
+    protocol      => 'http',
     document_root => "$home/.tachikoma/http",
     script_paths  => { '/cgi-bin' => "$home/.tachikoma/http/cgi-bin/" },
     broker_ids    => ['localhost:5501'],
@@ -88,7 +88,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $found           = undef;
     my $script_name     = undef;
     my $script_path     = undef;
-    my $proto           = $server_config->{protocol} || 'https';
+    my $proto           = $server_config->{protocol} || 'http';
     my $document_root   = $server_config->{document_root};
     my $server_paths    = $server_config->{script_paths};
     my $test_path       = $script_url;

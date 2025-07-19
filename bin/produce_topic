@@ -20,7 +20,6 @@ my @default_configs = (
 my $config_file = undef;
 my $host        = 'localhost';
 my $port        = 5501;
-my $use_SSL     = undef;
 my $topic_name  = undef;
 my $stream      = undef;
 my $keys        = undef;
@@ -33,7 +32,6 @@ my $r = GetOptions(
     'config=s'      => \$config_file,
     'host=s'        => \$host,
     'port=i'        => \$port,
-    'use-ssl'       => \$use_SSL,
     'topic=s'       => \$topic_name,
     'stream=s'      => \$stream,
     'keys'          => \$keys,
@@ -97,8 +95,7 @@ $topic->register(
 
 $router->name('_router');
 $router->debug_state($debug_state);
-$socket =
-    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
+$socket = Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC );
 $socket->name('_socket');
 $socket->debug_state($debug_state);
 $socket->on_EOF('reconnect');
@@ -110,7 +107,6 @@ sub usage {
         . "produce_topic [ --config=<path>   ]\n"
         . "              [ --host=<host>     ]\n"
         . "              [ --port=<port>     ]\n"
-        . "              [ --use-ssl         ]\n"
         . "              [ --topic=<topic>   ]\n"
         . "              [ --stream=<stream> ]\n"
         . "              [ --keys            ]\n"

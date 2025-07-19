@@ -58,14 +58,12 @@ func fsync_destination {
                 for i (1 .. <count>) {
                     local bridge_port = <port> + (<i> * 10) + 1;
                     command <name>:destination<i> connect_inet --scheme=rsa
-                                                               --use-ssl
                                                                --owner=FileReceiver
                                                                --host=<source>
                                                                --port=<bridge_port>;
                 };
             };
             command hosts connect_inet --scheme=rsa
-                                       --use-ssl
                                        --owner=DirCheck
                                        --host=<source>
                                        --port=(<port> + 2)

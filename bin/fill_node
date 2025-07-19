@@ -18,7 +18,6 @@ my @default_configs = (
 my $config_file = undef;
 my $host        = 'localhost';
 my $port        = 4230;
-my $use_SSL     = undef;
 my $stream      = undef;
 my $throttle    = 1;
 my $debug       = undef;
@@ -28,7 +27,6 @@ my $r = GetOptions(
     'config=s'   => \$config_file,
     'host=s'     => \$host,
     'port=i'     => \$port,
-    'use-ssl'    => \$use_SSL,
     'stream=s'   => \$stream,
     'throttle:i' => \$throttle,
     'debug:i'    => \$debug,
@@ -46,7 +44,7 @@ my $router   = Tachikoma::Nodes::Router->new;
 my $tail     = Tachikoma::Nodes::Tail->filehandle( *STDIN, TK_R );
 my $shutdown = Tachikoma::Nodes::Shutdown->new;
 my $tachikoma =
-    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
+    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC );
 $tail->name('_stdin');
 $tail->buffer_mode('line-buffered');
 $tail->max_unanswered($throttle);
@@ -68,7 +66,6 @@ sub usage {
         . "fill_node [ --config=<path>     ]\n"
         . "          [ --host=<host>       ]\n"
         . "          [ --port=<port>       ]\n"
-        . "          [ --use-ssl           ]\n"
         . "          [ --stream=<stream>   ]\n"
         . "          [ --throttle          ]\n"
         . "          [ --debug             ]\n"

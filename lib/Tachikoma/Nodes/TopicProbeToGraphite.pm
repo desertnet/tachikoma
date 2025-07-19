@@ -18,11 +18,12 @@ my @FIELDS           = qw(
     distance
     msg_sent
 );
-    # p_offset
-    # c_offset
-    # cache_size
-    # msg_unanswered
-    # max_unanswered
+
+# p_offset
+# c_offset
+# cache_size
+# msg_unanswered
+# max_unanswered
 
 sub new {
     my $class = shift;
@@ -57,7 +58,8 @@ sub fill {
         if ( $topic->{consumer} ) {
             my $p_offset = $self->{partitions}->{ $topic->{partition} };
             next if ( not defined $p_offset );
-            $topic->{c_offset} = $p_offset if ( $p_offset < $topic->{c_offset} );
+            $topic->{c_offset} = $p_offset
+                if ( $p_offset < $topic->{c_offset} );
             $self->{consumers}->{ $topic->{partition} } //= {};
             $self->{consumers}->{ $topic->{partition} }
                 ->{ $topic->{consumer} } = $topic;

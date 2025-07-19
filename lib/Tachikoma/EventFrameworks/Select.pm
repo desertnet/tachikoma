@@ -82,7 +82,7 @@ sub drain {
                 $reads->remove($_);
                 next;
             }
-            my $node = $Tachikoma::Nodes_By_FD->{ $fd };
+            my $node = $Tachikoma::Nodes_By_FD->{$fd};
             if ( not defined $node ) {
                 $reads->remove($_);
                 next;
@@ -95,7 +95,7 @@ sub drain {
                 $writes->remove($_);
                 next;
             }
-            my $node = $Tachikoma::Nodes_By_FD->{ $fd };
+            my $node = $Tachikoma::Nodes_By_FD->{$fd};
             if ( not defined $node ) {
                 $writes->remove($_);
                 next;

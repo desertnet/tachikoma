@@ -11,8 +11,8 @@ use Exporter;
 use vars   qw( @EXPORT_OK );
 use parent qw( Exporter );
 @EXPORT_OK = qw(
-    %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys %SSL_Config
-    %Help %Var %Aliases
+    %Tachikoma $ID $Private_Key $Private_Ed25519_Key %Keys
+    %Help %Var %Aliases %SSL_Config
     include_conf load_module
 );
 
@@ -24,10 +24,10 @@ our $ID                  = q();
 our $Private_Key         = q();
 our $Private_Ed25519_Key = q();
 our %Keys                = ();
-our %SSL_Config          = ();
 our %Help                = ();
 our %Var                 = ();
 our %Aliases             = ();
+our %SSL_Config          = ();
 
 my $CONFIGURATION = undef;
 my %FORBIDDEN     = ();
@@ -48,51 +48,35 @@ my %LEGACY_MAP    = (
     Hz             => 'hz',
 );
 
-my %LEGACY_SSL_MAP = (
-    'SSL_client_ca_file'   => 'ssl_client_ca_file',
-    'SSL_client_cert_file' => 'ssl_client_cert_file',
-    'SSL_client_key_file'  => 'ssl_client_key_file',
-    'SSL_server_ca_file'   => 'ssl_server_ca_file',
-    'SSL_server_cert_file' => 'ssl_server_cert_file',
-    'SSL_server_key_file'  => 'ssl_server_key_file',
-);
-
 sub new {
     my $class = shift;
     my $self  = {
-        wire_version         => '2.0.27',
-        config_file          => undef,
-        help                 => {},
-        functions            => {},
-        var                  => {},
-        debug_level          => undef,
-        secure_level         => undef,
-        scheme               => 'rsa',
-        listen_sockets       => undef,
-        prefix               => undef,
-        log_dir              => undef,
-        log_file             => undef,
-        pid_dir              => undef,
-        pid_file             => undef,
-        home                 => undef,
-        include_nodes        => undef,
-        include_jobs         => undef,
-        buffer_size          => undef,
-        low_water_mark       => undef,
-        keep_alive           => undef,
-        hz                   => undef,
-        id                   => q(),
-        private_key          => q(),
-        private_ed25519_key  => q(),
-        public_keys          => {},
-        ssl_client_ca_file   => undef,
-        ssl_client_cert_file => undef,
-        ssl_client_key_file  => undef,
-        ssl_server_ca_file   => undef,
-        ssl_server_cert_file => undef,
-        ssl_server_key_file  => undef,
-        ssl_version          => undef,
-        forbidden            => \%FORBIDDEN,
+        wire_version        => '2.0.27',
+        config_file         => undef,
+        help                => {},
+        functions           => {},
+        var                 => {},
+        debug_level         => undef,
+        secure_level        => undef,
+        scheme              => 'rsa',
+        listen_sockets      => undef,
+        prefix              => undef,
+        log_dir             => undef,
+        log_file            => undef,
+        pid_dir             => undef,
+        pid_file            => undef,
+        home                => undef,
+        include_nodes       => undef,
+        include_jobs        => undef,
+        buffer_size         => undef,
+        low_water_mark      => undef,
+        keep_alive          => undef,
+        hz                  => undef,
+        id                  => q(),
+        private_key         => q(),
+        private_ed25519_key => q(),
+        public_keys         => {},
+        forbidden           => \%FORBIDDEN,
     };
     bless $self, $class;
     return $self;
@@ -148,12 +132,6 @@ sub load_legacy {
         my $modern_key = $LEGACY_MAP{$legacy_key};
         if ( exists $Tachikoma{$legacy_key} ) {
             $self->{$modern_key} = $Tachikoma{$legacy_key};
-        }
-    }
-    for my $legacy_key ( keys %LEGACY_SSL_MAP ) {
-        my $modern_key = $LEGACY_SSL_MAP{$legacy_key};
-        if ( exists $SSL_Config{$legacy_key} ) {
-            $self->{$modern_key} = $SSL_Config{$legacy_key};
         }
     }
     if ( length $ID ) {
@@ -399,62 +377,6 @@ sub public_keys {
         $self->{public_keys} = shift;
     }
     return $self->{public_keys};
-}
-
-sub ssl_client_ca_file {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_client_ca_file} = shift;
-    }
-    return $self->{ssl_client_ca_file};
-}
-
-sub ssl_client_cert_file {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_client_cert_file} = shift;
-    }
-    return $self->{ssl_client_cert_file};
-}
-
-sub ssl_client_key_file {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_client_key_file} = shift;
-    }
-    return $self->{ssl_client_key_file};
-}
-
-sub ssl_server_ca_file {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_server_ca_file} = shift;
-    }
-    return $self->{ssl_server_ca_file};
-}
-
-sub ssl_server_cert_file {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_server_cert_file} = shift;
-    }
-    return $self->{ssl_server_cert_file};
-}
-
-sub ssl_server_key_file {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_server_key_file} = shift;
-    }
-    return $self->{ssl_server_key_file};
-}
-
-sub ssl_version {
-    my $self = shift;
-    if (@_) {
-        $self->{ssl_version} = shift;
-    }
-    return $self->{ssl_version};
 }
 
 sub forbidden {

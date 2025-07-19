@@ -8,9 +8,7 @@ RUN apt-get update && \
         libcrypt-openssl-rsa-perl \
         libdbd-sqlite3-perl \
         libdbi-perl \
-        libio-socket-ssl-perl \
         libjson-perl \
-        libnet-ssleay-perl \
         libterm-readline-gnu-perl \
         libwww-perl \
         perl-doc \

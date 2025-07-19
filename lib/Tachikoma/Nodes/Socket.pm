@@ -20,11 +20,8 @@ use Tachikoma::Message           qw(
     VECTOR_SIZE
 );
 use Tachikoma::Crypto;
-use Digest::MD5     qw( md5 );
-use IO::Socket::SSL qw(
-    SSL_WANT_WRITE SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT
-);
-use Socket qw(
+use Digest::MD5 qw( md5 );
+use Socket      qw(
     PF_UNIX PF_INET SOCK_STREAM SOL_SOCKET SOMAXCONN
     SO_REUSEADDR SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE
     inet_aton inet_ntoa pack_sockaddr_in unpack_sockaddr_in
@@ -77,7 +74,6 @@ sub unix_client {
     my $class    = shift;
     my $filename = shift;
     my $flags    = shift;
-    my $use_SSL  = shift;
     my $socket;
     socket $socket, PF_UNIX, SOCK_STREAM, 0 or die "FAILED: socket: $!";
     setsockopts($socket);
@@ -93,13 +89,7 @@ sub unix_client {
         $client->remove_node;
         die "ERROR: connect: $!\n";
     }
-    if ($use_SSL) {
-        $client->use_SSL($use_SSL);
-        $client->start_SSL_connection;
-    }
-    else {
-        $client->init_connect;
-    }
+    $client->init_connect;
     $client->register_reader_node;
     return $client;
 }
@@ -145,7 +135,6 @@ sub inet_client {
     my $hostname = shift;
     my $port     = shift or die "FAILED: no port specified for $hostname";
     my $flags    = shift;
-    my $use_SSL  = shift;
     my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $proto    = getprotobyname 'tcp';
     my $socket;
@@ -169,13 +158,7 @@ sub inet_client {
         $client->remove_node;
         die "ERROR: connect: $!\n";
     }
-    if ($use_SSL) {
-        $client->use_SSL($use_SSL);
-        $client->start_SSL_connection;
-    }
-    else {
-        $client->init_connect;
-    }
+    $client->init_connect;
     $client->register_reader_node;
     return $client;
 }
@@ -210,7 +193,6 @@ sub new {
     $self->{filename}         = undef;
     $self->{fileperms}        = undef;
     $self->{filegid}          = undef;
-    $self->{use_SSL}          = undef;
     $self->{auth_challenge}   = undef;
     $self->{auth_timestamp}   = undef;
     $self->{auth_complete}    = undef;
@@ -266,40 +248,8 @@ sub accept_connection {
     }
     my $node = $self->new;
 
-    if ( $self->{use_SSL} ) {
-        my $config = $self->{configuration};
-        die "ERROR: SSL not configured\n"
-            if ( not $config->{ssl_server_cert_file} );
-        my $ssl_client = IO::Socket::SSL->start_SSL(
-            $client,
-            SSL_server         => 1,
-            SSL_key_file       => $config->{ssl_server_key_file},
-            SSL_cert_file      => $config->{ssl_server_cert_file},
-            SSL_ca_file        => $config->{ssl_server_ca_file},
-            SSL_startHandshake => 0,
-
-            # SSL_cipher_list     => $config->{ssl_ciphers},
-            SSL_version         => $config->{ssl_version},
-            SSL_verify_callback => SSL_verify_mode => $self->{use_SSL} eq
-                'verify'
-            ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
-            : 0
-        );
-        if ( not $ssl_client or not ref $ssl_client ) {
-            $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
-                grep length, $!, IO::Socket::SSL::errstr() );
-            return;
-        }
-        $node->{type}     = 'accept';
-        $node->{drain_fh} = \&init_SSL_connection;
-        $node->{fill_fh}  = \&init_SSL_connection;
-        $node->{use_SSL}  = 'true';
-        $node->fh($ssl_client);
-    }
-    else {
-        $node->{type} = 'accept';
-        $node->fh($client);
-    }
+    $node->{type} = 'accept';
+    $node->fh($client);
     my $name = undef;
     if ( $self->{filename} ) {
         my $my_name = $self->{name};
@@ -333,7 +283,7 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->init_accept if ( not $self->{use_SSL} );
+    $node->init_accept;
     $self->{counter}++;
     return;
 }
@@ -366,149 +316,8 @@ sub init_socket {
     connect $socket, pack_sockaddr_in( $self->{port}, $iaddr );
     ## use critic
 
-    if ( $self->{use_SSL} ) {
-        if ( not $self->start_SSL_connection ) {
-            $self->handle_EOF;
-        }
-        return;
-    }
     $self->register_reader_node;
     return $self->init_connect;
-}
-
-sub start_SSL_connection {
-    my $self       = shift;
-    my $socket     = $self->{fh};
-    my $config     = $self->{configuration};
-    my $ssl_socket = IO::Socket::SSL->start_SSL(
-        $socket,
-        SSL_key_file       => $config->{ssl_client_key_file},
-        SSL_cert_file      => $config->{ssl_client_cert_file},
-        SSL_ca_file        => $config->{ssl_client_ca_file},
-        SSL_startHandshake => $self->{flags} & TK_SYNC,
-        SSL_use_cert       => 1,
-
-        # SSL_cipher_list     => $config->ssl_ciphers,
-        SSL_version         => $config->ssl_version,
-        SSL_verify_callback => $self->get_ssl_verify_callback,
-        SSL_verify_mode     => $self->{use_SSL} eq 'verify'
-        ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
-        : 0
-    );
-    if ( not $ssl_socket or not ref $ssl_socket ) {
-        my $ssl_error = $IO::Socket::SSL::SSL_ERROR;
-        $ssl_error =~ s{(error)(error)}{$1: $2};
-        if ( $self->{flags} & TK_SYNC ) {
-            die join q(: ),
-                q(ERROR: couldn't start_SSL),
-                grep length, $!, $ssl_error, "\n";
-        }
-        else {
-            $self->print_less_often( join q(: ),
-                q(WARNING: couldn't start_SSL),
-                grep length, $!, $ssl_error );
-            return;
-        }
-    }
-    $self->fh($ssl_socket);
-    $self->register_reader_node;
-    $self->register_writer_node;
-    if ( $self->{flags} & TK_SYNC ) {
-
-        # my $peer = join q(),
-        #     'authority: "',
-        #     $fh->peer_certificate('authority'),
-        #     '" owner: "',
-        #     $fh->peer_certificate('owner'),
-        #     '" cipher: "',
-        #     $fh->get_cipher,
-        #     qq("\n);
-        # $self->stderr( 'connect_SSL() verified peer:', $peer );
-        $self->{fill} = $self->{fill_modes}->{fill};
-        $self->init_connect;
-    }
-    else {
-        $self->{drain_fh} = \&init_SSL_connection;
-        $self->{fill_fh}  = \&init_SSL_connection;
-    }
-    return 'success';
-}
-
-sub get_ssl_verify_callback {
-    my $self = shift;
-    return sub {
-        my $okay  = $_[0];
-        my $error = $_[3];
-        return 1 if ($okay);
-        $error =~ s{^error:}{};
-        $self->print_less_often("ERROR: SSL verification failed: $error");
-        return 0;
-    };
-}
-
-sub init_SSL_connection {
-    my $self   = shift;
-    my $type   = $self->{type};
-    my $fh     = $self->{fh};
-    my $method = $type eq 'connect' ? 'connect_SSL' : 'accept_SSL';
-    if ( $fh and $fh->$method ) {
-        my $peer = join q(),
-            'authority: "', $fh->peer_certificate('authority'),
-            '" owner: "',   $fh->peer_certificate('owner'),
-            '" cipher: "',  $fh->get_cipher, qq("\n);
-
-        # $self->stderr($method, '() verified peer: ', $peer);
-        if ( $type eq 'connect' ) {
-            $self->init_connect;
-        }
-        else {
-            if ( not $self->delegate_authorization( 'ssl', $peer ) ) {
-                $self->stderr('ERROR: peer not allowed to connect');
-                return $self->remove_node;
-            }
-            $self->init_accept;
-        }
-    }
-    elsif ( $! != EAGAIN ) {
-        $self->log_SSL_error($method);
-
-        # this keeps the event framework from constantly
-        # complaining about missing entries in %Nodes_By_FD
-        $self->unregister_reader_node;
-        $self->unregister_writer_node;
-        $self->stderr("WARNING: couldn't close: $!")
-            if ($self->{fh}
-            and fileno $self->{fh}
-            and not close $self->{fh}
-            and $!
-            and $! ne 'Connection reset by peer'
-            and $! ne 'Broken pipe' );
-        $self->{fh} = undef;
-        $self->handle_EOF;
-    }
-    return;
-}
-
-sub log_SSL_error {
-    my $self      = shift;
-    my $method    = shift;
-    my $ssl_error = IO::Socket::SSL::errstr();
-    $ssl_error =~ s{(error)(error)}{$1: $2};
-    my $names = undef;
-    if ( $method eq 'connect_SSL' ) {
-        $names = $self->{name};
-        Tachikoma->print_least_often( join q(: ), grep length,
-            $names, "WARNING: $method failed",
-            $!,     $ssl_error );
-    }
-    else {
-        $names = join q( -> ), $self->{parent},
-            ( split m{:}, $self->{name}, 2 )[0];
-        Tachikoma->print_less_often( join q(: ), grep length,
-            $names, "WARNING: $method failed",
-            $!,     $ssl_error );
-    }
-    return;
 }
 
 sub init_connect {
@@ -722,7 +531,6 @@ sub read_block {
     my $read     = sysread $fh, ${$buffer}, $buf_size, $got;
     my $again    = $! == EAGAIN;
     my $error    = $!;
-    $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     $got += $read if ( defined $read );
 
     # XXX:M
@@ -873,29 +681,6 @@ sub fill_buffer_init {
     return;
 }
 
-sub fill_fh_sync_SSL {
-    my $self        = shift;
-    my $message     = shift;
-    my $fh          = $self->{fh} or return;
-    my $packed      = $message->packed;
-    my $packed_size = length ${$packed};
-    my $wrote       = 0;
-
-    while ( $wrote < $packed_size ) {
-        my $rv = syswrite $fh, ${$packed}, $packed_size - $wrote, $wrote;
-        $rv = 0 if ( not defined $rv );
-        last if ( not $rv );
-        $wrote += $rv;
-    }
-    die "ERROR: wrote $wrote < $packed_size; $!\n"
-        if ( $wrote != $packed_size );
-    $self->{counter}++;
-    $self->{largest_msg_sent} = $packed_size
-        if ( $packed_size > $self->{largest_msg_sent} );
-    $self->{bytes_written} += $wrote;
-    return $wrote;
-}
-
 sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
@@ -977,15 +762,7 @@ sub reconnect_unix {
         $self->close_filehandle;
         return 'try again';
     }
-    if ( $self->{use_SSL} ) {
-        if ( not $self->start_SSL_connection ) {
-            $self->close_filehandle;
-            return 'try again';
-        }
-    }
-    else {
-        $self->init_connect;
-    }
+    $self->init_connect;
     return $rv;
 }
 
@@ -1087,9 +864,6 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         if ( ref $self eq 'Tachikoma::Nodes::STDIO' ) {
             $response .= ' --io';
         }
-        $response .= ' --use-ssl' if ( $self->{use_SSL} );
-        $response .= ' --ssl-delegate=' . $self->{delegates}->{ssl}
-            if ( $self->{delegates}->{ssl} );
         $response .= ' --delegate=' . $self->{delegates}->{tachikoma}
             if ( $self->{delegates}->{tachikoma} );
         if ( $self->{filename} ) {
@@ -1115,7 +889,6 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
             $response .= ' --io';
             $response .= ' --reconnect' if ( $self->{on_EOF} eq 'reconnect' );
         }
-        $response .= ' --use-ssl' if ( $self->{use_SSL} );
         if ( $self->{filename} ) {
             $response .= " $self->{filename} $self->{name}\n";
         }
@@ -1213,23 +986,6 @@ sub filegid {
         $self->{filegid} = shift;
     }
     return $self->{filegid};
-}
-
-sub use_SSL {
-    my $self = shift;
-    if (@_) {
-        $self->{use_SSL} = shift;
-        if ( $self->{use_SSL} ) {
-            if ( not $self->configuration->ssl_server_cert_file ) {
-                $self->stderr("ERROR: SSL not configured\n");
-                $self->remove_node;
-            }
-            if ( $self->{flags} & TK_SYNC ) {
-                $self->{fill_modes}->{fill} = \&fill_fh_sync_SSL;
-            }
-        }
-    }
-    return $self->{use_SSL};
 }
 
 sub auth_challenge {
