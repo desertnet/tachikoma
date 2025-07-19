@@ -17,15 +17,16 @@ my $recv      = 0;
 my $count     = 0;
 my $then      = time;
 my $delay     = $ARGV[1] || 2;
+my $total     = 10000;
 my $size;
 
 # $tachikoma->timeout(undef);
 $tachikoma->callback(
     sub {
         my $message = shift;
-        $count++;
-        if ( $recv++ >= 10000 ) {
+        if ( $recv++ >= $total ) {
             my $span = time - $then;
+            $count  += $recv;
             if ( $span >= $delay ) {
                 if ( not $size ) {
                     $size = $message->size;

@@ -4,12 +4,12 @@ use warnings;
 use Tachikoma::Message qw( TM_BYTESTREAM TM_EOF );
 use Time::HiRes qw( time );
 
-my $Total    = 10000;
-my $Buf_Size = 64;
-my $Delay    = 1;
+my $total    = 10000;
+my $buf_size = 64;
+my $delay    = 1;
 
-while ( $Buf_Size <= 1048576 ) {
-    my $buf     = "\0" x ( $Buf_Size - 20 );
+while ( $buf_size <= 1048576 ) {
+    my $buf     = "\0" x ( $buf_size - 20 );
     my $message = Tachikoma::Message->new;
     $message->type(TM_BYTESTREAM);
     $message->payload($buf);
@@ -18,7 +18,7 @@ while ( $Buf_Size <= 1048576 ) {
     print "\nsize: $size\n";
     check_pack( $message, $size );
     check_unpack( $packed, $size );
-    $Buf_Size *= 2;
+    $buf_size *= 2;
 }
 
 sub check_pack {
@@ -29,10 +29,10 @@ sub check_pack {
     my $then    = time;
     while (1) {
         $message->packed;
-        if ( $check++ >= $Total ) {
+        if ( $check++ >= $total ) {
             my $span = time - $then;
             $count += $check;
-            if ( $span >= $Delay ) {
+            if ( $span >= $delay ) {
                 report( 'pack', $count, $size, $span );
                 last;
             }
@@ -49,10 +49,10 @@ sub check_unpack {
     my $then   = time;
     while (1) {
         Tachikoma::Message->unpacked($packed);
-        if ( $check++ >= $Total ) {
+        if ( $check++ >= $total ) {
             my $span = time - $then;
             $count += $check;
-            if ( $span >= $Delay ) {
+            if ( $span >= $delay ) {
                 report( 'unpack', $count, $size, $span );
                 last;
             }
