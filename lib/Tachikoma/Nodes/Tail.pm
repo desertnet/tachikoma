@@ -143,9 +143,9 @@ sub arguments {
         else {
             $offset = 0;
         }
-        $self->{inode}          = $inode // 0;
-        $self->{bytes_read}     = $offset;
-        $self->{bytes_answered} = $offset;
+        $self->{inode}          = $inode  // 0;
+        $self->{bytes_read}     = $offset // 0;
+        $self->{bytes_answered} = $offset // 0;
         $self->fh($fh);
         $self->on_EOF($on_eof) if ($on_eof);
         $self->set_drain_buffer;
@@ -463,8 +463,8 @@ sub expire_messages {
             }
         }
         $self->{line_buffer}    = q();
-        $self->{bytes_read}     = $offset;
-        $self->{bytes_answered} = $offset;
+        $self->{bytes_read}     = $offset // 0;
+        $self->{bytes_answered} = $offset // 0;
         $self->{inflight}       = [];
         $self->{msg_unanswered} = 0;
         $self->register_reader_node;
