@@ -39,8 +39,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{prefix}    = $self->{arguments};
-        $self->set_timer( $DEFAULT_INTERVAL * 1000 );
+        my ( $prefix, $seconds ) = split q( ), $self->{arguments}, 2;
+        $self->{prefix} = $prefix if ( defined $prefix );
+        $seconds ||= $DEFAULT_INTERVAL;
+        $self->set_timer( $seconds * 1000 );
     }
     return $self->{arguments};
 }
