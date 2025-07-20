@@ -20,7 +20,7 @@ use parent       qw( Tachikoma::Nodes::Timer );
 use version; our $VERSION = qv('v2.0.197');
 
 my $DEFAULT_NUM_PARTITIONS = 1;
-my $DEFAULT_NUM_BUCKETS    = 2;
+my $DEFAULT_NUM_BUCKETS    = 1;
 my $DEFAULT_WINDOW_SIZE    = 300;
 
 sub new {
@@ -468,7 +468,7 @@ sub on_save_window {
 sub on_load_snapshot {
     my ( $self, $i, $stored ) = @_;
     $self->{caches}->[$i]      = $stored->{cache}       || [];
-    $self->{next_window}->[$i] = $stored->{next_window} || [];
+    $self->{next_window}->[$i] = $stored->{next_window} || 0;
     return;
 }
 
