@@ -126,6 +126,8 @@ function toggle_task_output() {
 }
 
 function tick() {
+    // rewrite server_url match current window.location.protocol
+    server_url = window.location.protocol + "//" + server_url.split("//")[1];
     xhttp.open("GET", server_url, true);
     xhttp.send();
 }
