@@ -41,7 +41,9 @@ if [ -e "etc/CGI_conf/$config.conf" ] ; then
 else
     cp etc/CGI_conf/default.conf ${HOME}/.tachikoma/etc/CGI.conf
 fi
-cp -rfT http ${HOME}/.tachikoma/http
+if [ ! -e "${HOME}/.tachikoma/http" ] ; then
+    cp -rfT http ${HOME}/.tachikoma/http
+fi
 
 # init scripts
 cp etc/scripts/$config/startup.txt ${HOME}/.tachikoma/
