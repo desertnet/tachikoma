@@ -20,15 +20,15 @@ function start_timer() {
     }
     else {
         document.getElementById("toggle").innerHTML = "error";
-        document.getElementById("output").innerHTML = "<preo topic</pre>";
+        document.getElementById("output").innerHTML = '<pre class="uk-dark">no topic</pre>';
     }
 }
 
 function start_tail() {
-    var prefix_url  = window.location.protocol + "//"
-                    + server_host + ":" + server_port
-                    + server_path + "/" + _topic;
-    var server_url  = prefix_url  + "/" + _offset + "/" + _count;
+    var prefix_url = window.location.protocol + "//"
+                   + server_host + ":" + server_port
+                   + server_path + "/" + _topic;
+    var server_url = prefix_url  + "/" + _offset + "/" + _count;
     if (double_encode) {
         server_url += "/1";
     }

@@ -27,12 +27,12 @@ function start_timer() {
 }
 
 function start_partition(partition) {
-    var prefix_url  = window.location.protocol + "//"
-                    + server_host + ":" + server_port
-                    + server_path + "/"
-                    + _topic      + "/"
-                    + partition;
-    var server_url  = prefix_url  + "/" + offset + "/" + _count;
+    var prefix_url = window.location.protocol + "//"
+                   + server_host + ":" + server_port
+                   + server_path + "/"
+                   + _topic      + "/"
+                   + partition;
+    var server_url = prefix_url  + "/" + offset + "/" + _count;
     xhttp[partition] = new XMLHttpRequest();
     // xhttp[partition].timeout = 15000;
     xhttp[partition].onreadystatechange = function() {
