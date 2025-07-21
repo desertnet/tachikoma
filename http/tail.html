@@ -1,11 +1,13 @@
 <!doctype html>
 <html>
+
 <head>
   <title>log socket</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/css/uikit.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit-icons.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
   <script type="text/javascript">
     var topic         = "";
     var offset        = "last";
@@ -14,9 +16,35 @@
     var double_encode = true;
   </script>
   <script type="text/javascript" src="tail.js"></script>
+  <style>
+    .uk-dark {
+      background-color: #000;
+      color: #CCC;
+      border: 0;
+    }
+    .uk-dark .uk-heading {
+      color: #DDD;
+    }
+    .uk-dark a {
+      color: #AAF;
+    }
+    .uk-dark .uk-input {
+      background-color: #222;
+      color: #FFF;
+      border: 1px solid #444;
+    }
+    html {
+      min-height: 100%;
+      min-width: 100%;
+      display: flex;
+    }
+    body {
+      flex-grow: 1;
+    }
+  </style>
 </head>
-<body onload="start_timer()">
-  <button id="toggle" onclick="playOrPause()"></button>
-  <div id="output"></div>
+<body class="uk-dark" onload="start_timer()">
+  <button id="toggle" onclick="playOrPause()" class="uk-button uk-button-primary"></button>
+  <div id="output" class="uk-dark"></div>
 </body>
 </html>

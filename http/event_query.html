@@ -4,20 +4,57 @@
   <title>event query</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/css/uikit.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit-icons.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
   <script type="text/javascript" src="event_query.js"></script>
   <style>
+    .uk-dark {
+      background-color: #000;
+      color: #CCC;
+      border: 0;
+    }
+    .uk-dark .uk-heading {
+      color: #DDD;
+    }
+    .uk-dark a {
+      color: #AAF;
+    }
+    .uk-dark .uk-input {
+      background-color: #222;
+      color: #FFF;
+      border: 1px solid #444;
+    }
+    .uk-dark .task-error {
+      background-color: #622;
+      color: #DDD;
+    }
+    .uk-dark .task-output {
+      background-color: #262;
+      color: #DDD;
+    }
+    .uk-dark .task-begin-complete {
+      background-color: #444;
+      color: #DDD;
+    }
+    html {
+      min-height: 100%;
+      min-width: 100%;
+      display: flex;
+    }
+    body {
+      flex-grow: 1;
+    }
     div.a {
       font-family: "Lucida Console", Monaco, monospace;
       font-size: 80%;
     }
   </style>
 </head>
-<body onload="render_form()">
+<body class="uk-dark" onload="render_form()">
   [<a href="event_log.html">log</a>]
   [<em>search</em>]
+  [<a href="queue.html">status</a>]
   <div id="query_form"></div>
   <div class="a" id="output">
     <table>

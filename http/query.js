@@ -1,5 +1,6 @@
 var params      = getQueryParams();
-var server_url  = "https://" + window.location.hostname
+var server_url  = window.location.protocol + "//"
+                      + window.location.hostname
                       + ":" + window.location.port
                       + "/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
@@ -185,11 +186,11 @@ function execute_query() {
     xhttp.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     var json_data = JSON.stringify(query_data)
     xhttp.send(json_data);
-    document.getElementById("output").innerHTML = "<pre>" + json_data + "</pre>";
+    document.getElementById("output").innerHTML = '<pre class="uk-dark">' + json_data + "</pre>";
 }
 
 function updateProgress (oEvent) {
-    document.getElementById("output").innerHTML = "<pre>loaded " + oEvent.loaded + " bytes</pre>";
+    document.getElementById("output").innerHTML = '<pre class="uk-dark">loaded ' + oEvent.loaded + " bytes</pre>";
 }
 
 function displayTableResults(results) {
@@ -348,7 +349,7 @@ function displayTable(results) {
 
 function displayLogEntries(results) {
     var log = document.getElementById("output");
-    log.innerHTML = "<h3>Log Entries</h3>";
+    log.innerHTML = '<h3 class="uk-heading">Log Entries</h3>';
 
     // at most 5000 log entries
     var start = Math.max(0, results.length - 5000);

@@ -22,7 +22,7 @@ function start_timer() {
     }
     else {
         document.getElementById("toggle").innerHTML = "error";
-        document.getElementById("output").innerHTML = "<pre>no topic</pre>";
+        document.getElementById("output").innerHTML = '<pre class="uk-dark">no topic</pre>';
     }
 }
 
@@ -84,7 +84,7 @@ function display_table() {
         while (output.length > _count) {
             output.pop();
         }
-        document.getElementById("output").innerHTML = "<pre>"
+        document.getElementById("output").innerHTML = '<pre class="uk-dark">'
             + output.join("") + "</pre>";
         dirty = 0;
     }

@@ -9,9 +9,9 @@
     <script src="js/uikit.min.js"></script>
     <script src="js/uikit-icons.min.js"></script>
     <script src="js/chart.js"></script> -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/css/uikit.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit-icons.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="text/javascript">
     var topic   = "server_log";
@@ -19,8 +19,32 @@
   </script>
   <script type="text/javascript" src="query.js"></script>
   <style>
+    .uk-dark {
+      background-color: #000;
+      color: #CCC;
+      border: 0;
+    }
+    .uk-dark .uk-heading {
+      color: #DDD;
+    }
+    .uk-dark a {
+      color: #AAF;
+    }
+    .uk-dark .uk-input {
+      background-color: #222;
+      color: #FFF;
+      border: 1px solid #444;
+    }
+    html {
+      min-height: 100%;
+      min-width: 100%;
+      display: flex;
+    }
+    body {
+      flex-grow: 1;
+    }
     div {
-      margin: 10px;
+      padding: 10px;
     }
     #table {
       margin-top: 100px;
@@ -40,7 +64,7 @@
     }
   </style>
 </head>
-<body onload="render_form()">
+<body class="uk-dark" onload="render_form()">
   <div id="query_form"></div>
   <div id="output"></div>
   <div id="graph"></div>

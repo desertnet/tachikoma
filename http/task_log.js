@@ -5,9 +5,8 @@ var topic            = "tasks";
 var parsed_url       = new URL(window.location.href);
 var count            = parsed_url.searchParams.get("count")    || 1000;
 var interval         = parsed_url.searchParams.get("interval") || 33;
-var prefix_url       = "https://" + server_host + ":" + server_port
-                     + server_path + "/"
-                     + topic;
+var prefix_url       = window.location.protocol + "//" + server_host
+                     + ":" + server_port + server_path + "/" + topic;
 var last_url         = prefix_url  + "/last/"   + count;
 var recent_url       = prefix_url  + "/recent/" + count;
 var server_url       = last_url;
@@ -52,11 +51,11 @@ function update_table(msg) {
             * 1000
         );
         if (msg.payload[i].type == "TASK_ERROR") {
-            tr = "<tr bgcolor=\"#FF9999\">";
+            tr = '<tr class="task-error">';
         }
         else if (msg.payload[i].type == "TASK_OUTPUT") {
             if (show_task_output) {
-                tr = "<tr bgcolor=\"#99FF99\">";
+                tr = '<tr class="task-output">';
             }
             else {
                 continue;
@@ -64,7 +63,7 @@ function update_table(msg) {
         }
         else if (msg.payload[i].type == "TASK_BEGIN"
               || msg.payload[i].type == "TASK_COMPLETE") {
-            tr = "<tr bgcolor=\"#DDDDDD\">";
+            tr = '<tr class="task-begin-complete">';
         }
         else {
             tr = "<tr>";
@@ -85,7 +84,7 @@ function update_table(msg) {
     while (output.length > count) {
         output.pop();
     }
-    dirty = msg.payload.length;
+    dirty = 1;
 }
 
 function display_table() {

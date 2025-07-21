@@ -1,5 +1,6 @@
 var parsed_url = new URL(window.location.href);
-var server_url = "https://" + window.location.hostname
+var server_url  = window.location.protocol + "//"
+                     + window.location.hostname
                      + ":" + window.location.port
                      + "/fetch";
 var shell_path = window.location.pathname;
@@ -50,13 +51,13 @@ function display_queue(msg) {
             * 1000
         );
         if (msg[i].attempts > 1) {
-            tr = "<tr bgcolor=\"#FF9999\">";
+            tr = "<tr bgcolor=\"#622\">";
         }
         else if (msg[i].attempts == 1) {
-            tr = "<tr bgcolor=\"#99FF99\">";
+            tr = "<tr bgcolor=\"#262\">";
         }
         else {
-            tr = "<tr bgcolor=\"#DDDDDD\">";
+            tr = "<tr bgcolor=\"#444\">";
         }
         var payload = msg[i].message_payload || "";
         var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
@@ -93,13 +94,13 @@ function display_queues(msg) {
                      + msg[i].name + "\">"
                      + msg[i].name + "</a>";
         if (msg[i].size > 1000) {
-            tr = "<tr bgcolor=\"#FF9999\">";
+            tr = "<tr bgcolor=\"#622\">";
         }
         else if (msg[i].size > 0) {
-            tr = "<tr bgcolor=\"#99FF99\">";
+            tr = "<tr bgcolor=\"#262\">";
         }
         else {
-            tr = "<tr bgcolor=\"#DDDDDD\">";
+            tr = "<tr bgcolor=\"#444\">";
         }
         var row = tr + "<td>" + key_href    + "</td>"
                      + "<td>" + msg[i].size + "</td></tr>";

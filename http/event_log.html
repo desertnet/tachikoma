@@ -3,20 +3,61 @@
 <head>
   <title>event log</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/css/uikit.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/uikit@3.16.13/dist/js/uikit-icons.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
+  <script type="text/javascript">
+    var num_partitions = 8;
+  </script>
   <script type="text/javascript" src="event_log.js"></script>
   <style>
+    .uk-dark {
+      background-color: #000;
+      color: #CCC;
+      border: 0;
+    }
+    .uk-dark a {
+      color: #AAF;
+    }
+    .uk-dark .uk-heading {
+      color: #DDD;
+    }
+    .uk-dark .uk-input {
+      background-color: #222;
+      color: #FFF;
+      border: 1px solid #444;
+    }
+    .uk-dark .task-error {
+      background-color: #622;
+      color: #DDD;
+    }
+    .uk-dark .task-output {
+      background-color: #262;
+      color: #DDD;
+    }
+    .uk-dark .task-begin-complete {
+      background-color: #444;
+      color: #DDD;
+    }
+    html {
+      min-height: 100%;
+      min-width: 100%;
+      display: flex;
+    }
+    body {
+      flex-grow: 1;
+    }
     div.a {
       font-family: "Lucida Console", Monaco, monospace;
       font-size: 80%;
     }
   </style>
 </head>
-<body onload="start_timer()">
+<body class="uk-dark" onload="start_timer()">
   [<em>log</em>]
   [<a href="event_query.html">search</a>]
+  [<a href="queue.html">status</a>]
   - [<a href="javascript:toggle_event_output();" id="toggle">hide output</a>]
   <div class="a" id="output">
     <table>

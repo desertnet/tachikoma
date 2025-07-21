@@ -1,7 +1,8 @@
 var parsed_url  = new URL(window.location.href);
 var topic       = "event_log";
 var field       = "event_log.ID:index";
-var server_url  = "https://" + window.location.hostname
+var server_url  = window.location.protocol + "//"
+                      + window.location.hostname
                       + ":" + window.location.port
                       + "/cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
@@ -93,17 +94,17 @@ function _execute_query() {
                                 * 1000
                             );
                             if (ev.type == "TASK_ERROR") {
-                                tr = "<tr bgcolor=\"#FF9999\">";
+                                tr = '<tr class="task-error">';
                             }
                             else if (ev.type == "TASK_OUTPUT") {
-                                tr = "<tr bgcolor=\"#99FF99\">";
+                                tr = '<tr class="task-output">';
                             }
                             else if (ev.type == "TASK_BEGIN"
                                   || ev.type == "TASK_COMPLETE") {
-                                tr = "<tr bgcolor=\"#DDDDDD\">";
+                                tr = '<tr class="task-begin-complete">';
                             }
                             else {
-                                tr = "<tr>";
+                                tr = '<tr>';
                             }
                             var row = tr + "<td>" + date_string(date) + "</td>"
                                          + "<td>" + queue             + "</td>"

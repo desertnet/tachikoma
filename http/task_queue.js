@@ -1,4 +1,5 @@
-var server_url  = "https://" + window.location.hostname
+var server_url  = window.location.protocol + "//"
+                      + window.location.hostname
                       + ":" + window.location.port
                       + "/fetch/tasks:queue";
 var server_name = window.location.hostname;
@@ -24,16 +25,16 @@ function start_timer() {
                     * 1000
                 );
                 if (msg[i].attempts > 1) {
-                    tr = "<tr bgcolor=\"#FF9999\">";
+                    tr = "<tr bgcolor=\"#622\">";
                 }
                 else if (msg[i].attempts == 1) {
-                    tr = "<tr bgcolor=\"#99FF99\">";
+                    tr = "<tr bgcolor=\"#262\">";
                 }
                 else {
-                    tr = "<tr bgcolor=\"#DDDDDD\">";
+                    tr = "<tr bgcolor=\"#444\">";
                 }
-                var key_href = "<a href=\"https://" + server_name
-                             + ":4242/task_query.html?key="
+                var key_href = "<a href=\"" + window.location.protocol + "//"
+                             + server_name + ":4242/task_query.html?key="
                              + msg[i].message_stream + "\">"
                              + msg[i].message_stream + "</a>";
                 var payload = msg[i].message_payload;

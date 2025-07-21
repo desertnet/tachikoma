@@ -20,7 +20,7 @@ function start_timer() {
     }
     else {
         document.getElementById("toggle").innerHTML = "error";
-        document.getElementById("output").innerHTML = "<pre>no topic</pre>";
+        document.getElementById("output").innerHTML = "<preo topic</pre>";
     }
 }
 
@@ -68,7 +68,7 @@ function update_table(msg) {
 
 function display_table() {
     if (dirty) {
-        document.getElementById("output").innerHTML = "<pre>"
+        document.getElementById("output").innerHTML = '<pre class="uk-dark">'
             + output.join('') + "</pre>";
         dirty = 0;
     }
