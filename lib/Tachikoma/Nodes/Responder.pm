@@ -42,23 +42,33 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
+    my $shell   = $self->{shell};
     $self->{counter}++;
-    if (    $type & TM_COMMAND
-        and ( $type & TM_RESPONSE or $type & TM_ERROR )
-        and $message->[ID] )
+    if (    $message->[ID]
+        and $shell
+        and $shell->{callbacks}->{ $message->[ID] } )
     {
-        my $shell = $self->{shell};
-        return $self->stderr('WARNING: unexpected command response with id')
-            if ( not $shell );
-        my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-        $shell->callback(
-            $message->[ID],
-            {   from    => $message->[FROM],
-                event   => $command->{name},
-                payload => $command->{payload},
-                error   => $type & TM_ERROR
-            }
-        );
+        if ( $type & TM_COMMAND ) {
+            my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
+            $shell->callback(
+                $message->[ID],
+                {   from    => $message->[FROM],
+                    event   => $command->{name},
+                    payload => $command->{payload},
+                    error   => $type & TM_ERROR
+                }
+            );
+        }
+        else {
+            $shell->callback(
+                $message->[ID],
+                {   from    => $message->[FROM],
+                    event   => $message->[STREAM] || 'unknown',
+                    payload => $message->[PAYLOAD],
+                    error   => $type & TM_ERROR
+                }
+            );
+        }
         return;
     }
     elsif ( $type & TM_RESPONSE and $message->[FROM] eq 'Inet_AtoN' ) {
