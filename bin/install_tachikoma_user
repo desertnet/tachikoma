@@ -1,11 +1,11 @@
 #!/bin/sh -e
 config=$1
 keyconfig=$2
-if [ -z "$config" ] ; then
+if [ -z "${config}" ] ; then
     config=default
 fi
-if [ -z "$keyconfig" ] ; then
-    keyconfig=$config
+if [ -z "${keyconfig}" ] ; then
+    keyconfig=${config}
 fi
 if [ ! -d "lib/Tachikoma/Nodes" ] ; then
     echo ERROR: must be run from within tachikoma distribution.
@@ -26,35 +26,37 @@ mkdir -p ${HOME}/.tachikoma/run/
 mkdir -p ${HOME}/.tachikoma/services/
 
 # server config
-if [ -e "etc/tachikoma_conf/$config.conf" ] ; then
-    cp etc/tachikoma_conf/$config.conf ${HOME}/.tachikoma/etc/tachikoma.conf
+if [ -e "etc/tachikoma_conf/${config}.conf" ] ; then
+    cp etc/tachikoma_conf/${config}.conf ${HOME}/.tachikoma/etc/tachikoma.conf
 else
     cp etc/tachikoma_conf/default.conf ${HOME}/.tachikoma/etc/tachikoma.conf
 fi
 
 # private key
-bin/gen_server_key ${HOME}/.tachikoma/etc/id 2048 ignore
+if [ ! -e "${HOME}/.tachikoma/etc/id" ] ; then
+    bin/gen_server_key ${HOME}/.tachikoma/etc/id 2048 ignore
+fi
 
 # HTTP
-if [ -e "etc/CGI_conf/$config.conf" ] ; then
-    cp etc/CGI_conf/$config.conf ${HOME}/.tachikoma/etc/CGI.conf
+if [ -e "etc/CGI_conf/${config}.conf" ] ; then
+    cp etc/CGI_conf/${config}.conf ${HOME}/.tachikoma/etc/CGI.conf
 else
     cp etc/CGI_conf/default.conf ${HOME}/.tachikoma/etc/CGI.conf
 fi
 cp -rfT http/default ${HOME}/.tachikoma/http
 
 # init scripts
-cp etc/scripts/$config/startup.txt ${HOME}/.tachikoma/
-if [ -e "etc/scripts/$config/config.tsl" ] ; then
-    cp etc/scripts/$config/config.tsl ${HOME}/.tachikoma/
+cp etc/scripts/${config}/startup.txt ${HOME}/.tachikoma/
+if [ -e "etc/scripts/${config}/config.tsl" ] ; then
+    cp etc/scripts/${config}/config.tsl ${HOME}/.tachikoma/
 elif [ -e "etc/scripts/default/config.tsl" ] ; then
     cp etc/scripts/default/config.tsl ${HOME}/.tachikoma/
 fi
 cp -rfT etc/services ${HOME}/.tachikoma/services
 
 # authorized keys
-if [ -e "etc/authorized_keys/$keyconfig.keys" ] ; then
-    cp etc/authorized_keys/$keyconfig.keys ${HOME}/.tachikoma/etc/authorized_keys
+if [ -e "etc/authorized_keys/${keyconfig}.keys" ] ; then
+    cp etc/authorized_keys/${keyconfig}.keys ${HOME}/.tachikoma/etc/authorized_keys
 else
     cp etc/authorized_keys/default.keys ${HOME}/.tachikoma/etc/authorized_keys
 fi

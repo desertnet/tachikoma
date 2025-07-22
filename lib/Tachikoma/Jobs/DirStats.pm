@@ -10,7 +10,7 @@ use warnings;
 use Tachikoma::Job;
 use Tachikoma::Message qw(
     TYPE TO STREAM PAYLOAD
-    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_EOF
+    TM_BYTESTREAM TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Digest::MD5;
 use Time::HiRes;
@@ -36,6 +36,8 @@ my %SVN_INCLUDE = map { $_ => 1 } qw(
     wc.db
 );
 
+my $SHUTTING_DOWN = undef;
+
 sub initialize_graph {
     my $self = shift;
     my ( $prefix, $target_settings, $max_files, $pedantic ) =
@@ -59,6 +61,8 @@ sub initialize_graph {
 sub fill {
     my $self    = shift;
     my $message = shift;
+    return $self->shutdown_all_nodes
+        if ( $message->type & TM_KILLME );
     return if ( not $message->type & TM_BYTESTREAM );
     my ( $path, $withsums ) = split q( ), $message->payload, 3;
     chomp $path;
@@ -72,7 +76,15 @@ sub fill {
     else {
         $self->stderr( "ERROR: bad path: $path from ", $message->from );
     }
-    return $self->cancel($message);
+    $self->cancel($message);
+    if ( not $SHUTTING_DOWN ) {
+        my $message = Tachikoma::Message->new;
+        $message->type(TM_KILLME);
+        $message->to('_parent');
+        $self->SUPER::fill($message);
+        $SHUTTING_DOWN = 1;
+    }
+    return;
 }
 
 sub send_stats {
