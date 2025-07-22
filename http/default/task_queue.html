@@ -1,9 +1,13 @@
 <!doctype html>
 <html>
+
 <head>
   <title>task queue</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
@@ -33,12 +37,15 @@
     body {
       flex-grow: 1;
     }
-    div.a {
-      font-family: "Lucida Console", Monaco, monospace;
-      font-size: 80%;
+    * {
+      font-family: "JetBrains Mono", monospace; font-optical-sizing: auto;
+    }
+    @view-transition {
+      navigation: auto;
     }
   </style>
 </head>
+
 <body class="uk-dark" onload="start_timer()">
   [<a href="http://localhost:4242/task_log.html">log</a>]
   [<a href="http://localhost:4242/task_query.html">search</a>]

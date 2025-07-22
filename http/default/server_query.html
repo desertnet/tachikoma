@@ -1,14 +1,13 @@
 <!doctype html>
 <html>
+
 <head>
   <title>access logs</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!--
-    <link rel="stylesheet" href="css/uikit.min.css" />
-    <script src="js/uikit.min.js"></script>
-    <script src="js/uikit-icons.min.js"></script>
-    <script src="js/chart.js"></script> -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
@@ -59,11 +58,15 @@
     #log {
       margin-top: 100px;
     }
-    #log div {
-      font-family: 'Courier New', Courier, monospace;
+    * {
+      font-family: "JetBrains Mono", monospace; font-optical-sizing: auto;
+    }
+    @view-transition {
+      navigation: auto;
     }
   </style>
 </head>
+
 <body class="uk-dark" onload="render_form()">
   <div id="query_form"></div>
   <div id="output"></div>
