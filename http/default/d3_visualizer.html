@@ -6,12 +6,12 @@
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <style>
         body {
-            background-color: #2b2b2b;
-            color: #a9b7c6;
+            background-color: #111;
+            color: #faf;
         }
 
         circle {
-            fill: #6897bb;
+            fill: #afa;
         }
 
         .links line {
@@ -131,7 +131,7 @@
                         link = link.enter().append("path")
                             .attr("fill", "none")
                             .attr("stroke", function (d) {
-                                return d.edge ? "red" : d.owner ? "blue" : "#999";
+                                return d.edge ? "#f88" : d.owner ? "#88f" : "#8f8";
                             })
                             .merge(link);
 
@@ -140,9 +140,9 @@
                         let nodeEnter = node.enter().append("circle")
                             .attr("r", function (d) { return sizeScale(1 + d.messageRate); })
                             .style("fill", function (d) {
-                                if (d.edge) return "blue"; // nodes that have edges
-                                else if (d.owner) return "green"; // nodes that have owners
-                                else return "red"; // nodes that have sinks
+                                if (d.edge) return "#f88"; // nodes that have edges
+                                else if (d.owner) return "#88f"; // nodes that have owners
+                                else return "#8f8"; // nodes that have sinks
                             })
                             .call(d3.drag()
                                 .on("start", dragstarted)
