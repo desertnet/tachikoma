@@ -131,7 +131,7 @@
                         link = link.enter().append("path")
                             .attr("fill", "none")
                             .attr("stroke", function (d) {
-                                return d.edge ? "#f88" : d.owner ? "#88f" : "#8f8";
+                                return d.edge ? "#e55" : d.owner ? "#77d" : "#8c8";
                             })
                             .merge(link);
 
@@ -140,9 +140,9 @@
                         let nodeEnter = node.enter().append("circle")
                             .attr("r", function (d) { return sizeScale(1 + d.messageRate); })
                             .style("fill", function (d) {
-                                if (d.edge) return "#f88"; // nodes that have edges
-                                else if (d.owner) return "#88f"; // nodes that have owners
-                                else return "#8f8"; // nodes that have sinks
+                                if (d.edge) return "#f55"; // nodes that have edges
+                                else if (d.owner) return "#77f"; // nodes that have owners
+                                else return "#6e6"; // nodes that have sinks
                             })
                             .call(d3.drag()
                                 .on("start", dragstarted)
