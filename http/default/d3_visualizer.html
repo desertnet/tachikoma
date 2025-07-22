@@ -3,7 +3,7 @@
 
 <head>
     <title>D3 Visualizer</title>
-    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
             background-color: #111;
@@ -205,8 +205,8 @@
 
         }
 
-        function zoomed() {
-            g.attr("transform", d3.event.transform);
+        function zoomed(event) {
+            g.attr("transform", event.transform);
         }
 
         function dragstarted(d) {
