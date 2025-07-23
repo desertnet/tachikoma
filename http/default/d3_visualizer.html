@@ -45,7 +45,7 @@
 
     let simulation = d3.forceSimulation()
         .force("link", d3.forceLink().id(function (d) { return d.id; }))
-        .force("charge", d3.forceManyBody().strength(-100))
+        .force("charge", d3.forceManyBody().strength(-1))
         .force("center", d3.forceCenter(width / 2, height / 2))
         .velocityDecay(0.8);
 
@@ -114,7 +114,8 @@
         };
     }
 
-    let sizeScale = d3.scaleLog().range([5, 15]);
+    let sizeScale     = d3.scaleLog().range([5, 10]);
+    let strengthScale = d3.scaleLog().range([50, 100]);
 
     function updateGraph() {
         let params = new URLSearchParams(window.location.search);
@@ -168,8 +169,11 @@
                             d.messageRate = transformedData.nodes[i].messageRate;
                         })
                         .attr("r", function (d) { return sizeScale(1 + d.messageRate); });
-                    // Update charge strength based on new messageRate sizeScale to prevent nodes from overlapping
-                    simulation.force("charge", d3.forceManyBody().strength(function (d) { return -50 * sizeScale(1 + d.messageRate); }));
+                    // Update charge strength based on new messageRate strengthScale to prevent nodes from overlapping
+                    simulation.force("charge",
+                        d3.forceManyBody()
+                            .strength(function (d) { return -1.0 * strengthScale(1 + d.messageRate); })
+                    );
                     simulation.alphaTarget(0.3).restart();
                 }
 
@@ -208,19 +212,19 @@
         g.attr("transform", event.transform);
     }
 
-    function dragstarted(d) {
-        if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
     }
 
-    function dragged(d) {
-        d.fx = d3.event.x;
-        d.fy = d3.event.y;
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
     }
 
-    function dragended(d) {
-        if (!d3.event.active) simulation.alphaTarget(0);
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
     }
