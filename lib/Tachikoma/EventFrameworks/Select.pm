@@ -77,7 +77,7 @@ sub drain {
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for ( @{$reads_ready}, @{$errors} ) {
-            my $fd = fileno($_);
+            my $fd = fileno $_;
             if ( not defined $fd ) {
                 $reads->remove($_);
                 next;
@@ -90,7 +90,7 @@ sub drain {
             &{ $node->{drain_fh} }($node);
         }
         for ( @{$writes_ready} ) {
-            my $fd = fileno($_);
+            my $fd = fileno $_;
             if ( not defined $fd ) {
                 $writes->remove($_);
                 next;

@@ -298,7 +298,8 @@ sub write_pid {
     open $PID_FH, '>', $file or die "ERROR: couldn't open pid file $file: $!";
     flock $PID_FH, LOCK_EX | LOCK_NB
         or die "ERROR: couldn't lock pid file $file: $!";
-    syswrite $PID_FH, "$MY_PID\n";
+    syswrite $PID_FH, "$MY_PID\n"
+        or die "ERROR: couldn't write pid file $file: $!";
     return;
 }
 

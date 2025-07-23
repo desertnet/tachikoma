@@ -948,8 +948,10 @@ $C{list_connections} = sub {
     my $envelope = shift;
     my $glob     = $command->arguments;
     my $response = [
-        [   [ 'NAME'    => 'right' ],
+        [   [ 'TYPE'    => 'right' ],
+            [ 'NAME'    => 'right' ],
             [ 'ADDRESS' => 'right' ],
+            [ 'PARENT'  => 'right' ],
             [ 'SCORE'   => 'right' ],
         ]
     ];
@@ -957,6 +959,7 @@ $C{list_connections} = sub {
         next if ( length $glob and $name !~ m{$glob} );
         my $node = $Tachikoma::Nodes{$name};
         next if ( not $node->isa('Tachikoma::Nodes::Socket') );
+        my $type    = $node->{type};
         my $address = '...';
         if ( $node->{port} ) {
             $address =
@@ -974,7 +977,8 @@ $C{list_connections} = sub {
             $node->{latency_score}
             ? sprintf '%.4f', $node->{latency_score}
             : q(-);
-        push @{$response}, [ $name, $address, $score ];
+        my $parent = $node->{parent} // q();
+        push @{$response}, [ $type, $name, $address, $parent, $score ];
     }
     return $self->response( $envelope, $self->tabulate($response) );
 };

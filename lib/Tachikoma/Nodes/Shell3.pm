@@ -36,13 +36,61 @@ use version; our $VERSION = qv('v2.0.280');
 
 # special characters that need to be escaped: [(){}[]<>&|;"'`]
 
+my %H = ();
+
 my %PROMPTS = (
     string1 => q("> ),
     string2 => q('> ),
     string3 => q(`> ),
     newline => q(> ),
 );
-my %H        = ();
+my %NEEDS_INPUT = (
+    string1 => 1,
+    string2 => 1,
+    string3 => 1,
+    newline => 1,
+);
+my %OPERATORS = (
+    and        => 1,
+    or         => 1,
+    logical    => 1,
+    op         => 1,
+    arithmetic => 1,
+);
+my $SYMBOLIC_OPS = qr{[.][.]|!~|=~|!=?|<=?|>=?|==|&&|[|][|]};
+my $NAMED_OPS    = qr{eq\b|ne\b|lt\b|gt\b|le\b|ge\b};
+my %EXPRESSIONS  = (
+    parenthesized_expr => 1,
+    binary_expression  => 1,
+    unary_expression   => 1,
+);
+my %SAFE_TYPES = (
+    ident      => 1,
+    number     => 1,
+    string1    => 1,
+    string2    => 1,
+    string3    => 1,
+    string4    => 1,
+    whitespace => 1,
+    variable   => 1,
+);
+my %UNSAFE_TYPES = (
+    and        => 1,
+    or         => 1,
+    not        => 1,
+    logical    => 1,
+    op         => 1,
+    arithmetic => 1,
+);
+my %END_OF_COMMAND = (
+    command => 1,
+    pipe    => 1,
+    eos     => 1,
+);
+my %END_OF_ASSIGNMENT = (
+    command => 1,
+    eos     => 1,
+);
 my %BUILTINS = ();
 my @LOCAL    = ( {} );
 my %SHARED   = ();
@@ -101,7 +149,7 @@ sub fill {
     return;
 }
 
-sub process_command {
+sub process_command {    ## no critic (ProhibitExcessComplexity)
     my $self    = shift;
     my $message = shift;
 
@@ -131,7 +179,7 @@ sub process_command {
     # Check for unclosed quotes that need more input
     my $last_token = $tokens->[-2];    # -1 is always EOS
     if (   $last_token
-        && $last_token->{type} =~ /^(string1|string2|string3|newline)$/
+        && $NEEDS_INPUT{ $last_token->{type} }
         && !$last_token->{value} )
     {
         $self->parse_buffer($input);
@@ -166,7 +214,7 @@ sub process_command {
 
         # Handle errors as before
         my $error = $@ || 'unknown error';
-        $error =~ s{ at /\S+ line \d+\.}{.};
+        $error =~ s{ at /\S+ line \d+[.]}{.};
         chomp $error;
         $self->stderr("$error\n");
         $self->{errors}++;
@@ -182,7 +230,7 @@ sub process_command {
 
     if ( not $okay ) {
         my $error = $@ || 'unknown error';
-        $error =~ s{ at /\S+ line \d+\.}{.};
+        $error =~ s{ at /\S+ line \d+[.]}{.};
         chomp $error;
         $self->stderr("$error\n");
         $self->{errors}++;
@@ -222,14 +270,14 @@ sub process_bytestream {
     return;
 }
 
-sub tokenize {
+sub tokenize {    ## no critic (ProhibitExcessComplexity)
     my $self     = shift;
     my $input    = shift;
     my @tokens   = ();
     my $in_quote = undef;
-    my $a        = qr/[\+\-]/o;
-    my $m        = qr/[\*\/]/o;
-    my $x        = qr/[\w.,:\*\/\@\$\%\^\&\?]+/o;
+    my $a        = qr{[+-]}o;
+    my $m        = qr{[*/]}o;
+    my $x        = qr{[\w.,:*/\@\$\%^&?]+}o;
 
     while ( length $input ) {
 
@@ -258,19 +306,20 @@ sub tokenize {
         }
 
         # Handle numbers
-        if ( $input =~ s/^(-?\d+(?:\.\d*)?|\.\d+)// ) {
+        if ( $input =~ s/^(-?\d+(?:[.]\d*)?|[.]\d+)// ) {
             push @tokens, { type => 'number', value => $1 };
             next;
         }
 
         # Handle variables
-        if ( $input =~ s/^<([a-zA-Z0-9_.:@-]*)>// ) {
+        if ( $input =~ s/^<([\w.:\@-]*)>// ) {
             push @tokens, { type => 'variable', value => $1 };
             next;
         }
 
         # Handle assignment operators
-        if ( $input =~ s/^(\.=|\+\+|--|\|\|=|\/\/=|\+=|-=|\*=|\/=)// ) {
+        if ( $input =~ s/^([.]=|[+][+]|--|[|][|]=|\/\/=|[+]=|-=|[*]=|\/=)// )
+        {
             push @tokens, { type => 'op', value => $1 };
             next;
         }
@@ -284,23 +333,24 @@ sub tokenize {
             if (    $tokens[-1]
                 and $tokens[-1]->{type} eq 'whitespace' )
             {
-                $input =~ s/^($m)//;
-                push @tokens, { type => 'arithmetic', value => $1 };
+                if ( $input =~ s/^($m)// ) {
+                    push @tokens, { type => 'arithmetic', value => $1 };
+                }
+                else {
+                    die 'unexpected error';
+                }
                 next;
             }
         }
 
         # Handle logical operators
-        if ( $input
-            =~ s/^(\.\.|!~|=~|!=?|<=?|>=?|==|&&|\|\||eq\b|ne\b|lt\b|gt\b|le\b|ge\b)//
-            )
-        {
+        if ( $input =~ s/^($SYMBOLIC_OPS|$NAMED_OPS)// ) {
             my $op = $1;
             my $type =
-                  ( $op eq '&&' ) ? 'and'
-                : ( $op eq '||' ) ? 'or'
-                : ( $op eq '!' )  ? 'not'
-                :                   'logical';
+                  ( $op eq q(&&) ) ? 'and'
+                : ( $op eq q(||) ) ? 'or'
+                : ( $op eq q(!) )  ? 'not'
+                :                    'logical';
             push @tokens, { type => $type, value => $op };
             next;
         }
@@ -314,13 +364,13 @@ sub tokenize {
         # Handle command separators and pipes
         if ( $input =~ s/^([;|])// ) {
             my $sep  = $1;
-            my $type = ( $sep eq '|' ) ? 'pipe' : 'command';
+            my $type = ( $sep eq q(|) ) ? 'pipe' : 'command';
             push @tokens, { type => $type, value => $sep };
             next;
         }
 
         # Handle parentheses, braces, brackets
-        if ( $input =~ s/^([\(\)\{\}\[\]])// ) {
+        if ( $input =~ s/^([(){}\[\]])// ) {
             my $bracket = $1;
             my $type =
                   ( $bracket eq '(' ) ? 'open_paren'
@@ -338,8 +388,8 @@ sub tokenize {
             $in_quote = $1;
             push @tokens,
                 {
-                  type => $in_quote eq '"' ? 'string1'
-                : $in_quote eq "'" ? 'string2'
+                  type => $in_quote eq q(") ? 'string1'
+                : $in_quote eq q(') ? 'string2'
                 : 'string3',
                 value => q()
                 };
@@ -490,7 +540,7 @@ sub parse_simple_command {
         # If second token is an assignment operator, the name is a variable
         if ($self->current_token->{type} eq 'op'
             and
-            ( not $ate_whitespace or $self->current_token->{value} ne '--' )
+            ( not $ate_whitespace or $self->current_token->{value} ne q(--) )
             )
         {
             return $self->parse_assignment($name_token);
@@ -498,17 +548,13 @@ sub parse_simple_command {
     }
 
     # Parse arguments until end of command
-    while ( $self->current_token->{type} !~ /^(command|pipe|eos)$/ ) {
+    while ( not $END_OF_COMMAND{ $self->current_token->{type} } ) {
         my $arg = undef;
 
-        if ( $self->current_token->{type}
-            =~ /^(ident|number|string\d|whitespace|variable)$/ )
-        {
+        if ( $SAFE_TYPES{ $self->current_token->{type} } ) {
             $arg = $self->consume;
         }
-        elsif ( $self->current_token->{type}
-            =~ /^(and|or|not|logical|op|arithmetic)$/ )
-        {
+        elsif ( $UNSAFE_TYPES{ $self->current_token->{type} } ) {
             $arg = $self->consume;
             $arg->{type} = 'ident';
         }
@@ -570,15 +616,16 @@ sub parse_local_assignment {
             $self->consume('whitespace')
                 while ( $self->current_token->{type} eq 'whitespace' );
             $expr =
-                (       $op->{value} ne '++'
-                    and $op->{value} ne '--'
-                    and $self->current_token->{type} !~ /^(command|eos)$/ )
+                (       $op->{value} ne q(++)
+                    and $op->{value} ne q(--)
+                    and
+                    not $END_OF_ASSIGNMENT{ $self->current_token->{type} } )
                 ? $self->parse_expression_list
                 : undef;
         }
     }
-    if ( $self->current_token->{type} !~ /^(command|eos|close_\w+)$/ ) {
-        $self->fatal_parse_error( "Unexpected token in assignment: "
+    if ( $self->current_token->{type} !~ /^command|eos|close_\w+$/ ) {
+        $self->fatal_parse_error( 'Unexpected token in assignment: '
                 . $self->current_token->{type} );
     }
     return {
@@ -596,9 +643,9 @@ sub parse_assignment {
     $self->consume('whitespace')
         while ( $self->current_token->{type} eq 'whitespace' );
     my $expr =
-        (       $op->{value} ne '++'
-            and $op->{value} ne '--'
-            and $self->current_token->{type} !~ /^(command|pipe|eos)$/ )
+        (       $op->{value} ne q(++)
+            and $op->{value} ne q(--)
+            and not $END_OF_ASSIGNMENT{ $self->current_token->{type} } )
         ? $self->parse_expression_list
         : undef;
     return {
@@ -682,29 +729,29 @@ sub parse_bracket {
 
 # Define operator precedence
 my %PRECEDENCE = (
-    '=~' => 9,
-    '!~' => 9,
-    '*'  => 8,
-    '/'  => 8,
-    '%'  => 8,
-    '+'  => 7,
-    '-'  => 7,
-    '<'  => 6,
-    '>'  => 6,
-    '<=' => 6,
-    '>=' => 6,
-    'lt' => 6,
-    'gt' => 6,
-    'le' => 6,
-    'ge' => 6,
-    '==' => 5,
-    '!=' => 5,
-    'eq' => 5,
-    'ne' => 5,
-    '..' => 4,
-    '!'  => 3,
-    '&&' => 2,
-    '||' => 1,
+    q(=~) => 9,
+    q(!~) => 9,
+    q(*)  => 8,
+    q(/)  => 8,
+    q(%)  => 8,
+    q(+)  => 7,
+    q(-)  => 7,
+    q(<)  => 6,
+    q(>)  => 6,
+    q(<=) => 6,
+    q(>=) => 6,
+    q(lt) => 6,
+    q(gt) => 6,
+    q(le) => 6,
+    q(ge) => 6,
+    q(==) => 5,
+    q(!=) => 5,
+    q(eq) => 5,
+    q(ne) => 5,
+    q(..) => 4,
+    q(!)  => 3,
+    q(&&) => 2,
+    q(||) => 1,
 );
 
 sub parse_expression {
@@ -720,7 +767,7 @@ sub parse_expression {
     $whitespace = $self->consume('whitespace')
         while ( $self->current_token->{type} eq 'whitespace' );
 
-    while ($self->current_token->{type} =~ /^(and|or|logical|op|arithmetic)$/
+    while ($OPERATORS{ $self->current_token->{type} }
         && exists $PRECEDENCE{ $self->current_token->{value} }
         && $PRECEDENCE{ $self->current_token->{value} } >= $min_precedence )
     {
@@ -761,7 +808,7 @@ sub parse_primary_expression {
     }
 
     # Handle negative operator
-    if ( $token->{type} eq 'arithmetic' and $token->{value} eq '-' ) {
+    if ( $token->{type} eq 'arithmetic' and $token->{value} eq q(-) ) {
         my $op   = $self->consume('arithmetic');
         my $expr = $self->parse_expression;
         return {
@@ -811,8 +858,8 @@ sub parse_primary_expression {
         die "WANT_MORE_INPUT\n";
     }
 
-    $self->fatal_parse_error(
-        "Unexpected token in expression: " . $token->{type} );
+    return $self->fatal_parse_error(
+        'Unexpected token in expression: ' . $token->{type} );
 }
 
 sub parse_parenthesized_expr {
@@ -847,7 +894,7 @@ sub parse_expression_list {
 
     # Parse the expression
     my $expr = [];
-    while ( $self->current_token->{type} !~ /^(command|eos|close_\w+)$/ ) {
+    while ( $self->current_token->{type} !~ /^command|eos|close_\w+$/ ) {
         push @{$expr}, $self->parse_expression;
     }
 
@@ -857,11 +904,11 @@ sub parse_expression_list {
     };
 }
 
-sub execute_ast_node {
+sub execute_ast_node {    ## no critic (ProhibitExcessComplexity)
     my $self = shift;
     my $node = shift;
     if ( not $node or ref $node ne 'HASH' ) {
-        confess "ERROR: Invalid AST node: ", Dumper($node);
+        confess 'ERROR: Invalid AST node: ', Dumper($node);
     }
 
     if ( $node->{type} eq 'command_list' ) {
@@ -997,7 +1044,7 @@ sub execute_ast_node {
     return [];
 }
 
-sub execute_expression {
+sub execute_expression {    ## no critic (ProhibitExcessComplexity)
     my $self = shift;
     my $expr = shift || return [];
 
@@ -1020,53 +1067,53 @@ sub execute_expression {
         my $op = $expr->{operator};
         my $result;
 
-        if ( $op eq '||' ) {
+        if ( $op eq q(||) ) {
             $result = [ $left_scalar || $right_scalar ];
         }
-        elsif ( $op eq '&&' ) {
+        elsif ( $op eq q(&&) ) {
             $result = [ $left_scalar && $right_scalar ];
         }
-        elsif ( $op eq '+' ) {
+        elsif ( $op eq q(+) ) {
             $result = [ $left_scalar + $right_scalar ];
         }
-        elsif ( $op eq '-' ) {
+        elsif ( $op eq q(-) ) {
             $result = [ $left_scalar - $right_scalar ];
         }
-        elsif ( $op eq '*' ) {
+        elsif ( $op eq q(*) ) {
             $result = [ $left_scalar * $right_scalar ];
         }
-        elsif ( $op eq '/' ) {
+        elsif ( $op eq q(/) ) {
             $result = [ $left_scalar / $right_scalar ];
         }
-        elsif ( $op eq '==' ) {
+        elsif ( $op eq q(==) ) {
             $result = [ $left_scalar == $right_scalar ];
         }
-        elsif ( $op eq '!=' ) {
+        elsif ( $op eq q(!=) ) {
             $result = [ $left_scalar != $right_scalar ];
         }
-        elsif ( $op eq '<' ) {
+        elsif ( $op eq q(<) ) {
             $result = [ $left_scalar < $right_scalar ];
         }
-        elsif ( $op eq '>' ) {
+        elsif ( $op eq q(>) ) {
             $result = [ $left_scalar > $right_scalar ];
         }
-        elsif ( $op eq '<=' ) {
+        elsif ( $op eq q(<=) ) {
             $result = [ $left_scalar <= $right_scalar ];
         }
-        elsif ( $op eq '>=' ) {
+        elsif ( $op eq q(>=) ) {
             $result = [ $left_scalar >= $right_scalar ];
         }
-        elsif ( $op eq '..' ) {
-            $result = [ map { $_, q( ) } $left_scalar .. $right_scalar ];
+        elsif ( $op eq q(..) ) {
+            $result = [ map { $_ => q( ) } $left_scalar .. $right_scalar ];
             pop @{$result};
         }
-        elsif ( $op eq '=~' ) {
+        elsif ( $op eq q(=~) ) {
             $result = [ $left_scalar =~ /$right_scalar/ ];
             for my $i ( 0 .. $#{$result} ) {
-                $LOCAL[0]->{ '_' . ( $i + 1 ) } = [ $result->[$i] ];
+                $LOCAL[0]->{ q(_) . ( $i + 1 ) } = [ $result->[$i] ];
             }
         }
-        elsif ( $op eq '!~' ) {
+        elsif ( $op eq q(!~) ) {
             $result = [ $left_scalar !~ $right_scalar ];
         }
         elsif ( $op eq 'lt' ) {
@@ -1103,10 +1150,10 @@ sub execute_expression {
             : $value;
 
         # Evaluate based on the operator
-        if ( $op eq '!' ) {
+        if ( $op eq q(!) ) {
             return [ !$scalar_value ];
         }
-        elsif ( $op eq '-' ) {
+        elsif ( $op eq q(-) ) {
             return [ -$scalar_value ];
         }
         else {
@@ -1148,7 +1195,7 @@ sub execute_expression {
             $value =~ s/\\t/\t/g;
             $value =~ s/\\(`)/`/g;
             $value =~ s/\\\\/\\/g;
-            $value = `$value`;
+            $value = `$value`;    ## no critic (ProhibitBacktickOperators)
             return [ split /(\s+)/, $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
@@ -1162,10 +1209,10 @@ sub execute_expression {
         my $value = $self->get_shared( $expr->{value} ) // q();
         return ref $value ? $value : [$value];
     }
-    $self->fatal_parse_error("Unknown expression type: $expr->{type}");
+    return $self->fatal_parse_error("Unknown expression type: $expr->{type}");
 }
 
-sub expand_expression {
+sub expand_expression {    ## no critic (ProhibitExcessComplexity)
     my $self = shift;
     my $expr = shift || return [];
 
@@ -1200,10 +1247,10 @@ sub expand_expression {
             : $value;
 
         # Evaluate based on the operator
-        if ( $op eq '!' ) {
+        if ( $op eq q(!) ) {
             return [ q(!), $scalar_value ];
         }
-        elsif ( $op eq '-' ) {
+        elsif ( $op eq q(-) ) {
             return [ q(-), $scalar_value ];
         }
         else {
@@ -1245,7 +1292,7 @@ sub expand_expression {
             $value =~ s/\\t/\t/g;
             $value =~ s/\\(`)/`/g;
             $value =~ s/\\\\/\\/g;
-            $value = `$value`;
+            $value = `$value`;    ## no critic (ProhibitBacktickOperators)
             return [ split /(\s+)/, $value ];
         }
         elsif ( $expr->{type} eq 'string4' ) {
@@ -1259,7 +1306,7 @@ sub expand_expression {
         my $value = $self->get_shared( $expr->{value} ) // q();
         return ref $value ? $value : [$value];
     }
-    $self->fatal_parse_error("Unknown expression type: $expr->{type}");
+    return $self->fatal_parse_error("Unknown expression type: $expr->{type}");
 }
 
 sub fatal_parse_error {
@@ -1399,7 +1446,7 @@ $BUILTINS{'catn'} = sub {
     my $i      = 1;
 
     for my $line ( split m{^}, $lines ) {
-        $output .= sprintf "%5d %s", $i++, $line;
+        $output .= sprintf '%5d %s', $i++, $line;
     }
 
     # Return string
@@ -1533,7 +1580,7 @@ $BUILTINS{'randarg'} = sub {
 
     # Select random argument
     my $count = scalar @arg_values;
-    my $index = int rand($count);
+    my $index = int rand $count;
 
     return [ $arg_values[$index] ];
 };
@@ -1733,7 +1780,8 @@ $BUILTINS{'if'} = sub {
     elsif (@elsif_tests) {
 
         # Check all elsif blocks in order
-        for ( my $i = 0; $i < @elsif_tests; $i++ ) {
+        for ( my $i = 0; $i < @elsif_tests; $i++ )
+        {    ## no critic (ProhibitCStyleForLoops)
             my $elsif_result = $self->execute_expression( $elsif_tests[$i] );
             my $elsif_value  = join q(), @{$elsif_result};
             $elsif_value =~ s{^\s*|\s*$}{}g;    # Trim whitespace
@@ -1881,11 +1929,12 @@ $BUILTINS{'include'} = sub {
 
     # Process any variable assignments (var=value pairs)
     if ( @{$args} > 1 ) {
-        for ( my $i = 1; $i < @{$args}; $i++ ) {
+        for ( my $i = 1; $i < @{$args}; $i++ )
+        {    ## no critic (ProhibitCStyleForLoops)
             my $arg      = $args->[$i];
             my $arg_text = join q(), @{ $self->execute_expression($arg) };
 
-            if ( $arg_text =~ m{^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)$} ) {
+            if ( $arg_text =~ m{^([[[:alpha:]]_]\w*)=(.*)$} ) {
                 my ( $key, $value ) = ( $1, $2 );
                 $new_local{$key} = $value;
             }
@@ -2536,7 +2585,7 @@ $BUILTINS{'exit'} = sub {
     exit $value;
 };
 
-sub send_command {
+sub send_command {    ## no critic (ProhibitExcessComplexity)
     my $self = shift;
     my $node = shift or return [];
     my $cwd  = $self->{cwd};         # set by command_node
@@ -2589,9 +2638,8 @@ sub send_command {
         # Execute blocks directly
         $rv = $self->execute_ast_node($node);
     }
-    elsif ( $node->{type}
-        =~ /^(parenthesized_expr|binary_expression|unary_expression)$/ )
-    {
+    elsif ( $EXPRESSIONS{ $node->{type} } ) {
+
         # Execute expressions
         $rv = $self->execute_expression($node);
     }
@@ -2859,7 +2907,7 @@ sub _call_function_ast {
         $arguments{ $j++ } = $arg_val
             if ( $args->[$i]->{type} ne 'whitespace' );
     }
-    $arguments{'@'}  = \@values;
+    $arguments{q(@)} = \@values;
     $arguments{'_C'} = $j - 1;
 
     # Call the function with the new argument structure
@@ -2932,7 +2980,7 @@ sub _send_command {
     return [ $self->sink->fill($message) // q() ];
 }
 
-sub callback {
+sub callback {    ## no critic (ProhibitExcessComplexity)
     my $self      = shift;
     my $id        = shift;
     my $options   = shift;
@@ -3222,7 +3270,7 @@ sub msg_counter {
     return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
 }
 
-sub set_local {
+sub set_local {    ## no critic (RequireArgUnpacking)
     my $self = shift;
     unshift @LOCAL, @_;
     return;

@@ -35,8 +35,13 @@ sub fill {
 sub gather_node_information {
     my $self = shift;
     my @nodes;
+    my $ignore = $self->{arguments};
     for my $name ( sort keys %Tachikoma::Nodes ) {
         my $node = $Tachikoma::Nodes{$name};
+        next
+            if ($ignore
+            and $node->{parent}
+            and $node->{parent} =~ m{$ignore} );
         push @nodes,
             {
             name    => $name,

@@ -78,10 +78,10 @@ sub fill {
     }
     $self->cancel($message);
     if ( not $SHUTTING_DOWN ) {
-        my $message = Tachikoma::Message->new;
-        $message->type(TM_KILLME);
-        $message->to('_parent');
-        $self->SUPER::fill($message);
+        my $request = Tachikoma::Message->new;
+        $request->type(TM_KILLME);
+        $request->to('_parent');
+        $self->SUPER::fill($request);
         $SHUTTING_DOWN = 1;
     }
     return;
