@@ -21,6 +21,27 @@
       stroke: #fff;
       stroke-width: 1.5px;
     }
+    body {
+      margin: 0;
+      padding: 8px;
+      box-sizing: border-box;
+      max-width: 100vw;
+      max-height: 100dvh;
+      overflow-x: hidden;
+      transform: translateZ(0);
+      will-change: transform;
+    }
+    svg {
+      max-width: 100%;
+      display: block;
+      height: auto;
+    }
+    @view-transition {
+      navigation: auto;
+    }
+    svg > g {
+      filter: drop-shadow(0px 1px 10px #4ee);
+    }
   </style>
 </head>
 
@@ -36,6 +57,8 @@
     let zoom = d3.zoom()
         .scaleExtent([0.1, 10])
         .on("zoom", zoomed);
+    let decayFactor = 0.2;
+    let alphaFactor = 0.5;
 
     svg.call(zoom);
 
@@ -47,7 +70,7 @@
         .force("link", d3.forceLink().id(function (d) { return d.id; }))
         .force("charge", d3.forceManyBody().strength(-1))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .velocityDecay(0.8);
+        .velocityDecay(decayFactor);
 
     let previousData = null;
     let previousTransformedData = null;
@@ -115,7 +138,7 @@
     }
 
     let sizeScale     = d3.scaleLog().range([5, 10]);
-    let strengthScale = d3.scaleLog().range([50, 100]);
+    let strengthScale = d3.scaleLog().range([100, 200]);
 
     function updateGraph() {
         let params = new URLSearchParams(window.location.search);
@@ -126,6 +149,8 @@
 
                 // if the node count is unchanged, only update the message rate
                 if (previousNodeCount !== transformedData.nodes.length) {
+                    decayFactor = 0.2; // reset decay when node count changes
+                    alphaFactor = 0.5; // reset alpha when node count changes
                     link = link.data(transformedData.links, function (d) { return d.source.id + "-" + d.target.id; });
                     link.exit().remove();
                     link = link.enter().append("path")
@@ -169,12 +194,20 @@
                             d.messageRate = transformedData.nodes[i].messageRate;
                         })
                         .attr("r", function (d) { return sizeScale(1 + d.messageRate); });
+                    // Gradually slow the velocity
+                    forceFactor = getForce();
+                    if ( decayFactor < 0.8 ) {
+                        decayFactor += 0.01 * forceFactor;
+                    }
+                    else if ( alphaFactor > 0.2 ) {
+                        alphaFactor -= 0.01 * forceFactor;
+                    }
                     // Update charge strength based on new messageRate strengthScale to prevent nodes from overlapping
                     simulation.force("charge",
                         d3.forceManyBody()
-                            .strength(function (d) { return -1.0 * strengthScale(1 + d.messageRate); })
-                    );
-                    simulation.alphaTarget(0.3).restart();
+                            .strength(function (d) { return -1.0 * forceFactor * strengthScale(1 + d.messageRate); })
+                    ).velocityDecay(decayFactor);
+                    simulation.alphaTarget(alphaFactor).restart();
                 }
 
                 // Store the data string for the next update
@@ -213,7 +246,7 @@
     }
 
     function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
+        if (!event.active) simulation.alphaTarget(alphaFactor).restart();
         d.fx = d.x;
         d.fy = d.y;
     }
@@ -239,8 +272,28 @@
         simulation.force("center", d3.forceCenter(width / 2, height / 2));
     }
 
-    window.addEventListener('resize', resize);
-    setInterval(updateGraph, 10000);
+    function getForce() {
+        let params = new URLSearchParams(window.location.search);
+        let factor = params.get('force') || 1.0;
+        return factor;
+    }
+
+    function initialZoom() {
+        let params = new URLSearchParams(window.location.search);
+        let initialZoom = params.get('zoom') || 1.0;
+        zoom.scaleTo(svg, initialZoom * height / 1080);
+    }
+
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        resize();
+    }, 200); // adjust delay as needed
+    });
+
+    setInterval(updateGraph, 5000);
+    initialZoom();
     updateGraph();
   </script>
 </body>
