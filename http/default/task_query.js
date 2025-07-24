@@ -122,10 +122,10 @@ function _execute_query() {
                         }
                         document.getElementById("output").innerHTML
                                     = "<table>"
-                                    + "<tr><th>TIMESTAMP</th>"
-                                    + "<th>TYPE</th>"
-                                    + "<th>KEY</th>"
-                                    + "<th>VALUE</th></tr>"
+                                    + "<tr><th>timestamp</th>"
+                                    + "<th>type</th>"
+                                    + "<th>key</th>"
+                                    + "<th>value</th></tr>"
                                     + output.join("")
                                     + "</table>";
                     }

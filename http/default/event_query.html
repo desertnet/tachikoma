@@ -9,53 +9,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
+  <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
   <script type="text/javascript" src="event_query.js"></script>
-  <style>
-    .uk-dark {
-      background-color: #000;
-      color: #CCC;
-      border: 0;
-    }
-    .uk-dark .uk-heading {
-      color: #DDD;
-    }
-    .uk-dark a {
-      color: #AAF;
-    }
-    .uk-dark .uk-input {
-      background-color: #222;
-      color: #FFF;
-      border: 1px solid #444;
-    }
-    .uk-dark .task-error {
-      background-color: #622;
-      color: #DDD;
-    }
-    .uk-dark .task-output {
-      background-color: #262;
-      color: #DDD;
-    }
-    .uk-dark .task-begin-complete {
-      background-color: #444;
-      color: #DDD;
-    }
-    html {
-      min-height: 100%;
-      min-width: 100%;
-      display: flex;
-    }
-    body {
-      flex-grow: 1;
-    }
-    * {
-      font-family: "JetBrains Mono", monospace; font-optical-sizing: auto;
-    }
-    @view-transition {
-      navigation: auto;
-    }
-  </style>
 </head>
 
 <body class="uk-dark" onload="render_form()">
@@ -66,11 +23,11 @@
   <div class="a" id="output">
     <table>
       <tr>
-        <th>TIMESTAMP</th>
-        <th>QUEUE</th>
-        <th>TYPE</th>
-        <th>KEY</th>
-        <th>VALUE</th>
+        <th>timestamp</th>
+        <th>queue</th>
+        <th>type</th>
+        <th>key</th>
+        <th>value</th>
       </tr>
     </table>
   </div>

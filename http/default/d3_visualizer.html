@@ -42,22 +42,22 @@
 
     /* Apply different filters to each group */
     .sink-links {
-      filter: drop-shadow(0px 0px 15px #8a6);
+      filter: drop-shadow(0px 0px 10px #ac8);
     }
     .owner-links {
-      filter: drop-shadow(0px 0px 15px #68a);
+      filter: drop-shadow(0px 0px 10px #8ac);
     }
     .edge-links {
-      filter: drop-shadow(0px 0px 15px #a68);
+      filter: drop-shadow(0px 0px 10px #c8a);
     }
     .sink-nodes {
-      filter: drop-shadow(0px 0px 15px #8f8);
+      filter: drop-shadow(0px 0px 10px #8f8);
     }
     .owner-nodes {
-      filter: drop-shadow(0px 0px 15px #88f);
+      filter: drop-shadow(0px 0px 10px #88f);
     }
     .edge-nodes {
-      filter: drop-shadow(0px 0px 15px #f88);
+      filter: drop-shadow(0px 0px 10px #f88);
     }
   </style>
 </head>
@@ -253,7 +253,7 @@
         sinkLinks.exit().remove();
         let sinkLinkEnter = sinkLinks.enter().append("path")
             .attr("fill", "none")
-            .attr("stroke", "#8a6")
+            .attr("stroke", "#ac8")
             .classed("sink-link", true);
         sinkLinks = sinkLinkEnter.merge(sinkLinks);
 
@@ -261,7 +261,7 @@
         ownerLinks.exit().remove();
         let ownerLinkEnter = ownerLinks.enter().append("path")
             .attr("fill", "none")
-            .attr("stroke", "#68a")
+            .attr("stroke", "#8ac")
             .classed("owner-link", true);
         ownerLinks = ownerLinkEnter.merge(ownerLinks);
 
@@ -269,7 +269,7 @@
         edgeLinks.exit().remove();
         let edgeLinkEnter = edgeLinks.enter().append("path")
             .attr("fill", "none")
-            .attr("stroke", "#a68")
+            .attr("stroke", "#c8a")
             .classed("edge-link", true);
         edgeLinks = edgeLinkEnter.merge(edgeLinks);
 

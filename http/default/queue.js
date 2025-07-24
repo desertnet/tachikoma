@@ -73,11 +73,11 @@ function display_queue(msg) {
     }
     document.getElementById("output").innerHTML
                 = "<table>"
-                + "<tr><th>TIMESTAMP</th>"
-                + "<th>KEY</th>"
-                + "<th>VALUE</th>"
-                + "<th># ATTEMPTS</th>"
-                + "<th>NEXT ATTEMPT</th></tr>"
+                + "<tr><th>timestamp</th>"
+                + "<th>key</th>"
+                + "<th>value</th>"
+                + "<th># attempts</th>"
+                + "<th>next attempt</th></tr>"
                 + output.join("")
                 + "</table>"
                 + footer;

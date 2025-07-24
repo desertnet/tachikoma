@@ -1,0 +1,90 @@
+.uk-dark {
+    background-color: #000;
+    color: #CCC;
+    border: 0;
+}
+.uk-dark .uk-heading {
+    color: #DDD;
+}
+.uk-dark a {
+    color: #AAF;
+}
+.uk-dark .uk-input {
+    background-color: #222;
+    color: #FFF;
+    border: 1px solid #444;
+}
+.uk-dark .task-error {
+    background-color: #622;
+    color: #DDD;
+}
+.uk-dark .task-output {
+    background-color: #262;
+    color: #DDD;
+}
+.uk-dark .task-begin-complete {
+    background-color: #444;
+    color: #DDD;
+}
+.uk-dark .good {
+    background-color: #2f2;
+    color: #000;
+}
+.uk-dark .bad {
+    background-color: #f22;
+    color: #000;
+}
+.timestamp {
+    white-space: nowrap;
+}
+
+html {
+    min-height: 100%;
+    min-width: 100%;
+    display: flex;
+}
+body {
+    flex-grow: 1;
+}
+div {
+    padding: 10px;
+}
+div.container {
+    padding: 0;
+    width: 100vw;
+}
+th {
+    padding: 5px;
+    text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
+}
+td {
+    padding: 5px;
+    text-align: left;
+    vertical-align: top;
+}
+
+#table {
+    margin-top: 100px;
+}
+#table td {
+    padding: 5px;
+    text-align: left;
+    vertical-align: top;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#log {
+    margin-top: 100px;
+}
+
+*, .uk-dark * {
+    font-family: "JetBrains Mono", monospace; font-optical-sizing: auto;
+}
+
+@view-transition {
+    navigation: auto;
+}
