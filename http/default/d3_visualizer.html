@@ -39,8 +39,14 @@
     @view-transition {
       navigation: auto;
     }
-    svg > g {
-      filter: drop-shadow(0px 1px 10px #4ee);
+    .sink {
+      filter: drop-shadow(0px 1px 10px #6d6);
+    }
+    .owner {
+      filter: drop-shadow(0px 1px 10px #88f);
+    }
+    .edge {
+      filter: drop-shadow(0px 1px 10px #d66);
     }
   </style>
 </head>
@@ -158,6 +164,9 @@
                         .attr("stroke", function (d) {
                             return d.edge ? "#e55" : d.owner ? "#77d" : "#8c8";
                         })
+                        .classed("sink", function (d) { return ! d.owner && ! d.edge; })
+                        .classed("owner", function (d) { return d.owner && ! d.edge; })
+                        .classed("edge", function (d) { return d.edge; })
                         .merge(link);
 
                     node = node.data(transformedData.nodes, function (d) { return d.id; });
@@ -169,6 +178,9 @@
                             else if (d.owner) return "#77f"; // nodes that have owners
                             else return "#6e6"; // nodes that have sinks
                         })
+                        .classed("sink", function (d) { return ! d.owner && ! d.edge; })
+                        .classed("owner", function (d) { return d.owner && ! d.edge; })
+                        .classed("edge", function (d) { return d.edge; })
                         .call(d3.drag()
                             .on("start", dragstarted)
                             .on("drag", dragged)
