@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>D3 WebGL Visualizer</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body {
+      background-color: #111;
+      color: #faf;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Three.js setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(
+      window.innerWidth / -2, window.innerWidth / 2,
+      window.innerHeight / 2, window.innerHeight / -2,
+      1, 1000
+    );
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x111111);
+    document.body.appendChild(renderer.domElement);
+    
+    camera.position.z = 100;
+    
+    // Groups
+    const nodeGroup = new THREE.Group();
+    const linkGroup = new THREE.Group();
+    scene.add(linkGroup);  // Links first (behind)
+    scene.add(nodeGroup);  // Nodes on top
+    
+    // Simple materials
+    // Make nodes completely opaque
+    const materials = {
+        sink: new THREE.MeshBasicMaterial({ color: 0x66ee66, transparent: false }),  // No transparency
+        owner: new THREE.MeshBasicMaterial({ color: 0x7777ff, transparent: false }),
+        edge: new THREE.MeshBasicMaterial({ color: 0xff5555, transparent: false })
+    };
+
+    // Make link glow more visible
+    const linkGlowMaterials = {
+        sink: new THREE.MeshBasicMaterial({ 
+            color: 0x88aa88, 
+            opacity: 0.3,  // More visible
+            transparent: true, 
+            blending: THREE.AdditiveBlending
+        }),
+        owner: new THREE.MeshBasicMaterial({ 
+            color: 0x7777bb, 
+            opacity: 0.3,  // More visible
+            transparent: true, 
+            blending: THREE.AdditiveBlending
+        }),
+        edge: new THREE.MeshBasicMaterial({ 
+            color: 0xcc5555, 
+            opacity: 0.3,  // More visible
+            transparent: true, 
+            blending: THREE.AdditiveBlending
+        })
+    };
+    
+    // Remove the old line materials and replace with mesh materials for tubes
+    const linkMaterials = {
+        sink: new THREE.MeshBasicMaterial({ color: 0x88cc88,  transparent: false }),
+        owner: new THREE.MeshBasicMaterial({ color: 0x7777dd, transparent: false }),
+        edge: new THREE.MeshBasicMaterial({ color: 0xee5555,  transparent: false })
+    };
+    
+    // D3 simulation
+    let nodes = [];
+    let links = [];
+    let nodeObjects = [];
+    let glowObjects = [];  // Add this
+    let linkObjects = [];
+    let linkGlowObjects = [];  // Add this
+    
+    let previousData = null;
+    let previousNodeCount = 0;
+    
+    // Update the simulation setup to use dynamic strength
+    const simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(d => d.id).distance(80))
+        .force("charge", d3.forceManyBody().strength(-1))  // Base strength, will be updated
+        .force("center", d3.forceCenter(0, 0))
+        .velocityDecay(0.2)
+        .on("tick", updatePositions);
+
+    const sizeScale = d3.scaleLog().range([5, 10]);
+    const strengthScale = d3.scaleLog().range([100, 200]);  // Add strength scale like original
+
+    // Add decay and alpha factors like original
+    let decayFactor = 0.2;
+    let alphaFactor = 0.5;
+    
+    function transformData(data) {
+        let transformedNodes = data.map(d => {
+            let previousNode = previousData ? previousData.find(p => p.name === d.name) : null;
+            let messageRate = previousNode ? d.counter - previousNode.counter : 0;
+            return { 
+                id: d.name,
+                name: d.name, 
+                sink: d.sink, 
+                edge: d.edge, 
+                owner: d.owner, 
+                messageRate: messageRate,
+                type: d.edge ? 'edge' : (d.owner ? 'owner' : 'sink')
+            };
+        });
+        
+        let transformedLinks = [];
+        data.forEach(d => {
+            let sourceIndex = transformedNodes.findIndex(e => e.name === d.name);
+            if (sourceIndex === -1) return;
+            
+            // Sink links
+            let targetIndex = transformedNodes.findIndex(e => e.name === d.sink);
+            if (targetIndex !== -1) {
+                transformedLinks.push({
+                    source: transformedNodes[sourceIndex],
+                    target: transformedNodes[targetIndex],
+                    type: 'sink'
+                });
+            }
+            
+            // Edge links
+            let edgeIndex = transformedNodes.findIndex(e => e.name === d.edge);
+            if (edgeIndex !== -1) {
+                transformedLinks.push({
+                    source: transformedNodes[sourceIndex],
+                    target: transformedNodes[edgeIndex],
+                    type: 'edge'
+                });
+            }
+            
+            // Owner links
+            if (!Array.isArray(d.owner)) {
+                let ownerIndex = transformedNodes.findIndex(e => e.name === d.owner);
+                if (ownerIndex !== -1) {
+                    transformedLinks.push({
+                        source: transformedNodes[sourceIndex],
+                        target: transformedNodes[ownerIndex],
+                        type: 'owner'
+                    });
+                }
+            } else {
+                d.owner.forEach(owner => {
+                    let ownerName = typeof owner === 'string' ? owner.split('/')[0] : owner;
+                    let ownerIndex = transformedNodes.findIndex(e => e.name === ownerName);
+                    if (ownerIndex !== -1) {
+                        transformedLinks.push({
+                            source: transformedNodes[sourceIndex],
+                            target: transformedNodes[ownerIndex],
+                            type: 'owner'
+                        });
+                    }
+                });
+            }
+        });
+        
+        return { nodes: transformedNodes, links: transformedLinks };
+    }
+    
+    function createNode(node) {
+        const radius = sizeScale(1 + node.messageRate);  // This already uses message rate
+        
+        // Main node
+        const geometry = new THREE.CircleGeometry(radius, 16);
+        const material = materials[node.type];
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.userData = { node };
+        
+        // Create multiple glow layers for gradient effect
+        const glowGroup = new THREE.Group();
+        const baseColor = material.color;
+        
+        // Layer 1 - outermost, most transparent
+        const glow1 = new THREE.Mesh(
+            new THREE.CircleGeometry(radius * 1.4, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: baseColor, 
+                transparent: true, 
+                opacity: 0.1,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        // Layer 2 - middle
+        const glow2 = new THREE.Mesh(
+            new THREE.CircleGeometry(radius * 1.3, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: baseColor, 
+                transparent: true, 
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        // Layer 3 - inner
+        const glow3 = new THREE.Mesh(
+            new THREE.CircleGeometry(radius * 1.2, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: baseColor, 
+                transparent: true, 
+                opacity: 0.175,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        // Layer 4 - innermost, most opaque
+        const glow4 = new THREE.Mesh(
+            new THREE.CircleGeometry(radius * 1.1, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: baseColor, 
+                transparent: true, 
+                opacity: 0.2,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        glowGroup.add(glow1);
+        glowGroup.add(glow2);
+        glowGroup.add(glow3);
+        glowGroup.add(glow4);
+        glowGroup.position.z = -0.1;
+        
+        return { mesh, glow: glowGroup };
+    }
+    
+    function createLink(link) {
+        const points = [];
+        
+        if (link.type === 'owner') {
+            // Curved line for owner relationships using quadratic Bézier
+            const start = new THREE.Vector3(link.source.x || 0, link.source.y || 0, 0);
+            const end = new THREE.Vector3(link.target.x || 0, link.target.y || 0, 0);
+            
+            // Calculate control point for curve
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const controlX = start.x + dx/2 + dy/3;
+            const controlY = start.y + dy/2 - dx/3;
+            const control = new THREE.Vector3(controlX, controlY, 0);
+            
+            // Create curve points using quadratic Bézier formula
+            const numPoints = 20;
+            for (let i = 0; i <= numPoints; i++) {
+                const t = i / numPoints;
+                const x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control.x + t * t * end.x;
+                const y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control.y + t * t * end.y;
+                points.push(new THREE.Vector3(x, y, 0));
+            }
+        } else {
+            // Straight line for sink and edge relationships
+            points.push(new THREE.Vector3(link.source.x || 0, link.source.y || 0, 0));
+            points.push(new THREE.Vector3(link.target.x || 0, link.target.y || 0, 0));
+        }
+        
+        // Create curve from points
+        const curve = new THREE.CatmullRomCurve3(points);
+        
+        // Create main link - even thinner so glow is more visible
+        const tubeGeometry = new THREE.TubeGeometry(curve, points.length, 0.5, 6, false);  // Even thinner
+        const material = linkMaterials[link.type];
+        const tubeMesh = new THREE.Mesh(tubeGeometry, material);
+        tubeMesh.userData = { link, curve, points };
+        tubeMesh.position.z = -0.5;  // Behind nodes
+        
+        // Create glow link - bigger difference from main link
+        const glowTubeGeometry = new THREE.TubeGeometry(curve, points.length, 1.5, 6, false);  // Bigger glow
+        const glowMaterial = linkGlowMaterials[link.type];
+        const glowTubeMesh = new THREE.Mesh(glowTubeGeometry, glowMaterial);
+        glowTubeMesh.userData = { link, curve, points };
+        glowTubeMesh.position.z = -2.0;  // Behind main link
+        
+        return { line: tubeMesh, glow: glowTubeMesh };
+    }
+    
+    function updateGraph() {
+        const params = new URLSearchParams(window.location.search);
+        const service = params.get('service');
+        
+        d3.json("/v/" + service)
+            .then(data => {
+                const transformedData = transformData(data);
+                
+                if (previousNodeCount !== transformedData.nodes.length) {
+                    // Reset factors when node count changes
+                    decayFactor = 0.2;
+                    alphaFactor = 0.5;
+                    
+                    // Clear everything
+                    nodeGroup.clear();
+                    linkGroup.clear();
+                    nodeObjects = [];
+                    glowObjects = [];
+                    linkObjects = [];
+                    linkGlowObjects = [];
+                    
+                    nodes = transformedData.nodes;
+                    links = transformedData.links;
+                    
+                    // Create links with glow FIRST (furthest back)
+                    links.forEach(link => {
+                        const { line, glow } = createLink(link);
+                        linkGroup.add(glow);
+                        linkGroup.add(line);
+                        linkObjects.push(line);
+                        linkGlowObjects.push(glow);
+                    });
+                    
+                    // Create nodes with glow LAST (on top of everything)
+                    nodes.forEach(node => {
+                        const { mesh, glow } = createNode(node);
+                        nodeGroup.add(glow);
+                        nodeGroup.add(mesh);
+                        nodeObjects.push(mesh);
+                        glowObjects.push(glow);
+                    });
+                    
+                    // Start simulation
+                    simulation
+                        .nodes(nodes)
+                        .force("link", d3.forceLink(links).id(d => d.id).distance(1))
+                        .force("charge", d3.forceManyBody().strength(d => -1.0))
+                        .alpha(1)
+                        .restart();
+                } else {
+                    // Update message rates like in original
+                    nodes.forEach((node, i) => {
+                        if (transformedData.nodes[i]) {
+                            node.messageRate = transformedData.nodes[i].messageRate;
+                        }
+                    });
+                    
+                    // Update node sizes based on new message rates
+                    nodeObjects.forEach((mesh, i) => {
+                        if (nodes[i]) {
+                            const newRadius = sizeScale(1 + nodes[i].messageRate);
+                            
+                            // Update main node geometry
+                            mesh.geometry.dispose();
+                            mesh.geometry = new THREE.CircleGeometry(newRadius, 16);
+                            
+                            // Update glow layers
+                            const glowGroup = glowObjects[i];
+                            glowGroup.children.forEach((glowMesh, layerIndex) => {
+                                glowMesh.geometry.dispose();
+                                const multipliers = [1.4, 1.3, 1.2, 1.1];
+                                glowMesh.geometry = new THREE.CircleGeometry(newRadius * multipliers[layerIndex], 16);
+                            });
+                        }
+                    });
+                    
+                    // Gradually adjust decay and alpha factors like original
+                    const forceFactor = getForce();
+                    if (decayFactor < 0.8) {
+                        decayFactor += 0.01 * forceFactor;
+                    } else if (alphaFactor > 0.2) {
+                        alphaFactor -= 0.01 * forceFactor;
+                    }
+                    
+                    // Update simulation forces based on message rates
+                    simulation
+                        .force("charge", d3.forceManyBody()
+                            .strength(d => -1.0 * forceFactor * strengthScale(1 + d.messageRate)))
+                        .force("link", d3.forceLink(links).distance(80 * forceFactor))
+                        .velocityDecay(decayFactor)
+                        .alphaTarget(alphaFactor)
+                        .restart();
+                }
+                
+                previousData = data;
+                previousNodeCount = transformedData.nodes.length;
+            })
+            .catch(error => console.log("Error:", error));
+    }
+    
+    // Add the getForce function like in original
+    function getForce() {
+        const params = new URLSearchParams(window.location.search);
+        return parseFloat(params.get('force')) || 1.0;
+    }
+    
+    function updatePositions() {
+        // Update nodes and their glow
+        nodeObjects.forEach((mesh, i) => {
+            if (nodes[i]) {
+                mesh.position.set(nodes[i].x, nodes[i].y, 0);
+                glowObjects[i].position.set(nodes[i].x, nodes[i].y, -0.1);
+            }
+        });
+        
+        // Update links and their glow
+        linkObjects.forEach((tubeMesh, i) => {
+            if (links[i]) {
+                const link = links[i];
+                const points = [];
+                
+                if (link.type === 'owner') {
+                    // Recreate curved line
+                    const start = new THREE.Vector3(link.source.x, link.source.y, 0);
+                    const end = new THREE.Vector3(link.target.x, link.target.y, 0);
+                    
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const controlX = start.x + dx/2 + dy/3;
+                    const controlY = start.y + dy/2 - dx/3;
+                    const control = new THREE.Vector3(controlX, controlY, 0);
+                    
+                    const numPoints = 20;
+                    for (let j = 0; j <= numPoints; j++) {
+                        const t = j / numPoints;
+                        const x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control.x + t * t * end.x;
+                        const y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control.y + t * t * end.y;
+                        points.push(new THREE.Vector3(x, y, 0));
+                    }
+                } else {
+                    points.push(new THREE.Vector3(link.source.x, link.source.y, 0));
+                    points.push(new THREE.Vector3(link.target.x, link.target.y, 0));
+                }
+                
+                // Create new curve and update geometry
+                const curve = new THREE.CatmullRomCurve3(points);
+                
+                // Update main tube - thinner
+                tubeMesh.geometry.dispose();
+                tubeMesh.geometry = new THREE.TubeGeometry(curve, points.length, 0.5, 6, false);
+                
+                // Update glow tube - bigger
+                linkGlowObjects[i].geometry.dispose();
+                linkGlowObjects[i].geometry = new THREE.TubeGeometry(curve, points.length, 1.5, 6, false);
+            }
+        });
+    }
+    
+    // Mouse controls
+    let isDragging = false;
+    let mousePos = { x: 0, y: 0 };
+    
+    renderer.domElement.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        mousePos.x = e.clientX;
+        mousePos.y = e.clientY;
+    });
+    
+    renderer.domElement.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - mousePos.x;
+        const deltaY = e.clientY - mousePos.y;
+        
+        camera.position.x -= deltaX;
+        camera.position.y += deltaY;
+        
+        mousePos.x = e.clientX;
+        mousePos.y = e.clientY;
+    });
+    
+    renderer.domElement.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+    
+    renderer.domElement.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;  // Flipped the values
+        camera.zoom *= zoomFactor;
+        camera.zoom = Math.max(0.1, Math.min(10, camera.zoom));
+        camera.updateProjectionMatrix();
+    });
+    
+    function resize() {
+        camera.left = window.innerWidth / -2;
+        camera.right = window.innerWidth / 2;
+        camera.top = window.innerHeight / 2;
+        camera.bottom = window.innerHeight / -2;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+    
+    // Apply initial zoom from URL parameters
+    function initialZoom() {
+        const params = new URLSearchParams(window.location.search);
+        const initialZoomParam = parseFloat(params.get('zoom')) || 1.0;
+        camera.zoom = initialZoomParam;  // Set the zoom directly
+        camera.updateProjectionMatrix();  // Apply the change
+    }
+
+    window.addEventListener('resize', resize);
+    setInterval(updateGraph, 5000);
+
+    animate();
+    initialZoom();  // Make sure this gets called
+    updateGraph();
+  </script>
+</body>
+</html>
