@@ -94,8 +94,8 @@
     edgeNodes = edgeNodeGroup.selectAll(".edge-node"),
     edgeLinks = edgeLinkGroup.selectAll(".edge-link");
 
-    let decayFactor = 0.2;
-    let alphaFactor = 0.5;
+    let decayFactor = 0.1;
+    let alphaFactor = 0.9;
     let simulation = d3.forceSimulation()
         .force("link", d3.forceLink().id(function (d) { return d.id; }))
         .force("charge", d3.forceManyBody().strength(-1))
@@ -237,8 +237,8 @@
 
     function processMajorUpdate(transformedData) {
         request_type = "/brief";
-        decayFactor = 0.2;
-        alphaFactor = 0.5;
+        decayFactor = 0.1;
+        alphaFactor = 0.9;
         
         // Separate data by type
         let sinkLinkData = transformedData.links.filter(d => d.sink);
@@ -372,10 +372,10 @@
         
         // Keep existing force update logic
         let forceFactor = getForce();
-        if (decayFactor < 0.8) {
-            decayFactor += 0.01 * forceFactor;
-        } else if (alphaFactor > 0.2) {
-            alphaFactor -= 0.01 * forceFactor;
+        if (decayFactor < 0.7) {
+            decayFactor += 0.1 * forceFactor;
+        } else if (alphaFactor > 0.3) {
+            alphaFactor -= 0.1 * forceFactor;
         }
         
         simulation.force("charge",
@@ -478,7 +478,7 @@
         }, 200); // adjust delay as needed
     });
 
-    setInterval(updateGraph, 15000);
+    setInterval(updateGraph, 10000);
     initialZoom();
     updateGraph();
   </script>
