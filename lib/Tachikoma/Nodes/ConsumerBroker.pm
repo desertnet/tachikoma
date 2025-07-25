@@ -332,7 +332,7 @@ sub make_broker_connection {
         $node->name($broker_id);
         $node->debug_state( $self->debug_state );
         $node->on_EOF('reconnect');
-        $node->sink( $self->sink );
+        $node->sink( Tachikoma->nodes->{_command_interpreter} );
     }
     return $node->auth_complete;
 }
