@@ -20,8 +20,8 @@ if (key) {
 
 function render_form() {
     var form_html = '<form onsubmit="execute_query(); return false;" id="query_params">'
-        + '<input name="key"/>'
-        + '<button>search</button>'
+        + '<input name="key" class="uk-input uk-form-width-large uk-margin-top"/>'
+        + '<button class="uk-button uk-button-primary uk-margin-top uk-margin-left">search</button>'
         + '</form>';
     document.getElementById("query_form").innerHTML = form_html;
 }

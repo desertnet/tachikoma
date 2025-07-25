@@ -9,6 +9,8 @@
 .uk-dark a {
     color: #AAF;
 }
+.uk-dark .uk-button-default,
+.uk-dark .uk-select,
 .uk-dark .uk-input {
     background-color: #222;
     color: #FFF;

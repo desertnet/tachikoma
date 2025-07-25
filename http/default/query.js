@@ -21,9 +21,11 @@ function rm_query() {
 }
 
 function render_form(quiet)  {
-    var form_html = '<button onclick="add_query()">+</button>';
+    var form_html = '<button onclick="add_query()"'
+        + ' class="uk-button uk-button-default">+</button>';
     if (num_queries > 1) {
-        form_html += '<button onclick="rm_query()">-</button>'
+        form_html += '<button onclick="rm_query()"'
+            + ' class="uk-button uk-button-default">-</button>'
     }
     form_html += '<form method="GET" onsubmit="execute_query(); return false;" id="query_params">';
 
@@ -31,35 +33,40 @@ function render_form(quiet)  {
     form_html += '<input type="hidden" name="num_queries" value="' + num_queries + '"/>';
 
     for (var i = 0; i < num_queries; i++) {
-      // Get the values from the URL's query parameters
-      var field = params[i + '.field'] || '';
-      var op    = params[i + '.op']    || '';
-      var key   = params[i + '.key']   || '';
+        // Get the values from the URL's query parameters
+        var field = params[i + '.field'] || '';
+        var op    = params[i + '.op']    || '';
+        var key   = params[i + '.key']   || '';
 
-      // replace + with space
-      key = key.replace(/\+/g, ' ');
+        // replace + with space
+        key = key.replace(/\+/g, ' ');
 
-      // Set the selected option and input value based on the query parameters
-      form_html += '<select name="' + i + '.field" onchange="updateURL()">';
-      for (var j = 0, l = indexes.length; j < l; j++) {
-          var selected = field === (topic + '.' + indexes[j] + ':index') ? ' selected' : '';
-          form_html += '  <option value="' + topic + '.' + indexes[j] + ':index"' + selected + '>' + indexes[j] + '</option>';
-      }
-      form_html += '</select>'
-          + '<select name="' + i + '.op" onchange="updateURL()">';
-      if (num_queries == 1) {
-          var selected = op === 'keys' ? ' selected' : '';
-          form_html += '  <option value="keys"' + selected + '>keys</option>';
-      }
-      for (var j = 0, l = operators.length; j < l; j++) {
-          var selected = op === operators[j] ? ' selected' : '';
-          form_html += '  <option value="' + operators[j] + '"' + selected + '>' + operators[j] + '</option>';
-      }
-      form_html += '</select>'
-          + '<input name="' + i + '.key" id="' + i + '.key" value="' + key + '" oninput="updateURL()"/>'
-          + '<br>';
+        // Set the selected option and input value based on the query parameters
+        form_html += '<select name="' + i + '.field" onchange="updateURL()"'
+            + ' class="uk-select uk-width-1-5 uk-margin-top">';
+        for (var j = 0, l = indexes.length; j < l; j++) {
+            var selected = field === (topic + '.' + indexes[j] + ':index') ? ' selected' : '';
+            form_html += '  <option value="' + topic + '.' + indexes[j] + ':index"' + selected + '>' + indexes[j] + '</option>';
+        }
+        form_html += '</select>'
+            + '<select name="' + i + '.op" onchange="updateURL()"'
+            + ' class="uk-select uk-width-1-5 uk-margin-top uk-margin-left">';
+        if (num_queries == 1) {
+            var selected = op === 'keys' ? ' selected' : '';
+            form_html += '  <option value="keys"' + selected + '>keys</option>';
+        }
+        for (var j = 0, l = operators.length; j < l; j++) {
+            var selected = op === operators[j] ? ' selected' : '';
+            form_html += '  <option value="' + operators[j] + '"' + selected + '>' + operators[j] + '</option>';
+        }
+        form_html += '</select>'
+            + '<input name="' + i + '.key" id="' + i + '.key" value="' + key + '" oninput="updateURL()"'
+            + ' class="uk-input uk-form-width-large uk-margin-top uk-margin-left"/>'
+            + '<br>';
     }
-    form_html += '<button>search</button>'
+    form_html += '<button'
+        + ' class="uk-button uk-button-primary uk-margin-top">'
+        + 'search</button>'
         + '</form>';
     document.getElementById("query_form").innerHTML = form_html;
     if (params["num_queries"] && ! quiet) {
