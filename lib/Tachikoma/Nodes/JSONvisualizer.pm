@@ -98,16 +98,17 @@ sub _gather_node_information {
             if ($ignore
             and $node->{parent}
             and $node->{parent} =~ m{$ignore} );
-        my $owner = undef;
-        if ( ref $node->{owner} ) {
+        my $node_owner = $node->owner;
+        my $owner      = undef;
+        if ( ref $node_owner ) {
             $owner = [];
-            for my $path ( @{ $node->{owner} } ) {
+            for my $path ( @{ $node_owner } ) {
                 my $name = ( split m{/}, $path, 2 )[0];
                 push @{$owner}, $ids{$name} if ( exists $ids{$name} );
             }
         }
-        elsif ( length $node->{owner} ) {
-            my $name = ( split m{/}, $node->{owner}, 2 )[0];
+        elsif ( length $node_owner ) {
+            my $name = ( split m{/}, $node_owner, 2 )[0];
             $owner = $ids{$name} if ( exists $ids{$name} );
         }
         my $brief_row = {

@@ -94,31 +94,43 @@
     edgeNodes = edgeNodeGroup.selectAll(".edge-node"),
     edgeLinks = edgeLinkGroup.selectAll(".edge-link");
 
+    let params = new URLSearchParams(window.location.search);
     let decayFactor = 0.1;
-    let alphaFactor = 0.9;
-    let simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(function (d) { return d.id; }))
-        .force("charge", d3.forceManyBody().strength(-1))
-        .force("center", d3.forceCenter(width / 2, height / 2))
-        .velocityDecay(decayFactor);
+    let alphaFactor = 1.0;
+    let zoomLevel;
+    let forceFactor;
+    let keepwarm;
+    let simulation;
 
-    let previousData = null;
-    let previousTransformedData = null;
+    let previousNodes = null;
     let previousNodeCount = 0;
-    let previousNodeMap = new Map();
-    let sizeScale = d3.scaleLog().range([5, 10]);
-    let strengthScale = d3.scaleLog().range([100, 200]);
+    let sizeScale = function (d) {
+        return  3 + Math.min(10, d / 33.3); // 500 messages per second is max size
+    };
+    let strengthScale = function (d) {
+        return -3 - Math.min(50, d / 10.0); // 500 messages per second is max strength
+    };
     let updateQueue = [];
     let isProcessingUpdates = false;
     let request_type = "/full";
     let response_type = "";
 
     function transformData(data) {
-        let nodes = data.map(function (d, idx) {
-            let previousNode = previousData ? previousData[idx] : null;
+        let nodes = data.map(function (d, did) {
+            let previousNode = previousNodes ? previousNodes[did] : null;
             let messageRate = previousNode ? d.counter - previousNode.counter : 0;
-            let name = previousNode ? previousNode.name : d.name;
-            return { id: idx, name: name, sink: d.sink, edge: d.edge, owner: d.owner, messageRate: messageRate };
+            let changed = previousNode ? (messageRate !== previousNode.messageRate) : true;
+            let name = previousNode ? d.name || previousNode.name : d.name;
+            return {
+                id: did,
+                name: name,
+                sink: d.sink,
+                edge: d.edge,
+                owner: d.owner,
+                counter: d.counter,
+                messageRate: messageRate,
+                changed: changed
+            };
         });
 
         let links = [];
@@ -172,7 +184,6 @@
     }
 
     function updateGraph() {
-        let params = new URLSearchParams(window.location.search);
         let service = params.get('service');
         
         // Use fetch instead of d3.json for better control
@@ -186,7 +197,7 @@
                 }
             })
             .catch(function (error) {
-                console.log("Error:", error);
+                console.error("Error:", error);
             });
     }
 
@@ -211,21 +222,21 @@
     function processUpdate(queued) {
         let transformedData = transformData(queued.data);
 
-        if (previousNodeCount !== transformedData.nodes.length) {
+        if (previousNodeCount == 0) {
             if ( queued.response_type === "/brief" ) {
                 request_type = "/full";
-                return;
+            } else {
+                processMajorUpdate(transformedData);
             }
-            processMajorUpdate(transformedData);
+        } else if (previousNodeCount !== transformedData.nodes.length) {
+            // Hard reset if node count changed
+            previousNodes = null;
+            previousNodeCount = 0;
         } else {
             // For minor updates, do them quickly
             processMinorUpdate(transformedData);
         }
         
-        // Store the data for the next update
-        previousData = queued.data;
-        previousTransformedData = transformedData;
-        previousNodeCount = transformedData.nodes.length;
         
         // Continue processing queue
         if (window.requestIdleCallback) {
@@ -238,7 +249,7 @@
     function processMajorUpdate(transformedData) {
         request_type = "/brief";
         decayFactor = 0.1;
-        alphaFactor = 0.9;
+        alphaFactor = 1.0;
         
         // Separate data by type
         let sinkLinkData = transformedData.links.filter(d => d.sink);
@@ -276,7 +287,7 @@
         sinkNodes = sinkNodes.data(sinkNodeData, d => d.id);
         sinkNodes.exit().remove();
         let sinkEnter = sinkNodes.enter().append("circle")
-            .attr("r", d => sizeScale(1 + d.messageRate))
+            .attr("r", d => sizeScale(d.messageRate))
             .style("fill", "#8f8")
             .classed("sink", true)
             .call(d3.drag()
@@ -289,7 +300,7 @@
         ownerNodes = ownerNodes.data(ownerNodeData, d => d.id);
         ownerNodes.exit().remove();
         let ownerEnter = ownerNodes.enter().append("circle")
-            .attr("r", d => sizeScale(1 + d.messageRate))
+            .attr("r", d => sizeScale(d.messageRate))
             .style("fill", "#88f")
             .classed("owner", true)
             .call(d3.drag()
@@ -302,7 +313,7 @@
         edgeNodes = edgeNodes.data(edgeNodeData, d => d.id);
         edgeNodes.exit().remove();
         let edgeEnter = edgeNodes.enter().append("circle")
-            .attr("r", d => sizeScale(1 + d.messageRate))
+            .attr("r", d => sizeScale(d.messageRate))
             .style("fill", "#f88")
             .classed("edge", true)
             .call(d3.drag()
@@ -320,69 +331,56 @@
         simulation.force("link")
             .links(allLinks);
         simulation.alpha(1).restart();
+
+        // Store the data for the next update
+        previousNodes = transformedData.nodes;
+        previousNodeCount = transformedData.nodes.length;
     }
 
     function processMinorUpdate(transformedData) {
-        // Create a map for O(1) lookups instead of O(n) find() calls
-        let newNodeMap = new Map(transformedData.nodes.map(n => [n.id, n]));
-        let changedNodes = [];
-        
-        // Only identify nodes that actually changed
-        for (let [id, newNode] of newNodeMap) {
-            let oldNode = previousNodeMap.get(id);
-            if (!oldNode || oldNode.messageRate !== newNode.messageRate) {
-                changedNodes.push(newNode);
+        sinkNodes.each(function(d) {
+            let node = transformedData.nodes[d.id];
+            if (node && node.changed) {
+                d.messageRate = node.messageRate;
+                d3.select(this).attr("r", sizeScale(d.messageRate));
             }
-        }
+        });
         
-        // Only update nodes that actually changed - batch by type
-        if (changedNodes.length > 0) {
-            let changedNodeMap = new Map(changedNodes.map(n => [n.id, n]));
-            
-            // Update sink nodes that changed
-            sinkNodes.each(function(d) {
-                let updated = changedNodeMap.get(d.id);
-                if (updated) {
-                    d.messageRate = updated.messageRate;
-                    d3.select(this).attr("r", sizeScale(1 + d.messageRate));
-                }
-            });
-            
-            // Update owner nodes that changed
-            ownerNodes.each(function(d) {
-                let updated = changedNodeMap.get(d.id);
-                if (updated) {
-                    d.messageRate = updated.messageRate;
-                    d3.select(this).attr("r", sizeScale(1 + d.messageRate));
-                }
-            });
-            
-            // Update edge nodes that changed
-            edgeNodes.each(function(d) {
-                let updated = changedNodeMap.get(d.id);
-                if (updated) {
-                    d.messageRate = updated.messageRate;
-                    d3.select(this).attr("r", sizeScale(1 + d.messageRate));
-                }
-            });
-        }
+        ownerNodes.each(function(d) {
+            let node = transformedData.nodes[d.id];
+            if (node && node.changed) {
+                d.messageRate = node.messageRate;
+                d3.select(this).attr("r", sizeScale(d.messageRate));
+            }
+        });
         
-        // Cache the new data for next comparison
-        previousNodeMap = newNodeMap;
+        // Update edge nodes that changed
+        edgeNodes.each(function(d) {
+            let node = transformedData.nodes[d.id];
+            if (node && node.changed) {
+                d.messageRate = node.messageRate;
+                d3.select(this).attr("r", sizeScale(d.messageRate));
+            }
+        });
         
-        // Keep existing force update logic
-        let forceFactor = getForce();
-        if (decayFactor < 0.7) {
-            decayFactor += 0.1 * forceFactor;
-        } else if (alphaFactor > 0.3) {
-            alphaFactor -= 0.1 * forceFactor;
+        if (!keepwarm) {
+            if (decayFactor < 0.7) {
+                setDecay(decayFactor + 0.1);
+            } else if (alphaFactor > 0.3) {
+                setAlpha(alphaFactor - 0.1);
+            }
         }
         
         simulation.force("charge",
             d3.forceManyBody()
-                .strength(function (d) { return -1.0 * forceFactor * strengthScale(1 + d.messageRate); })
+                .strength(function (d) {
+                    return forceFactor * strengthScale(d.messageRate);
+                })
         ).velocityDecay(decayFactor);
         simulation.alphaTarget(alphaFactor).restart();
+
+        // Store the data for the next update
+        previousNodes = transformedData.nodes;
     }
 
 
@@ -424,10 +422,61 @@
 
     function zoomed(event) {
         g.attr("transform", event.transform);
+        /* change drop shadow radius based on the zoom level */
+        console.error("zoomLevel: " + zoomLevel + " k: " + event.transform.k);
+        zoomLevel = event.transform.k;
+        let shadowRadius = Math.max(0, 10 / zoomLevel);
+        svg.selectAll(".sink-links").style("filter",  "drop-shadow(0px 0px " + shadowRadius + "px #ac8)");
+        svg.selectAll(".owner-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #8ac)");
+        svg.selectAll(".edge-links").style("filter",  "drop-shadow(0px 0px " + shadowRadius + "px #c8a)");
+        svg.selectAll(".sink-nodes").style("filter",  "drop-shadow(0px 0px " + shadowRadius + "px #8f8)");
+        svg.selectAll(".owner-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #88f)");
+        svg.selectAll(".edge-nodes").style("filter",  "drop-shadow(0px 0px " + shadowRadius + "px #f88)");
+    }
+ 
+    /* function RGBtoHSV(color) {
+        let r = parseInt(color.slice(1, 3), 16) / 255;
+        let g = parseInt(color.slice(3, 5), 16) / 255;
+        let b = parseInt(color.slice(5, 7), 16) / 255;
+        let max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, v = max;
+
+        let d = max - min;
+        s = max === 0 ? 0 : d / max;
+
+        if (max === min) {
+            h = 0; // achromatic
+        } else {
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return [h, s, v];
     }
 
+    function HSVtoRGB(h, s, v) {
+        let r, g, b;
+        let i = Math.floor(h * 6);
+        let f = h * 6 - i;
+        let p = v * (1 - s);
+        let q = v * (1 - f * s);
+        let t = v * (1 - (1 - f) * s);
+        i = i % 6;
+        if (i === 0) { r = v; g = t; b = p; }
+        else if (i === 1) { r = q; g = v; b = p; }
+        else if (i === 2) { r = p; g = v; b = t; }
+        else if (i === 3) { r = p; g = q; b = v; }
+        else if (i === 4) { r = t; g = p; b = v; }
+        else { r = v; g = p; b = q; }
+        return "#" + Math.round(r * 255).toString(16).padStart(2, '0') +
+            Math.round(g * 255).toString(16).padStart(2, '0') +
+            Math.round(b * 255).toString(16).padStart(2, '0');
+    } */
+
     function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(alphaFactor).restart();
         d.fx = d.x;
         d.fy = d.y;
     }
@@ -438,7 +487,6 @@
     }
 
     function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
     }
@@ -453,21 +501,186 @@
         simulation.force("center", d3.forceCenter(width / 2, height / 2));
     }
 
+    function getKeepWarm() {
+        let state = params.get('keepwarm') && params.get('keepwarm') !== 'false';
+        return state;
+    }
+
+    function setKeepWarm(newState) {
+        keepwarm = newState;
+        params.set('keepwarm', keepwarm);
+        history.replaceState(null, '', '?' + params.toString());
+    }
+
     function getForce() {
-        let params = new URLSearchParams(window.location.search);
-        let factor = params.get('force') || 1.0;
+        let factor = 2.0 * (params.get('force') || 1.0);
         return factor;
     }
 
-    function initialZoom() {
-        let params = new URLSearchParams(window.location.search);
-        let initialZoom = params.get('zoom') || 1.0;
-        zoom.scaleTo(svg, initialZoom * height / 1080);
+    function setForce(newFactor) {
+        if (newFactor < 0.1) {
+            newFactor = 0.1;
+        } else if (newFactor > 10.0) {
+            newFactor = 10.0;
+        }
+        params.set('force', newFactor);
+        history.replaceState(null, '', '?' + params.toString());
+        forceFactor = 2.0 * newFactor;
+        simulation.force("charge", d3.forceManyBody().strength(function (d) {
+            return forceFactor * strengthScale(d.messageRate);
+        }));
+        simulation.alphaTarget(alphaFactor).restart();
+        return forceFactor;
+    }
+
+    function getZoom() {
+        let amount = params.get('zoom') || 1.0;
+        return amount;
+    }
+
+    function setZoom(byAmount) {
+        if (byAmount < 0.1) {
+            byAmount = 0.1;
+        } else if (byAmount > 10.0) {
+            byAmount = 10.0;
+        }
+        zoomLevel *= byAmount;
+        params.set('zoom', Math.round(zoomLevel * 100) / 100);
+        history.replaceState(null, '', '?' + params.toString());
+        zoom.scaleBy(svg, byAmount);
+    }
+
+    function getDecay() {
+        let factor = params.get('decay') || 0.1;
+        return factor;
+    }
+
+    function setDecay(newFactor) {
+        if (newFactor < 0.1) {
+            newFactor = 0.1;
+        } else if (newFactor > 1.0) {
+            newFactor = 1.0;
+        }
+        decayFactor = Math.round(newFactor * 10) / 10;
+        params.set('decay', decayFactor);
+        history.replaceState(null, '', '?' + params.toString());
+    }
+
+    function getAlpha() {
+        let factor = params.get('alpha') || 1.0;
+        return factor;
+    }
+
+    function setAlpha(newFactor) {
+        if (newFactor < 0.1) {
+            newFactor = 0.1;
+        } else if (newFactor > 1.0) {
+            newFactor = 1.0;
+        }
+        alphaFactor = Math.round(newFactor * 10) / 10;
+        params.set('alpha', alphaFactor);
+        history.replaceState(null, '', '?' + params.toString());
+    }
+
+    function setInitialKeepWarm() {
+        keepwarm = getKeepWarm();
+    }
+
+    function setInitialZoom() {
+        zoomLevel = Math.round(getZoom() * 10) / 10;
+        if (zoomLevel < 0.1) {
+            zoomLevel = 0.1;
+        } else if (zoomLevel > 10.0) {
+            zoomLevel = 10.0;
+        }
+        zoom.scaleTo(svg, zoomLevel * window.innerHeight / 1080);
+    }
+
+    function setInitialForce() {
+        forceFactor = getForce();
+        if (forceFactor < 0.1) {
+            forceFactor = 0.1;
+        } else if (forceFactor > 10.0) {
+            forceFactor = 10.0;
+        }
+    }
+
+    function setInitialDecay() {
+        decayFactor = getDecay();
+        if (decayFactor < 0.1) {
+            decayFactor = 0.1;
+        } else if (decayFactor > 1.0) {
+            decayFactor = 1.0;
+        }
+    }
+
+    function setInitialAlpha() {
+        alphaFactor = getAlpha();
+        if (alphaFactor < 0.1) {
+            alphaFactor = 0.1;
+        } else if (alphaFactor > 1.0) {
+            alphaFactor = 1.0;
+        }
+    }
+
+    function setInitialSimulation() {
+        let height = window.innerHeight,
+            width = window.innerWidth;
+        simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(function (d) { return d.id; }))
+            .force("charge", d3.forceManyBody().strength(function (d) {
+                return forceFactor * strengthScale(d.messageRate);
+            }))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .velocityDecay(decayFactor);
+        simulation.alphaTarget(alphaFactor).restart();
     }
 
     document.addEventListener('keydown', function(e) {
-        if (e.key === ' ') {
+        switch (e.key) {
+            case ' ':
+                setDecay(0.1);
+                setAlpha(1.0);
+                simulation.velocityDecay(decayFactor);
+                simulation.alphaTarget(alphaFactor).restart();
+                break;
+            case 'k':
+                setKeepWarm(!keepwarm);
+                break;
+            case 'q':
+                setDecay(decayFactor - 0.1);
+                simulation.velocityDecay(decayFactor);
+                break;
+            case 'w':
+                setDecay(decayFactor + 0.1);
+                simulation.velocityDecay(decayFactor);
+                break;
+            case 'a':
+                setAlpha(alphaFactor - 0.1);
+                simulation.alphaTarget(alphaFactor).restart();
+                break;
+            case 's':
+                setAlpha(alphaFactor + 0.1);
+                simulation.alphaTarget(alphaFactor).restart();
+                break;
+            case 'z':
+                setZoom(1.1);
+                break;
+            case 'x':
+                setZoom(0.9);
+                break;
         }
+        if ((e.key > '0' && e.key <= '9') || e.key === '0') {
+            let forceValue = parseInt(e.key);
+            if (forceValue >= 0) {
+                if (forceValue == 0)
+                    forceValue = 10;
+                setForce(forceValue);
+            }
+        }
+        console.error("keepwarm: " + keepwarm + ", forceFactor: " + forceFactor +
+            ", zoomLevel: " + zoomLevel + ", decayFactor: " + decayFactor +
+            ", alphaFactor: " + alphaFactor);
     });
 
     let resizeTimeout;
@@ -479,7 +692,12 @@
     });
 
     setInterval(updateGraph, 10000);
-    initialZoom();
+    setInitialKeepWarm();
+    setInitialZoom();
+    setInitialForce();
+    setInitialDecay();
+    setInitialAlpha();
+    setInitialSimulation();
     updateGraph();
   </script>
 </body>
