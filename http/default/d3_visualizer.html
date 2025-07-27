@@ -623,8 +623,8 @@
 
         function getDecay() {
             let factor = params.get('decay') || 0.1;
-            if (isNaN(decayFactor)) {
-                decayFactor = 0.1;
+            if (isNaN(factor)) {
+                factor = 0.1;
             }
             return factor;
         }
@@ -645,6 +645,9 @@
 
         function getAlpha() {
             let factor = params.get('alpha') || 0.9;
+            if (isNaN(factor)) {
+                factor = 0.1;
+            }
             return factor;
         }
 
@@ -655,6 +658,9 @@
                 newFactor = 1.0;
             }
             alphaFactor = Math.round(newFactor * 10) / 10;
+            if (isNaN(alphaFactor)) {
+                alphaFactor = 0.1;
+            }
             params.set('alpha', alphaFactor);
             history.replaceState(null, '', '?' + params.toString());
         }
