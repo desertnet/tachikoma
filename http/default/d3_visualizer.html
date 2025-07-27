@@ -111,10 +111,10 @@
         let previousData = null;
         let previousNodeCount = 0;
         let sizeScale = function (d) {
-            return  3.0 + 1.0 / zoomLevel + Math.min(10, d / 10.0); // 100 messages per second is max
+            return 3.0 + 1.0 / zoomLevel + Math.min(10, d / 10.0); // 100 messages per second is max
         };
         let widthScale = function (d) {
-            return  0.5 + 0.5 / zoomLevel + Math.min(2, d / 50.0);
+            return 0.5 + 0.5 / zoomLevel + Math.min(2, d / 50.0);
         };
         let strengthScale = function (d) {
             return -5.0 - Math.min(100, d) * 5.0;
@@ -147,6 +147,10 @@
             data.forEach(function (d, did) {
                 if (did === -1) return;
                 if (nodes[did].ignore) return;
+                if (nodes[d.sink].ignore && nodes[did].name !== '_command_interpreter') {
+                    nodes[did].ignore = true;
+                    return;
+                }
                 if (d.sink !== -1 && !nodes[d.sink].ignore) {
                     links.push({
                         source: nodes[did],
@@ -267,9 +271,9 @@
             let ownerLinkData = transformedData.links.filter(d => d.owner);
             let edgeLinkData = transformedData.links.filter(d => d.edge);
 
-            let sinkNodeData = transformedData.nodes.filter(d => d.owner === -1 && d.edge === -1);
-            let ownerNodeData = transformedData.nodes.filter(d => d.owner !== -1 && d.edge === -1);
-            let edgeNodeData = transformedData.nodes.filter(d => d.edge !== -1);
+            let sinkNodeData = transformedData.nodes.filter(d => !d.ignore && d.owner === -1 && d.edge === -1);
+            let ownerNodeData = transformedData.nodes.filter(d => !d.ignore && d.owner !== -1 && d.edge === -1);
+            let edgeNodeData = transformedData.nodes.filter(d => !d.ignore && d.edge !== -1);
 
             sinkLinks = sinkLinks.data(sinkLinkData, d => d.source.id + "-" + d.target.id);
             sinkLinks.exit().remove();
@@ -469,7 +473,7 @@
             simulation.force("charge",
                 d3.forceManyBody()
                     .strength(function (d) {
-                        return forceFactor * strengthScale(d.messageRate);
+                        return 2.0 * forceFactor * strengthScale(d.messageRate);
                     })
             ).velocityDecay(decayFactor);
             simulation.alphaTarget(alphaFactor).restart();
@@ -610,7 +614,7 @@
         }
 
         function getForce() {
-            let factor = 2.0 * (params.get('force') || 1.0);
+            let factor = params.get('force') || 1.0;
             return factor;
         }
 
@@ -622,7 +626,7 @@
             }
             params.set('force', newFactor);
             history.replaceState(null, '', '?' + params.toString());
-            forceFactor = 2.0 * newFactor;
+            forceFactor = newFactor;
             simulation.force("charge", d3.forceManyBody().strength(function (d) {
                 return forceFactor * strengthScale(d.messageRate);
             }));
