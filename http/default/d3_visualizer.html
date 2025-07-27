@@ -613,7 +613,7 @@
         }
 
         function getZoom() {
-            let amount = params.get('zoom') || 0.5;
+            let amount = params.get('zoom') || 1.0;
             return amount;
         }
 
@@ -644,7 +644,7 @@
         }
 
         function getAlpha() {
-            let factor = params.get('alpha') || 0.9;
+            let factor = params.get('alpha') || 0.5;
             if (isNaN(factor)) {
                 factor = 0.5;
             }
