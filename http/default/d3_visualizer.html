@@ -108,13 +108,16 @@
         let keepwarm;
         let simulation;
 
-        let previousNodes = null;
+        let previousData = null;
         let previousNodeCount = 0;
         let sizeScale = function (d) {
-            return 5 + Math.min(10, d / 10.0); // 100 messages per second is max size
+            return  3.0 + 1.0 / zoomLevel + Math.min(10, d / 10.0); // 100 messages per second is max
+        };
+        let widthScale = function (d) {
+            return  0.5 + 0.5 / zoomLevel + Math.min(2, d / 50.0);
         };
         let strengthScale = function (d) {
-            return -5 - Math.min(50, d / 2.0);  // 100 messages per second is max strength
+            return -5.0 - Math.min(100, d);
         };
         let updateQueue = [];
         let isProcessingUpdates = false;
@@ -123,7 +126,7 @@
 
         function transformData(data) {
             let nodes = data.map(function (d, did) {
-                let previousNode = previousNodes ? previousNodes[did] : null;
+                let previousNode = previousData ? previousData.nodes[did] : null;
                 let messageRate = previousNode ? (d.counter - previousNode.counter) / 10 : 0;
                 let changed = previousNode ? (messageRate !== previousNode.messageRate) : true;
                 let name = previousNode ? d.name || previousNode.name : d.name;
@@ -236,7 +239,7 @@
                 }
             } else if (previousNodeCount !== transformedData.nodes.length) {
                 // Hard reset if node count changed
-                previousNodes = null;
+                previousData = null;
                 previousNodeCount = 0;
             } else {
                 // For minor updates, do them quickly
@@ -269,8 +272,8 @@
             let sinkLinkEnter = sinkLinks.enter().append("path")
                 .attr("fill", "none")
                 .attr("stroke", "#8a7")
-                .attr("stroke-width", 1.5)
-                .attr("stroke-opacity", 0.33)
+                .attr("stroke-width", 0.5 + 0.5 / zoomLevel)
+                .attr("stroke-opacity", 0.25)
                 .classed("sink-link", true);
             sinkLinks = sinkLinkEnter.merge(sinkLinks);
 
@@ -279,8 +282,8 @@
             let ownerLinkEnter = ownerLinks.enter().append("path")
                 .attr("fill", "none")
                 .attr("stroke", "#78a")
-                .attr("stroke-width", 1.5)
-                .attr("stroke-opacity", 0.33)
+                .attr("stroke-width", 0.5 + 0.5 / zoomLevel)
+                .attr("stroke-opacity", 0.25)
                 .classed("owner-link", true);
             ownerLinks = ownerLinkEnter.merge(ownerLinks);
 
@@ -289,15 +292,15 @@
             let edgeLinkEnter = edgeLinks.enter().append("path")
                 .attr("fill", "none")
                 .attr("stroke", "#a78")
-                .attr("stroke-width", 1.5)
-                .attr("stroke-opacity", 0.33)
+                .attr("stroke-width", 0.5 + 0.5 / zoomLevel)
+                .attr("stroke-opacity", 0.25)
                 .classed("edge-link", true);
             edgeLinks = edgeLinkEnter.merge(edgeLinks);
 
             sinkNodes = sinkNodes.data(sinkNodeData, d => d.id);
             sinkNodes.exit().remove();
             let sinkEnter = sinkNodes.enter().append("circle")
-                .attr("r", d => 3)
+                .attr("r", 1.0 + 1.0 / zoomLevel)
                 .attr("fill", "#8a7")
                 .classed("sink", true)
                 .call(d3.drag()
@@ -310,7 +313,7 @@
             ownerNodes = ownerNodes.data(ownerNodeData, d => d.id);
             ownerNodes.exit().remove();
             let ownerEnter = ownerNodes.enter().append("circle")
-                .attr("r", d => 3)
+                .attr("r", 1.0 + 1.0 / zoomLevel)
                 .attr("fill", "#78a")
                 .classed("owner", true)
                 .call(d3.drag()
@@ -323,7 +326,7 @@
             edgeNodes = edgeNodes.data(edgeNodeData, d => d.id);
             edgeNodes.exit().remove();
             let edgeEnter = edgeNodes.enter().append("circle")
-                .attr("r", d => 3)
+                .attr("r", 1.0 + 1.0 / zoomLevel)
                 .attr("fill", "#a78")
                 .classed("edge", true)
                 .call(d3.drag()
@@ -343,7 +346,7 @@
             simulation.alpha(1).restart();
 
             // Store the data for the next update
-            previousNodes = transformedData.nodes;
+            previousData = transformedData;
             previousNodeCount = transformedData.nodes.length;
         }
 
@@ -358,11 +361,11 @@
                             d3.select(this).attr("fill", "#9f9")
                         }
                         else {
-                            d3.select(this).attr("r", 3);
+                            d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
                             d3.select(this).attr("fill", "#8c7")
                         }
                     } else {
-                        d3.select(this).attr("r", 3);
+                        d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
                         d3.select(this).attr("fill", "#8a7")
                     }
                 }
@@ -376,7 +379,7 @@
                         d3.select(this).attr("r", sizeScale(d.messageRate));
                         d3.select(this).attr("fill", "#9bf")
                     } else {
-                        d3.select(this).attr("r", 3)
+                        d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
                         d3.select(this).attr("fill", "#78a")
                     }
                 }
@@ -391,7 +394,7 @@
                         d3.select(this).attr("r", sizeScale(d.messageRate));
                         d3.select(this).attr("fill", "#f99");
                     } else {
-                        d3.select(this).attr("r", 3)
+                        d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
                         d3.select(this).attr("fill", "#a78");
                     }
                 }
@@ -404,17 +407,17 @@
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", "#9d8");
                         if (d.messageRate > 1.1) {
-                            d3.select(this).attr("stroke-width", 3.0 + Math.min(2, d.messageRate / 50));
+                            d3.select(this).attr("stroke-width", widthScale(d.messageRate));
                             d3.select(this).attr("stroke-opacity", 0.9);
                         }
                         else {
-                            d3.select(this).attr("stroke-width", 1.5);
+                            d3.select(this).attr("stroke-width", widthScale(d.messageRate));
                             d3.select(this).attr("stroke-opacity", 0.75);
                         }
                     } else {
                         d3.select(this).attr("stroke", "#8a7")
-                        d3.select(this).attr("stroke-width", 1.5);
-                        d3.select(this).attr("stroke-opacity", 0.33);
+                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / zoomLevel);
+                        d3.select(this).attr("stroke-opacity", 0.25);
                     }
                 }
             });
@@ -425,12 +428,12 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", "#89d");
-                        d3.select(this).attr("stroke-width", 3.0 + Math.min(2, d.messageRate / 50));
+                        d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
                         d3.select(this).attr("stroke", "#78a");
-                        d3.select(this).attr("stroke-width", 1.5);
-                        d3.select(this).attr("stroke-opacity", 0.33);
+                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / zoomLevel);
+                        d3.select(this).attr("stroke-opacity", 0.25);
                     }
                 }
             });
@@ -441,12 +444,12 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", "#d89");
-                        d3.select(this).attr("stroke-width", 3.0 + Math.min(2, d.messageRate / 50));
+                        d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
                         d3.select(this).attr("stroke", "#a78");
-                        d3.select(this).attr("stroke-width", 1.5);
-                        d3.select(this).attr("stroke-opacity", 0.33);
+                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / zoomLevel);
+                        d3.select(this).attr("stroke-opacity", 0.25);
                     }
                 }
             });
@@ -469,7 +472,7 @@
             simulation.alphaTarget(alphaFactor).restart();
 
             // Store the data for the next update
-            previousNodes = transformedData.nodes;
+            previousData = transformedData;
         }
 
 
@@ -630,14 +633,6 @@
         }
 
         function setZoom(byAmount) {
-            if (byAmount < 0.1) {
-                byAmount = 0.1;
-            } else if (byAmount > 10.0) {
-                byAmount = 10.0;
-            }
-            zoomLevel *= byAmount;
-            params.set('zoom', Math.round(zoomLevel * 100) / 100);
-            history.replaceState(null, '', '?' + params.toString());
             zoom.scaleBy(svg, byAmount);
         }
 
@@ -658,7 +653,7 @@
         }
 
         function getAlpha() {
-            let factor = params.get('alpha') || 1.0;
+            let factor = params.get('alpha') || 0.9;
             return factor;
         }
 
@@ -684,7 +679,7 @@
             } else if (zoomLevel > 10.0) {
                 zoomLevel = 10.0;
             }
-            zoom.scaleTo(svg, zoomLevel * window.innerHeight / 1080);
+            zoom.scaleBy(svg, zoomLevel);
         }
 
         function setInitialForce() {
@@ -731,7 +726,7 @@
             switch (e.key) {
                 case ' ':
                     setDecay(0.1);
-                    setAlpha(1.0);
+                    setAlpha(0.9);
                     simulation.velocityDecay(decayFactor);
                     simulation.alphaTarget(alphaFactor).restart();
                     break;
@@ -759,6 +754,11 @@
                     break;
                 case 'x':
                     setZoom(0.9);
+                    break;
+                case 'r':
+                    previousData = null;
+                    previousNodeCount = 0;
+                    request_type = "/full";
                     break;
             }
             if ((e.key > '0' && e.key <= '9') || e.key === '0') {

@@ -102,7 +102,7 @@ sub _gather_node_information {
         my $owner      = undef;
         if ( ref $node_owner ) {
             $owner = [];
-            for my $path ( @{ $node_owner } ) {
+            for my $path ( @{$node_owner} ) {
                 my $name = ( split m{/}, $path, 2 )[0];
                 push @{$owner}, $ids{$name} if ( exists $ids{$name} );
             }
