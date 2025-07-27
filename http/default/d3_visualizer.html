@@ -87,6 +87,7 @@
         let sinkNodeBrightColor = "#9f9";
         let ownerNodeBrightColor = "#99f";
         let edgeNodeBrightColor = "#f99";
+        let previousDecayFactor;
         let decayFactor;
         let alphaFactor;
         let initialZoomLevel;
@@ -722,8 +723,18 @@
         document.addEventListener('keydown', function (e) {
             switch (e.key) {
                 case ' ':
-                    setDecay(0.1);
-                    setAlpha(0.9);
+                    if (decayFactor > 0.9) {
+                        if (previousDecayFactor) {
+                            setDecay(previousDecayFactor);
+                        }
+                        else {
+                            setDecay(0.1);
+                        }
+                    }
+                    else {
+                        previousDecayFactor = decayFactor;
+                        setDecay(1.0);
+                    }
                     simulation.velocityDecay(decayFactor);
                     simulation.alphaTarget(alphaFactor).restart();
                     break;
