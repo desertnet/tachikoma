@@ -323,7 +323,7 @@ sub get_partitions_async {
     $message->[PAYLOAD] = "GET_PARTITIONS $self->{topic}\n";
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->{sink}->fill($message);
+    Tachikoma->nodes->{_router}->fill($message);
     $self->{last_check} = $Tachikoma::Right_Now;
     return;
 }

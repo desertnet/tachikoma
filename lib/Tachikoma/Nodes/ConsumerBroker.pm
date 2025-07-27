@@ -196,7 +196,7 @@ sub fire {
     }
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->sink->fill($message);
+    Tachikoma->nodes->{_router}->fill($message);
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{async_interval} * 1000 )
     {
@@ -229,7 +229,7 @@ sub update_leader {
     $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
     $self->stderr( 'DEBUG: ' . $response->[PAYLOAD] )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->sink->fill($response);
+    Tachikoma->nodes->{_router}->fill($response);
     return;
 }
 
@@ -428,7 +428,7 @@ sub remove_node {
         $message->[PAYLOAD] = "DISCONNECT\n";
         $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
             if ( $self->debug_state );
-        $self->sink->fill($message);
+        Tachikoma->nodes->{_router}->fill($message);
     }
     $self->SUPER::remove_node;
     return;

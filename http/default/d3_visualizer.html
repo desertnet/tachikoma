@@ -40,31 +40,6 @@
         @view-transition {
             navigation: auto;
         }
-
-        /* Apply different filters to each group */
-        .sink-links {
-            filter: drop-shadow(0px 0px 10px #ac8);
-        }
-
-        .owner-links {
-            filter: drop-shadow(0px 0px 10px #8ac);
-        }
-
-        .edge-links {
-            filter: drop-shadow(0px 0px 10px #c8a);
-        }
-
-        .sink-nodes {
-            filter: drop-shadow(0px 0px 10px #8f8);
-        }
-
-        .owner-nodes {
-            filter: drop-shadow(0px 0px 10px #88f);
-        }
-
-        .edge-nodes {
-            filter: drop-shadow(0px 0px 10px #f88);
-        }
     </style>
 </head>
 
@@ -73,9 +48,7 @@
     <script>
         let svg = d3.select("svg")
             .attr("width", window.innerWidth)
-            .attr("height", window.innerHeight),
-            width = +svg.attr("width"),
-            height = +svg.attr("height");
+            .attr("height", window.innerHeight);
 
         let zoom = d3.zoom()
             .scaleExtent([0.1, 10])
@@ -101,9 +74,22 @@
             edgeLinks = edgeLinkGroup.selectAll(".edge-link");
 
         let params = new URLSearchParams(window.location.search);
+        let constantForceFactor = 2.0;
+        let sinkLinkColor = "#787";
+        let ownerLinkColor = "#778";
+        let edgeLinkColor = "#877";
+        let sinkNodeColor = "#898";
+        let ownerNodeColor = "#889";
+        let edgeNodeColor = "#988";
+        let sinkLinkBrightColor = "#9d9";
+        let ownerLinkBrightColor = "#99d";
+        let edgeLinkBrightColor = "#d99";
+        let sinkNodeBrightColor = "#9f9";
+        let ownerNodeBrightColor = "#99f";
+        let edgeNodeBrightColor = "#f99";
         let decayFactor;
         let alphaFactor;
-        let zoomLevel;
+        let initialZoomLevel;
         let forceFactor;
         let keepwarm;
         let simulation;
@@ -111,10 +97,10 @@
         let previousData = null;
         let previousNodeCount = 0;
         let sizeScale = function (d) {
-            return 3.0 + 1.0 / zoomLevel + Math.min(10, d / 10.0); // 100 messages per second is max
+            return 3.0 + 1.0 / initialZoomLevel + Math.min(10, d / 10.0); // 100 messages per second is max
         };
         let widthScale = function (d) {
-            return 0.5 + 0.5 / zoomLevel + Math.min(2, d / 50.0);
+            return 0.5 + 0.5 / initialZoomLevel + Math.min(2, d / 50.0);
         };
         let strengthScale = function (d) {
             return -5.0 - Math.min(100, d) * 5.0;
@@ -240,22 +226,23 @@
             let transformedData = transformData(queued.data);
 
             if (previousNodeCount == 0) {
+                /* Initial load or reset, make sure to do a full update */
                 if (queued.response_type === "/brief") {
                     request_type = "/full";
                 } else {
                     processMajorUpdate(transformedData);
                 }
             } else if (previousNodeCount !== transformedData.nodes.length) {
-                // Hard reset if node count changed
+                /* Hard reset if node count changed */
                 previousData = null;
                 previousNodeCount = 0;
             } else {
-                // For minor updates, do them quickly
+                /* For minor updates, do them quickly */
                 processMinorUpdate(transformedData);
             }
 
 
-            // Continue processing queue
+            /* Continue processing queue */
             if (window.requestIdleCallback) {
                 requestIdleCallback(() => processUpdateQueue(), { timeout: 50 });
             } else {
@@ -266,7 +253,7 @@
         function processMajorUpdate(transformedData) {
             request_type = "/brief";
 
-            // Separate data by type
+            /* Separate data by type */
             let sinkLinkData = transformedData.links.filter(d => d.sink);
             let ownerLinkData = transformedData.links.filter(d => d.owner);
             let edgeLinkData = transformedData.links.filter(d => d.edge);
@@ -279,8 +266,8 @@
             sinkLinks.exit().remove();
             let sinkLinkEnter = sinkLinks.enter().append("path")
                 .attr("fill", "none")
-                .attr("stroke", "#8a7")
-                .attr("stroke-width", 0.5 + 0.5 / zoomLevel)
+                .attr("stroke", sinkLinkColor)
+                .attr("stroke-width", 0.5 + 0.5 / initialZoomLevel)
                 .attr("stroke-opacity", 0.25)
                 .classed("sink-link", true);
             sinkLinks = sinkLinkEnter.merge(sinkLinks);
@@ -289,8 +276,8 @@
             ownerLinks.exit().remove();
             let ownerLinkEnter = ownerLinks.enter().append("path")
                 .attr("fill", "none")
-                .attr("stroke", "#78a")
-                .attr("stroke-width", 0.5 + 0.5 / zoomLevel)
+                .attr("stroke", ownerLinkColor)
+                .attr("stroke-width", 0.5 + 0.5 / initialZoomLevel)
                 .attr("stroke-opacity", 0.25)
                 .classed("owner-link", true);
             ownerLinks = ownerLinkEnter.merge(ownerLinks);
@@ -299,8 +286,8 @@
             edgeLinks.exit().remove();
             let edgeLinkEnter = edgeLinks.enter().append("path")
                 .attr("fill", "none")
-                .attr("stroke", "#a78")
-                .attr("stroke-width", 0.5 + 0.5 / zoomLevel)
+                .attr("stroke", edgeLinkColor)
+                .attr("stroke-width", 0.5 + 0.5 / initialZoomLevel)
                 .attr("stroke-opacity", 0.25)
                 .classed("edge-link", true);
             edgeLinks = edgeLinkEnter.merge(edgeLinks);
@@ -308,8 +295,8 @@
             sinkNodes = sinkNodes.data(sinkNodeData, d => d.id);
             sinkNodes.exit().remove();
             let sinkEnter = sinkNodes.enter().append("circle")
-                .attr("r", 1.0 + 1.0 / zoomLevel)
-                .attr("fill", "#8a7")
+                .attr("r", 1.0 + 1.0 / initialZoomLevel)
+                .attr("fill", sinkNodeColor)
                 .classed("sink", true)
                 .call(d3.drag()
                     .on("start", dragstarted)
@@ -321,8 +308,8 @@
             ownerNodes = ownerNodes.data(ownerNodeData, d => d.id);
             ownerNodes.exit().remove();
             let ownerEnter = ownerNodes.enter().append("circle")
-                .attr("r", 1.0 + 1.0 / zoomLevel)
-                .attr("fill", "#78a")
+                .attr("r", 1.0 + 1.0 / initialZoomLevel)
+                .attr("fill", ownerNodeColor)
                 .classed("owner", true)
                 .call(d3.drag()
                     .on("start", dragstarted)
@@ -334,8 +321,8 @@
             edgeNodes = edgeNodes.data(edgeNodeData, d => d.id);
             edgeNodes.exit().remove();
             let edgeEnter = edgeNodes.enter().append("circle")
-                .attr("r", 1.0 + 1.0 / zoomLevel)
-                .attr("fill", "#a78")
+                .attr("r", 1.0 + 1.0 / initialZoomLevel)
+                .attr("fill", edgeNodeColor)
                 .classed("edge", true)
                 .call(d3.drag()
                     .on("start", dragstarted)
@@ -353,7 +340,7 @@
                 .links(allLinks);
             simulation.alpha(1).restart();
 
-            // Store the data for the next update
+            /* Store the data for the next update */
             previousData = transformedData;
             previousNodeCount = transformedData.nodes.length;
         }
@@ -364,17 +351,11 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        if (d.messageRate > 1.1) {
-                            d3.select(this).attr("r", sizeScale(d.messageRate));
-                            d3.select(this).attr("fill", "#9f9")
-                        }
-                        else {
-                            d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
-                            d3.select(this).attr("fill", "#8c7")
-                        }
+                        d3.select(this).attr("r", sizeScale(d.messageRate));
+                        d3.select(this).attr("fill", sinkNodeBrightColor);
                     } else {
-                        d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
-                        d3.select(this).attr("fill", "#8a7")
+                        d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
+                        d3.select(this).attr("fill", sinkNodeColor);
                     }
                 }
             });
@@ -385,25 +366,25 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("r", sizeScale(d.messageRate));
-                        d3.select(this).attr("fill", "#9bf")
+                        d3.select(this).attr("fill", ownerNodeBrightColor);
                     } else {
-                        d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
-                        d3.select(this).attr("fill", "#78a")
+                        d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
+                        d3.select(this).attr("fill", ownerNodeColor);
                     }
                 }
             });
 
-            // Update edge nodes that changed
+            /* Update edge nodes that changed */
             edgeNodes.each(function (d) {
                 let node = transformedData.nodes[d.id];
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("r", sizeScale(d.messageRate));
-                        d3.select(this).attr("fill", "#f99");
+                        d3.select(this).attr("fill", edgeNodeBrightColor);
                     } else {
-                        d3.select(this).attr("r", 1.0 + 1.0 / zoomLevel);
-                        d3.select(this).attr("fill", "#a78");
+                        d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
+                        d3.select(this).attr("fill", edgeNodeColor);
                     }
                 }
             });
@@ -413,17 +394,12 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("stroke", "#9d8");
-                        d3.select(this).attr("stroke-width", widthScale(d.messageRate));
-                        if (d.messageRate > 1.1) {
-                            d3.select(this).attr("stroke-opacity", 0.9);
-                        }
-                        else {
-                            d3.select(this).attr("stroke-opacity", 0.5);
-                        }
+                        d3.select(this).attr("stroke", sinkLinkBrightColor);
+                        d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
+                        d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
-                        d3.select(this).attr("stroke", "#8a7")
-                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / zoomLevel);
+                        d3.select(this).attr("stroke", sinkLinkColor);
+                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / initialZoomLevel);
                         d3.select(this).attr("stroke-opacity", 0.25);
                     }
                 }
@@ -434,12 +410,12 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("stroke", "#89d");
+                        d3.select(this).attr("stroke", ownerLinkBrightColor);
                         d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
-                        d3.select(this).attr("stroke", "#78a");
-                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / zoomLevel);
+                        d3.select(this).attr("stroke", ownerLinkColor);
+                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / initialZoomLevel);
                         d3.select(this).attr("stroke-opacity", 0.25);
                     }
                 }
@@ -450,12 +426,12 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("stroke", "#d89");
+                        d3.select(this).attr("stroke", edgeLinkBrightColor);
                         d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
-                        d3.select(this).attr("stroke", "#a78");
-                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / zoomLevel);
+                        d3.select(this).attr("stroke", edgeLinkColor);
+                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / initialZoomLevel);
                         d3.select(this).attr("stroke-opacity", 0.25);
                     }
                 }
@@ -473,18 +449,18 @@
             simulation.force("charge",
                 d3.forceManyBody()
                     .strength(function (d) {
-                        return 2.0 * forceFactor * strengthScale(d.messageRate);
+                        return constantForceFactor * forceFactor * strengthScale(d.messageRate);
                     })
             ).velocityDecay(decayFactor);
             simulation.alphaTarget(alphaFactor).restart();
 
-            // Store the data for the next update
+            /* Store the data for the next update */
             previousData = transformedData;
         }
 
 
         function ticked() {
-            // Update all link groups
+            /* Update all link groups */
             sinkLinks
                 .attr("d", function (d) {
                     return "M" + d.source.x + "," + d.source.y + "L" + d.target.x + "," + d.target.y;
@@ -492,7 +468,7 @@
 
             ownerLinks
                 .attr("d", function (d) {
-                    // Draw a Bezier curve for owner links
+                    /* Draw a Bezier curve for owner links */
                     let dx = d.target.x - d.source.x,
                         dy = d.target.y - d.source.y,
                         dr = Math.sqrt(dx * dx + dy * dy);
@@ -504,7 +480,7 @@
                     return "M" + d.source.x + "," + d.source.y + "L" + d.target.x + "," + d.target.y;
                 });
 
-            // Update all node groups
+            /* Update all node groups */
             sinkNodes
                 .attr("cx", d => d.x)
                 .attr("cy", d => d.y);
@@ -521,16 +497,18 @@
 
         function zoomed(event) {
             g.attr("transform", event.transform);
+            let zoomLevel = event.transform.k;
+
             /* change drop shadow radius based on the zoom level */
-            console.error("zoomLevel: " + zoomLevel + ", k: " + event.transform.k);
-            zoomLevel = event.transform.k;
             let shadowRadius = Math.max(0, 10 / zoomLevel);
-            svg.selectAll(".sink-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #ac8)");
-            svg.selectAll(".owner-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #8ac)");
-            svg.selectAll(".edge-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #c8a)");
-            svg.selectAll(".sink-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #8f8)");
-            svg.selectAll(".owner-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #88f)");
-            svg.selectAll(".edge-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px #f88)");
+            svg.selectAll(".sink-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkLinkBrightColor + ")");
+            svg.selectAll(".owner-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerLinkBrightColor + ")");
+            svg.selectAll(".edge-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeLinkBrightColor + ")");
+            svg.selectAll(".sink-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkNodeBrightColor + ")");
+            svg.selectAll(".owner-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerNodeBrightColor + ")");
+            svg.selectAll(".edge-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")");
+
+            /* Update the zoom level in the URL parameters */
             params.set('zoom', Math.round(zoomLevel * 100) / 100);
             history.replaceState(null, '', '?' + params.toString());
         }
@@ -628,7 +606,7 @@
             history.replaceState(null, '', '?' + params.toString());
             forceFactor = newFactor;
             simulation.force("charge", d3.forceManyBody().strength(function (d) {
-                return forceFactor * strengthScale(d.messageRate);
+                return constantForceFactor * forceFactor * strengthScale(d.messageRate);
             }));
             simulation.alphaTarget(alphaFactor).restart();
             return forceFactor;
@@ -686,13 +664,13 @@
         }
 
         function setInitialZoom() {
-            zoomLevel = Math.round(getZoom() * 10) / 10;
-            if (zoomLevel < 0.1) {
-                zoomLevel = 0.1;
-            } else if (zoomLevel > 10.0) {
-                zoomLevel = 10.0;
+            initialZoomLevel = Math.round(getZoom() * 10) / 10;
+            if (initialZoomLevel < 0.1) {
+                initialZoomLevel = 0.1;
+            } else if (initialZoomLevel > 10.0) {
+                initialZoomLevel = 10.0;
             }
-            zoom.scaleBy(svg, zoomLevel);
+            zoom.scaleBy(svg, initialZoomLevel);
         }
 
         function setInitialForce() {
@@ -728,7 +706,7 @@
             simulation = d3.forceSimulation()
                 .force("link", d3.forceLink().id(function (d) { return d.id; }))
                 .force("charge", d3.forceManyBody().strength(function (d) {
-                    return forceFactor * strengthScale(d.messageRate);
+                    return constantForceFactor * forceFactor * strengthScale(d.messageRate);
                 }))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .velocityDecay(decayFactor);
@@ -782,9 +760,6 @@
                     setForce(forceValue);
                 }
             }
-            console.error("keepwarm: " + keepwarm + ", forceFactor: " + forceFactor +
-                ", zoomLevel: " + zoomLevel + ", decayFactor: " + decayFactor +
-                ", alphaFactor: " + alphaFactor);
         });
 
         let resizeTimeout;
@@ -792,7 +767,7 @@
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 resize();
-            }, 200); // adjust delay as needed
+            }, 200); /* adjust delay as needed */
         });
 
         setInterval(updateGraph, 10000);

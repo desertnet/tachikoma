@@ -474,7 +474,7 @@ sub get_batch {
     $self->{expecting} = 1;
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
         if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->{sink}->fill($message);
+    Tachikoma->nodes->{_router}->fill($message);
     return;
 }
 
@@ -533,7 +533,7 @@ sub commit_offset {
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{offsetlog};
     $message->[PAYLOAD] = $stored;
-    $self->{sink}->fill($message);
+    Tachikoma->nodes->{_router}->fill($message);
     $self->{last_cache_size}    = $message->size;
     $self->{last_commit}        = $Tachikoma::Now;
     $self->{last_commit_offset} = $offset;
