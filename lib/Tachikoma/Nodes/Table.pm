@@ -105,7 +105,6 @@ sub fill {
             chomp $key;
             my $value = $self->lookup($key) // q();
             $self->send_entry( $message->[FROM], $key, $value );
-            $self->{counter}++;
         }
         elsif ( $cmd eq 'KEYS' ) {
             my $value = $self->get_keys;
@@ -141,6 +140,7 @@ sub fill {
             $message->payload );
         $self->cancel($message) if ( $message->[TYPE] & TM_PERSIST );
     }
+    $self->{counter}++;
     return;
 }
 
