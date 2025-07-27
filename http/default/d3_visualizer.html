@@ -117,7 +117,7 @@
             return  0.5 + 0.5 / zoomLevel + Math.min(2, d / 50.0);
         };
         let strengthScale = function (d) {
-            return -5.0 - Math.min(100, d);
+            return -5.0 - Math.min(100, d) * 5.0;
         };
         let updateQueue = [];
         let isProcessingUpdates = false;
@@ -138,14 +138,16 @@
                     owner: d.owner,
                     counter: d.counter,
                     messageRate: messageRate,
-                    changed: changed
+                    changed: changed,
+                    ignore: name === '_router' || name === '_responder' || name === '_return_to_sender'
                 };
             });
 
             let links = [];
             data.forEach(function (d, did) {
                 if (did === -1) return;
-                if (d.sink !== -1) {
+                if (nodes[did].ignore) return;
+                if (d.sink !== -1 && !nodes[d.sink].ignore) {
                     links.push({
                         source: nodes[did],
                         target: nodes[d.sink],
@@ -154,7 +156,7 @@
                         owner: 0
                     });
                 }
-                if (d.edge !== -1) {
+                if (d.edge !== -1 && !nodes[d.edge].ignore) {
                     links.push({
                         source: nodes[did],
                         target: nodes[d.edge],
@@ -164,7 +166,7 @@
                     });
                 }
                 if (!Array.isArray(d.owner)) {
-                    if (d.owner !== -1) {
+                    if (d.owner !== -1 && !nodes[d.owner].ignore) {
                         links.push({
                             source: nodes[did],
                             target: nodes[d.owner],
@@ -175,13 +177,15 @@
                     }
                 } else {
                     for (var i = 0; i < d.owner.length; i++) {
-                        links.push({
-                            source: nodes[did],
-                            target: nodes[d.owner[i]],
-                            sink: 0,
-                            edge: 0,
-                            owner: 1
-                        });
+                        if (!nodes[d.owner[i]].ignore) {
+                            links.push({
+                                source: nodes[did],
+                                target: nodes[d.owner[i]],
+                                sink: 0,
+                                edge: 0,
+                                owner: 1
+                            });
+                        }
                     }
                 }
             });
@@ -406,13 +410,12 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", "#9d8");
+                        d3.select(this).attr("stroke-width", widthScale(d.messageRate));
                         if (d.messageRate > 1.1) {
-                            d3.select(this).attr("stroke-width", widthScale(d.messageRate));
                             d3.select(this).attr("stroke-opacity", 0.9);
                         }
                         else {
-                            d3.select(this).attr("stroke-width", widthScale(d.messageRate));
-                            d3.select(this).attr("stroke-opacity", 0.75);
+                            d3.select(this).attr("stroke-opacity", 0.5);
                         }
                     } else {
                         d3.select(this).attr("stroke", "#8a7")
@@ -638,6 +641,9 @@
 
         function getDecay() {
             let factor = params.get('decay') || 0.1;
+            if (isNaN(decayFactor)) {
+                decayFactor = 0.1;
+            }
             return factor;
         }
 
@@ -648,6 +654,9 @@
                 newFactor = 1.0;
             }
             decayFactor = Math.round(newFactor * 10) / 10;
+            if (isNaN(decayFactor)) {
+                decayFactor = 0.1;
+            }
             params.set('decay', decayFactor);
             history.replaceState(null, '', '?' + params.toString());
         }
