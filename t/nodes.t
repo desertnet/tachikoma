@@ -48,7 +48,7 @@ my %nodes = (
     'Tachikoma::Nodes::ClientConnector'       => q(clientconnector),
     'Tachikoma::Nodes::CommandInterpreter'    => q(),
     'Tachikoma::Nodes::Consumer'              => q(--partition=foo),
-    'Tachikoma::Nodes::ConsumerBroker'        => q(--topic=foo),
+    'Tachikoma::Nodes::ConsumerBroker'        => q(--broker=broker --topic=foo),
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
     'Tachikoma::Nodes::DirWatcher'            => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
