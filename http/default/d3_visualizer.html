@@ -94,6 +94,7 @@
         let forceFactor;
         let keepwarm;
         let simulation;
+        let updateInterval;
 
         let previousData = null;
         let previousNodeCount = 0;
@@ -731,10 +732,12 @@
                         else {
                             setDecay(0.1);
                         }
+                        updateInterval = setInterval(updateGraph, 10000);
                     }
                     else {
                         previousDecayFactor = decayFactor;
                         setDecay(1.0);
+                        clearInterval(updateInterval);
                     }
                     simulation.velocityDecay(decayFactor);
                     simulation.alphaTarget(alphaFactor).restart();
@@ -788,7 +791,7 @@
             }, 200); /* adjust delay as needed */
         });
 
-        setInterval(updateGraph, 10000);
+        updateInterval = setInterval(updateGraph, 10000);
         setInitialKeepWarm();
         setInitialZoom();
         setInitialForce();
