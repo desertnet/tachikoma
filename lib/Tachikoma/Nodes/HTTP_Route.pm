@@ -47,6 +47,7 @@ sub fill {
         ? $self->{paths}->{ $server_class || q() }
         : $self->{paths}
     );
+    $self->{counter}++;
     if ( not $paths ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
@@ -79,7 +80,6 @@ sub fill {
     $request->{path} = join q(/), q(), @new_path;
     $destination ||= $paths->{q(/)};
     $message->[TO] = $destination;
-    $self->{counter}++;
     return $self->{sink}->fill($message);
 }
 

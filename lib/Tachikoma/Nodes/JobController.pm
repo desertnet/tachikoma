@@ -73,6 +73,7 @@ sub fill {
         return if ( not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') );
     }
     return $self->{interpreter}->fill($message) if ( $type & TM_COMMAND );
+    $self->{counter}++;
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
@@ -83,7 +84,7 @@ sub fill {
             and $next eq '_parent'
             and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') );
         return $self->handle_EOF( $message, $name, $job )
-            if ( not $next and $to eq $job_owner and $type & TM_EOF );
+            if ( $type & TM_EOF and not $next and $to eq $job_owner );
     }
     return $self->{sink}->fill($message);
 }
