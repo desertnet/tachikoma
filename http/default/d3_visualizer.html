@@ -74,7 +74,7 @@
             edgeLinks = edgeLinkGroup.selectAll(".edge-link");
 
         let params = new URLSearchParams(window.location.search);
-        let constantForceFactor = 2.0;
+        let constantForceFactor = -2.0;
         let sinkLinkColor = "#787";
         let ownerLinkColor = "#778";
         let edgeLinkColor = "#877";
@@ -98,15 +98,9 @@
 
         let previousData = null;
         let previousNodeCount = 0;
-        let sizeScale = function (d) {
-            return 3.0 + 1.0 / initialZoomLevel + Math.min(10, d / 10.0); // 100 messages per second is max
-        };
-        let widthScale = function (d) {
-            return 0.5 + 0.5 / initialZoomLevel + Math.min(2, d / 50.0);
-        };
-        let strengthScale = function (d) {
-            return -5.0 - Math.min(100, d) * 5.0;
-        };
+        const sizeScale = d3.scaleLog().range([0.5, 5]);
+        const widthScale = d3.scaleLog().range([1, 3]);
+        const strengthScale = d3.scaleLog().range([5, 100]);
         let updateQueue = [];
         let isProcessingUpdates = false;
         let request_type = "/full";
@@ -353,7 +347,7 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("r", sizeScale(d.messageRate));
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                         d3.select(this).attr("fill", sinkNodeBrightColor);
                     } else {
                         d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
@@ -367,7 +361,7 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("r", sizeScale(d.messageRate));
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                         d3.select(this).attr("fill", ownerNodeBrightColor);
                     } else {
                         d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
@@ -382,7 +376,7 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("r", sizeScale(d.messageRate));
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                         d3.select(this).attr("fill", edgeNodeBrightColor);
                     } else {
                         d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
@@ -397,7 +391,7 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", sinkLinkBrightColor);
-                        d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
                         d3.select(this).attr("stroke", sinkLinkColor);
@@ -414,7 +408,7 @@
                     let target = transformedData.nodes[d.target.id];
                     if (d.messageRate > 0 && target.messageRate > 0) {
                         d3.select(this).attr("stroke", ownerLinkBrightColor);
-                        d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
                         d3.select(this).attr("stroke", ownerLinkColor);
@@ -430,7 +424,7 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", edgeLinkBrightColor);
-                        d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
                     } else {
                         d3.select(this).attr("stroke", edgeLinkColor);
@@ -452,7 +446,7 @@
             simulation.force("charge",
                 d3.forceManyBody()
                     .strength(function (d) {
-                        return constantForceFactor * forceFactor * strengthScale(d.messageRate);
+                        return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate);
                     })
             ).velocityDecay(decayFactor);
             simulation.alphaTarget(alphaFactor).restart();
@@ -504,12 +498,20 @@
 
             /* change drop shadow radius based on the zoom level */
             let shadowRadius = Math.max(0, 10 / zoomLevel);
-            svg.selectAll(".sink-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkLinkBrightColor + ")");
+            /* both style and attr seem to work, but they yield subtly different colors at scale? */
+            /* svg.selectAll(".sink-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkLinkBrightColor + ")");
             svg.selectAll(".owner-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerLinkBrightColor + ")");
             svg.selectAll(".edge-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeLinkBrightColor + ")");
             svg.selectAll(".sink-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkNodeBrightColor + ")");
             svg.selectAll(".owner-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerNodeBrightColor + ")");
-            svg.selectAll(".edge-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")");
+            svg.selectAll(".edge-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")"); */
+
+            svg.selectAll(".sink-links").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkLinkBrightColor + ")");
+            svg.selectAll(".owner-links").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerLinkBrightColor + ")");
+            svg.selectAll(".edge-links").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeLinkBrightColor + ")");
+            svg.selectAll(".sink-nodes").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkNodeBrightColor + ")");
+            svg.selectAll(".owner-nodes").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerNodeBrightColor + ")");
+            svg.selectAll(".edge-nodes").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")");
 
             /* Update the zoom level in the URL parameters */
             params.set('zoom', Math.round(zoomLevel * 100) / 100);
@@ -609,7 +611,7 @@
             history.replaceState(null, '', '?' + params.toString());
             forceFactor = newFactor;
             simulation.force("charge", d3.forceManyBody().strength(function (d) {
-                return constantForceFactor * forceFactor * strengthScale(d.messageRate);
+                return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate);
             }));
             simulation.alphaTarget(alphaFactor).restart();
             return forceFactor;
@@ -715,7 +717,7 @@
             simulation = d3.forceSimulation()
                 .force("link", d3.forceLink().id(function (d) { return d.id; }))
                 .force("charge", d3.forceManyBody().strength(function (d) {
-                    return constantForceFactor * forceFactor * strengthScale(d.messageRate);
+                    return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate);
                 }))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .velocityDecay(decayFactor);
