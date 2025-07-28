@@ -410,7 +410,8 @@
                 let node = transformedData.nodes[d.source.id];
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
-                    if (d.messageRate > 0) {
+                    let target = transformedData.nodes[d.target.id];
+                    if (d.messageRate > 0 && target.messageRate > 0) {
                         d3.select(this).attr("stroke", ownerLinkBrightColor);
                         d3.select(this).attr("stroke-width", 0.5 + widthScale(d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);

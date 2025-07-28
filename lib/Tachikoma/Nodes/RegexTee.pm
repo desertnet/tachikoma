@@ -23,6 +23,7 @@ sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
     $self->{branches}    = {};
+    $self->{owner}       = q();
     $self->{interpreter} = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
     $self->{interpreter}->commands( \%C );
@@ -69,6 +70,16 @@ sub fill {
             $self->{sink}->fill($copy);
             $count++;
         }
+    }
+    if ( $self->{owner} ) {
+        my $copy = bless [ @{$message} ], ref $message;
+        $copy->[TO] = $self->{owner};
+        if ($persist) {
+            $self->stamp_message( $copy, $self->{name} ) or return;
+            $copy->[ID] = $message_id;
+        }
+        $self->{sink}->fill($copy);
+        $count++;
     }
     if ($persist) {
         if ( $count > 0 ) {
@@ -172,10 +183,20 @@ sub dump_config {
 
 sub owner {
     my $self = shift;
-    return [
-        sort map { $self->{branches}->{$_}->[0] }
-            keys %{ $self->{branches} }
-    ];
+    if (@_) {
+        my $owner = shift;
+        $self->SUPER::owner($owner);
+    }
+    else {
+        my $branches = $self->{branches};
+        my $owners   = [
+            sort grep {length}
+            map       { $branches->{$_}->[0] } keys %{$branches}
+        ];
+        push @{$owners}, $self->{owner} if ( length $self->{owner} );
+        return $owners;
+    }
+    return $self->{owner};
 }
 
 sub branches {

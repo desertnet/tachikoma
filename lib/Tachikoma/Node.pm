@@ -149,8 +149,8 @@ sub connect_node {
     die "no node specified\n" if ( not length $name );
     my $node = Tachikoma->nodes->{$name};
     die qq(no such node: "$name"\n) if ( not $node );
-    if ( ref( $node->owner ) eq 'ARRAY' ) {
-        my @owners = grep { $_ ne $owner } @{ $node->owner };
+    if ( ref( $node->{owner} ) eq 'ARRAY' ) {
+        my @owners = grep { $_ ne $owner } @{ $node->{owner} };
         push @owners, $owner;
         $node->owner( [ sort @owners ] );
     }
@@ -165,16 +165,16 @@ sub disconnect_node {
     die "no node specified\n" if ( not $name );
     my $node = Tachikoma->nodes->{$name};
     die qq(no such node: "$name"\n) if ( not $node );
-    if ( ref( $node->owner ) eq 'ARRAY' ) {
-        my @keep = ();
+    if ( ref( $node->{owner} ) eq 'ARRAY' ) {
+        my $keep = [];
         if ( $owner and $owner ne q(*) ) {
-            for my $node ( @{ $node->owner } ) {
+            for my $node ( @{ $node->{owner} } ) {
                 if ( $node ne $owner ) {
-                    push @keep, $node;
+                    push @{$keep}, $node;
                 }
             }
         }
-        @{ $node->owner } = @keep;
+        $node->owner($keep);
     }
     else {
         $node->owner(q());
