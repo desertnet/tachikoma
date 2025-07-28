@@ -87,10 +87,13 @@
         let sinkNodeBrightColor = "#9f9";
         let ownerNodeBrightColor = "#99f";
         let edgeNodeBrightColor = "#f99";
+        let initialZoomLevel = getZoom();
+        let defaultWidth = 0.5 + 0.5 / initialZoomLevel;
+        let defaultSize = 1.0 + 1.0 / initialZoomLevel;
+        let thetaFactor = 0.93;
         let previousDecayFactor;
         let decayFactor;
         let alphaFactor;
-        let initialZoomLevel;
         let forceFactor;
         let keepwarm;
         let simulation;
@@ -263,8 +266,8 @@
             let sinkLinkEnter = sinkLinks.enter().append("path")
                 .attr("fill", "none")
                 .attr("stroke", sinkLinkColor)
-                .attr("stroke-width", 0.5 + 0.5 / initialZoomLevel)
                 .attr("stroke-opacity", 0.25)
+                .attr("stroke-width", defaultWidth)
                 .classed("sink-link", true);
             sinkLinks = sinkLinkEnter.merge(sinkLinks);
 
@@ -273,8 +276,8 @@
             let ownerLinkEnter = ownerLinks.enter().append("path")
                 .attr("fill", "none")
                 .attr("stroke", ownerLinkColor)
-                .attr("stroke-width", 0.5 + 0.5 / initialZoomLevel)
                 .attr("stroke-opacity", 0.25)
+                .attr("stroke-width", defaultWidth)
                 .classed("owner-link", true);
             ownerLinks = ownerLinkEnter.merge(ownerLinks);
 
@@ -283,16 +286,16 @@
             let edgeLinkEnter = edgeLinks.enter().append("path")
                 .attr("fill", "none")
                 .attr("stroke", edgeLinkColor)
-                .attr("stroke-width", 0.5 + 0.5 / initialZoomLevel)
                 .attr("stroke-opacity", 0.25)
+                .attr("stroke-width", defaultWidth)
                 .classed("edge-link", true);
             edgeLinks = edgeLinkEnter.merge(edgeLinks);
 
             sinkNodes = sinkNodes.data(sinkNodeData, d => d.id);
             sinkNodes.exit().remove();
             let sinkEnter = sinkNodes.enter().append("circle")
-                .attr("r", 1.0 + 1.0 / initialZoomLevel)
                 .attr("fill", sinkNodeColor)
+                .attr("r", defaultSize)
                 .classed("sink", true)
                 .call(d3.drag()
                     .on("start", dragstarted)
@@ -304,8 +307,8 @@
             ownerNodes = ownerNodes.data(ownerNodeData, d => d.id);
             ownerNodes.exit().remove();
             let ownerEnter = ownerNodes.enter().append("circle")
-                .attr("r", 1.0 + 1.0 / initialZoomLevel)
                 .attr("fill", ownerNodeColor)
+                .attr("r", defaultSize)
                 .classed("owner", true)
                 .call(d3.drag()
                     .on("start", dragstarted)
@@ -317,8 +320,8 @@
             edgeNodes = edgeNodes.data(edgeNodeData, d => d.id);
             edgeNodes.exit().remove();
             let edgeEnter = edgeNodes.enter().append("circle")
-                .attr("r", 1.0 + 1.0 / initialZoomLevel)
                 .attr("fill", edgeNodeColor)
+                .attr("r", defaultSize)
                 .classed("edge", true)
                 .call(d3.drag()
                     .on("start", dragstarted)
@@ -347,11 +350,11 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                         d3.select(this).attr("fill", sinkNodeBrightColor);
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                     } else {
-                        d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
                         d3.select(this).attr("fill", sinkNodeColor);
+                        d3.select(this).attr("r", defaultSize);
                     }
                 }
             });
@@ -361,11 +364,11 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                         d3.select(this).attr("fill", ownerNodeBrightColor);
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                     } else {
-                        d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
                         d3.select(this).attr("fill", ownerNodeColor);
+                        d3.select(this).attr("r", defaultSize);
                     }
                 }
             });
@@ -376,11 +379,11 @@
                 if (node && node.changed) {
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
-                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                         d3.select(this).attr("fill", edgeNodeBrightColor);
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
                     } else {
-                        d3.select(this).attr("r", 1.0 + 1.0 / initialZoomLevel);
                         d3.select(this).attr("fill", edgeNodeColor);
+                        d3.select(this).attr("r", defaultSize);
                     }
                 }
             });
@@ -391,12 +394,12 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", sinkLinkBrightColor);
-                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                     } else {
                         d3.select(this).attr("stroke", sinkLinkColor);
-                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / initialZoomLevel);
                         d3.select(this).attr("stroke-opacity", 0.25);
+                        d3.select(this).attr("stroke-width", defaultWidth);
                     }
                 }
             });
@@ -408,12 +411,12 @@
                     let target = transformedData.nodes[d.target.id];
                     if (d.messageRate > 0 && target.messageRate > 0) {
                         d3.select(this).attr("stroke", ownerLinkBrightColor);
-                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                     } else {
                         d3.select(this).attr("stroke", ownerLinkColor);
-                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / initialZoomLevel);
                         d3.select(this).attr("stroke-opacity", 0.25);
+                        d3.select(this).attr("stroke-width", defaultWidth);
                     }
                 }
             });
@@ -424,32 +427,25 @@
                     d.messageRate = node.messageRate;
                     if (d.messageRate > 0) {
                         d3.select(this).attr("stroke", edgeLinkBrightColor);
-                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                         d3.select(this).attr("stroke-opacity", 0.9);
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
                     } else {
                         d3.select(this).attr("stroke", edgeLinkColor);
-                        d3.select(this).attr("stroke-width", 0.5 + 0.5 / initialZoomLevel);
                         d3.select(this).attr("stroke-opacity", 0.25);
+                        d3.select(this).attr("stroke-width", defaultWidth);
                     }
                 }
             });
 
             if (!keepwarm) {
-                if (decayFactor < 0.9) {
-                    setDecay(decayFactor + 0.1);
+                if (decayFactor < 1.0) {
+                    setDecay(decayFactor + 0.05);
                 }
                 if (alphaFactor > 0.1) {
-                    setAlpha(alphaFactor - 0.1);
+                    setAlpha(alphaFactor - 0.05);
                 }
             }
-
-            simulation.force("charge",
-                d3.forceManyBody()
-                    .strength(function (d) {
-                        return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate);
-                    })
-            ).velocityDecay(decayFactor);
-            simulation.alphaTarget(alphaFactor).restart();
+            updateForce();
 
             /* Store the data for the next update */
             previousData = transformedData;
@@ -457,25 +453,22 @@
 
 
         function ticked() {
-            /* Update all link groups */
+            /* Update all link groups - use template literals for better performance */
             sinkLinks
-                .attr("d", function (d) {
-                    return "M" + d.source.x + "," + d.source.y + "L" + d.target.x + "," + d.target.y;
-                });
+                .attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`);
 
             ownerLinks
                 .attr("d", function (d) {
-                    /* Draw a Bezier curve for owner links */
-                    let dx = d.target.x - d.source.x,
-                        dy = d.target.y - d.source.y,
-                        dr = Math.sqrt(dx * dx + dy * dy);
-                    return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+                    /* Pre-calculate values to avoid repeated property access */
+                    const sx = d.source.x, sy = d.source.y;
+                    const tx = d.target.x, ty = d.target.y;
+                    const dx = tx - sx, dy = ty - sy;
+                    const dr = Math.sqrt(dx * dx + dy * dy);
+                    return `M${sx},${sy}A${dr},${dr} 0 0,1 ${tx},${ty}`;
                 });
 
             edgeLinks
-                .attr("d", function (d) {
-                    return "M" + d.source.x + "," + d.source.y + "L" + d.target.x + "," + d.target.y;
-                });
+                .attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`);
 
             /* Update all node groups */
             sinkNodes
@@ -489,7 +482,6 @@
             edgeNodes
                 .attr("cx", d => d.x)
                 .attr("cy", d => d.y);
-
         }
 
         function zoomed(event) {
@@ -506,12 +498,12 @@
             svg.selectAll(".owner-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerNodeBrightColor + ")");
             svg.selectAll(".edge-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")"); */
 
-            svg.selectAll(".sink-links").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkLinkBrightColor + ")");
-            svg.selectAll(".owner-links").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerLinkBrightColor + ")");
-            svg.selectAll(".edge-links").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeLinkBrightColor + ")");
-            svg.selectAll(".sink-nodes").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkNodeBrightColor + ")");
-            svg.selectAll(".owner-nodes").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerNodeBrightColor + ")");
-            svg.selectAll(".edge-nodes").attr("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")");
+            svg.selectAll(".sink-links").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${sinkLinkBrightColor})`);
+            svg.selectAll(".owner-links").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${ownerLinkBrightColor})`);
+            svg.selectAll(".edge-links").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${edgeLinkBrightColor})`);
+            svg.selectAll(".sink-nodes").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${sinkNodeBrightColor})`);
+            svg.selectAll(".owner-nodes").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${ownerNodeBrightColor})`);
+            svg.selectAll(".edge-nodes").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${edgeNodeBrightColor})`);
 
             /* Update the zoom level in the URL parameters */
             params.set('zoom', Math.round(zoomLevel * 100) / 100);
@@ -596,38 +588,14 @@
             history.replaceState(null, '', '?' + params.toString());
         }
 
-        function getForce() {
-            let factor = params.get('force') || 1.0;
-            return factor;
-        }
-
-        function setForce(newFactor) {
-            if (newFactor < 0.1) {
-                newFactor = 0.1;
-            } else if (newFactor > 10.0) {
-                newFactor = 10.0;
-            }
-            params.set('force', newFactor);
-            history.replaceState(null, '', '?' + params.toString());
-            forceFactor = newFactor;
-            simulation.force("charge", d3.forceManyBody().strength(function (d) {
-                return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate);
-            }));
-            simulation.alphaTarget(alphaFactor).restart();
-            return forceFactor;
-        }
-
-        function getZoom() {
-            let amount = params.get('zoom') || 1.0;
-            return amount;
-        }
-
-        function setZoom(byAmount) {
-            zoom.scaleBy(svg, byAmount);
-        }
-
         function getDecay() {
             let factor = params.get('decay') || 0.5;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 1.0) {
+                factor = 1.0;
+            }
+            factor = Math.round(factor * 100) / 100;
             if (isNaN(factor)) {
                 factor = 0.5;
             }
@@ -640,9 +608,9 @@
             } else if (newFactor > 1.0) {
                 newFactor = 1.0;
             }
-            decayFactor = Math.round(newFactor * 10) / 10;
+            decayFactor = Math.round(newFactor * 100) / 100;
             if (isNaN(decayFactor)) {
-                decayFactor = 0.1;
+                decayFactor = 0.5;
             }
             params.set('decay', decayFactor);
             history.replaceState(null, '', '?' + params.toString());
@@ -650,6 +618,12 @@
 
         function getAlpha() {
             let factor = params.get('alpha') || 0.5;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 1.0) {
+                factor = 1.0;
+            }
+            factor = Math.round(factor * 100) / 100;
             if (isNaN(factor)) {
                 factor = 0.5;
             }
@@ -662,53 +636,99 @@
             } else if (newFactor > 1.0) {
                 newFactor = 1.0;
             }
-            alphaFactor = Math.round(newFactor * 10) / 10;
+            alphaFactor = Math.round(newFactor * 100) / 100;
             if (isNaN(alphaFactor)) {
-                alphaFactor = 0.1;
+                alphaFactor = 0.5;
             }
             params.set('alpha', alphaFactor);
             history.replaceState(null, '', '?' + params.toString());
+        }
+
+        function getForce() {
+            let factor = params.get('force') || 1.0;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 10.0) {
+                factor = 10.0;
+            }
+            factor = Math.round(factor * 10) / 10;
+            if (isNaN(factor)) {
+                factor = 1.0;
+            }
+            return factor;
+        }
+
+        function setForce(newFactor) {
+            if (newFactor < 0.1) {
+                newFactor = 0.1;
+            } else if (newFactor > 10.0) {
+                newFactor = 10.0;
+            }
+            forceFactor = Math.round(newFactor * 10) / 10;
+            if (isNaN(forceFactor)) {
+                forceFactor = 1.0;
+            }
+            params.set('force', newFactor);
+            history.replaceState(null, '', '?' + params.toString());
+            updateForce();
+        }
+
+        function updateForce() {
+            let height = window.innerHeight,
+                width = window.innerWidth;
+            simulation
+                .force("charge",
+                    d3.forceManyBody()
+                        .strength(function (d) { return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate); })
+                        .theta(thetaFactor)
+                        .distanceMax(Math.max(width, height))
+                )
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .velocityDecay(decayFactor);
+            if (decayFactor > 0.95) {
+                simulation.stop();
+            }
+            else {
+                simulation.alphaTarget(alphaFactor).restart();
+            }
+        }
+
+        function getZoom() {
+            let factor = params.get('zoom') || 1.0;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 10.0) {
+                factor = 10.0;
+            }
+            factor = Math.round(factor * 10) / 10;
+            if (isNaN(factor)) {
+                amount = 1.0;
+            }
+            return factor;
+        }
+
+        function setZoom(byAmount) {
+            zoom.scaleBy(svg, byAmount);
         }
 
         function setInitialKeepWarm() {
             keepwarm = getKeepWarm();
         }
 
-        function setInitialZoom() {
-            initialZoomLevel = Math.round(getZoom() * 10) / 10;
-            if (initialZoomLevel < 0.1) {
-                initialZoomLevel = 0.1;
-            } else if (initialZoomLevel > 10.0) {
-                initialZoomLevel = 10.0;
-            }
-            zoom.scaleBy(svg, initialZoomLevel);
-        }
-
-        function setInitialForce() {
-            forceFactor = getForce();
-            if (forceFactor < 0.1) {
-                forceFactor = 0.1;
-            } else if (forceFactor > 10.0) {
-                forceFactor = 10.0;
-            }
-        }
-
         function setInitialDecay() {
             decayFactor = getDecay();
-            if (decayFactor < 0.1) {
-                decayFactor = 0.1;
-            } else if (decayFactor > 1.0) {
-                decayFactor = 1.0;
-            }
         }
 
         function setInitialAlpha() {
             alphaFactor = getAlpha();
-            if (alphaFactor < 0.1) {
-                alphaFactor = 0.1;
-            } else if (alphaFactor > 1.0) {
-                alphaFactor = 1.0;
-            }
+        }
+
+        function setInitialForce() {
+            forceFactor = getForce();
+        }
+
+        function setInitialZoom() {
+            zoom.scaleBy(svg, initialZoomLevel);
         }
 
         function setInitialSimulation() {
@@ -716,51 +736,64 @@
                 width = window.innerWidth;
             simulation = d3.forceSimulation()
                 .force("link", d3.forceLink().id(function (d) { return d.id; }))
-                .force("charge", d3.forceManyBody().strength(function (d) {
-                    return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate);
-                }))
+                .force("charge",
+                    d3.forceManyBody()
+                        .strength(function (d) { return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate); })
+                        .theta(thetaFactor)
+                        .distanceMax(Math.max(width, height))
+                )
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .velocityDecay(decayFactor);
-            simulation.alphaTarget(alphaFactor).restart();
+            simulation.alpha(1).restart();
         }
 
         document.addEventListener('keydown', function (e) {
             switch (e.key) {
                 case ' ':
-                    if (decayFactor > 0.9) {
+                    if (decayFactor > 0.95) {
                         if (previousDecayFactor) {
                             setDecay(previousDecayFactor);
                         }
                         else {
                             setDecay(0.1);
                         }
-                        updateInterval = setInterval(updateGraph, 10000);
+                        simulation.velocityDecay(decayFactor);
+                        simulation.alphaTarget(alphaFactor).restart();
+                        if (!updateInterval) {
+                            updateInterval = setInterval(updateGraph, 10000);
+                        }
                     }
                     else {
                         previousDecayFactor = decayFactor;
                         setDecay(1.0);
-                        clearInterval(updateInterval);
+                        simulation.stop();
+                        if (updateInterval) {
+                            clearInterval(updateInterval);
+                            updateInterval = null;
+                        }
                     }
-                    simulation.velocityDecay(decayFactor);
-                    simulation.alphaTarget(alphaFactor).restart();
                     break;
                 case 'k':
                     setKeepWarm(!keepwarm);
                     break;
                 case 'q':
-                    setDecay(decayFactor - 0.1);
+                    setDecay(decayFactor - 0.05);
                     simulation.velocityDecay(decayFactor);
+                    simulation.alphaTarget(alphaFactor).restart();
+                    if (!updateInterval) {
+                        updateInterval = setInterval(updateGraph, 10000);
+                    }
                     break;
                 case 'w':
-                    setDecay(decayFactor + 0.1);
+                    setDecay(decayFactor + 0.05);
                     simulation.velocityDecay(decayFactor);
                     break;
                 case 'a':
-                    setAlpha(alphaFactor - 0.1);
+                    setAlpha(alphaFactor - 0.05);
                     simulation.alphaTarget(alphaFactor).restart();
                     break;
                 case 's':
-                    setAlpha(alphaFactor + 0.1);
+                    setAlpha(alphaFactor + 0.05);
                     simulation.alphaTarget(alphaFactor).restart();
                     break;
                 case 'z':
@@ -773,6 +806,7 @@
                     previousData = null;
                     previousNodeCount = 0;
                     request_type = "/full";
+                    updateGraph();
                     break;
             }
             if ((e.key > '0' && e.key <= '9') || e.key === '0') {
@@ -793,14 +827,14 @@
             }, 200); /* adjust delay as needed */
         });
 
-        updateInterval = setInterval(updateGraph, 10000);
         setInitialKeepWarm();
-        setInitialZoom();
-        setInitialForce();
         setInitialDecay();
         setInitialAlpha();
+        setInitialForce();
+        setInitialZoom();
         setInitialSimulation();
         updateGraph();
+        updateInterval = setInterval(updateGraph, 10000);
     </script>
 </body>
 
