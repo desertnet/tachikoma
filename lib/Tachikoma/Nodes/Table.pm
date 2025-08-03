@@ -135,7 +135,7 @@ sub fill {
     {
         $self->stderr( 'DEBUG: FILL ', join q(, ), $message->[ID],
             $message->[TIMESTAMP], $message->[STREAM] )
-            if ( $self->{debug_state} and $self->{debug_state} >= 4 );
+            if ( $self->{debug_state} and $self->{debug_state} >= 5 );
         $self->store( $message->[TIMESTAMP], $message->[STREAM],
             $message->payload );
         $self->cancel($message) if ( $message->[TYPE] & TM_PERSIST );
@@ -147,7 +147,7 @@ sub fill {
 sub fire {
     my $self = shift;
     $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval} )
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     if ( $self->{window_size} ) {
         for my $i ( 0 .. $self->{num_partitions} - 1 ) {
             my $next_window = $self->{next_window}->[$i] // 0;
@@ -231,7 +231,7 @@ sub store {
     my $i = $self->get_partition_id($key);
     $self->{caches}->[$i] ||= [];
     $self->stderr("DEBUG: STORE $i, $timestamp, $key => $value")
-        if ( $self->{debug_state} and $self->{debug_state} >= 6 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
     if ( $self->{window_size} ) {
         my $next_window = $self->{next_window}->[$i] // 0;
         $self->roll_window( $i, $timestamp, $next_window )
@@ -255,7 +255,7 @@ sub store {
 sub roll_window {
     my ( $self, $i, $timestamp, $next_window ) = @_;
     $self->stderr("DEBUG: ROLL_WINDOW $i, $timestamp >= $next_window")
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     my $span  = $timestamp - $next_window;
     my $count = int $span / $self->{window_size};
     $count = $self->{num_buckets} if ( $count > $self->{num_buckets} );
@@ -272,7 +272,7 @@ sub roll_window {
 sub roll_count {
     my ( $self, $i, $window, $count ) = @_;
     $self->stderr("DEBUG: ROLL_COUNT $i, $window, $count")
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     $self->{caches}->[$i] ||= [];
     my $cache = $self->{caches}->[$i];
     for ( 0 .. $count ) {
@@ -289,7 +289,7 @@ sub roll_count {
 sub roll {
     my ( $self, $i, $window ) = @_;
     $self->stderr("DEBUG: ROLL $i, $window")
-        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 8 );
     my $cache = $self->{caches}->[$i];
     if ($window) {
         my $save_cb = $self->{on_save_window}->[$i];
@@ -309,7 +309,7 @@ sub roll {
 sub collect {
     my ( $self, $i, $timestamp, $key, $value ) = @_;
     $self->stderr("DEBUG: COLLECT $i, $timestamp, $key => $value")
-        if ( $self->{debug_state} and $self->{debug_state} >= 5 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 6 );
     return 1 if ( not length $value );
     my $bucket = $self->get_bucket( $i, $timestamp );
     $bucket->{$key} = $value if ($bucket);
@@ -338,7 +338,7 @@ sub get_bucket {
     }
     $self->stderr( "DEBUG: GET_BUCKET $i, $timestamp < ",
         $self->{next_window}->[$i], "; $j" )
-        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 8 );
     $cache->[$j] ||= {};
     return $cache->[$j];
 }
@@ -369,7 +369,7 @@ sub send_entry {
 sub send_bucket {
     my ( $self, $i, $window, $bucket ) = @_;
     $self->stderr("DEBUG: SEND_BUCKET $i, $window")
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     my $response = Tachikoma::Message->new;
     $response->[TYPE]      = TM_STORABLE;
     $response->[FROM]      = $self->{name};
@@ -453,7 +453,7 @@ sub on_load_window {
         $self->{next_window}->[$i] = $timestamp if ( $self->{window_size} );
     }
     $self->stderr("DEBUG: ON_LOAD_WINDOW $i, $timestamp >= $next_window")
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     return;
 }
 
@@ -522,7 +522,7 @@ sub queue {
                     shift @{$queue};
                 }
                 $self->stderr("DEBUG: QUEUE $window; $delay")
-                    if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+                    if ( $self->{debug_state} and $self->{debug_state} >= 4 );
             }
         }
         else {

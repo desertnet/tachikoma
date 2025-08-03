@@ -183,7 +183,7 @@ sub fire {
     my $self      = shift;
     my $consumers = $self->{consumers};
     $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_REQUEST;
     $message->[FROM] = $self->name;
@@ -195,7 +195,7 @@ sub fire {
         $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
     }
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     Tachikoma->nodes->{_router}->fill($message);
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{async_interval} * 1000 )
@@ -228,7 +228,7 @@ sub update_leader {
     $response->[TO]      = $self->leader_path;
     $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
     $self->stderr( 'DEBUG: ' . $response->[PAYLOAD] )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     Tachikoma->nodes->{_router}->fill($response);
     return;
 }

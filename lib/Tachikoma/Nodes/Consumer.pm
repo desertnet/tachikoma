@@ -268,7 +268,7 @@ sub handle_EOF {
 sub fire {
     my $self = shift;
     $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
@@ -473,7 +473,7 @@ sub get_batch {
     $message->[PAYLOAD] = "GET $offset\n";
     $self->{expecting} = 1;
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     Tachikoma->nodes->{_router}->fill($message);
     return;
 }
@@ -519,7 +519,7 @@ sub commit_offset {
     };
     return if ( not $self->{sink} );
     $self->stderr( 'DEBUG: COMMIT_OFFSET ', $offset )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
 
     if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
