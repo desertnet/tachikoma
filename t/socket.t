@@ -36,7 +36,8 @@ my $router = Tachikoma::Nodes::Router->new;
 is( ref $router, 'Tachikoma::Nodes::Router',
     'Tachikoma::Nodes::Router->new is ok' );
 
-my $server = Tachikoma::Nodes::Socket->inet_server( $address, $port );
+my $server =
+    Tachikoma::Nodes::Socket->inet_server( $address, $port, 'nossl' );
 is( defined $server->{address}, 1, '$server->address is ok' );
 
 $server->name('_server');
@@ -56,7 +57,8 @@ $destination->callback(
     }
 );
 
-my $client = Tachikoma::Nodes::Socket->inet_client( $address, $port );
+my $client =
+    Tachikoma::Nodes::Socket->inet_client( $address, $port, undef, 'nossl' );
 is( defined $client->{address}, 1, '$client->address is ok' );
 
 $client->name('_client');

@@ -991,6 +991,7 @@ $H{listen_inet} = [
     "listen_inet <address>:<port>\n",
     "listen_inet --address=<address>               \\\n",
     "            --port=<port>                     \\\n",
+    "            --no-ssl                          \\\n",
     "            --io                              \\\n",
     "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
     "            --delegate=<node>\n",
@@ -1003,6 +1004,7 @@ $C{listen_inet} = sub {
     my $envelope = shift;
     my $address  = undef;
     my $port     = undef;
+    my $no_SSL   = undef;
     my $io_mode  = undef;
     my $delegate = undef;
     my $scheme   = undef;
@@ -1019,6 +1021,7 @@ $C{listen_inet} = sub {
         $command->arguments,
         'address=s'  => \$address,
         'port=i'     => \$port,
+        'no-ssl'     => \$no_SSL,
         'io'         => \$io_mode,
         'delegate=s' => \$delegate,
         'scheme=s'   => \$scheme,
@@ -1040,13 +1043,15 @@ $C{listen_inet} = sub {
     die qq(no port specified\n)    if ( not $port );
     if ($io_mode) {
         require Tachikoma::Nodes::STDIO;
-        $node = Tachikoma::Nodes::STDIO->inet_server( $address, $port );
+        $node =
+            Tachikoma::Nodes::STDIO->inet_server( $address, $port, $no_SSL );
     }
     else {
         require Tachikoma::Nodes::Socket;
         die qq(inet sockets disabled for keyless servers\n)
             if ( not length $id );
-        $node = Tachikoma::Nodes::Socket->inet_server( $address, $port );
+        $node =
+            Tachikoma::Nodes::Socket->inet_server( $address, $port, $no_SSL );
     }
     $node->name( join q(:), $address, $port );
     $node->debug_state( $self->debug_state );
@@ -1154,6 +1159,7 @@ $C{connect_inet} = sub {
     my $host      = undef;
     my $port      = undef;
     my $name      = undef;
+    my $no_SSL    = undef;
     my $io_mode   = undef;
     my $scheme    = undef;
     my $reconnect = undef;
@@ -1168,6 +1174,7 @@ $C{connect_inet} = sub {
         'host=s'    => \$host,
         'port=i'    => \$port,
         'name=s'    => \$name,
+        'no-ssl'    => \$no_SSL,
         'io'        => \$io_mode,
         'scheme=s'  => \$scheme,
         'reconnect' => \$reconnect,
@@ -1189,6 +1196,7 @@ $C{connect_inet} = sub {
         host      => $host,
         port      => $port,
         name      => $name,
+        no_SSL    => $no_SSL,
         mode      => $io_mode ? 'io' : 'message',
         scheme    => $scheme,
         reconnect => $reconnect,
@@ -2731,9 +2739,10 @@ sub listen_startup {
 sub connect_inet {
     my ( $self, %options ) = @_;
     my $host      = $options{host};
-    my $port      = $options{port} || q();
-    my $name      = $options{name} || $host;
-    my $mode      = $options{mode} || 'message';
+    my $port      = $options{port}   || q();
+    my $name      = $options{name}   || $host;
+    my $no_SSL    = $options{no_SSL} || undef;
+    my $mode      = $options{mode}   || 'message';
     my $reconnect = $options{reconnect};
     my $owner     = $options{owner};
     $host = ( $host =~ m{^([\w.-]+)$} )[0];
@@ -2747,12 +2756,14 @@ sub connect_inet {
         $port ||= DEFAULT_PORT;
         $reconnect //= 'true';
         $connection =
-            Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
+            Tachikoma::Nodes::Socket->inet_client_async( $host, $port,
+            $no_SSL );
     }
     else {
         require Tachikoma::Nodes::STDIO;
         $connection =
-            Tachikoma::Nodes::STDIO->inet_client_async( $host, $port );
+            Tachikoma::Nodes::STDIO->inet_client_async( $host, $port,
+            $no_SSL );
     }
     $connection->name($name);
     $connection->debug_state( $self->debug_state );

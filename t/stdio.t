@@ -36,7 +36,7 @@ my $router = Tachikoma::Nodes::Router->new;
 is( ref $router, 'Tachikoma::Nodes::Router',
     'Tachikoma::Nodes::Router->new is ok' );
 
-my $server = Tachikoma::Nodes::STDIO->inet_server( $address, $port );
+my $server = Tachikoma::Nodes::STDIO->inet_server( $address, $port, 'nossl' );
 is( defined $server->{address}, 1, '$server->address is ok' );
 
 $server->name('_server');
