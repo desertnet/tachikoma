@@ -492,6 +492,9 @@ sub parse_command {
     elsif ( $token->{type} eq 'open_paren' ) {
         return $self->parse_parenthesized_expr;
     }
+    elsif ( $token->{type} =~ /close_.*/ ) {
+        return;
+    }
     else {
         # Parse first command
         my $left_cmd = $self->parse_simple_command;
@@ -1953,6 +1956,7 @@ $BUILTINS{'include'} = sub {
 
     # Determine which shell to use
     my $shell = undef;
+    return [] if ( not @lines );
     if ( $lines[0] eq "v1\n" ) {
         shift @lines;
         $shell = Tachikoma::Nodes::Shell->new;
