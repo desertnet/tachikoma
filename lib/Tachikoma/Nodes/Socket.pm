@@ -20,8 +20,12 @@ use Tachikoma::Message           qw(
     VECTOR_SIZE
 );
 use Tachikoma::Crypto;
-use Digest::MD5 qw( md5 );
-use Socket      qw(
+use Digest::MD5     qw( md5 );
+use IO::Socket::SSL qw(
+    $SSL_ERROR SSL_WANT_READ SSL_WANT_WRITE
+    SSL_VERIFY_PEER SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+);
+use Socket qw(
     PF_UNIX PF_INET SOCK_STREAM SOL_SOCKET SOMAXCONN
     SO_REUSEADDR SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE
     inet_aton inet_ntoa pack_sockaddr_in unpack_sockaddr_in
@@ -45,6 +49,7 @@ use parent qw( Tachikoma::Nodes::FileHandle Tachikoma::Crypto );
 
 use version; our $VERSION = qv('v2.0.195');
 
+use constant TK_SYNC_SSL  => oct 10;    #    8
 use constant DEFAULT_PORT => 4230;
 
 sub unix_server {
@@ -110,6 +115,7 @@ sub inet_server {
     my $class    = shift;
     my $hostname = shift;
     my $port     = shift;
+    my $no_SSL   = shift // 1;
     my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $sockaddr = pack_sockaddr_in( $port, $iaddr );
     my $proto    = getprotobyname 'tcp';
@@ -126,6 +132,7 @@ sub inet_server {
     $server->{type}    = 'listen';
     $server->{address} = $iaddr;
     $server->{port}    = $port;
+    $server->use_SSL('true') if ( not $no_SSL );
     $server->fh($socket);
     return $server->register_server_node;
 }
@@ -135,6 +142,7 @@ sub inet_client {
     my $hostname = shift;
     my $port     = shift or die "FAILED: no port specified for $hostname";
     my $flags    = shift;
+    my $no_SSL   = shift // 1;
     my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $proto    = getprotobyname 'tcp';
     my $socket;
@@ -148,6 +156,7 @@ sub inet_client {
     $client->{port}          = $port;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
+    $client->use_SSL('true') if ( not $no_SSL );
     $client->fh($socket);
 
     # this has to happen after fh() sets O_NONBLOCK correctly:
@@ -158,7 +167,12 @@ sub inet_client {
         $client->remove_node;
         die "ERROR: connect: $!\n";
     }
-    $client->init_connect;
+    if ($no_SSL) {
+        $client->init_connect;
+    }
+    else {
+        $client->start_SSL_connection;
+    }
     $client->register_reader_node;
     return $client;
 }
@@ -167,12 +181,14 @@ sub inet_client_async {
     my $class    = shift;
     my $hostname = shift;
     my $port     = shift or die "FAILED: no port specified for $hostname";
+    my $no_SSL   = shift // 1;
     my $client   = $class->new;
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{port}          = $port;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
+    $client->use_SSL('true') if ( not $no_SSL );
     push @{ Tachikoma->nodes_to_reconnect }, $client;
     return $client;
 }
@@ -193,6 +209,7 @@ sub new {
     $self->{filename}         = undef;
     $self->{fileperms}        = undef;
     $self->{filegid}          = undef;
+    $self->{use_SSL}          = undef;
     $self->{auth_challenge}   = undef;
     $self->{auth_timestamp}   = undef;
     $self->{auth_complete}    = undef;
@@ -238,7 +255,12 @@ sub accept_connection {
     my $self   = shift;
     my $server = $self->{fh};
     my $secure = Tachikoma->configuration->{secure_level};
+
+    $self->stderr('DEBUG: accept_connection ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 1 );
+
     return if ( defined $secure and $secure == 0 );
+
     my $client;
     my $paddr = accept $client, $server;
     if ( not $paddr ) {
@@ -247,9 +269,16 @@ sub accept_connection {
         return;
     }
     my $node = $self->new;
-
-    $node->{type} = 'accept';
     $node->fh($client);
+    if ( $self->{use_SSL} ) {
+        if ( not $self->init_accept_SSL($node) ) {
+            $self->stderr("ERROR: couldn't init_accept_SSL: $!");
+            return $node->remove_node;
+        }
+    }
+    else {
+        $node->{type} = 'accept';
+    }
     my $name = undef;
     if ( $self->{filename} ) {
         my $my_name = $self->{name};
@@ -283,9 +312,45 @@ sub accept_connection {
             { map { $_ => defined $r->{$_} ? 0 : undef } keys %{$r} };
     }
     $node->register_reader_node;
-    $node->init_accept;
+    $node->init_accept if ( not $self->{use_SSL} );
     $self->{counter}++;
     return;
+}
+
+sub init_accept_SSL {
+    my $self   = shift;
+    my $node   = shift or die 'FAILED: missing node';
+    my $config = $self->{configuration};
+    die "ERROR: SSL not configured\n"
+        if ( not $config->{ssl_server_cert_file} );
+    my $ssl_client = IO::Socket::SSL->start_SSL(
+        $node->{fh},
+        SSL_server         => 1,
+        SSL_key_file       => $config->{ssl_server_key_file},
+        SSL_cert_file      => $config->{ssl_server_cert_file},
+        SSL_ca_file        => $config->{ssl_server_ca_file},
+        SSL_startHandshake => 0,
+
+        # SSL_cipher_list     => $config->{ssl_ciphers},
+        SSL_version         => $config->{ssl_version},
+        SSL_verify_callback => $self->get_ssl_verify_callback,
+        SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+        ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+        : 0
+    );
+    if ( not $ssl_client or not ref $ssl_client ) {
+        $self->stderr( join q(: ), q(ERROR: couldn't start_SSL),
+            grep length, $!, IO::Socket::SSL::errstr() );
+        return;
+    }
+    $node->{type}     = 'accept';
+    $node->{drain_fh} = \&init_SSL_connection;
+    $node->{fill_fh}  = \&init_SSL_connection;
+    $node->use_SSL('true');
+    $node->fh($ssl_client)->blocking(0)
+        if (not $self->{flags} & TK_SYNC
+        and not $self->{flags} & TK_SYNC_SSL );
+    return 1;
 }
 
 sub init_socket {
@@ -297,6 +362,8 @@ sub init_socket {
     # the response it called init_socket() with the address:
     #
     my $address = ( $payload =~ m{^(\d+[.]\d+[.]\d+[.]\d+)$} )[0];
+    $self->stderr( 'DEBUG: init_socket ', $address )
+        if ( $self->{debug_state} and $self->{debug_state} >= 1 );
     if ( not $address ) {
         $self->{address} = pack 'H*', '00000000';
         $self->print_less_often(
@@ -311,17 +378,172 @@ sub init_socket {
     $self->close_filehandle;
     $self->{address} = $iaddr;
     $self->{fill}    = $self->{fill_modes}->{fill};
+    $self->use_SSL( $self->use_SSL );
     $self->fh($socket);
     ## no critic (RequireCheckedSyscalls)
     connect $socket, pack_sockaddr_in( $self->{port}, $iaddr );
     ## use critic
 
+    if ( $self->{use_SSL} ) {
+        if ( not $self->start_SSL_connection ) {
+            $self->handle_EOF;
+        }
+        return;
+    }
     $self->register_reader_node;
     return $self->init_connect;
 }
 
+sub start_SSL_connection {
+    my $self   = shift;
+    my $socket = $self->{fh};
+    my $config = $self->{configuration};
+    $self->stderr('DEBUG: start_SSL_connection ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    my $ssl_socket = IO::Socket::SSL->start_SSL(
+        $socket,
+        SSL_key_file       => $config->{ssl_client_key_file},
+        SSL_cert_file      => $config->{ssl_client_cert_file},
+        SSL_ca_file        => $config->{ssl_client_ca_file},
+        SSL_startHandshake => 1,
+        SSL_use_cert       => 1,
+
+        # SSL_cipher_list     => $config->ssl_ciphers,
+        SSL_version         => $config->ssl_version,
+        SSL_verify_callback => $self->get_ssl_verify_callback,
+        SSL_verify_mode     => $self->{use_SSL} eq 'verify'
+        ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+        : 0
+    );
+    if ( not $ssl_socket or not ref $ssl_socket ) {
+        my $error = $SSL_ERROR;
+        $error =~ s{(error)(error)}{$1: $2};
+        if ( $self->{flags} & TK_SYNC ) {
+            die join q(: ),
+                q(ERROR: couldn't start_SSL),
+                grep length, $!, $error, "\n";
+        }
+        else {
+            $self->print_less_often( join q(: ),
+                q(WARNING: couldn't start_SSL),
+                grep length, $!, $error );
+            return;
+        }
+    }
+    $self->fh($ssl_socket)->blocking(0) if (not $self->{flags} & TK_SYNC);
+    $self->register_reader_node;
+    $self->register_writer_node;
+    if ( $self->{flags} & TK_SYNC ) {
+
+        # my $peer = join q(),
+        #     'authority: "',
+        #     $fh->peer_certificate('authority'),
+        #     '" owner: "',
+        #     $fh->peer_certificate('owner'),
+        #     '" cipher: "',
+        #     $fh->get_cipher,
+        #     qq("\n);
+        # $self->stderr( 'connect_SSL() verified peer:', $peer );
+        $self->{fill} = $self->{fill_modes}->{fill};
+        $self->init_connect;
+    }
+    else {
+        $self->{drain_fh} = \&init_SSL_connection;
+        $self->{fill_fh}  = \&init_SSL_connection;
+    }
+    return 'success';
+}
+
+sub get_ssl_verify_callback {
+    my $self = shift;
+    return sub {
+        my $okay  = $_[0];
+        my $error = $_[3];
+        return 1 if ( $okay or $self->{use_SSL} ne 'verify' );
+        $error =~ s{^error:}{};
+        $self->print_less_often("ERROR: SSL verification failed: $error");
+        return 0;
+    };
+}
+
+sub init_SSL_connection {
+    my $self   = shift;
+    my $type   = $self->{type};
+    my $fh     = $self->{fh};
+    my $method = $type eq 'connect' ? 'connect_SSL' : 'accept_SSL';
+    $self->stderr( 'DEBUG: init_SSL_connection ', $method )
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+    if ( $fh and $fh->$method ) {
+        my $peer = join q(),
+            'authority: "', $fh->peer_certificate('authority'),
+            '" owner: "',   $fh->peer_certificate('owner'),
+            '" cipher: "',  $fh->get_cipher, qq("\n);
+
+        # $self->stderr($method, '() verified peer: ', $peer);
+        if ( $type eq 'connect' ) {
+            $self->init_connect;
+        }
+        else {
+            if ( not $self->delegate_authorization( 'ssl', $peer ) ) {
+                $self->stderr('ERROR: peer not allowed to connect');
+                return $self->remove_node;
+            }
+            $self->init_accept;
+        }
+        $self->register_reader_node;
+    }
+    elsif ( $! != EAGAIN ) {
+        $self->log_SSL_error($method);
+
+        # this keeps the event framework from constantly
+        # complaining about missing entries in %Nodes_By_FD
+        $self->unregister_reader_node;
+        $self->unregister_writer_node;
+        $self->stderr("WARNING: couldn't close: $!")
+            if ($self->{fh}
+            and fileno $self->{fh}
+            and not close $self->{fh}
+            and $!
+            and $! ne 'Connection reset by peer'
+            and $! ne 'Broken pipe' );
+        $self->{fh} = undef;
+        $self->handle_EOF;
+    }
+    elsif ( $SSL_ERROR == SSL_WANT_WRITE ) {
+        $self->register_writer_node;
+    }
+    else {
+        $self->unregister_writer_node;
+    }
+    return;
+}
+
+sub log_SSL_error {
+    my $self   = shift;
+    my $method = shift;
+    my $error  = IO::Socket::SSL::errstr();
+    $error =~ s{(error)(error)}{$1: $2};
+    my $names = undef;
+    if ( $method eq 'connect_SSL' ) {
+        $names = $self->{name};
+        Tachikoma->print_least_often( join q(: ), grep length,
+            $names, "WARNING: $method failed",
+            $!,     $error );
+    }
+    else {
+        $names = join q( -> ), $self->{parent},
+            ( split m{:}, $self->{name}, 2 )[0];
+        Tachikoma->print_less_often( join q(: ), grep length,
+            $names, "WARNING: $method failed",
+            $!,     $error );
+    }
+    return;
+}
+
 sub init_connect {
     my $self = shift;
+    $self->stderr('DEBUG: init_connect ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     $self->{auth_challenge} = rand;
     if ( $self->{flags} & TK_SYNC ) {
         $self->reply_to_server_challenge;
@@ -338,6 +560,8 @@ sub init_connect {
 
 sub init_accept {
     my $self = shift;
+    $self->stderr('DEBUG: init_accept ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     $self->{auth_challenge} = rand;
     $self->{drain_fh}       = \&auth_client_response;
     $self->{fill_fh}        = \&Tachikoma::Nodes::FileHandle::fill_fh;
@@ -354,6 +578,8 @@ sub init_accept {
 
 sub reply_to_server_challenge {
     my $self = shift;
+    $self->stderr('DEBUG: reply_to_server_challenge ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 5 );
     my ( $got, $message ) =
         $self->reply_to_challenge( 'client', \&auth_server_response,
         \&Tachikoma::Nodes::FileHandle::fill_fh );
@@ -385,7 +611,9 @@ sub reply_to_server_challenge {
 
 sub auth_client_response {
     my $self = shift;
-    my $got  = $self->auth_response( 'client', \&reply_to_client_challenge,
+    $self->stderr('DEBUG: auth_client_response ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 5 );
+    my $got = $self->auth_response( 'client', \&reply_to_client_challenge,
         \&Tachikoma::Nodes::FileHandle::null_cb );
     $self->reply_to_client_challenge if ($got);
     return;
@@ -393,6 +621,8 @@ sub auth_client_response {
 
 sub reply_to_client_challenge {
     my $self = shift;
+    $self->stderr('DEBUG: reply_to_client_challenge ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 5 );
     my ( $got, $message ) = $self->reply_to_challenge(
         'server',
         \&Tachikoma::Nodes::FileHandle::drain_fh,
@@ -410,7 +640,9 @@ sub reply_to_client_challenge {
 
 sub auth_server_response {
     my $self = shift;
-    my $got  = $self->auth_response(
+    $self->stderr('DEBUG: auth_server_response ')
+        if ( $self->{debug_state} and $self->{debug_state} >= 5 );
+    my $got = $self->auth_response(
         'server',
         \&Tachikoma::Nodes::FileHandle::drain_fh,
         \&Tachikoma::Nodes::FileHandle::fill_fh
@@ -426,7 +658,9 @@ sub reply_to_challenge {
     my $type       = shift;
     my $drain_func = shift;
     my $fill_func  = shift;
-    my $other      = $type eq 'server' ? 'client' : 'server';
+    $self->stderr( 'DEBUG: reply_to_challenge ', $type )
+        if ( $self->{debug_state} and $self->{debug_state} >= 6 );
+    my $other = $type eq 'server' ? 'client' : 'server';
     my ( $got, $message ) = $self->read_block(65536);
     return if ( not $message );
     my $version = $message->[ID];
@@ -466,6 +700,8 @@ sub auth_response {
     my $type       = shift;
     my $drain_func = shift;
     my $fill_func  = shift;
+    $self->stderr( 'DEBUG: auth_response ', $type )
+        if ( $self->{debug_state} and $self->{debug_state} >= 6 );
     my ( $got, $message ) = $self->read_block(65536);
     return if ( not $message );
     my $caller  = ( split m{::}, ( caller 1 )[3] )[-1];
@@ -511,7 +747,9 @@ sub verify_signature {
     my $type    = shift;
     my $message = shift;
     my $command = shift;
-    my $id      = ( split m{\n}, $command->{signature}, 2 )[0];
+    $self->stderr( 'DEBUG: auth_response ', $type )
+        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
+    my $id = ( split m{\n}, $command->{signature}, 2 )[0];
     if ( not $self->SUPER::verify_signature( $type, $message, $command ) ) {
         return;
     }
@@ -524,13 +762,22 @@ sub verify_signature {
 
 sub read_block {
     my $self     = shift;
-    my $buf_size = shift       or die 'FAILED: missing buf_size';
-    my $fh       = $self->{fh} or return;
-    my $buffer   = $self->{input_buffer};
-    my $got      = length ${$buffer};
-    my $read     = sysread $fh, ${$buffer}, $buf_size, $got;
-    my $again    = $! == EAGAIN;
-    my $error    = $!;
+    my $buf_size = shift or die 'FAILED: missing buf_size';
+    $self->stderr( 'DEBUG: read_block ', $buf_size )
+        if ( $self->{debug_state} and $self->{debug_state} >= 7 );
+    my $fh     = $self->{fh} or return;
+    my $buffer = $self->{input_buffer};
+    my $got    = length ${$buffer};
+    my $read   = sysread $fh, ${$buffer}, $buf_size, $got;
+    my $again  = $! == EAGAIN;
+    my $error  = $!;
+
+    if ( $self->{use_SSL} and not defined $read and $again ) {
+        $self->register_writer_node
+            if ( $SSL_ERROR == SSL_WANT_WRITE
+            and not $self->{flags} & TK_W );
+        return;
+    }
     $got += $read if ( defined $read );
 
     # XXX:M
@@ -567,9 +814,11 @@ sub read_block {
 }
 
 sub delegate_authorization {
-    my $self     = shift;
-    my $type     = shift;
-    my $peer     = shift;
+    my $self = shift;
+    my $type = shift;
+    my $peer = shift;
+    $self->stderr( 'DEBUG: delegate_authorization ', $type )
+        if ( $self->{debug_state} and $self->{debug_state} >= 8 );
     my $delegate = $self->{delegates}->{$type} or return 1;
     require Tachikoma::Nodes::Callback;
     my $ruleset = $Tachikoma::Nodes{$delegate};
@@ -588,6 +837,33 @@ sub delegate_authorization {
     $ruleset->fill($message);
     $ruleset->{sink} = undef;
     return $allowed;
+}
+
+sub drain_fh {
+    my $self   = shift;
+    my $fh     = $self->{fh} or return;
+    my $buffer = $self->{input_buffer};
+    my $got    = length ${$buffer};
+    my $read   = sysread $fh, ${$buffer}, 1048576, $got;
+    my $again  = $! == EAGAIN;
+    if ( $self->{use_SSL} and not defined $read and $again ) {
+        $self->register_writer_node
+            if ( $SSL_ERROR == SSL_WANT_WRITE
+            and not $self->{flags} & TK_W );
+        return;
+    }
+    if ( not defined $read or ( $read < 1 and not $again ) ) {
+        $self->print_less_often("WARNING: couldn't read: $!")
+            if ( not defined $read and $! ne 'Connection reset by peer' );
+        return $self->handle_EOF;
+    }
+    $got += $read;
+    $got = &{ $self->{drain_buffer} }( $self, $buffer ) if ( $got > 0 );
+    if ( not defined $got or $got < 1 ) {
+        my $new_buffer = q();
+        $self->{input_buffer} = \$new_buffer;
+    }
+    return $read;
 }
 
 sub drain_buffer_normal {
@@ -681,6 +957,71 @@ sub fill_buffer_init {
     return;
 }
 
+sub fill_fh_sync_SSL {
+    my $self        = shift;
+    my $message     = shift;
+    my $fh          = $self->{fh} or return;
+    my $packed      = $message->packed;
+    my $packed_size = length ${$packed};
+    my $wrote       = 0;
+
+    while ( $wrote < $packed_size ) {
+        my $rv = syswrite $fh, ${$packed}, $packed_size - $wrote, $wrote;
+        $rv = 0 if ( not defined $rv );
+        last if ( not $rv );
+        $wrote += $rv;
+    }
+    die "ERROR: wrote $wrote < $packed_size; $!\n"
+        if ( $wrote != $packed_size );
+    $self->{counter}++;
+    $self->{largest_msg_sent} = $packed_size
+        if ( $packed_size > $self->{largest_msg_sent} );
+    $self->{bytes_written} += $wrote;
+    return;
+}
+
+sub fill_fh {
+    my $self   = shift;
+    my $fh     = $self->{fh};
+    my $buffer = $self->{output_buffer};
+    my $cursor = $self->{output_cursor} || 0;
+    my $size   = 0;
+    while ( @{$buffer} ) {
+        $size += length ${ $buffer->[0] };
+        my $wrote = syswrite $fh, ${ $buffer->[0] }, $size - $cursor, $cursor;
+        if ( $wrote and $wrote > 0 ) {
+            $cursor += $wrote;
+            $self->{bytes_written} += $wrote;
+            last if ( $cursor < $size );
+            shift @{$buffer};
+            $cursor = 0;
+            $size   = 0;
+        }
+        elsif ($!) {
+            if ( $! == EAGAIN ) {
+                if (    $self->{use_SSL}
+                    and $SSL_ERROR == SSL_WANT_READ )
+                {
+                    $self->drain_fh;
+                }
+                last;
+            }
+            else {
+                $self->print_less_often("WARNING: couldn't write: $!");
+                $self->handle_EOF;
+                @{$buffer} = ();
+                $cursor = 0;
+            }
+        }
+        else {
+            last;
+        }
+    }
+    $self->{output_cursor} = $cursor;
+    $self->unregister_writer_node if ( not @{$buffer} );
+    return;
+}
+
 sub handle_EOF {
     my $self   = shift;
     my $on_EOF = $self->{on_EOF};
@@ -762,7 +1103,15 @@ sub reconnect_unix {
         $self->close_filehandle;
         return 'try again';
     }
-    $self->init_connect;
+    if ( $self->{use_SSL} ) {
+        if ( not $self->start_SSL_connection ) {
+            $self->close_filehandle;
+            return 'try again';
+        }
+    }
+    else {
+        $self->init_connect;
+    }
     return $rv;
 }
 
@@ -774,25 +1123,21 @@ sub reconnect_inet {
         if ( $self->{flags} & TK_SYNC ) {
             die 'FAILED: TK_SYNC not supported';
         }
-        else {
-            if ( defined $self->{inet_aton_serial}
-                and not $self->{address} )
-            {
-                if ( $Tachikoma::Inet_AtoN_Serial
-                    == $self->{inet_aton_serial} )
-                {
-                    return 'try again' if ( $Tachikoma::Nodes{'Inet_AtoN'} );
-                }
-                elsif ( not $Tachikoma::Nodes{'Inet_AtoN'} ) {
-                    $self->stderr('WARNING: restarting Inet_AtoN');
-                }
+        if ( defined $self->{inet_aton_serial}
+            and not $self->{address} )
+        {
+            if ( $Tachikoma::Inet_AtoN_Serial == $self->{inet_aton_serial} ) {
+                return 'try again' if ( $Tachikoma::Nodes{'Inet_AtoN'} );
             }
-            $self->dns_lookup;
-            $rv = 'try again';
+            elsif ( not $Tachikoma::Nodes{'Inet_AtoN'} ) {
+                $self->stderr('WARNING: restarting Inet_AtoN');
+            }
         }
+        $self->dns_lookup;
         $self->{high_water_mark}  = 0;
         $self->{largest_msg_sent} = 0;
         $self->{latency_score}    = undef;
+        $rv                       = 'try again';
     }
     return $rv;
 }
@@ -864,6 +1209,9 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         if ( ref $self eq 'Tachikoma::Nodes::STDIO' ) {
             $response .= ' --io';
         }
+        $response .= ' --use-ssl' if ( $self->{use_SSL} );
+        $response .= ' --ssl-delegate=' . $self->{delegates}->{ssl}
+            if ( $self->{delegates}->{ssl} );
         $response .= ' --delegate=' . $self->{delegates}->{tachikoma}
             if ( $self->{delegates}->{tachikoma} );
         if ( $self->{filename} ) {
@@ -889,6 +1237,8 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
             $response .= ' --io';
             $response .= ' --reconnect' if ( $self->{on_EOF} eq 'reconnect' );
         }
+
+        # $response .= ' --use-ssl' if ( $self->{use_SSL} );
         if ( $self->{filename} ) {
             $response .= " $self->{filename} $self->{name}\n";
         }
@@ -986,6 +1336,45 @@ sub filegid {
         $self->{filegid} = shift;
     }
     return $self->{filegid};
+}
+
+sub use_SSL {
+    my $self = shift;
+    if (@_) {
+        $self->{use_SSL} = shift;
+        if ( $self->{use_SSL} ) {
+            if ( not $self->configuration->ssl_server_cert_file ) {
+                $self->stderr("ERROR: SSL not configured\n");
+                $self->remove_node;
+            }
+            if ( $self->{flags} & TK_SYNC ) {
+                $self->{fill_modes}->{fill} = \&fill_fh_sync_SSL;
+            }
+            else {
+                $self->{flags} |= TK_SYNC_SSL;
+            }
+        }
+    }
+    return $self->{use_SSL};
+}
+
+sub fh {
+    my $self = shift;
+    if (@_) {
+        my $fh = shift;
+        my $fd = fileno $fh;
+        $self->{fd} = $fd;
+        $self->{fh} = $fh;
+        if ( $self->{flags} & TK_SYNC or $self->{flags} & TK_SYNC_SSL ) {
+            ## no critic (RequireCheckedSyscalls)
+            fcntl $fh, F_SETFL, 0;    # fails for /dev/null on freebsd
+        }
+        else {
+            fcntl $fh, F_SETFL, O_NONBLOCK or die "FAILED: fcntl: $!";
+        }
+        $Tachikoma::Nodes_By_FD->{$fd} = $self;
+    }
+    return $self->{fh};
 }
 
 sub auth_challenge {
