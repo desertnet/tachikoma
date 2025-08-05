@@ -512,6 +512,7 @@ sub stderr {
     $msg .= "\n";
     push @RECENT_LOG, $msg;
     shift @RECENT_LOG while ( @RECENT_LOG > 100 );
+
     if ( defined *STDERR ) {
         $rv = print {*STDERR} $msg;
     }

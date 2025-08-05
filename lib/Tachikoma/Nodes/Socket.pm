@@ -31,7 +31,7 @@ use Socket qw(
     inet_aton inet_ntoa pack_sockaddr_in unpack_sockaddr_in
     pack_sockaddr_un
 );
-use POSIX qw( F_SETFL O_NONBLOCK EWOULDBLOCK SIGUSR1 );
+use POSIX qw( F_SETFL O_NONBLOCK EAGAIN SIGUSR1 );
 my $USE_SODIUM;
 
 BEGIN {
@@ -198,29 +198,29 @@ sub new {
     my $flags        = shift       || 0;
     my $self         = $class->SUPER::new;
     my $input_buffer = q();
-    $self->{type}                           = 'socket';
-    $self->{flags}                          = $flags;
-    $self->{on_EOF}                         = 'close';
-    $self->{parent}                         = undef;
-    $self->{hostname}                       = undef;
-    $self->{address}                        = undef;
-    $self->{port}                           = undef;
-    $self->{filename}                       = undef;
-    $self->{fileperms}                      = undef;
-    $self->{filegid}                        = undef;
-    $self->{use_SSL}                        = undef;
-    $self->{auth_challenge}                 = undef;
-    $self->{auth_timestamp}                 = undef;
-    $self->{auth_complete}                  = undef;
-    $self->{scheme}                         = Tachikoma->scheme;
-    $self->{delegates}                      = {};
-    $self->{drain_fh}                       = \&drain_fh;
-    $self->{drain_buffer}                   = \&drain_buffer_normal;
-    $self->{fill_fh}                        = \&fill_fh;
-    $self->{last_upbeat}                    = undef;
-    $self->{last_downbeat}                  = undef;
-    $self->{latency_score}                  = undef;
-    $self->{inet_aton_serial}               = undef;
+    $self->{type}             = 'socket';
+    $self->{flags}            = $flags;
+    $self->{on_EOF}           = 'close';
+    $self->{parent}           = undef;
+    $self->{hostname}         = undef;
+    $self->{address}          = undef;
+    $self->{port}             = undef;
+    $self->{filename}         = undef;
+    $self->{fileperms}        = undef;
+    $self->{filegid}          = undef;
+    $self->{use_SSL}          = undef;
+    $self->{auth_challenge}   = undef;
+    $self->{auth_timestamp}   = undef;
+    $self->{auth_complete}    = undef;
+    $self->{scheme}           = Tachikoma->scheme;
+    $self->{delegates}        = {};
+    $self->{drain_fh}         = \&Tachikoma::Nodes::FileHandle::drain_fh;
+    $self->{drain_buffer}     = \&drain_buffer_normal;
+    $self->{fill_fh}          = \&Tachikoma::Nodes::FileHandle::fill_fh;
+    $self->{last_upbeat}      = undef;
+    $self->{last_downbeat}    = undef;
+    $self->{latency_score}    = undef;
+    $self->{inet_aton_serial} = undef;
     $self->{registrations}->{CONNECTED}     = {};
     $self->{registrations}->{AUTHENTICATED} = {};
     $self->{registrations}->{RECONNECT}     = {};
@@ -264,7 +264,7 @@ sub accept_connection {
     my $paddr = accept $client, $server;
     if ( not $paddr ) {
         $self->stderr("ERROR: couldn't accept_connection: $!\n")
-            if ( $! != EWOULDBLOCK );
+            if ( $! != EAGAIN );
         return;
     }
     my $node = $self->new;
@@ -421,8 +421,7 @@ sub start_SSL_connection {
                 grep length, $!, $error, "\n";
         }
         else {
-            $self->stderr( join q(: ),
-                q(WARNING: couldn't start_SSL),
+            $self->stderr( join q(: ), q(WARNING: couldn't start_SSL),
                 grep length, $!, $error );
             return;
         }
@@ -489,7 +488,7 @@ sub init_SSL_connection {
         }
         $self->register_reader_node;
     }
-    elsif ( $! != EWOULDBLOCK ) {
+    elsif ( $! != EAGAIN ) {
         $self->log_SSL_error($method);
         $self->unregister_reader_node;
         $self->unregister_writer_node;
@@ -551,7 +550,7 @@ sub init_accept {
         if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     $self->{auth_challenge} = rand;
     $self->{drain_fh}       = \&auth_client_response;
-    $self->{fill_fh}        = \&fill_fh;
+    $self->{fill_fh}        = \&Tachikoma::Nodes::FileHandle::fill_fh;
     my $message =
         $self->command( 'challenge', 'client',
         md5( $self->{auth_challenge} ) );
@@ -569,7 +568,7 @@ sub reply_to_server_challenge {
         if ( $self->{debug_state} and $self->{debug_state} >= 5 );
     my ( $got, $message ) =
         $self->reply_to_challenge( 'client', \&auth_server_response,
-        \&fill_fh );
+        \&Tachikoma::Nodes::FileHandle::fill_fh );
     return if ( not $message );
     my $response =
         $self->command( 'challenge', 'server',
@@ -610,8 +609,11 @@ sub reply_to_client_challenge {
     my $self = shift;
     $self->stderr('DEBUG: reply_to_client_challenge ')
         if ( $self->{debug_state} and $self->{debug_state} >= 5 );
-    my ( $got, $message ) =
-        $self->reply_to_challenge( 'server', \&drain_fh, \&fill_fh );
+    my ( $got, $message ) = $self->reply_to_challenge(
+        'server',
+        \&Tachikoma::Nodes::FileHandle::drain_fh,
+        \&Tachikoma::Nodes::FileHandle::fill_fh
+    );
     return if ( not $message );
     unshift @{ $self->{output_buffer} }, $message->packed;
     $self->register_writer_node;
@@ -626,7 +628,11 @@ sub auth_server_response {
     my $self = shift;
     $self->stderr('DEBUG: auth_server_response ')
         if ( $self->{debug_state} and $self->{debug_state} >= 5 );
-    my $got = $self->auth_response( 'server', \&drain_fh, \&fill_fh );
+    my $got = $self->auth_response(
+        'server',
+        \&Tachikoma::Nodes::FileHandle::drain_fh,
+        \&Tachikoma::Nodes::FileHandle::fill_fh
+    );
     $self->{auth_complete} = $Tachikoma::Now;
     $self->set_state('AUTHENTICATED');
     &{ $self->{drain_buffer} }( $self, $self->{input_buffer} ) if ($got);
@@ -748,16 +754,9 @@ sub read_block {
     my $fh     = $self->{fh} or return;
     my $buffer = $self->{input_buffer};
     my $got    = length ${$buffer};
-
-READ:
-    my $read  = sysread $fh, ${$buffer}, $buf_size, $got;
-    my $again = $! == EWOULDBLOCK;
-    my $error = $!;
-
-    if ( $self->{use_SSL} and ( not $read or $read < 1 ) and $again ) {
-        goto READ if ( $fh->pending );
-        return;
-    }
+    my $read   = sysread $fh, ${$buffer}, $buf_size, $got;
+    my $error  = $!;
+    return if ( $self->{use_SSL} and not defined $read and $! == EAGAIN );
     $got += $read if ( defined $read );
 
     # XXX:M
@@ -784,7 +783,7 @@ READ:
         $self->{input_buffer} = $buffer;
         return ( $got, $message );
     }
-    if ( ( not $read or $read < 1 ) and not $again ) {
+    if ( not $read ) {
         my $caller = ( split m{::}, ( caller 2 )[3] )[-1];
         $self->stderr("WARNING: $caller couldn't read: $error")
             if ( not defined $read and $! ne 'Connection reset by peer' );
@@ -817,33 +816,6 @@ sub delegate_authorization {
     $ruleset->fill($message);
     $ruleset->{sink} = undef;
     return $allowed;
-}
-
-sub drain_fh {
-    my $self   = shift;
-    my $fh     = $self->{fh} or return;
-    my $buffer = $self->{input_buffer};
-    my $got    = length ${$buffer};
-
-READ:
-    my $read  = sysread $fh, ${$buffer}, 1048576, $got;
-    my $again = $! == EWOULDBLOCK;
-    if ( $self->{use_SSL} and ( not $read or $read < 1 ) and $again ) {
-        goto READ if ( $fh->pending );
-        return;
-    }
-    if ( ( not $read or $read < 1 ) and not $again ) {
-        $self->stderr("WARNING: couldn't read: $!")
-            if ( not defined $read and $! ne 'Connection reset by peer' );
-        return $self->handle_EOF;
-    }
-    $got += $read;
-    $got = &{ $self->{drain_buffer} }( $self, $buffer ) if ( $got > 0 );
-    if ( not defined $got or $got < 1 ) {
-        my $new_buffer = q();
-        $self->{input_buffer} = \$new_buffer;
-    }
-    return $read;
 }
 
 sub drain_buffer_normal {
@@ -957,48 +929,6 @@ sub fill_fh_sync_SSL {
     $self->{largest_msg_sent} = $packed_size
         if ( $packed_size > $self->{largest_msg_sent} );
     $self->{bytes_written} += $wrote;
-    return;
-}
-
-sub fill_fh {
-    my $self   = shift;
-    my $fh     = $self->{fh};
-    my $buffer = $self->{output_buffer};
-    my $cursor = $self->{output_cursor} || 0;
-    my $size   = 0;
-    while ( @{$buffer} ) {
-        $size += length ${ $buffer->[0] };
-        my $wrote = syswrite $fh, ${ $buffer->[0] }, $size - $cursor, $cursor;
-        if ( $wrote and $wrote > 0 ) {
-            $cursor += $wrote;
-            $self->{bytes_written} += $wrote;
-            last if ( $cursor < $size );
-            shift @{$buffer};
-            $cursor = 0;
-            $size   = 0;
-        }
-        elsif ($!) {
-            if ( $! == EWOULDBLOCK ) {
-                if ( $self->{use_SSL} and $SSL_ERROR == SSL_WANT_READ ) {
-                    &{ $self->{drain_fh} }($self);
-                }
-                else {
-                    last;
-                }
-            }
-            else {
-                $self->stderr("WARNING: couldn't write: $!");
-                $self->handle_EOF;
-                @{$buffer} = ();
-                $cursor = 0;
-            }
-        }
-        else {
-            last;
-        }
-    }
-    $self->{output_cursor} = $cursor;
-    $self->unregister_writer_node if ( not @{$buffer} );
     return;
 }
 
