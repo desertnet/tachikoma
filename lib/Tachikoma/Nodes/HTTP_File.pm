@@ -22,9 +22,14 @@ my $DEFAULT_EXPIRES = 900;
 
 # TODO: configurate mime types
 my %TYPES = (
+    bmp  => 'image/bmp',
     gif  => 'image/gif',
     jpg  => 'image/jpeg',
+    jpeg => 'image/jpeg',
     png  => 'image/png',
+    svg  => 'image/svg',
+    tif  => 'image/tiff',
+    tiff => 'image/tiff',
     ico  => 'image/vnd.microsoft.icon',
     txt  => 'text/plain; charset=utf8',
     js   => 'text/javascript; charset=utf8',
