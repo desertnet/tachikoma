@@ -128,10 +128,10 @@ sub drain_fh {
     my $buffer = $self->{input_buffer};
     my $got    = length ${$buffer};
     my $read   = sysread $fh, ${$buffer}, 1048576, $got;
-    if ( not defined $read ) {
-        return if ( $! == EAGAIN );
+    if ( not $read ) {
+        return if ( not defined $read and $! == EAGAIN );
         $self->print_less_often("WARNING: couldn't read: $!")
-            if ( $! ne 'Connection reset by peer' );
+            if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
     $got += $read;
