@@ -1,4 +1,5 @@
 #!/usr/bin/env /usr/local/bin/tachikoma
+
 if (<_C> > 0) {
     for i (1 .. <_C>) {
         if ([var <i>] =~ '^--([^=]+)=(.*)$') {
@@ -8,7 +9,7 @@ if (<_C> > 0) {
             var <_1> = 1;
         }
         else {
-            log (ERROR: couldn\'t parse argument: [var <i>]);
+            log ("ERROR: couldn\'t parse argument:" [var <i>]);
             exit 1;
         }
     }
@@ -18,9 +19,18 @@ if ([var help]) {
 tachikoma-server [ --debug=<level>   ]
                  [ --daemon=[yes|no] ]
                  [ --startup=<file>  ]
+                 [ --use-ssl         ]
+                 [ --profile         ]
                  [ --help            ]
 ';
     exit;
+}
+if ([var use-ssl]) {
+    env TKSSL=true;
+}
+if ([var profile]) {
+    env NYTPROF=addpid=1:file=/volumes/tachikoma/nytprof.out;
+    env PERL5OPT=-d:NYTProf;
 }
 if ([var debug]) {
     debug_state _command_interpreter <debug>;
