@@ -495,7 +495,7 @@ sub shutdown_all_nodes {
 
 sub print_least_often {
     my ( $self, @args ) = @_;
-    return Tachikoma::Node->print_less_often(@args);
+    return Tachikoma::Node->print_least_often(@args);
 }
 
 sub print_less_often {
@@ -508,6 +508,8 @@ sub stderr {
     my $msg = join q(), grep { defined and $_ ne q() } @args;
     return if ( not length $msg );
     my $rv = undef;
+    chomp $msg;
+    $msg .= "\n";
     push @RECENT_LOG, $msg;
     shift @RECENT_LOG while ( @RECENT_LOG > 100 );
     if ( defined *STDERR ) {
