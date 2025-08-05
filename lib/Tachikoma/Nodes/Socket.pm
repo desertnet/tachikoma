@@ -1120,6 +1120,8 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
             $response .= ' --io';
         }
         $response .= ' --use-ssl' if ( $self->{use_SSL} );
+        $response .= ' --no-ssl'
+            if ( defined $self->{use_SSL} and not $self->{use_SSL} );
         $response .= ' --ssl-delegate=' . $self->{delegates}->{ssl}
             if ( $self->{delegates}->{ssl} );
         $response .= ' --delegate=' . $self->{delegates}->{tachikoma}
@@ -1149,6 +1151,8 @@ sub dump_config {    ## no critic (ProhibitExcessComplexity)
         }
 
         $response .= ' --use-ssl' if ( $self->{use_SSL} );
+        $response .= ' --no-ssl'
+            if ( defined $self->{use_SSL} and not $self->{use_SSL} );
         if ( $self->{filename} ) {
             $response .= " $self->{filename} $self->{name}\n";
         }

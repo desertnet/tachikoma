@@ -1031,6 +1031,7 @@ $C{listen_inet} = sub {
         'owner:s'    => \$owner
     );
     die qq(invalid option\n) if ( not $r );
+    $use_SSL = 'verify'      if ($use_SSL);
     $use_SSL //= 0           if ($no_SSL);
 
     # create node
@@ -1188,6 +1189,7 @@ $C{connect_inet} = sub {
         'owner:s'   => \$owner
     );
     die qq(invalid option\n) if ( not $r );
+    $use_SSL = 'verify'      if ($use_SSL);
     $use_SSL //= 0           if ($no_SSL);
 
     if ( not $host ) {
