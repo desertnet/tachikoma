@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use Tachikoma;
-use Tachikoma::Message qw( TM_BYTESTREAM );
+use Tachikoma::Message qw( TM_BYTESTREAM TM_PING );
 use Socket qw( SOL_SOCKET SO_SNDBUF SO_RCVBUF SO_SNDLOWAT SO_KEEPALIVE );
 use Time::HiRes qw( time );
 
@@ -46,4 +46,8 @@ $tachikoma->callback(
     }
 );
 
+my $message = Tachikoma::Message->new;
+$message->type(TM_PING);
+$message->payload($Tachikoma::Right_Now);
+$tachikoma->fill($message);
 $tachikoma->drain;
