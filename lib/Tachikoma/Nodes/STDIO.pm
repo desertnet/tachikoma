@@ -35,7 +35,7 @@ sub inet_client {
     my $hostname = shift;
     my $port     = shift or die "FAILED: no port specified for $hostname";
     my $flags    = shift;
-    my $no_SSL   = shift // 1;
+    my $use_SSL  = shift;
     my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
     my $proto    = getprotobyname 'tcp';
     my $socket;
@@ -49,7 +49,7 @@ sub inet_client {
     $client->{port}          = $port;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
-    $client->use_SSL('true') if ( not $no_SSL );
+    $client->use_SSL($use_SSL);
     $client->fh($socket);
 
     # this has to happen after fh() sets O_NONBLOCK correctly:
@@ -60,11 +60,11 @@ sub inet_client {
         $client->remove_node;
         die "ERROR: connect: $!\n";
     }
-    if ($no_SSL) {
-        $client->init_connect;
+    if ($use_SSL) {
+        $client->start_SSL_connection;
     }
     else {
-        $client->start_SSL_connection;
+        $client->init_connect;
     }
     $client->register_reader_node;
     return $client;
@@ -74,14 +74,14 @@ sub inet_client_async {
     my $class    = shift;
     my $hostname = shift;
     my $port     = shift or die "FAILED: no port specified for $hostname";
-    my $no_SSL   = shift // 1;
+    my $use_SSL  = shift;
     my $client   = $class->new;
     $client->{type}          = 'connect';
     $client->{hostname}      = $hostname;
     $client->{port}          = $port;
     $client->{last_upbeat}   = $Tachikoma::Now;
     $client->{last_downbeat} = $Tachikoma::Now;
-    $client->use_SSL('true') if ( not $no_SSL );
+    $client->use_SSL($use_SSL);
     push @{ Tachikoma->nodes_to_reconnect }, $client;
     return $client;
 }

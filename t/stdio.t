@@ -16,6 +16,8 @@ use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
+$ENV{TKSSL} = undef;
+
 my $address = '127.0.0.1';
 my $port    = '9197';
 my $test    = "foo\n";
@@ -36,7 +38,7 @@ my $router = Tachikoma::Nodes::Router->new;
 is( ref $router, 'Tachikoma::Nodes::Router',
     'Tachikoma::Nodes::Router->new is ok' );
 
-my $server = Tachikoma::Nodes::STDIO->inet_server( $address, $port, 'nossl' );
+my $server = Tachikoma::Nodes::STDIO->inet_server( $address, $port );
 is( defined $server->{address}, 1, '$server->address is ok' );
 
 $server->name('_server');

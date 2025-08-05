@@ -991,6 +991,7 @@ $H{listen_inet} = [
     "listen_inet <address>:<port>\n",
     "listen_inet --address=<address>               \\\n",
     "            --port=<port>                     \\\n",
+    "            --use-ssl                         \\\n",
     "            --no-ssl                          \\\n",
     "            --io                              \\\n",
     "            --scheme=<rsa,rsa-sha256,ed25519> \\\n",
@@ -1004,6 +1005,7 @@ $C{listen_inet} = sub {
     my $envelope = shift;
     my $address  = undef;
     my $port     = undef;
+    my $use_SSL  = undef;
     my $no_SSL   = undef;
     my $io_mode  = undef;
     my $delegate = undef;
@@ -1021,6 +1023,7 @@ $C{listen_inet} = sub {
         $command->arguments,
         'address=s'  => \$address,
         'port=i'     => \$port,
+        'use-ssl'    => \$use_SSL,
         'no-ssl'     => \$no_SSL,
         'io'         => \$io_mode,
         'delegate=s' => \$delegate,
@@ -1028,6 +1031,7 @@ $C{listen_inet} = sub {
         'owner:s'    => \$owner
     );
     die qq(invalid option\n) if ( not $r );
+    $use_SSL //= 0           if ($no_SSL);
 
     # create node
     my $node = undef;
@@ -1044,14 +1048,15 @@ $C{listen_inet} = sub {
     if ($io_mode) {
         require Tachikoma::Nodes::STDIO;
         $node =
-            Tachikoma::Nodes::STDIO->inet_server( $address, $port, $no_SSL );
+            Tachikoma::Nodes::STDIO->inet_server( $address, $port, $use_SSL );
     }
     else {
         require Tachikoma::Nodes::Socket;
         die qq(inet sockets disabled for keyless servers\n)
             if ( not length $id );
         $node =
-            Tachikoma::Nodes::Socket->inet_server( $address, $port, $no_SSL );
+            Tachikoma::Nodes::Socket->inet_server( $address, $port,
+            $use_SSL );
     }
     $node->name( join q(:), $address, $port );
     $node->debug_state( $self->debug_state );
@@ -1159,6 +1164,7 @@ $C{connect_inet} = sub {
     my $host      = undef;
     my $port      = undef;
     my $name      = undef;
+    my $use_SSL   = undef;
     my $no_SSL    = undef;
     my $io_mode   = undef;
     my $scheme    = undef;
@@ -1174,6 +1180,7 @@ $C{connect_inet} = sub {
         'host=s'    => \$host,
         'port=i'    => \$port,
         'name=s'    => \$name,
+        'use-ssl'   => \$use_SSL,
         'no-ssl'    => \$no_SSL,
         'io'        => \$io_mode,
         'scheme=s'  => \$scheme,
@@ -1181,6 +1188,7 @@ $C{connect_inet} = sub {
         'owner:s'   => \$owner
     );
     die qq(invalid option\n) if ( not $r );
+    $use_SSL //= 0           if ($no_SSL);
 
     if ( not $host ) {
         die qq(no host specified\n) if ( not @{$argv} );
@@ -1196,7 +1204,7 @@ $C{connect_inet} = sub {
         host      => $host,
         port      => $port,
         name      => $name,
-        no_SSL    => $no_SSL,
+        use_SSL   => $use_SSL,
         mode      => $io_mode ? 'io' : 'message',
         scheme    => $scheme,
         reconnect => $reconnect,
@@ -2739,10 +2747,10 @@ sub listen_startup {
 sub connect_inet {
     my ( $self, %options ) = @_;
     my $host      = $options{host};
-    my $port      = $options{port}   || q();
-    my $name      = $options{name}   || $host;
-    my $no_SSL    = $options{no_SSL} || undef;
-    my $mode      = $options{mode}   || 'message';
+    my $port      = $options{port} || q();
+    my $name      = $options{name} || $host;
+    my $use_SSL   = $options{use_SSL};
+    my $mode      = $options{mode} || 'message';
     my $reconnect = $options{reconnect};
     my $owner     = $options{owner};
     $host = ( $host =~ m{^([\w.-]+)$} )[0];
@@ -2757,13 +2765,13 @@ sub connect_inet {
         $reconnect //= 'true';
         $connection =
             Tachikoma::Nodes::Socket->inet_client_async( $host, $port,
-            $no_SSL );
+            $use_SSL );
     }
     else {
         require Tachikoma::Nodes::STDIO;
         $connection =
             Tachikoma::Nodes::STDIO->inet_client_async( $host, $port,
-            $no_SSL );
+            $use_SSL );
     }
     $connection->name($name);
     $connection->debug_state( $self->debug_state );
