@@ -140,7 +140,7 @@ sub drain_fh {
         my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
-    return $read;
+    return;
 }
 
 sub drain_buffer_normal {
