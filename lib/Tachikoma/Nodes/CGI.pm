@@ -128,6 +128,7 @@ FIND_SCRIPT: while ($test_path) {
 
     # copy HTTP headers to environment
     ## no critic (RequireLocalizedPunctuationVars)
+    my $tkssl = $ENV{TKSSL};
     local %ENV = ();
     for my $key ( keys %{$headers} ) {
         my $value = $headers->{$key};
@@ -163,6 +164,7 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{REMOTE_USER}    = $request->{remote_user} || q();
     $ENV{CONTENT_TYPE}   = $headers->{'content-type'}   if ($is_post);
     $ENV{CONTENT_LENGTH} = $headers->{'content-length'} if ($is_post);
+    $ENV{TKSSL}          = $tkssl                       if ( defined $tkssl );
     $ENV{UNIQUE_ID}      = md5_hex(rand);
 
     for my $key ( keys %ENV ) {
