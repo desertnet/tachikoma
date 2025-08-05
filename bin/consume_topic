@@ -1,118 +1,155 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Tachikoma::EventFrameworks::Select;
-use Tachikoma::Nodes::Router;
 use Tachikoma::Nodes::ConsumerBroker;
-use Tachikoma::Nodes::Dumper;
-use Tachikoma::Nodes::Socket qw( TK_SYNC );
-use Tachikoma::Nodes::STDIO  qw( TK_R );
-use Getopt::Long             qw( GetOptions );
+use Tachikoma::Message qw( STREAM PAYLOAD );
+use Data::Dumper;
+use Getopt::Long qw( GetOptions );
+use Time::HiRes  qw( time );
 
-use version; our $VERSION = qv('v2.0.929');
+use version; our $VERSION = qv('v2.1.36');
 
-my $home            = ( getpwuid $< )[7];
-my @default_configs = (
+my $home = ( getpwuid $< )[7];
+Tachikoma->configuration->load_config_file(
     "$home/.tachikoma/etc/tachikoma.conf",
     '/usr/local/etc/tachikoma.conf',
 );
-my $config_file = undef;
-my $host        = 'localhost';
-my $port        = 5501;
-my $topic_name  = undef;
-my $group       = undef;
-my $partition   = undef;
-my $offset      = 'end';
-my $batch       = undef;
-my $debug_level = undef;
-my $debug_state = undef;
-my $help        = undef;
 
-my $r = GetOptions(
-    'config=s'      => \$config_file,
-    'host=s'        => \$host,
-    'port=i'        => \$port,
-    'topic=s'       => \$topic_name,
-    'group=s'       => \$group,
-    'partition=i'   => \$partition,
-    'offset=s'      => \$offset,
-    'batch'         => \$batch,
-    'debug_level:i' => \$debug_level,
-    'debug_state:i' => \$debug_state,
-    'help'          => \$help,
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+$Data::Dumper::Useperl  = 1;
+
+my ( $topic, $partition, $group, $offset, $batch, $help );
+my $mode  = 'values';
+my $total = 0;
+my ( $r, $argv ) = GetOptions(
+    'topic=s'     => \$topic,
+    'partition=i' => \$partition,
+    'group=s'     => \$group,
+    'offset=s'    => \$offset,
+    'batch'       => \$batch,
+    'mode=s'      => \$mode,
+    'help'        => \$help,
 );
-$topic_name //= $ARGV[0];
-$offset      = 'start' if ($batch);
-$debug_level = 1       if ( defined $debug_level and not $debug_level );
-$debug_state = 1       if ( defined $debug_state and not $debug_state );
+$topic //= $ARGV[0];
+usage() if ( $help or not $r or not length $topic );
 
-usage() if ( $help or not $r or not $topic_name );
-my $config = Tachikoma->configuration;
-$config->load_config_file( $config_file ? $config_file : @default_configs );
-$config->debug_level($debug_level) if ($debug_level);
-Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
-
-my $router          = Tachikoma::Nodes::Router->new;
-my $consumer_broker = Tachikoma::Nodes::ConsumerBroker->new;
-my $dumper          = Tachikoma::Nodes::Dumper->new;
-my $stdout          = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
-my $socket          = undef;
-
-$consumer_broker->name("$topic_name:consumer");
-$consumer_broker->flags(TK_SYNC);
-$consumer_broker->broker_path('_socket/broker');
-$consumer_broker->topic($topic_name);
-if ($group) {
-    $consumer_broker->group($group);
-    $consumer_broker->auto_commit(1);
+my $consumer;
+if ( defined $partition ) {
+    my $broker = Tachikoma::Nodes::ConsumerBroker->new($topic);
+    $consumer = $broker->make_sync_consumer($partition);
 }
-$consumer_broker->partition_id($partition) if ( defined $partition );
-$consumer_broker->debug_state($debug_state);
-$consumer_broker->default_offset($offset);
-$consumer_broker->max_unanswered(0);
-$consumer_broker->async_interval(0.1);
+else {
+    $consumer = Tachikoma::Nodes::ConsumerBroker->new( $topic, $group );
+}
+if ($offset) {
+    $consumer->default_offset($offset);
+}
+elsif ($batch) {
+    $consumer->default_offset('start');
+}
+$consumer->poll_interval(0.1);
 
-if ($batch) {
-    $consumer_broker->register(
-        'READY',
-        sub {
-            $consumer_broker->commit_offsets if ($group);
-            Tachikoma->shutdown_all_nodes;
+## no critic (RequireCheckedSyscalls)
+if ( $mode eq 'keys' ) {
+    while (1) {
+        my @output = ();
+        for my $message ( @{ $consumer->fetch } ) {
+            my $key = $message->[STREAM];
+            chomp $key;
+            push @output, "$key\n";
         }
-    );
+        syswrite STDOUT, join q(), @output;
+        last if check_status();
+    }
 }
-$consumer_broker->owner('_dumper');
-$consumer_broker->sink($router);
+elsif ( $mode eq 'debug' ) {
+    while (1) {
+        my @output   = ();
+        my $messages = $consumer->fetch;
+        my $time     = time;
+        for my $message ( @{$messages} ) {
+            my ( $this_offset, $next_offset ) = split m{:}, $message->id, 2;
+            my $key   = $message->[STREAM];
+            my $value = undef;
+            chomp $key;
+            if ( ref $message->payload ) {
+                $value = Dumper( $message->[PAYLOAD] );
+            }
+            else {
+                my $payload = $message->[PAYLOAD];
+                chomp $payload;
+                $value = "[$payload]\n";
+            }
+            push @output, sprintf '%16f %9d %2d %9d:%-9d [%s] %s', $time,
+                $total++,
+                $message->from,
+                $this_offset,
+                $next_offset,
+                $key,
+                $value;
+        }
+        syswrite STDOUT, join q(), @output;
+        last if check_status();
+    }
+}
+elsif ( $mode eq 'dump_message' ) {
+    while (1) {
+        my @output = ();
+        for my $message ( @{ $consumer->fetch } ) {
+            push @output, $message->as_string;
+        }
+        syswrite STDOUT, join q(), @output;
+        last if check_status();
+    }
+}
+elsif ( $mode eq 'dump_payload' ) {
+    while (1) {
+        my @output = ();
+        for my $message ( @{ $consumer->fetch } ) {
+            push @output, Dumper( $message->payload );
+        }
+        syswrite STDOUT, join q(), @output;
+        last if check_status();
+    }
+}
+elsif ($batch) {
+    while (1) {
+        syswrite STDOUT, join q(), map $_->[PAYLOAD], @{ $consumer->fetch };
+        if ( $consumer->{sync_error} ) {
+            syswrite STDERR, $consumer->sync_error;
+            exit 1 if ( $consumer->sync_error !~ m{^REBALANCING} );
+        }
+        last if ( $consumer->{eos} );
+    }
+}
+else {
+    while (1) {
+        syswrite STDOUT, join q(), map $_->[PAYLOAD], @{ $consumer->fetch };
+        syswrite STDERR, $consumer->sync_error
+            if ( $consumer->{sync_error} );
+    }
+}
+$consumer->commit_offset if ( $batch and $group );
 
-$dumper->name('_dumper');
-$dumper->sink($stdout);
-
-$stdout->name('_stdout');
-$stdout->on_EOF('ignore');
-$stdout->sink($router);
-
-$router->name('_router');
-$router->debug_state($debug_state);
-$socket = Tachikoma::Nodes::Socket->inet_client( $host, $port );
-$socket->name('_socket');
-$socket->debug_state($debug_state);
-$socket->on_EOF('reconnect');
-$socket->sink($router);
-$router->drain;
+sub check_status {
+    my $rv = undef;
+    if ( $consumer->{sync_error} ) {
+        syswrite STDERR, $consumer->sync_error;
+        exit 1 if ( $batch and $consumer->sync_error !~ m{^REBALANCING} );
+    }
+    $rv = 1 if ( $batch and $consumer->{eos} );
+    return $rv;
+}
 
 sub usage {
     print "Usage:\n"
-        . "consume_topic [ --config=<path>   ]\n"
-        . "              [ --host=<host>     ]\n"
-        . "              [ --port=<port>     ]\n"
-        . "              [ --topic=<topic>   ]\n"
-        . "              [ --group=<group>   ]\n"
-        . "              [ --partition=<i>   ]\n"
-        . "              [ --offset=<offset> ]\n"
-        . "              [ --batch           ]\n"
-        . "              [ --debug_level=<i> ]\n"
-        . "              [ --debug_state=<i> ]\n"
-        . "              [ --help            ]\n"
-        . "              <topic name>\n";
+        . "consume_topic   --topic=<name>\n"
+        . "              [ --group=<name>      ]\n"
+        . "              [ --offset=<offset>   ]\n"
+        . "              [ --batch             ]\n"
+        . "              [ --mode=<string>     ]\n"
+        . "    # valid offsets: start recent end\n"
+        . "    # valid modes: keys values debug dump_message dump_payload\n";
     exit 1;
 }
