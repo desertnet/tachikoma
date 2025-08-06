@@ -1,3 +1,15 @@
+/**
+ * Escape a string for safe insertion into HTML context.
+ */
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 var params      = getQueryParams();
 var server_url  = window.location.protocol + "//"
                       + window.location.hostname
@@ -121,9 +133,9 @@ function execute_query() {
                 var table = '<table>';
                 for (var key in msg[0]) {
                     table += '<tr><td><a href="?num_queries=1&' +
-                        '0.field=' + field + '&' +
-                        '0.op=eq&0.key=' + key + '">' + key + '</a></td>' +
-                        '<td>' + msg[0][key] + '</td></tr>';
+                        '0.field=' + escapeHTML(field) + '&' +
+                        '0.op=eq&0.key=' + encodeURIComponent(key) + '">' + escapeHTML(key) + '</a></td>' +
+                        '<td>' + escapeHTML(String(msg[0][key])) + '</td></tr>';
                 }
                 table += '</table>';
                 document.getElementById("output").innerHTML = table;
