@@ -60,7 +60,7 @@ function display_queue(msg) {
             tr = "<tr bgcolor=\"#444\">";
         }
         var payload = msg[i].message_payload || "";
-        var escaped = payload.replace(/</g,"&lt;").replace(/&/g,"&amp;");
+        var escaped = payload.replace(/&/g,"&amp;").replace(/</g,"&lt;");
         var row = tr + "<td>" + date_string(date)       + "</td>"
                      + "<td>" + msg[i].message_stream   + "</td>"
                      + "<td>" + escaped                 + "</td>"
