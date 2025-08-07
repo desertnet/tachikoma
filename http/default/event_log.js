@@ -75,7 +75,7 @@ function update_table(msg) {
                      + msg.payload[i].key + "\">"
                      + msg.payload[i].key + "</a>";
         var value = msg.payload[i].value || "";
-        var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
+        var escaped = String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;");
         var row = tr + "<td>" + date_string(date) + "</td>"
                      + "<td>" + queue             + "</td>"
                      + "<td>" + type              + "</td>"
