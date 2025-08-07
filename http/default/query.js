@@ -205,7 +205,7 @@ function execute_query() {
     xhttp.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     var json_data = JSON.stringify(query_data)
     xhttp.send(json_data);
-    document.getElementById("output").innerHTML = '<pre class="uk-dark">' + json_data + "</pre>";
+    document.getElementById("output").innerHTML = '<pre class="uk-dark">' + escapeHTML(json_data) + "</pre>";
 }
 
 function updateProgress (oEvent) {
