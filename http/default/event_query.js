@@ -88,7 +88,7 @@ function _execute_query() {
                             var date  = new Date();
                             var queue = ev.queue || "";
                             var value = ev.value || "";
-                            var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
+                            var escaped = String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;");
                             date.setTime(
                                 ( ev.timestamp - date.getTimezoneOffset() * 60 )
                                 * 1000
