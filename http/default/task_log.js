@@ -74,7 +74,7 @@ function update_table(msg) {
         var value = msg.payload[i].value
                  || msg.payload[i].payload
                  || "";
-        var escaped = String(value).replace(/</g,"&lt;").replace(/&/g,"&amp;");
+        var escaped = String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;");
         var row = tr + "<td>" + date_string(date) + "</td>"
                      + "<td>" + type              + "</td>"
                      + "<td>" + key_href          + "</td>"
