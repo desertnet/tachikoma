@@ -23,7 +23,7 @@ die "no key\n"   if ( not length $key );
 my $consumer = Tachikoma::Nodes::ConsumerBroker->new($topic);
 my $table    = Tachikoma::Nodes::Table->new;
 $table->host('localhost');
-$table->port(6100);
+$table->port(5100);
 $table->field($field);
 
 while (1) {

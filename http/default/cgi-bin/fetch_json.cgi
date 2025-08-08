@@ -53,6 +53,10 @@ if ( not defined $table{$topic} ) {
     $table{$topic}->port($port);
     $table{$topic}->field($field);
 }
+print $cgi->header(
+    -type    => 'application/json',
+    -charset => 'utf-8'
+);
 my $value   = undef;
 my $payload = $table{$topic}->fetch($key);
 
@@ -69,40 +73,15 @@ else {
             map  { $_->payload }
             sort { $a->[TIMESTAMP] <=> $b->[TIMESTAMP] } @{$value}
         ];
-        if ( ref $payload->[0] ) {
-            json_header();
-            print $json->utf8->encode($payloads);
-        }
-        else {
-            plain_header();
-            print @{$payloads};
-        }
+        print $json->utf8->encode({ 
+            key   => $key,
+            value => $payloads
+        });
     }
     elsif ($value) {
-        my $payload = $value->payload;
-        if ( ref $payload ) {
-            json_header();
-            print $json->utf8->encode($payload);
-        }
-        else {
-            plain_header();
-            print $payload;
-        }
+        print $json->utf8->encode({ 
+            key   => $key,
+            value => $value->payload
+        });
     }
-}
-
-sub json_header {
-    print CGI->header(
-        -type    => 'application/json',
-        -charset => 'utf-8'
-    );
-    return;
-}
-
-sub plain_header {
-    print CGI->header(
-        -type    => 'text/plain',
-        -charset => 'utf-8'
-    );
-    return;
 }
