@@ -770,7 +770,7 @@ sub parse_expression {
     $whitespace = $self->consume('whitespace')
         while ( $self->current_token->{type} eq 'whitespace' );
 
-    while ($OPERATORS{ $self->current_token->{type} }
+    while ( $OPERATORS{ $self->current_token->{type} }
         && exists $PRECEDENCE{ $self->current_token->{value} }
         && $PRECEDENCE{ $self->current_token->{value} } >= $min_precedence )
     {
@@ -1783,11 +1783,10 @@ $BUILTINS{'if'} = sub {
     elsif (@elsif_tests) {
 
         # Check all elsif blocks in order
-        for ( my $i = 0; $i < @elsif_tests; $i++ )
-        {    ## no critic (ProhibitCStyleForLoops)
+        for ( my $i = 0; $i < @elsif_tests; $i++ ) {    ## no critic (ProhibitCStyleForLoops)
             my $elsif_result = $self->execute_expression( $elsif_tests[$i] );
             my $elsif_value  = join q(), @{$elsif_result};
-            $elsif_value =~ s{^\s*|\s*$}{}g;    # Trim whitespace
+            $elsif_value =~ s{^\s*|\s*$}{}g;            # Trim whitespace
 
             if ($elsif_value) {
                 $rv = $self->execute_ast_node( $elsif_blocks[$i] );
@@ -1932,8 +1931,7 @@ $BUILTINS{'include'} = sub {
 
     # Process any variable assignments (var=value pairs)
     if ( @{$args} > 1 ) {
-        for ( my $i = 1; $i < @{$args}; $i++ )
-        {    ## no critic (ProhibitCStyleForLoops)
+        for ( my $i = 1; $i < @{$args}; $i++ ) {    ## no critic (ProhibitCStyleForLoops)
             my $arg      = $args->[$i];
             my $arg_text = join q(), @{ $self->execute_expression($arg) };
 
@@ -2782,8 +2780,7 @@ sub execute_local_assignment {
                 if ( ref $scope_hash->{$var_name} ) {
                     $line .= '["'
                         . join( q(", "),
-                        grep m{\S}, @{ $scope_hash->{$var_name} } )
-                        . '"]';
+                        grep m{\S}, @{ $scope_hash->{$var_name} } ) . '"]';
                 }
                 else {
                     $line .= $scope_hash->{$var_name} // q();

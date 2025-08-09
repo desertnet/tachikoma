@@ -319,7 +319,7 @@ sub close_filehandle {
         if ( defined $self->{fd} );
     undef $!;
     $self->stderr("WARNING: couldn't close: $!")
-        if ($self->{fh}
+        if ( $self->{fh}
         and fileno $self->{fh}
         and not close $self->{fh}
         and $!

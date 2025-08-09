@@ -216,14 +216,14 @@ sub note_reconnect {
             my $path = $load_balancers->{$name};
             $self->disconnect_node( $name, $path
                 ? join q(/),
-                $id, $path
+                    $id, $path
                 : $id );
         }
         for my $name ( keys %{$misc} ) {
             my $path = $misc->{$name};
             $self->disconnect_node( $name, $path
                 ? join q(/),
-                $id, $path
+                    $id, $path
                 : $id );
         }
         $offline->{$id} = undef;

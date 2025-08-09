@@ -341,7 +341,7 @@ $C{dump_job} = sub {
     $copy->{connector}     = $copy->{connector}->{name};
     $copy->{_stdout}       = $copy->{_stdout}->{name};
     $copy->{_stderr}       = $copy->{_stderr}->{name};
-    return $self->response( $envelope, Dumper $copy);
+    return $self->response( $envelope, Dumper $copy );
 };
 
 $C{dump} = $C{dump_job};

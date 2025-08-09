@@ -686,7 +686,7 @@ $C{remove_node} = sub {
     my @names = (
         $list_matches
         ? grep m{^$glob$},
-        sort keys %Tachikoma::Nodes
+            sort keys %Tachikoma::Nodes
         : ( split q( ), $glob )
     );
     my $out    = q();
@@ -794,8 +794,7 @@ $C{dump_metadata} = sub {
         $owner = join q(, ), @{$owner} if ( ref $owner eq 'ARRAY' );
         $response .= join( q(|),
             $received, $sent, $name, $sink, $owner || q(),
-            $class,    $type, @extra )
-            . "\n";
+            $class,    $type, @extra ) . "\n";
     }
     return $self->response( $envelope, $response );
 };
@@ -2628,7 +2627,7 @@ sub verify_startup {
     my $message      = shift;
     my $secure_level = shift;
     return 1
-        if (defined $secure_level
+        if ( defined $secure_level
         and $secure_level == 0
         and $message->[FROM] =~ m{^(_parent/)*_responder$} );
     return;

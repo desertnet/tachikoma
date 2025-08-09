@@ -33,11 +33,13 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $filename, $realm, $compat ) = split q( ), $self->{arguments}, 3;
+        my ( $filename, $realm, $compat, $api_key ) = split q( ),
+            $self->{arguments}, 4;
         die "ERROR: bad arguments for HTTP_Auth\n" if ( not $filename );
         $self->{filename} = $filename;
         $self->{realm}    = $realm;
         $self->{compat}   = $compat;
+        $self->{api_key}  = $api_key;
         $self->reload_htpasswd;
     }
     return $self->{arguments};
@@ -52,9 +54,17 @@ sub fill {
     my $encoded = $auth    ? ( split q( ), $auth, 2 )[1] : undef;
     my $decoded = $encoded ? decode_base64($encoded)     : undef;
     my ( $user, $passwd ) = $decoded ? split m{:}, $decoded, 2 : undef;
+    my $api_key = $request->{headers}->{'x-api-key'};
     $self->{counter}++;
 
-    if ($user) {
+    if ($api_key) {
+        if ( $api_key eq $self->{api_key} ) {
+            $request->{auth_type} = 'API-Key';
+            $message->[TO] = $self->{owner};
+            return $self->{sink}->fill($message);
+        }
+    }
+    elsif ($user) {
         if ( $self->authenticate( $user, $passwd ) ) {
             $request->{auth_type}   = 'Basic';
             $request->{remote_user} = $user;
@@ -92,7 +102,7 @@ sub authenticate {
     my $passwd = shift;
     my $salt   = $self->{htpasswd}->{$user} or return;
     my $hash   = undef;
-    if ( $self->{compat} ) {
+    if ( $self->{compat} and $self->{compat} eq 'compat' ) {
         $hash = crypt $passwd, $salt;
     }
     else {
@@ -141,6 +151,14 @@ sub compat {
         $self->{compat} = shift;
     }
     return $self->{compat};
+}
+
+sub api_key {
+    my $self = shift;
+    if (@_) {
+        $self->{api_key} = shift;
+    }
+    return $self->{api_key};
 }
 
 sub htpasswd {

@@ -274,7 +274,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
     $expecting ||= 'eos';
     while ( my $tok = $self->get_next_token($input_ref) ) {
         next
-            if (not $parse_tree
+            if ( not $parse_tree
             and ( not $expecting or not $PARTIAL{$expecting} )
             and $tok->{type} eq 'whitespace' );
         my $this_branch = undef;
@@ -571,7 +571,7 @@ $EVALUATORS{'open_paren'} = sub {
         my $number   = qr{\s*-?(?:\d+(?:[.]\d*)?|[.]\d+)};
         my $operator = qr{\s*(?:[+]|-(?!-)|[*]|/|!=?|<=?|>=?|==)};
         if ( $line =~ m{^$number(?:$operator$number)+\s*$}o ) {
-            $rv = [ eval($line) // $line ]; ## no critic (ProhibitStringyEval)
+            $rv = [ eval($line) // $line ];    ## no critic (ProhibitStringyEval)
         }
     }
 

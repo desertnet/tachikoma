@@ -208,7 +208,7 @@ if ($fail) {
 }
 
 # scan
-my $width = $quiet ? 0 : `tput cols`; ## no critic (ProhibitBacktickOperators)
+my $width = $quiet ? 0 : `tput cols`;    ## no critic (ProhibitBacktickOperators)
 my $clear = "\r\e[J";
 my $count = 0;
 my $total = 0;

@@ -524,7 +524,7 @@ sub commit_offset {
     if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
         $self->{edge}->on_save_snapshot( $i, $stored )
-            if (defined $i
+            if ( defined $i
             and $self->{edge}
             and $self->{edge}->can('on_save_snapshot') );
     }

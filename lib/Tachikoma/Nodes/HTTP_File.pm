@@ -88,9 +88,9 @@ sub fill {
             "Server: Tachikoma\n",
             "Connection: close\n",
             "Content-Type: text/plain; charset=utf8\n",
-            "Location: $url/index.html\n",
+            "Location: index.html\n",
             "\n",
-            "try $url/index.html\n";
+            "try index.html\n";
         $self->{sink}->fill($response);
         $response         = Tachikoma::Message->new;
         $response->[TYPE] = TM_EOF;

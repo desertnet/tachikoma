@@ -78,7 +78,7 @@ else {
         push @lines, $line if ( defined $line );
         $Tachikoma::Right_Now = Time::HiRes::time;
         next
-            if (defined $line
+            if ( defined $line
             and @lines < $batch_size
             and $Tachikoma::Right_Now - $last_time < 1 );
         $Tachikoma::Now = int $Tachikoma::Right_Now;

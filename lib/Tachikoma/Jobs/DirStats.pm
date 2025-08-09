@@ -274,8 +274,7 @@ sub stat_directory {    ## no critic (ProhibitExcessComplexity)
             if ( $stat eq 'L' );
         push @out,
             join( q( ),
-            $stat, $size, $perms, $last_modified, $digest, $entry )
-            . "\n";
+            $stat, $size, $perms, $last_modified, $digest, $entry ) . "\n";
         push @directories, $path_entry if ( $stat eq 'D' );
     }
     return ( \@out, \@directories );

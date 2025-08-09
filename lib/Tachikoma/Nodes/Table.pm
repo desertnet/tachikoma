@@ -74,7 +74,7 @@ sub arguments {
         die "ERROR: num_buckets must be greater than or equal to 1\n"
             if ( defined $num_buckets and $num_buckets < 1 );
         die "ERROR: num_buckets must be 1 when window_size is unset\n"
-            if (defined $window_size
+            if ( defined $window_size
             and $window_size == 0
             and $num_buckets
             and $num_buckets != 1 );

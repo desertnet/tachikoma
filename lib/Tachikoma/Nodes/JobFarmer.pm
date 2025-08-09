@@ -222,7 +222,7 @@ $C{dump_job} = sub {
     my $copy = bless { %{$node} }, ref $node;
     $copy->{sink} = $copy->{sink}->name if ( $copy->{sink} );
     delete $copy->{connector};
-    return $self->response( $envelope, Dumper $copy);
+    return $self->response( $envelope, Dumper $copy );
 };
 
 $C{dump} = $C{dump_job};
