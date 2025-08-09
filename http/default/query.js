@@ -11,10 +11,7 @@ function escapeHTML(str) {
 }
 
 var params      = getQueryParams();
-var server_url  = window.location.protocol + "//"
-                      + window.location.hostname
-                      + ":" + window.location.port
-                      + "/cgi-bin/query.cgi/" + topic;
+var server_url  = "cgi-bin/query.cgi/" + topic;
 var xhttp       = new XMLHttpRequest();
 var num_queries = params["num_queries"] || 1;
 var is_storable = /TM_STORABLE/;

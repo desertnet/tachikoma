@@ -1,10 +1,6 @@
-var server_url  = window.location.protocol + "//"
-                      + window.location.hostname
-                      + ":" + window.location.port
-                      + "/fetch/tasks:queue";
-var server_name = window.location.hostname;
-var xhttp       = new XMLHttpRequest();
-var timer       = null;
+var server_url = "fetch/tasks:queue";
+var xhttp      = new XMLHttpRequest();
+var timer      = null;
 
 function start_timer() {
     xhttp.onreadystatechange = function() {
@@ -33,8 +29,7 @@ function start_timer() {
                 else {
                     tr = "<tr bgcolor=\"#444\">";
                 }
-                var key_href = "<a href=\"" + window.location.protocol + "//"
-                             + server_name + ":4242/task_query.html?key="
+                var key_href = "<a href=\"task_query.html?key="
                              + msg[i].message_stream + "\">"
                              + msg[i].message_stream + "</a>";
                 var payload = msg[i].message_payload;

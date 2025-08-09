@@ -1,12 +1,9 @@
-var server_host      = window.location.hostname;
-var server_port      = window.location.port;
-var server_path      = "/cgi-bin/tail.cgi"
+var server_path      = "cgi-bin/tail.cgi"
 var topic            = "tasks";
 var parsed_url       = new URL(window.location.href);
 var count            = parsed_url.searchParams.get("count")    || 1000;
 var interval         = parsed_url.searchParams.get("interval") || 33;
-var prefix_url       = window.location.protocol + "//" + server_host
-                     + ":" + server_port + server_path + "/" + topic;
+var prefix_url       = server_path + "/" + topic;
 var last_url         = prefix_url  + "/last/"   + count;
 var recent_url       = prefix_url  + "/recent/" + count;
 var server_url       = last_url;
@@ -126,8 +123,6 @@ function toggle_task_output() {
 }
 
 function tick() {
-    // rewrite server_url match current window.location.protocol
-    server_url = window.location.protocol + "//" + server_url.split("//")[1];
     xhttp.open("GET", server_url, true);
     xhttp.send();
 }

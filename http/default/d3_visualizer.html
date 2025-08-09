@@ -189,7 +189,7 @@
             let service = params.get('service');
 
             // Use fetch instead of d3.json for better control
-            fetch("/v/" + service + request_type)
+            fetch("v/" + service + request_type)
                 .then(response => response.json())
                 .then(function (data) {
                     // Queue the update instead of doing it immediately

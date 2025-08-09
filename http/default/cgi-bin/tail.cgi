@@ -91,8 +91,7 @@ if ( $location eq 'recent' ) {
 
 if ( not $partitions or $group->sync_error ) {
     print STDERR $group->sync_error if ( $group->sync_error );
-    my $next_url = $cgi->url( -path_info => 1, -query => 1 );
-    # $next_url =~ s{^http://}{https://};
+    my $next_url = join q(/), 'cgi-bin/tail.cgi', $path;
     $results = {
         next_url => $next_url,
         error    => 'SERVER_ERROR'
@@ -118,8 +117,8 @@ else {
             push @next_offsets, $offsets[$partition];
         }
     }
-    my $next_url = join q(/), $cgi->url, $topic, join( q(,), @next_offsets ),
-        $count, $double_encode;
+    my $next_url = join q(/), 'cgi-bin/tail.cgi', $topic,
+        join( q(,), @next_offsets ), $count, $double_encode;
     # $next_url =~ s{^http://}{https://};
     $results = {
         next_url => $next_url,

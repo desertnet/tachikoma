@@ -1,7 +1,5 @@
 var parsed_url    = new URL(window.location.href);
-var server_host   = window.location.hostname;
-var server_port   = window.location.port;
-var server_path   = "/cgi-bin/tail.cgi"
+var server_path   = "cgi-bin/tail.cgi"
 var _topic        = parsed_url.searchParams.get("topic")    || topic;
 var _offset       = parsed_url.searchParams.get("offset")   || offset;
 var _count        = parsed_url.searchParams.get("count")    || count;
@@ -25,9 +23,7 @@ function start_timer() {
 }
 
 function start_tail() {
-    var prefix_url = window.location.protocol + "//"
-                   + server_host + ":" + server_port
-                   + server_path + "/" + _topic;
+    var prefix_url = server_path + "/" + _topic;
     var server_url = prefix_url  + "/" + _offset + "/" + _count;
     if (double_encode) {
         server_url += "/1";
@@ -75,8 +71,6 @@ function display_table() {
 }
 
 function tick(server_url) {
-    // rewrite server_url match current window.location.protocol
-    server_url = window.location.protocol + "//" + server_url.split("//")[1];
     xhttp.open("GET", server_url, true);
     xhttp.send();
 }
