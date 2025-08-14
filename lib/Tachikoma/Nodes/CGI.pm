@@ -128,7 +128,8 @@ FIND_SCRIPT: while ($test_path) {
 
     # copy HTTP headers to environment
     ## no critic (RequireLocalizedPunctuationVars)
-    my $tkssl = $ENV{TKSSL};
+    my $tkssl             = $ENV{TKSSL};
+    my $no_hostname_check = $ENV{NO_HOSTNAME_CHECK};
     local %ENV = ();
     for my $key ( keys %{$headers} ) {
         my $value = $headers->{$key};
@@ -165,7 +166,9 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{CONTENT_TYPE}   = $headers->{'content-type'}   if ($is_post);
     $ENV{CONTENT_LENGTH} = $headers->{'content-length'} if ($is_post);
     $ENV{TKSSL}          = $tkssl                       if ( defined $tkssl );
-    $ENV{UNIQUE_ID}      = md5_hex(rand);
+    $ENV{NO_HOSTNAME_CHECK} = $no_hostname_check
+        if ( defined $no_hostname_check );
+    $ENV{UNIQUE_ID} = md5_hex(rand);
 
     for my $key ( keys %ENV ) {
         $self->stderr("WARNING: \$ENV{$key} not defined\n")
