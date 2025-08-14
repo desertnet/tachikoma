@@ -80,7 +80,7 @@ sub check_server_id {
     my $id             = shift;
     my $short_id       = $id;
     my $short_hostname = $self->{hostname};
-    if (not $ENV{NO_HOSTNAME_CHECK}
+    if (    not $ENV{NO_HOSTNAME_CHECK}
         and $short_hostname
         and $short_hostname ne 'localhost'
         and $short_hostname ne '127.0.0.1' )
