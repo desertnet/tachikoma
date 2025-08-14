@@ -10,11 +10,15 @@ var display_timer = null;
 var output        = [];
 var dirty         = 1;
 
+function init() {
+    document.getElementById("toggle").addEventListener("click", playOrPause);
+    start_timer();
+}
+
 function start_timer() {
     if (_topic) {
         start_tail();
         display_timer = setInterval(display_table, _interval);
-        document.getElementById("toggle").innerHTML = "pause";
     }
     else {
         document.getElementById("toggle").innerHTML = "error";
@@ -31,21 +35,21 @@ function start_tail() {
     xhttp = new XMLHttpRequest();
     // xhttp.timeout = 15000;
     xhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            var msg = JSON.parse(this.responseText);
-            if (!msg.next_url || msg.next_url == server_url) {
-                fetch_timer = setTimeout(tick, 1000, server_url);
-                if (msg.next_url == server_url) {
-                    update_table(msg);
+        if (this.readyState == 4) {
+            if (this.status == 200) {
+                var msg = JSON.parse(this.responseText);
+                if (msg.next_url) {
+                    if (msg.next_url == server_url) {
+                        update_table(msg);
+                    }
+                    else {
+                        server_url  = msg.next_url;
+                        fetch_timer = setTimeout(tick, 0, server_url);
+                        update_table(msg);
+                        return;
+                    }
                 }
             }
-            else {
-                server_url  = msg.next_url;
-                fetch_timer = setTimeout(tick, 0, server_url);
-                update_table(msg);
-            }
-        }
-        else if (this.readyState == 4) {
             fetch_timer = setTimeout(tick, 1000, server_url);
         }
     };
@@ -76,17 +80,22 @@ function tick(server_url) {
 }
 
 function playOrPause() {
-    var state = document.getElementById("toggle").innerHTML;
-    if (state == "pause") {
+    const toggleBtn = document.getElementById("toggle");
+    const state = toggleBtn.getAttribute("data-state");
+
+    if (state === "pause") {
         clearTimeout(fetch_timer);
         fetch_timer = null;
         clearInterval(display_timer);
         display_timer = null;
-        document.getElementById("toggle").innerHTML = "play";
         xhttp.abort();
-        xhttp = null
+        xhttp = null;
+
+        toggleBtn.setAttribute("data-state", "play");
     }
     else {
         start_timer();
+
+        toggleBtn.setAttribute("data-state", "pause");
     }
 }

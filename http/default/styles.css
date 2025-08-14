@@ -55,6 +55,18 @@ div.container {
     padding: 0;
     width: 100vw;
 }
+
+button#toggle {
+  margin: 8px;
+  border-radius: 3px;
+}
+button[data-state="pause"] .play-btn {
+display:none;
+}
+button[data-state="play"] .pause-btn {
+display:none;
+}
+
 th {
     padding: 5px;
     text-align: left;
