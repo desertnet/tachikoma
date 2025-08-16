@@ -1,23 +1,23 @@
-var server_path       = "cgi-bin/tail.cgi"
-var topic             = "event_log";
-var parsed_url        = new URL(window.location.href);
-var count             = parsed_url.searchParams.get("count")    || 100;
-var interval          = parsed_url.searchParams.get("interval") || 33;
-var xhttp             = null;
-var fetch_timers      = [];
-var display_timer     = null;
-var output            = [];
-var dirty             = 1;
-var show_event_output = 1;
+const server_path = "cgi-bin/tail.cgi"
+const topic = "event_log";
+const parsed_url = new URL(window.location.href);
+const count = parsed_url.searchParams.get("count") || 100;
+const interval = parsed_url.searchParams.get("interval") || 33;
+let xhttp = null;
+let fetch_timers = [];
+let display_timer = null;
+let output = [];
+let dirty = 1;
+let show_event_output = 1;
 
 function start_timer() {
-    var prefix_url = server_path + "/" + topic;
-    var last_url   = prefix_url  + "/last/"   + count;
-    var server_url = last_url;
+    const prefix_url = server_path + "/" + topic;
+    const last_url = prefix_url + "/last/" + count;
+    let server_url = last_url;
     xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
+    xhttp.onreadystatechange = function () {
         if (this.readyState == 4 && this.status == 200) {
-            var msg = JSON.parse(this.responseText);
+            const msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
                 fetch_timer = setTimeout(tick, 1000, server_url);
                 if (msg.next_url == server_url) {
@@ -25,7 +25,7 @@ function start_timer() {
                 }
             }
             else {
-                server_url  = msg.next_url;
+                server_url = msg.next_url;
                 fetch_timer = setTimeout(tick, 0, server_url);
                 update_table(msg);
             }
@@ -34,18 +34,18 @@ function start_timer() {
             fetch_timer = setTimeout(tick, 1000, server_url);
         }
     };
-    fetch_timer   = setTimeout(tick, 100, server_url);
+    fetch_timer = setTimeout(tick, 100, server_url);
     display_timer = setInterval(display_table, interval);
 }
 
 function update_table(msg) {
-    for (var i = 0; i < msg.payload.length; i++) {
-        var tr    = "";
-        var date  = new Date();
-        var queue = msg.payload[i].queue || "";
-        var type  = msg.payload[i].type;
+    for (let i = 0; i < msg.payload.length; i++) {
+        const queue = msg.payload[i].queue || "";
+        const type = msg.payload[i].type;
+        let date = new Date();
+        let tr = "";
         date.setTime(
-            ( msg.payload[i].timestamp - date.getTimezoneOffset() * 60 )
+            (msg.payload[i].timestamp - date.getTimezoneOffset() * 60)
             * 1000
         );
         if (msg.payload[i].type == "TASK_ERROR") {
@@ -60,22 +60,22 @@ function update_table(msg) {
             }
         }
         else if (msg.payload[i].type == "TASK_BEGIN"
-              || msg.payload[i].type == "TASK_COMPLETE") {
+            || msg.payload[i].type == "TASK_COMPLETE") {
             tr = '<tr class="task-begin-complete">';
         }
         else {
             tr = "<tr>";
         }
-        var key_href = "<a href=\"event_query.html?key="
-                     + msg.payload[i].key + "\">"
-                     + msg.payload[i].key + "</a>";
-        var value = msg.payload[i].value || "";
-        var escaped = String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;");
-        var row = tr + "<td>" + date_string(date) + "</td>"
-                     + "<td>" + queue             + "</td>"
-                     + "<td>" + type              + "</td>"
-                     + "<td>" + key_href          + "</td>"
-                     + "<td>" + escaped           + "</td></tr>";
+        const key_href = "<a href=\"event_query.html?key="
+            + msg.payload[i].key + "\">"
+            + msg.payload[i].key + "</a>";
+        const value = msg.payload[i].value || "";
+        const escaped = String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const row = tr + "<td>" + date_string(date) + "</td>"
+            + "<td>" + queue + "</td>"
+            + "<td>" + type + "</td>"
+            + "<td>" + key_href + "</td>"
+            + "<td>" + escaped + "</td></tr>";
         output.unshift(row);
     }
     while (output.length > count) {
@@ -90,14 +90,14 @@ function display_table() {
             output.pop();
         }
         document.getElementById("output").innerHTML
-                    = "<table>"
-                    + "<tr><th>timestamp</th>"
-                    + "<th>queue</th>"
-                    + "<th>type</th>"
-                    + "<th>key</th>"
-                    + "<th>value</th></tr>"
-                    + output.join("")
-                    + "</table>";
+            = "<table>"
+            + "<tr><th>timestamp</th>"
+            + "<th>queue</th>"
+            + "<th>type</th>"
+            + "<th>key</th>"
+            + "<th>value</th></tr>"
+            + output.join("")
+            + "</table>";
         dirty = 0;
     }
 }

@@ -1,14 +1,14 @@
-var parsed_url      = new URL(window.location.href);
-var server_path     = "cgi-bin/topic.cgi"
-var _topic          = parsed_url.searchParams.get("topic")          || topic;
-var _num_partitions = parsed_url.searchParams.get("num_partitions") || num_partitions || 1;
-var _count          = parsed_url.searchParams.get("count")          || count;
-var _interval       = parsed_url.searchParams.get("interval")       || interval;
-var xhttp           = [];
-var fetch_timers    = [];
-var display_timer   = null;
-var output          = [];
-var dirty           = 1;
+const parsed_url = new URL(window.location.href);
+const server_path = "cgi-bin/topic.cgi"
+const _topic = parsed_url.searchParams.get("topic") || topic;
+const _num_partitions = parsed_url.searchParams.get("num_partitions") || num_partitions || 1;
+const _count = parsed_url.searchParams.get("count") || count;
+const _interval = parsed_url.searchParams.get("interval") || interval;
+let xhttp = [];
+let fetch_timers = [];
+let display_timer = null;
+let output = [];
+let dirty = 1;
 
 function init() {
     document.getElementById("toggle").addEventListener("click", playOrPause);
@@ -17,7 +17,7 @@ function init() {
 
 function start_timer() {
     if (_topic) {
-        for (var i = 0; i < _num_partitions; i++) {
+        for (let i = 0; i < _num_partitions; i++) {
             start_partition(i);
         }
         display_timer = setInterval(display_table, _interval);
@@ -29,16 +29,16 @@ function start_timer() {
 }
 
 function start_partition(partition) {
-    var prefix_url = server_path + "/"
-                   + _topic      + "/"
-                   + partition;
-    var server_url = prefix_url  + "/" + offset + "/" + _count;
+    const prefix_url = server_path + "/"
+        + _topic + "/"
+        + partition;
+    let server_url = prefix_url + "/" + offset + "/" + _count;
     xhttp[partition] = new XMLHttpRequest();
     // xhttp[partition].timeout = 15000;
-    xhttp[partition].onreadystatechange = function() {
+    xhttp[partition].onreadystatechange = function () {
         if (this.readyState == 4 && this.status == 200) {
             if (this.status == 200) {
-                var msg = JSON.parse(this.responseText);
+                const msg = JSON.parse(this.responseText);
                 if (msg.next_url) {
                     if (msg.next_url == server_url) {
                         update_table(msg);
@@ -46,24 +46,24 @@ function start_partition(partition) {
                     else {
                         server_url = msg.next_url;
                         fetch_timers[partition] = setTimeout(tick,
-                                                             0,
-                                                             partition,
-                                                             server_url);
+                            0,
+                            partition,
+                            server_url);
                         update_table(msg);
                         return;
                     }
                 }
             }
             fetch_timers[partition] = setTimeout(tick,
-                                                 1000,
-                                                 partition,
-                                                 server_url);
+                1000,
+                partition,
+                server_url);
         }
     };
     fetch_timers[partition] = setTimeout(tick,
-                                         100,
-                                         partition,
-                                         server_url);
+        100,
+        partition,
+        server_url);
 }
 
 function update_table(msg) {
@@ -97,7 +97,7 @@ function playOrPause() {
     const state = toggleBtn.getAttribute("data-state");
 
     if (state === "pause") {
-        for (var i = 0; i < _num_partitions; i++) {
+        for (let i = 0; i < _num_partitions; i++) {
             clearTimeout(fetch_timers[i]);
             xhttp[i].abort();
         }

@@ -1,18 +1,18 @@
-var parsed_url = new URL(window.location.href);
-var server_url = "fetch";
-var shell_path = window.location.pathname;
-var xhttp      = new XMLHttpRequest();
-var queue      = parsed_url.searchParams.get("queue");
-var interval   = parsed_url.searchParams.get("interval") || 2000;
-var timer      = null;
+const parsed_url = new URL(window.location.href);
+const shell_path = window.location.pathname;
+const xhttp = new XMLHttpRequest();
+const queue = parsed_url.searchParams.get("queue");
+const interval = parsed_url.searchParams.get("interval") || 2000;
+let server_url = "fetch";
+let timer = null;
 if (queue) {
     server_url += "/" + queue;
 }
 
 function start_timer() {
-    xhttp.onreadystatechange = function() {
+    xhttp.onreadystatechange = function () {
         if (this.readyState == 4 && this.status == 200) {
-            var msg = JSON.parse(this.responseText);
+            const msg = JSON.parse(this.responseText);
             if (queue) {
                 display_queue(msg);
             }
@@ -33,18 +33,18 @@ function tick() {
 }
 
 function display_queue(msg) {
-    var output = [];
-    var footer = "";
-    for (var i = 0; i < msg.length && i < 1000; i++) {
-        var tr        = "";
-        var date      = new Date();
-        var next_date = new Date();
+    let output = [];
+    let footer = "";
+    for (let i = 0; i < msg.length && i < 1000; i++) {
+        let next_date = new Date();
+        let date = new Date();
+        let tr = "";
         date.setTime(
-            ( msg[i].message_timestamp - date.getTimezoneOffset() * 60 )
+            (msg[i].message_timestamp - date.getTimezoneOffset() * 60)
             * 1000
         );
         next_date.setTime(
-            ( msg[i].next_attempt - date.getTimezoneOffset() * 60 )
+            (msg[i].next_attempt - date.getTimezoneOffset() * 60)
             * 1000
         );
         if (msg[i].attempts > 1) {
@@ -56,40 +56,41 @@ function display_queue(msg) {
         else {
             tr = "<tr bgcolor=\"#444\">";
         }
-        var payload = msg[i].message_payload || "";
-        var escaped = payload.replace(/&/g,"&amp;").replace(/</g,"&lt;");
-        var row = tr + "<td>" + date_string(date)       + "</td>"
-                     + "<td>" + msg[i].message_stream   + "</td>"
-                     + "<td>" + escaped                 + "</td>"
-                     + "<td>" + msg[i].attempts         + "</td>"
-                     + "<td>" + date_string(next_date)  + "</td></tr>";
+        const payload = msg[i].message_payload || "";
+        const escaped = payload.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const row = tr + "<td>" + date_string(date) + "</td>"
+            + "<td>" + msg[i].message_stream + "</td>"
+            + "<td>" + escaped + "</td>"
+            + "<td>" + msg[i].attempts + "</td>"
+            + "<td>" + date_string(next_date) + "</td></tr>";
         output.push(row);
     }
     if (msg.length == 0) {
         footer = "<em>-empty-</em>";
     }
     document.getElementById("output").innerHTML
-                = "<table>"
-                + "<tr><th>timestamp</th>"
-                + "<th>key</th>"
-                + "<th>value</th>"
-                + "<th># attempts</th>"
-                + "<th>next attempt</th></tr>"
-                + output.join("")
-                + "</table>"
-                + footer;
+        = "<table>"
+        + "<tr><th>timestamp</th>"
+        + "<th>key</th>"
+        + "<th>value</th>"
+        + "<th># attempts</th>"
+        + "<th>next attempt</th></tr>"
+        + output.join("")
+        + "</table>"
+        + footer;
 }
 
 function display_queues(msg) {
-    var output = [];
-    var footer = "";
-    msg.sort(function(a, b) {
+    let output = [];
+    let footer = "";
+    msg.sort(function (a, b) {
         return b.size - a.size;
     });
-    for (var i = 0; i < msg.length && i < 1000; i++) {
-        var key_href = "<a href=\"" + shell_path + "?queue="
-                     + msg[i].name + "\">"
-                     + msg[i].name + "</a>";
+    for (let i = 0; i < msg.length && i < 1000; i++) {
+        const key_href = "<a href=\"" + shell_path + "?queue="
+            + msg[i].name + "\">"
+            + msg[i].name + "</a>";
+        let tr = "";
         if (msg[i].size > 1000) {
             tr = "<tr bgcolor=\"#622\">";
         }
@@ -99,20 +100,20 @@ function display_queues(msg) {
         else {
             tr = "<tr bgcolor=\"#444\">";
         }
-        var row = tr + "<td>" + key_href    + "</td>"
-                     + "<td>" + msg[i].size + "</td></tr>";
+        const row = tr + "<td>" + key_href + "</td>"
+            + "<td>" + msg[i].size + "</td></tr>";
         output.push(row);
     }
     if (msg.length == 0) {
         footer = "<em>-none-</em>";
     }
     document.getElementById("output").innerHTML
-                = "<table>"
-                + "<tr><th>QUEUE</th>"
-                + "<th>SIZE</th></tr>"
-                + output.join("")
-                + "</table>"
-                + footer;
+        = "<table>"
+        + "<tr><th>QUEUE</th>"
+        + "<th>SIZE</th></tr>"
+        + output.join("")
+        + "</table>"
+        + footer;
 }
 
 function date_string(date) {

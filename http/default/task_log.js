@@ -1,23 +1,23 @@
-var server_path      = "cgi-bin/tail.cgi"
-var topic            = "tasks";
-var parsed_url       = new URL(window.location.href);
-var count            = parsed_url.searchParams.get("count")    || 1000;
-var interval         = parsed_url.searchParams.get("interval") || 33;
-var prefix_url       = server_path + "/" + topic;
-var last_url         = prefix_url  + "/last/"   + count;
-var recent_url       = prefix_url  + "/recent/" + count;
-var server_url       = last_url;
-var xhttp            = new XMLHttpRequest();
-var fetch_timer      = null;
-var display_timer    = null;
-var output           = [];
-var dirty            = 1;
-var show_task_output = 1;
+const server_path = "cgi-bin/tail.cgi"
+const topic = "tasks";
+const parsed_url = new URL(window.location.href);
+const count = parsed_url.searchParams.get("count") || 1000;
+const interval = parsed_url.searchParams.get("interval") || 33;
+const prefix_url = server_path + "/" + topic;
+const last_url = prefix_url + "/last/" + count;
+const recent_url = prefix_url + "/recent/" + count;
+const xhttp = new XMLHttpRequest();
+let server_url = last_url;
+let fetch_timer = null;
+let display_timer = null;
+let output = [];
+let dirty = 1;
+let show_task_output = 1;
 
 function start_timer() {
-    xhttp.onreadystatechange = function() {
+    xhttp.onreadystatechange = function () {
         if (this.readyState == 4 && this.status == 200) {
-            var msg = JSON.parse(this.responseText);
+            const msg = JSON.parse(this.responseText);
             if (!msg.next_url || msg.next_url == server_url) {
                 fetch_timer = setTimeout(tick, 1000);
                 if (msg.next_url == server_url) {
@@ -25,7 +25,7 @@ function start_timer() {
                 }
             }
             else {
-                server_url  = msg.next_url;
+                server_url = msg.next_url;
                 fetch_timer = setTimeout(tick, 0);
                 update_table(msg);
             }
@@ -34,17 +34,17 @@ function start_timer() {
             fetch_timer = setTimeout(tick, 1000);
         }
     };
-    fetch_timer   = setTimeout(tick, 100);
+    fetch_timer = setTimeout(tick, 100);
     display_timer = setInterval(display_table, interval);
 }
 
 function update_table(msg) {
-    for (var i = 0; i < msg.payload.length; i++) {
-        var tr   = "";
-        var date = new Date();
-        var type = msg.payload[i].type;
+    for (let i = 0; i < msg.payload.length; i++) {
+        const type = msg.payload[i].type;
+        let date = new Date();
+        let tr = "";
         date.setTime(
-            ( msg.payload[i].timestamp - date.getTimezoneOffset() * 60 )
+            (msg.payload[i].timestamp - date.getTimezoneOffset() * 60)
             * 1000
         );
         if (msg.payload[i].type == "TASK_ERROR") {
@@ -59,23 +59,23 @@ function update_table(msg) {
             }
         }
         else if (msg.payload[i].type == "TASK_BEGIN"
-              || msg.payload[i].type == "TASK_COMPLETE") {
+            || msg.payload[i].type == "TASK_COMPLETE") {
             tr = '<tr class="task-begin-complete">';
         }
         else {
             tr = "<tr>";
         }
-        var key_href = "<a href=\"task_query.html?key="
-                     + msg.payload[i].key + "\">"
-                     + msg.payload[i].key + "</a>";
-        var value = msg.payload[i].value
-                 || msg.payload[i].payload
-                 || "";
-        var escaped = String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;");
-        var row = tr + "<td>" + date_string(date) + "</td>"
-                     + "<td>" + type              + "</td>"
-                     + "<td>" + key_href          + "</td>"
-                     + "<td>" + escaped           + "</td></tr>";
+        const key_href = "<a href=\"task_query.html?key="
+            + msg.payload[i].key + "\">"
+            + msg.payload[i].key + "</a>";
+        const value = msg.payload[i].value
+            || msg.payload[i].payload
+            || "";
+        const escaped = String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const row = tr + "<td>" + date_string(date) + "</td>"
+            + "<td>" + type + "</td>"
+            + "<td>" + key_href + "</td>"
+            + "<td>" + escaped + "</td></tr>";
         output.unshift(row);
     }
     while (output.length > count) {
@@ -90,13 +90,13 @@ function display_table() {
             output.pop();
         }
         document.getElementById("output").innerHTML
-                    = "<table>"
-                    + "<tr><th>timestamp</th>"
-                    + "<th>type</th>"
-                    + "<th>key</th>"
-                    + "<th>value</th></tr>"
-                    + output.join("")
-                    + "</table>";
+            = "<table>"
+            + "<tr><th>timestamp</th>"
+            + "<th>type</th>"
+            + "<th>key</th>"
+            + "<th>value</th></tr>"
+            + output.join("")
+            + "</table>";
         dirty = 0;
     }
 }
@@ -106,14 +106,14 @@ function toggle_task_output() {
         show_task_output = 0;
         document.getElementById("toggle").innerHTML = "show output";
         clearTimeout(fetch_timer);
-        server_url  = recent_url;
+        server_url = recent_url;
         fetch_timer = setTimeout(tick, 0);
     }
     else {
         show_task_output = 1;
         document.getElementById("toggle").innerHTML = "hide output";
         clearTimeout(fetch_timer);
-        server_url  = last_url;
+        server_url = last_url;
         fetch_timer = setTimeout(tick, 0);
     }
     output = [];

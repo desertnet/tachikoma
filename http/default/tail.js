@@ -1,14 +1,14 @@
-var parsed_url    = new URL(window.location.href);
-var server_path   = "cgi-bin/tail.cgi"
-var _topic        = parsed_url.searchParams.get("topic")    || topic;
-var _offset       = parsed_url.searchParams.get("offset")   || offset;
-var _count        = parsed_url.searchParams.get("count")    || count;
-var _interval     = parsed_url.searchParams.get("interval") || interval;
-var xhttp         = null;
-var fetch_timer   = null;
-var display_timer = null;
-var output        = [];
-var dirty         = 1;
+const parsed_url = new URL(window.location.href);
+const server_path = "cgi-bin/tail.cgi"
+const _topic = parsed_url.searchParams.get("topic") || topic;
+const _offset = parsed_url.searchParams.get("offset") || offset;
+const _count = parsed_url.searchParams.get("count") || count;
+const _interval = parsed_url.searchParams.get("interval") || interval;
+let xhttp = null;
+let fetch_timer = null;
+let display_timer = null;
+let output = [];
+let dirty = 1;
 
 function init() {
     document.getElementById("toggle").addEventListener("click", playOrPause);
@@ -27,23 +27,23 @@ function start_timer() {
 }
 
 function start_tail() {
-    var prefix_url = server_path + "/" + _topic;
-    var server_url = prefix_url  + "/" + _offset + "/" + _count;
+    const prefix_url = server_path + "/" + _topic;
+    let server_url = prefix_url + "/" + _offset + "/" + _count;
     if (double_encode) {
         server_url += "/1";
     }
     xhttp = new XMLHttpRequest();
     // xhttp.timeout = 15000;
-    xhttp.onreadystatechange = function() {
+    xhttp.onreadystatechange = function () {
         if (this.readyState == 4) {
             if (this.status == 200) {
-                var msg = JSON.parse(this.responseText);
+                const msg = JSON.parse(this.responseText);
                 if (msg.next_url) {
                     if (msg.next_url == server_url) {
                         update_table(msg);
                     }
                     else {
-                        server_url  = msg.next_url;
+                        server_url = msg.next_url;
                         fetch_timer = setTimeout(tick, 0, server_url);
                         update_table(msg);
                         return;

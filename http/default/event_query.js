@@ -1,22 +1,22 @@
-var parsed_url  = new URL(window.location.href);
-var topic       = "event_log";
-var field       = "event_log.ID:index";
-var server_url  = "cgi-bin/query.cgi/" + topic;
-var xhttp       = new XMLHttpRequest();
-var key         = parsed_url.searchParams.get("key");
-var timer       = null;
-var data        = {};
+const parsed_url = new URL(window.location.href);
+const topic = "event_log";
+const field = "event_log.ID:index";
+const server_url = "cgi-bin/query.cgi/" + topic;
+const key = parsed_url.searchParams.get("key");
+const xhttp = new XMLHttpRequest();
+let timer = null;
+let data = {};
 if (key) {
     data = {
         "field": field,
-        "op":    "eq",
-        "key":   key
+        "op": "eq",
+        "key": key
     };
     _execute_query();
 }
 
 function render_form() {
-    var form_html = '<form onsubmit="execute_query(); return false;" id="query_params">'
+    const form_html = '<form onsubmit="execute_query(); return false;" id="query_params">'
         + '<input name="key" class="uk-input uk-form-width-large uk-margin-top"/>'
         + '<button class="uk-button uk-button-primary uk-margin-top uk-margin-left">search</button>'
         + '</form>';
@@ -24,10 +24,10 @@ function render_form() {
 }
 
 function execute_query() {
+    const form = document.getElementById("query_params");
     data = {};
-    var form = document.getElementById("query_params");
-    for (var i = 0, l = form.length; i < l; ++i) {
-        var input = form[i];
+    for (let i = 0, l = form.length; i < l; ++i) {
+        const input = form[i];
         if (input.name) {
             data[input.name] = input.value;
         }
@@ -44,11 +44,11 @@ function execute_query() {
 
 function _execute_query() {
     if (data["op"] == "keys") {
-        xhttp.onreadystatechange = function() {
+        xhttp.onreadystatechange = function () {
             if (this.readyState == 4 && this.status == 200) {
-                var output = [];
-                var msg    = JSON.parse(this.responseText);
-                for (var k in msg[0]) {
+                const msg = JSON.parse(this.responseText);
+                let output = [];
+                for (const k in msg[0]) {
                     output.push(
                         "<a href=\"event_query.html?key=" + k + "\">"
                         + k + "</a><br>"
@@ -62,12 +62,12 @@ function _execute_query() {
         };
     }
     else {
-        xhttp.onreadystatechange = function() {
-            var output = [];
+        xhttp.onreadystatechange = function () {
+            let output = [];
             if (this.readyState == 4 && this.status == 200) {
                 if (this.responseText) {
-                    var msg     = JSON.parse(this.responseText);
-                    var running = 1;
+                    const msg = JSON.parse(this.responseText);
+                    let running = 1;
                     if (!msg[0]) {
                         document.getElementById("output").innerHTML = "<em> - no results - </em>";
                     }
@@ -76,18 +76,18 @@ function _execute_query() {
                             + msg[0].error + "</em>";
                     }
                     else {
-                        msg.sort(function(a, b) {
+                        msg.sort(function (a, b) {
                             return a.value.timestamp - b.value.timestamp;
                         });
-                        for (var i = 0; i < msg.length; i++) {
-                            var tr    = "";
-                            var ev    = msg[i].value;
-                            var date  = new Date();
-                            var queue = ev.queue || "";
-                            var value = ev.value || "";
-                            var escaped = String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+                        for (let i = 0; i < msg.length; i++) {
+                            const ev = msg[i].value;
+                            const queue = ev.queue || "";
+                            const value = ev.value || "";
+                            const escaped = String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+                            let date = new Date();
+                            let tr = "";
                             date.setTime(
-                                ( ev.timestamp - date.getTimezoneOffset() * 60 )
+                                (ev.timestamp - date.getTimezoneOffset() * 60)
                                 * 1000
                             );
                             if (ev.type == "TASK_ERROR") {
@@ -97,17 +97,17 @@ function _execute_query() {
                                 tr = '<tr class="task-output">';
                             }
                             else if (ev.type == "TASK_BEGIN"
-                                  || ev.type == "TASK_COMPLETE") {
+                                || ev.type == "TASK_COMPLETE") {
                                 tr = '<tr class="task-begin-complete">';
                             }
                             else {
                                 tr = '<tr>';
                             }
-                            var row = tr + "<td>" + date_string(date) + "</td>"
-                                         + "<td>" + queue             + "</td>"
-                                         + "<td>" + ev.type           + "</td>"
-                                         + "<td>" + ev.key            + "</td>"
-                                         + "<td>" + escaped           + "</td></tr>";
+                            const row = tr + "<td>" + date_string(date) + "</td>"
+                                + "<td>" + queue + "</td>"
+                                + "<td>" + ev.type + "</td>"
+                                + "<td>" + ev.key + "</td>"
+                                + "<td>" + escaped + "</td></tr>";
                             output.push(row);
                             if (ev.type == "MSG_CANCELED") {
                                 running = 0;
@@ -117,14 +117,14 @@ function _execute_query() {
                             output.shift();
                         }
                         document.getElementById("output").innerHTML
-                                    = "<table>"
-                                    + "<tr><th>timestamp</th>"
-                                    + "<th>queue</th>"
-                                    + "<th>type</th>"
-                                    + "<th>key</th>"
-                                    + "<th>value</th></tr>"
-                                    + output.join("")
-                                    + "</table>";
+                            = "<table>"
+                            + "<tr><th>timestamp</th>"
+                            + "<th>queue</th>"
+                            + "<th>type</th>"
+                            + "<th>key</th>"
+                            + "<th>value</th></tr>"
+                            + output.join("")
+                            + "</table>";
                     }
                     if (running) {
                         timer = setTimeout(tick, 1000);
@@ -143,9 +143,9 @@ function _execute_query() {
 }
 
 function tick() {
+    const json_data = JSON.stringify(data)
     xhttp.open("POST", server_url, true);
     xhttp.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
-    var json_data = JSON.stringify(data)
     console.log(json_data);
     xhttp.send(json_data);
 }
