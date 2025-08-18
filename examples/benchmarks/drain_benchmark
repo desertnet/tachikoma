@@ -17,7 +17,7 @@ my $recv      = 0;
 my $count     = 0;
 my $then      = time;
 my $delay     = $ARGV[1] || 2;
-my $total     = 10000;
+my $total     = 1000;
 my $size;
 
 # $tachikoma->timeout(undef);

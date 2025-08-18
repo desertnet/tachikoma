@@ -28,7 +28,7 @@ $message->payload($buf);
 my $packed = ${ $message->packed } x $batch_size;
 my $size   = length $packed;
 my $fh     = $tachikoma->fh;
-my $total  = 10000;
+my $total  = 1000;
 
 print "size: $size\n";
 
