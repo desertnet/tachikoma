@@ -36,6 +36,7 @@ die "no field\n" if ( not length $field );
 my $key  = uri_unescape( $escaped // q() );
 my $json = JSON->new;
 $key = $cgi->param('key') if ( not length $key );
+my $topic_field = "$topic.$field:table";
 $json->canonical(1);
 $json->pretty(1);
 $json->allow_blessed(1);
@@ -47,18 +48,18 @@ if ( not defined $consumer{$topic} ) {
     $consumer{$topic} = Tachikoma::Nodes::ConsumerBroker->new($topic);
     $consumer{$topic}->broker_ids($broker_ids);
 }
-if ( not defined $table{$topic} ) {
-    $table{$topic} = Tachikoma::Nodes::Table->new;
-    $table{$topic}->host($host);
-    $table{$topic}->port($port);
-    $table{$topic}->field($field);
+if ( not defined $table{$topic_field} ) {
+    $table{$topic_field} = Tachikoma::Nodes::Table->new;
+    $table{$topic_field}->host($host);
+    $table{$topic_field}->port($port);
+    $table{$topic_field}->field($topic_field);
 }
 print $cgi->header(
     -type    => 'application/json',
     -charset => 'utf-8'
 );
 my $value   = undef;
-my $payload = $table{$topic}->fetch($key);
+my $payload = $table{$topic_field}->fetch($key);
 
 if ( ref $payload ) {
     print $json->utf8->encode($payload);
