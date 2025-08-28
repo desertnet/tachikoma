@@ -2,10 +2,12 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && \
     apt-get install -y \
+        libcrypt-openssl-rsa-perl \
+        libio-sockte-ssl-perl \
+        \
         build-essential \
         libberkeleydb-perl \
         libcgi-pm-perl \
-        libcrypt-openssl-rsa-perl \
         libdbd-sqlite3-perl \
         libdbi-perl \
         libjson-perl \
