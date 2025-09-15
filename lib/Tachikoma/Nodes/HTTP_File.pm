@@ -22,9 +22,14 @@ my $DEFAULT_EXPIRES = 900;
 
 # TODO: configurate mime types
 my %TYPES = (
+    bmp  => 'image/bmp',
     gif  => 'image/gif',
     jpg  => 'image/jpeg',
+    jpeg => 'image/jpeg',
     png  => 'image/png',
+    svg  => 'image/svg',
+    tif  => 'image/tiff',
+    tiff => 'image/tiff',
     ico  => 'image/vnd.microsoft.icon',
     txt  => 'text/plain; charset=utf8',
     js   => 'text/javascript; charset=utf8',
@@ -83,9 +88,9 @@ sub fill {
             "Server: Tachikoma\n",
             "Connection: close\n",
             "Content-Type: text/plain; charset=utf8\n",
-            "Location: $url/index.html\n",
+            "Location: index.html\n",
             "\n",
-            "try $url/index.html\n";
+            "try index.html\n";
         $self->{sink}->fill($response);
         $response         = Tachikoma::Message->new;
         $response->[TYPE] = TM_EOF;

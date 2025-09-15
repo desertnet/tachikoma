@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>access logs</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit/dist/css/uikit.min.css" />
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit/dist/js/uikit-icons.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="text/javascript">
+    var topic   = "server_log";
+    var indexes = [ "hostname", "process", "timestamp" ];
+  </script>
+  <script type="text/javascript" src="query.js"></script>
+</head>
+
+<body class="uk-dark" onload="render_form()">
+  <div id="query_form"></div>
+  <div id="output"></div>
+  <div id="graph"></div>
+  <div id="table"></div>
+</body>
+</html>

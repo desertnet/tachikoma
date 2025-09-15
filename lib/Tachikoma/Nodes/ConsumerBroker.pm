@@ -183,7 +183,7 @@ sub fire {
     my $self      = shift;
     my $consumers = $self->{consumers};
     $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     my $message = Tachikoma::Message->new;
     $message->[TYPE] = TM_REQUEST;
     $message->[FROM] = $self->name;
@@ -195,8 +195,8 @@ sub fire {
         $message->[PAYLOAD] = "GET_LEADER $self->{group}\n";
     }
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->sink->fill($message);
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
+    Tachikoma->nodes->{_router}->fill($message);
     if ( not $self->{timer_interval}
         or $self->{timer_interval} != $self->{async_interval} * 1000 )
     {
@@ -228,8 +228,8 @@ sub update_leader {
     $response->[TO]      = $self->leader_path;
     $response->[PAYLOAD] = "GET_PARTITIONS $topic\n";
     $self->stderr( 'DEBUG: ' . $response->[PAYLOAD] )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->sink->fill($response);
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
+    Tachikoma->nodes->{_router}->fill($response);
     return;
 }
 
@@ -332,7 +332,7 @@ sub make_broker_connection {
         $node->name($broker_id);
         $node->debug_state( $self->debug_state );
         $node->on_EOF('reconnect');
-        $node->sink( $self->sink );
+        $node->sink( Tachikoma->nodes->{_command_interpreter} );
     }
     return $node->auth_complete;
 }
@@ -428,7 +428,7 @@ sub remove_node {
         $message->[PAYLOAD] = "DISCONNECT\n";
         $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
             if ( $self->debug_state );
-        $self->sink->fill($message);
+        Tachikoma->nodes->{_router}->fill($message);
     }
     $self->SUPER::remove_node;
     return;

@@ -17,6 +17,10 @@ use Tachikoma::Message       qw(
     TYPE FROM TO ID STREAM PAYLOAD
     TM_BYTESTREAM TM_EOF TM_PERSIST TM_RESPONSE
 );
+use Socket qw(
+    PF_INET SOCK_STREAM
+    inet_aton pack_sockaddr_in
+);
 use POSIX  qw( EAGAIN );
 use vars   qw( @EXPORT_OK );
 use parent qw( Tachikoma::Nodes::Socket );
@@ -25,6 +29,62 @@ use parent qw( Tachikoma::Nodes::Socket );
 use version; our $VERSION = qv('v2.0.195');
 
 my $DEFAULT_TIMEOUT = 900;
+
+sub inet_client {
+    my $class    = shift;
+    my $hostname = shift;
+    my $port     = shift or die "FAILED: no port specified for $hostname";
+    my $flags    = shift;
+    my $use_SSL  = shift;
+    my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
+    my $proto    = getprotobyname 'tcp';
+    my $socket;
+    socket $socket, PF_INET, SOCK_STREAM, $proto
+        or die "FAILED: socket: $!";
+    setsockopts($socket);
+    my $client = $class->new($flags);
+    $client->{type}          = 'connect';
+    $client->{hostname}      = $hostname;
+    $client->{address}       = $iaddr;
+    $client->{port}          = $port;
+    $client->{last_upbeat}   = $Tachikoma::Now;
+    $client->{last_downbeat} = $Tachikoma::Now;
+    $client->use_SSL($use_SSL);
+    $client->fh($socket);
+
+    # this has to happen after fh() sets O_NONBLOCK correctly:
+    if (    not( connect $socket, pack_sockaddr_in( $port, $iaddr ) )
+        and defined $flags
+        and $flags & TK_SYNC )
+    {
+        $client->remove_node;
+        die "ERROR: connect: $!\n";
+    }
+    if ($use_SSL) {
+        $client->start_SSL_connection;
+    }
+    else {
+        $client->init_connect;
+    }
+    $client->register_reader_node;
+    return $client;
+}
+
+sub inet_client_async {
+    my $class    = shift;
+    my $hostname = shift;
+    my $port     = shift or die "FAILED: no port specified for $hostname";
+    my $use_SSL  = shift;
+    my $client   = $class->new;
+    $client->{type}          = 'connect';
+    $client->{hostname}      = $hostname;
+    $client->{port}          = $port;
+    $client->{last_upbeat}   = $Tachikoma::Now;
+    $client->{last_downbeat} = $Tachikoma::Now;
+    $client->use_SSL($use_SSL);
+    push @{ Tachikoma->nodes_to_reconnect }, $client;
+    return $client;
+}
 
 sub new {
     my $proto = shift;
@@ -72,7 +132,6 @@ sub drain_fh {
     my $got    = length ${$buffer};
     my $read   = sysread $fh, ${$buffer}, 65536, $got;
     my $again  = $! == EAGAIN;
-    $read = 0 if ( not defined $read and $again and $self->{use_SSL} );
     if ( not defined $read or ( $read < 1 and not $again ) ) {
         $self->print_less_often("WARNING: couldn't read: $!")
             if ( not defined $read and $! ne 'Connection reset by peer' );

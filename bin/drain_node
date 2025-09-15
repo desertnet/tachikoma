@@ -17,7 +17,6 @@ my @default_configs = (
 my $config_file = undef;
 my $host        = 'localhost';
 my $port        = 4230;
-my $use_SSL     = undef;
 my $debug       = undef;
 my $help        = undef;
 
@@ -25,7 +24,6 @@ my $r = GetOptions(
     'config=s' => \$config_file,
     'host=s'   => \$host,
     'port=i'   => \$port,
-    'use-ssl'  => \$use_SSL,
     'debug:i'  => \$debug,
     'help'     => \$help,
 );
@@ -39,7 +37,7 @@ Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
 my $router = Tachikoma::Nodes::Router->new;
 my $tachikoma =
-    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC, $use_SSL );
+    Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC );
 $tachikoma->name('_socket');
 my $stdout = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
 $stdout->on_EOF('ignore');
@@ -61,7 +59,6 @@ sub usage {
         . "drain_node [ --config=<path> ]\n"
         . "           [ --host=<host>   ]\n"
         . "           [ --port=<port>   ]\n"
-        . "           [ --use-ssl       ]\n"
         . "           [ --debug         ]\n"
         . "           [ --help          ]\n"
         . "           [ <node name>     ]\n";

@@ -31,7 +31,8 @@ elsif ( -f '/usr/local/bin/sudo' ) {
     $SUDO = '/usr/local/bin/sudo';
 }
 
-my @SPAWN_QUEUE = ();
+my @SPAWN_QUEUE       = ();
+my $SPAWN_QUEUE_TIMER = 250;
 
 use constant {
     MAX_RECENT_LOG => 100,
@@ -111,7 +112,7 @@ sub spawn {
     if ( not Tachikoma->nodes->{'_spawn_timer'} ) {
         my $spawn_timer = Tachikoma::Nodes::JobSpawnTimer->new;
         $spawn_timer->name('_spawn_timer');
-        $spawn_timer->set_timer(250);
+        $spawn_timer->set_timer($SPAWN_QUEUE_TIMER);
         $spawn_timer->sink($self);
         Tachikoma->nodes->{'_spawn_timer'} = $spawn_timer;
     }

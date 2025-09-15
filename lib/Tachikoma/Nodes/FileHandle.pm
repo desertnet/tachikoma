@@ -128,20 +128,19 @@ sub drain_fh {
     my $buffer = $self->{input_buffer};
     my $got    = length ${$buffer};
     my $read   = sysread $fh, ${$buffer}, 1048576, $got;
-    my $again  = $! == EAGAIN;
-    $read = 0 if ( $self->{use_SSL} and not defined $read and $again );
-    if ( not defined $read or ( $read < 1 and not $again ) ) {
+    if ( not $read ) {
+        return if ( not defined $read and $! == EAGAIN );
         $self->print_less_often("WARNING: couldn't read: $!")
             if ( not defined $read and $! ne 'Connection reset by peer' );
         return $self->handle_EOF;
     }
     $got += $read;
     $got = &{ $self->{drain_buffer} }( $self, $buffer ) if ( $got > 0 );
-    if ( not defined $got or $got < 1 ) {
+    if ( not $got ) {
         my $new_buffer = q();
         $self->{input_buffer} = \$new_buffer;
     }
-    return $read;
+    return;
 }
 
 sub drain_buffer_normal {
@@ -320,7 +319,7 @@ sub close_filehandle {
         if ( defined $self->{fd} );
     undef $!;
     $self->stderr("WARNING: couldn't close: $!")
-        if ($self->{fh}
+        if ( $self->{fh}
         and fileno $self->{fh}
         and not close $self->{fh}
         and $!

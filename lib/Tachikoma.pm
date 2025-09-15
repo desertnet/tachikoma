@@ -47,7 +47,7 @@ my $SHUTTING_DOWN      = undef;
 my $PID_FH             = undef;
 
 sub inet_client {
-    my ( $class, $host, $port, $use_SSL ) = @_;
+    my ( $class, $host, $port ) = @_;
     $host ||= 'localhost';
     $port ||= DEFAULT_PORT;
     require Tachikoma::EventFrameworks::Select;
@@ -59,8 +59,7 @@ sub inet_client {
     $self->set_framework;
     $self->{sink} = Tachikoma::Nodes::Router->new;
     $self->{connector} =
-        Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC,
-        $use_SSL );
+        Tachikoma::Nodes::Socket->inet_client( $host, $port, TK_SYNC );
     $self->{connector}->{sink} = $self->{sink};
     $self->restore_framework;
     return $self;
@@ -299,7 +298,8 @@ sub write_pid {
     open $PID_FH, '>', $file or die "ERROR: couldn't open pid file $file: $!";
     flock $PID_FH, LOCK_EX | LOCK_NB
         or die "ERROR: couldn't lock pid file $file: $!";
-    syswrite $PID_FH, "$MY_PID\n";
+    syswrite $PID_FH, "$MY_PID\n"
+        or die "ERROR: couldn't write pid file $file: $!";
     return;
 }
 
@@ -495,7 +495,7 @@ sub shutdown_all_nodes {
 
 sub print_least_often {
     my ( $self, @args ) = @_;
-    return Tachikoma::Node->print_less_often(@args);
+    return Tachikoma::Node->print_least_often(@args);
 }
 
 sub print_less_often {
@@ -508,8 +508,11 @@ sub stderr {
     my $msg = join q(), grep { defined and $_ ne q() } @args;
     return if ( not length $msg );
     my $rv = undef;
+    chomp $msg;
+    $msg .= "\n";
     push @RECENT_LOG, $msg;
     shift @RECENT_LOG while ( @RECENT_LOG > 100 );
+
     if ( defined *STDERR ) {
         $rv = print {*STDERR} $msg;
     }
@@ -634,8 +637,6 @@ L<Tachikoma::Crypto>
 L<Tachikoma::Nodes::Callback>
 
 L<Digest::MD5>
-
-L<IO::Socket::SSL>
 
 L<Socket>
 

@@ -94,7 +94,7 @@ sub fill {
 sub handle_response {
     my $self     = shift;
     my $message  = shift;
-    my $total    = scalar @{ $self->{owner} };
+    my $total    = ref( $self->{owner} ) ? scalar @{ $self->{owner} } : 1;
     my $messages = $self->{messages};
     my $info     = $messages->{ $message->[ID] } or return;
     my $original = $info->{original};
@@ -123,15 +123,17 @@ sub fire {
 
     # check for dead links
     my $owners = $self->{owner};
-    my @keep   = ();
-    for my $owner ( @{$owners} ) {
-        my $name = ( split m{/}, $owner, 2 )[0];
-        next if ( not $Tachikoma::Nodes{$name} );
-        push @keep, $owner;
-    }
-    if ( @keep < @{$owners} ) {
-        @{$owners} = @keep;
-        $self->check_messages;
+    if ( ref $owners ) {
+        my @keep = ();
+        for my $owner ( @{$owners} ) {
+            my $name = ( split m{/}, $owner, 2 )[0];
+            next if ( not $Tachikoma::Nodes{$name} );
+            push @keep, $owner;
+        }
+        if ( @keep < @{$owners} ) {
+            @{$owners} = @keep;
+            $self->check_messages;
+        }
     }
 
     # expire messages

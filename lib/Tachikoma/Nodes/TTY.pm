@@ -95,14 +95,17 @@ sub resume {
             q(),
             sub {
                 my $buf = shift;
-                $self->prompt(q());
                 if ( defined $buf ) {
-                    $term->addhistory($buf) if ( $buf =~ /\S/ );
-                    my $message = Tachikoma::Message->new;
-                    $message->[TYPE]    = TM_BYTESTREAM;
-                    $message->[FROM]    = $self->{name};
-                    $message->[PAYLOAD] = $buf . "\n";
-                    push @{ $self->{queue} }, $message;
+                    for my $line ( split m{\n}, $buf ) {
+                        $self->prompt(q());
+                        next if ( $line !~ /\S/ );
+                        $term->addhistory($line);
+                        my $message = Tachikoma::Message->new;
+                        $message->[TYPE]    = TM_BYTESTREAM;
+                        $message->[FROM]    = $self->{name};
+                        $message->[PAYLOAD] = $line . "\n";
+                        push @{ $self->{queue} }, $message;
+                    }
                 }
                 else {
                     $self->readline_EOF('true');

@@ -8,4 +8,4 @@ curl --netrc --tls-max 1.2 --data-binary '{
     "field" : "server_log.'$index':index"
 }' \
 -H "Content-Type: application/json" \
--X POST https://localhost:4242/cgi-bin/query.cgi/server_log
+-X POST http://localhost:4242/cgi-bin/query.cgi/server_log

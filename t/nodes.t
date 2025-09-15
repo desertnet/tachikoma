@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3486;
+use Test::More tests => 3514;
 use Tachikoma;
 use Tachikoma::Message qw( TM_ERROR TM_EOF );
 
@@ -48,7 +48,7 @@ my %nodes = (
     'Tachikoma::Nodes::ClientConnector'       => q(clientconnector),
     'Tachikoma::Nodes::CommandInterpreter'    => q(),
     'Tachikoma::Nodes::Consumer'              => q(--partition=foo),
-    'Tachikoma::Nodes::ConsumerBroker'        => q(--topic=foo),
+    'Tachikoma::Nodes::ConsumerBroker'        => q(--broker=broker --topic=foo),
     'Tachikoma::Nodes::ConsumerGroup'         => q(),
     'Tachikoma::Nodes::DirWatcher'            => q(),
     'Tachikoma::Nodes::Dumper'                => undef,
@@ -121,6 +121,7 @@ my %nodes = (
     'Tachikoma::Nodes::Timestamp'            => q(),
     'Tachikoma::Nodes::Topic'                => q(broker),
     'Tachikoma::Nodes::TopicProbe'           => q(1),
+    'Tachikoma::Nodes::TopicProbeToGraphite' => q(),
     'Tachikoma::Nodes::Watchdog'             => q(),
     'Accessories::Nodes::Bucket'             => qq($t/bucket),
     'Accessories::Nodes::Clock'              => q(),
@@ -143,6 +144,7 @@ my %skip_owner_test = (
     'Tachikoma::Nodes::LoadBalancer'       => 1,
     'Tachikoma::Nodes::Queue'              => 1,
     'Tachikoma::Nodes::RegexTee'           => 1,
+    'Tachikoma::Nodes::Ruleset'            => 1,
     'Tachikoma::Nodes::Tee'                => 1,
 );
 

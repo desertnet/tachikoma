@@ -274,7 +274,7 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
     $expecting ||= 'eos';
     while ( my $tok = $self->get_next_token($input_ref) ) {
         next
-            if (not $parse_tree
+            if ( not $parse_tree
             and ( not $expecting or not $PARTIAL{$expecting} )
             and $tok->{type} eq 'whitespace' );
         my $this_branch = undef;
@@ -352,8 +352,8 @@ sub parse {    ## no critic (ProhibitExcessComplexity)
         }
         if ($this_branch) {
             $self->stderr(
-                sprintf "%s -> %s -> %s",
-                $parse_tree ? $parse_tree->{type} : '/',
+                sprintf '%s -> %s -> %s',
+                $parse_tree ? $parse_tree->{type} : q(/),
                 $this_branch->{type},
                 Dumper( $this_branch->{value} )
             ) if ( $self->show_parse );
@@ -571,7 +571,7 @@ $EVALUATORS{'open_paren'} = sub {
         my $number   = qr{\s*-?(?:\d+(?:[.]\d*)?|[.]\d+)};
         my $operator = qr{\s*(?:[+]|-(?!-)|[*]|/|!=?|<=?|>=?|==)};
         if ( $line =~ m{^$number(?:$operator$number)+\s*$}o ) {
-            $rv = [ eval($line) // $line ]; ## no critic (ProhibitStringyEval)
+            $rv = [ eval($line) // $line ];    ## no critic (ProhibitStringyEval)
         }
     }
 
@@ -781,7 +781,7 @@ $BUILTINS{'catn'} = sub {
     my $i      = 1;
 
     for my $line ( split m{^}, $lines ) {
-        $output .= sprintf "%5d %s", $i++, $line;
+        $output .= sprintf '%5d %s', $i++, $line;
     }
     syswrite STDOUT, $output or die if ( length $output );
     return [];
@@ -861,7 +861,7 @@ $BUILTINS{'randarg'} = sub {
     $self->fatal_parse_error('bad arguments for randarg')
         if ( not @args );
     my $int  = @args;
-    my $rand = int rand($int);
+    my $rand = int rand $int;
     my $arg  = $args[$rand];
     return [$arg];
 };
@@ -2174,7 +2174,7 @@ sub msg_counter {
     return sprintf '%d:%010d', $Tachikoma::Now, $MSG_COUNTER;
 }
 
-sub set_local {
+sub set_local {    ## no critic (RequireArgUnpacking)
     my $self = shift;
     unshift @LOCAL, @_;
     return;

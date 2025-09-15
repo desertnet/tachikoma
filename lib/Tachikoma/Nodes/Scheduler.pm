@@ -389,7 +389,7 @@ $C{dump_event} = sub {
     my $payload = Tachikoma::Command->new( $message->payload );
     $payload->{signature} = q();
     $message->payload($payload);
-    return $self->response( $envelope, Dumper $message);
+    return $self->response( $envelope, Dumper $message );
 };
 
 $C{dump} = $C{dump_event};

@@ -1,0 +1,118 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Tachikoma::EventFrameworks::Select;
+use Tachikoma::Nodes::Router;
+use Tachikoma::Nodes::ConsumerBroker;
+use Tachikoma::Nodes::Dumper;
+use Tachikoma::Nodes::Socket qw( TK_SYNC );
+use Tachikoma::Nodes::STDIO  qw( TK_R );
+use Getopt::Long             qw( GetOptions );
+
+use version; our $VERSION = qv('v2.0.929');
+
+my $home            = ( getpwuid $< )[7];
+my @default_configs = (
+    "$home/.tachikoma/etc/tachikoma.conf",
+    '/usr/local/etc/tachikoma.conf',
+);
+my $config_file = undef;
+my $host        = 'localhost';
+my $port        = 5501;
+my $topic_name  = undef;
+my $group       = undef;
+my $partition   = undef;
+my $offset      = 'end';
+my $batch       = undef;
+my $debug_level = undef;
+my $debug_state = undef;
+my $help        = undef;
+
+my $r = GetOptions(
+    'config=s'      => \$config_file,
+    'host=s'        => \$host,
+    'port=i'        => \$port,
+    'topic=s'       => \$topic_name,
+    'group=s'       => \$group,
+    'partition=i'   => \$partition,
+    'offset=s'      => \$offset,
+    'batch'         => \$batch,
+    'debug_level:i' => \$debug_level,
+    'debug_state:i' => \$debug_state,
+    'help'          => \$help,
+);
+$topic_name //= $ARGV[0];
+$offset      = 'start' if ($batch);
+$debug_level = 1       if ( defined $debug_level and not $debug_level );
+$debug_state = 1       if ( defined $debug_state and not $debug_state );
+
+usage() if ( $help or not $r or not $topic_name );
+my $config = Tachikoma->configuration;
+$config->load_config_file( $config_file ? $config_file : @default_configs );
+$config->debug_level($debug_level) if ($debug_level);
+Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
+
+my $router          = Tachikoma::Nodes::Router->new;
+my $consumer_broker = Tachikoma::Nodes::ConsumerBroker->new;
+my $dumper          = Tachikoma::Nodes::Dumper->new;
+my $stdout          = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
+my $socket          = undef;
+
+$consumer_broker->name("$topic_name:consumer");
+$consumer_broker->flags(TK_SYNC);
+$consumer_broker->broker_path('_socket/broker');
+$consumer_broker->topic($topic_name);
+if ($group) {
+    $consumer_broker->group($group);
+    $consumer_broker->auto_commit(1);
+}
+$consumer_broker->partition_id($partition) if ( defined $partition );
+$consumer_broker->debug_state($debug_state);
+$consumer_broker->default_offset($offset);
+$consumer_broker->max_unanswered(0);
+$consumer_broker->async_interval(0.1);
+
+if ($batch) {
+    $consumer_broker->register(
+        'READY',
+        sub {
+            $consumer_broker->commit_offsets if ($group);
+            Tachikoma->shutdown_all_nodes;
+        }
+    );
+}
+$consumer_broker->owner('_dumper');
+$consumer_broker->sink($router);
+
+$dumper->name('_dumper');
+$dumper->sink($stdout);
+
+$stdout->name('_stdout');
+$stdout->on_EOF('ignore');
+$stdout->sink($router);
+
+$router->name('_router');
+$router->debug_state($debug_state);
+$socket = Tachikoma::Nodes::Socket->inet_client( $host, $port );
+$socket->name('_socket');
+$socket->debug_state($debug_state);
+$socket->on_EOF('reconnect');
+$socket->sink($router);
+$router->drain;
+
+sub usage {
+    print "Usage:\n"
+        . "consume_topic [ --config=<path>   ]\n"
+        . "              [ --host=<host>     ]\n"
+        . "              [ --port=<port>     ]\n"
+        . "              [ --topic=<topic>   ]\n"
+        . "              [ --group=<group>   ]\n"
+        . "              [ --partition=<i>   ]\n"
+        . "              [ --offset=<offset> ]\n"
+        . "              [ --batch           ]\n"
+        . "              [ --debug_level=<i> ]\n"
+        . "              [ --debug_state=<i> ]\n"
+        . "              [ --help            ]\n"
+        . "              <topic name>\n";
+    exit 1;
+}

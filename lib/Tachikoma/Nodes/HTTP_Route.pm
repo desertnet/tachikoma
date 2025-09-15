@@ -39,7 +39,7 @@ sub fill {
     my $servers      = $self->{servers};
     my $server_class = (
           $servers
-        ? $servers->{ $request->{headers}->{host} || q() }
+        ? $servers->{ lc( $request->{headers}->{host} || q() ) }
         : undef
     );
     my $paths = (
@@ -47,6 +47,7 @@ sub fill {
         ? $self->{paths}->{ $server_class || q() }
         : $self->{paths}
     );
+    $self->{counter}++;
     if ( not $paths ) {
         my $response = Tachikoma::Message->new;
         $response->[TYPE]    = TM_BYTESTREAM;
@@ -79,7 +80,6 @@ sub fill {
     $request->{path} = join q(/), q(), @new_path;
     $destination ||= $paths->{q(/)};
     $message->[TO] = $destination;
-    $self->{counter}++;
     return $self->{sink}->fill($message);
 }
 
@@ -118,7 +118,7 @@ $C{add_server} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my ( $server, $server_class ) = split q( ), $command->arguments, 2;
+    my ( $server, $server_class ) = split q( ), lc $command->arguments, 2;
     if ( not $server_class ) {
         return $self->error( $envelope, "please specify a server class\n" );
     }
@@ -145,7 +145,7 @@ $C{remove_server} = sub {
     my $self     = shift;
     my $command  = shift;
     my $envelope = shift;
-    my $server   = $command->arguments;
+    my $server   = lc $command->arguments;
     if ( exists $self->servers->{$server} ) {
         delete $self->servers->{$server};
         return $self->okay($envelope);

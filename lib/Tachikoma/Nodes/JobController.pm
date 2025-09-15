@@ -15,7 +15,7 @@ use Tachikoma::Message qw(
     TM_COMMAND TM_PERSIST TM_RESPONSE TM_EOF TM_KILLME
 );
 use Data::Dumper;
-use POSIX  qw( SIGKILL );
+use POSIX  qw( SIGINT SIGKILL );
 use parent qw( Tachikoma::Nodes::Timer );
 
 use version; our $VERSION = qv('v2.0.280');
@@ -73,6 +73,7 @@ sub fill {
         return if ( not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') );
     }
     return $self->{interpreter}->fill($message) if ( $type & TM_COMMAND );
+    $self->{counter}++;
     my ( $name, $next, $from ) = split m{/}, $message->[FROM], 3;
     my $job = $self->{jobs}->{$name};
     if ($job) {
@@ -83,7 +84,7 @@ sub fill {
             and $next eq '_parent'
             and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') );
         return $self->handle_EOF( $message, $name, $job )
-            if ( not $next and $to eq $job_owner and $type & TM_EOF );
+            if ( $type & TM_EOF and not $next and $to eq $job_owner );
     }
     return $self->{sink}->fill($message);
 }
@@ -121,9 +122,9 @@ sub handle_EOF {
     my $connector = $job->{connector};
     $self->{bytes_read}    += $connector->{bytes_read};
     $self->{bytes_written} += $connector->{bytes_written};
-    if (    $job->{should_restart}
-        and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer')
-        and not Tachikoma->shutting_down )
+    return if ( Tachikoma->shutting_down );
+    if ( $job->{should_restart}
+        and not $self->{sink}->isa('Tachikoma::Nodes::JobFarmer') )
     {
         $self->{restart}->{$name} = 1;
         $self->set_timer if ( not $self->{timer_is_active} );
@@ -340,7 +341,7 @@ $C{dump_job} = sub {
     $copy->{connector}     = $copy->{connector}->{name};
     $copy->{_stdout}       = $copy->{_stdout}->{name};
     $copy->{_stderr}       = $copy->{_stderr}->{name};
-    return $self->response( $envelope, Dumper $copy);
+    return $self->response( $envelope, Dumper $copy );
 };
 
 $C{dump} = $C{dump_job};
@@ -467,10 +468,11 @@ sub stop_job {
 }
 
 sub kill_job {
-    my $self = shift;
-    my $name = shift;
-    my $job  = $self->{jobs}->{$name} or die qq(no such job "$name"\n);
-    if ( $job->{pid} ne q(-) and not kill SIGKILL => $job->{pid} ) {
+    my $self   = shift;
+    my $name   = shift;
+    my $job    = $self->{jobs}->{$name} or die qq(no such job "$name"\n);
+    my $signal = $self->{username} ? SIGINT : SIGKILL;
+    if ( $job->{pid} ne q(-) and not kill $signal => $job->{pid} ) {
         $self->stderr("ERROR: kill_job failed: $!");
     }
     $job->{should_restart} = undef;
@@ -501,14 +503,15 @@ sub owner {
 }
 
 sub remove_node {
-    my $self = shift;
-    my $mode = $self->{shutdown_mode};
+    my $self   = shift;
+    my $mode   = $self->{shutdown_mode};
+    my $signal = $self->{username} ? SIGINT : SIGKILL;
     $self->{shutting_down} = 'true';
     for my $name ( keys %{ $self->{jobs} } ) {
         my $job = $self->{jobs}->{$name};
         if (    $mode eq 'kill'
             and $job->{pid} ne q(-)
-            and not kill SIGKILL => $job->{pid} )
+            and not kill $signal => $job->{pid} )
         {
             $self->stderr("ERROR: remove_node couldn't kill $name: $!");
         }

@@ -77,11 +77,45 @@ sub drain {
         $Tachikoma::Right_Now = Time::HiRes::time;
         $Tachikoma::Now       = int $Tachikoma::Right_Now;
         for ( @{$reads_ready}, @{$errors} ) {
-            my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
+            my $fd = fileno $_;
+            if ( not defined $fd ) {
+                $reads->remove($_);
+
+                # Tachikoma->stderr( Tachikoma->log_prefix
+                #         . "ERROR: couldn't find fileno for filehandle $_ "
+                #         . "- unregistered from reads\n" );
+                next;
+            }
+            my $node = $Tachikoma::Nodes_By_FD->{$fd};
+            if ( not defined $node ) {
+                $reads->remove($_);
+
+                # Tachikoma->stderr( Tachikoma->log_prefix
+                #         . "ERROR: couldn't find node for fileno $fd "
+                #         . "- unregistered from reads\n" );
+                next;
+            }
             &{ $node->{drain_fh} }($node);
         }
         for ( @{$writes_ready} ) {
-            my $node = $Tachikoma::Nodes_By_FD->{ fileno($_) // next };
+            my $fd = fileno $_;
+            if ( not defined $fd ) {
+                $writes->remove($_);
+
+                # Tachikoma->stderr( Tachikoma->log_prefix
+                #         . "ERROR: couldn't find fileno for filehandle $_ "
+                #         . "- unregistered from writes\n" );
+                next;
+            }
+            my $node = $Tachikoma::Nodes_By_FD->{$fd};
+            if ( not defined $node ) {
+                $writes->remove($_);
+
+                # Tachikoma->stderr( Tachikoma->log_prefix
+                #         . "ERROR: couldn't find node for fileno $fd "
+                #         . "- unregistered from writes\n" );
+                next;
+            }
             &{ $node->{fill_fh} }($node);
         }
         if ($got_signal) {

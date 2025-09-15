@@ -81,6 +81,7 @@ sub fill {
         for my $name ( sort keys %Tachikoma::Nodes ) {
             my $node = $Tachikoma::Nodes{$name};
             next if ( $name !~ m{$allowed} or not $node->can('lookup') );
+            $name =~ s{(?::table|:index)$}{};
             if ( $node->can('buffer_size') ) {
                 push @{$value},
                     {
@@ -98,12 +99,18 @@ sub fill {
         }
     }
     else {
+        return $self->send404($message) if ( $node_name !~ m{$allowed} );
         my $node = $Tachikoma::Nodes{$node_name};
-        return $self->send404($message)
-            if ( $node_name !~ m{$allowed}
-            or $node_name =~ m{:table|:index$}
-            or not $node
-            or not $node->can('lookup') );
+        if ( not $node or not $node->can('lookup') ) {
+            my $test_name = $node_name . ':table';
+            $node = $Tachikoma::Nodes{$test_name};
+            if ( not $node or not $node->can('lookup') ) {
+                $test_name = $node_name . ':index';
+                $node      = $Tachikoma::Nodes{$test_name};
+                return $self->send404($message)
+                    if ( not $node or not $node->can('lookup') );
+            }
+        }
         my $key = uri_unescape( $escaped // q() );
         $value = $node->lookup($key);
     }
@@ -122,7 +129,7 @@ sub fill {
         "Server: Tachikoma\n",
         "Connection: close\n",
         'Content-Type: ',
-        $TYPES{$type} || $TYPES{'json'},
+        $TYPES{$type} || $TYPES{'txt'},
         "\n",
         'Content-Length: ',
         length($value),

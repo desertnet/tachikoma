@@ -12,21 +12,23 @@ Tachikoma->configuration->load_config_file(
 );
 
 my $to         = shift @ARGV // '';
-my $batch_size = shift @ARGV // 1;
-my $buf_size = ( shift @ARGV // 65516 ) - length $to;
-my $tachikoma = Tachikoma->inet_client( 'localhost', $to ? 4230 : 5000 );
-my $buf       = "\0" x $buf_size;
-my $sent      = 0;
-my $count     = 0;
-my $then      = time;
-my $delay     = shift(@ARGV) || 2;
-my $message   = Tachikoma::Message->new;
+my $batch_size = shift @ARGV // 16;
+# my $buf_size   = ( shift @ARGV // 65516 ) - length $to;
+my $buf_size   = ( shift @ARGV // 65000 ) - length $to;
+my $tachikoma  = Tachikoma->inet_client( 'localhost', $to ? 4230 : 5000 );
+my $buf        = "\0" x $buf_size;
+my $sent       = 0;
+my $count      = 0;
+my $then       = time;
+my $delay      = shift(@ARGV) || 2;
+my $message    = Tachikoma::Message->new;
 $message->type(TM_BYTESTREAM);
 $message->to($to);
 $message->payload($buf);
 my $packed = ${ $message->packed } x $batch_size;
-my $size   = length($packed);
+my $size   = length $packed;
 my $fh     = $tachikoma->fh;
+my $total  = 1000;
 
 print "size: $size\n";
 
@@ -37,9 +39,9 @@ while (1) {
         last if ( $rv < 1 );
         $wrote += $rv;
     }
-    $count++;
-    if ( $sent++ >= 100 ) {
+    if ( $sent++ >= $total ) {
         my $span = time - $then;
+        $count  += $sent;
         if ( $span >= $delay ) {
             printf
                 "%.2f MB per second - %.2f messages per second\n",

@@ -248,6 +248,22 @@ sub name {
     return $self->{name};
 }
 
+sub owner {
+    my $self = shift;
+    if (@_) {
+        my $owner = shift;
+        $self->SUPER::owner($owner);
+    }
+    else {
+        my $rules = $self->{rules};
+        my $owners =
+            [ sort grep {length} map { $rules->{$_}->[2] } keys %{$rules} ];
+        push @{$owners}, $self->{owner} if ( length $self->{owner} );
+        return $owners;
+    }
+    return $self->{owner};
+}
+
 sub dump_config {
     my $self     = shift;
     my $response = $self->SUPER::dump_config;

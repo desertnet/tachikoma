@@ -990,12 +990,12 @@ sub determine_leader {
         "DEBUG: CANDIDATE LEADERS for $log_name - ",
         map join( q(), $_, ' => ', $query->{candidates}->{$_}, ', ' ),
         sort keys %{ $query->{candidates} }
-    ) if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+    ) if ( $self->{debug_state} and $self->{debug_state} >= 3 );
     $leader = $self->best_broker($query)
         if ( keys %{ $query->{candidates} } );
 
     $self->stderr("DEBUG: BEST LEADER for $log_name - $leader")
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 and $leader );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 and $leader );
 
     # assign a new leader
     if ( not $leader and not keys %{ $query->{candidates} } ) {
@@ -1846,7 +1846,7 @@ sub send_info {
     $response->[STREAM]  = $self->{broker_id};
     $response->[PAYLOAD] = $info;
 
-    if ( $self->{debug_state} and $self->{debug_state} >= 2 ) {
+    if ( $self->{debug_state} and $self->{debug_state} >= 3 ) {
         chomp $info;
         $self->stderr( 'DEBUG: ', $info, q( ), $self->{generation}, ' for ',
             $message->[FROM] );

@@ -22,9 +22,12 @@ use version; our $VERSION = qv('v2.0.367');
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new;
-    $self->{filename} = undef;
-    $self->{realm}    = undef;
-    $self->{htpasswd} = undef;
+    $self->{realm}         = undef;
+    $self->{compat}        = undef;
+    $self->{htpasswd_file} = undef;
+    $self->{htpasswd}      = undef;
+    $self->{keychain_file} = undef;
+    $self->{keychain}      = undef;
     bless $self, $class;
     return $self;
 }
@@ -33,11 +36,15 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        my ( $filename, $realm ) = split q( ), $self->{arguments}, 2;
-        die "ERROR: bad arguments for HTTP_Auth\n" if ( not $filename );
-        $self->{filename} = $filename;
-        $self->{realm}    = $realm;
+        my ( $htpasswd_file, $realm, $compat, $keychain_file ) = split q( ),
+            $self->{arguments}, 4;
+        die "ERROR: bad arguments for HTTP_Auth\n" if ( not $htpasswd_file );
+        $self->{htpasswd_file} = $htpasswd_file;
+        $self->{realm}         = $realm;
+        $self->{compat}        = $compat;
+        $self->{keychain_file} = $keychain_file;
         $self->reload_htpasswd;
+        $self->reload_keychain;
     }
     return $self->{arguments};
 }
@@ -51,9 +58,17 @@ sub fill {
     my $encoded = $auth    ? ( split q( ), $auth, 2 )[1] : undef;
     my $decoded = $encoded ? decode_base64($encoded)     : undef;
     my ( $user, $passwd ) = $decoded ? split m{:}, $decoded, 2 : undef;
+    my $api_key = $request->{headers}->{'x-api-key'};
     $self->{counter}++;
 
-    if ($user) {
+    if ($api_key) {
+        if ( $self->{keychain} and $self->{keychain}->{$api_key} ) {
+            $request->{auth_type} = 'API-Key';
+            $message->[TO] = $self->{owner};
+            return $self->{sink}->fill($message);
+        }
+    }
+    elsif ($user) {
         if ( $self->authenticate( $user, $passwd ) ) {
             $request->{auth_type}   = 'Basic';
             $request->{remote_user} = $user;
@@ -90,36 +105,50 @@ sub authenticate {
     my $user   = shift;
     my $passwd = shift;
     my $salt   = $self->{htpasswd}->{$user} or return;
-
-    # my $hash   = crypt $passwd, $salt;
-    my $hash = apache_md5_crypt( $passwd, $salt );
+    my $hash   = undef;
+    if ( $self->{compat} and $self->{compat} eq 'compat' ) {
+        $hash = crypt $passwd, $salt;
+    }
+    else {
+        $hash = apache_md5_crypt( $passwd, $salt );
+    }
     return $hash eq $salt;
 }
 
 sub reload_htpasswd {
-    my $self     = shift;
-    my $filename = $self->{filename};
-    my %htpasswd = ();
+    my $self          = shift;
+    my $htpasswd_file = $self->{htpasswd_file};
+    my %htpasswd      = ();
     my $fh;
-    open $fh, '<', $filename
-        or die "can't open htpasswd file $filename: $!\n";
+    open $fh, '<', $htpasswd_file
+        or die "can't open htpasswd file $htpasswd_file: $!\n";
     while ( my $line = <$fh> ) {
         my ( $user, $passwd ) = split m{:}, $line, 2;
         chomp $passwd;
         $htpasswd{$user} = $passwd;
     }
     close $fh
-        or die "can't close htpasswd file $filename: $!\n";
+        or die "can't close htpasswd file $htpasswd_file: $!\n";
     $self->{htpasswd} = \%htpasswd;
-    return 'success';
+    return;
 }
 
-sub filename {
-    my $self = shift;
-    if (@_) {
-        $self->{filename} = shift;
+sub reload_keychain {
+    my $self          = shift;
+    my $keychain_file = $self->{keychain_file};
+    my %keychain      = ();
+    my $fh;
+    return if ( not $keychain_file or not -e $keychain_file );
+    open $fh, '<', $keychain_file
+        or die "can't open keychain file $keychain_file: $!\n";
+    while ( my $api_key = <$fh> ) {
+        chomp $api_key;
+        $keychain{$api_key} = 1;
     }
-    return $self->{filename};
+    close $fh
+        or die "can't close keychain file $keychain_file: $!\n";
+    $self->{keychain} = \%keychain;
+    return;
 }
 
 sub realm {
@@ -130,12 +159,44 @@ sub realm {
     return $self->{realm};
 }
 
+sub compat {
+    my $self = shift;
+    if (@_) {
+        $self->{compat} = shift;
+    }
+    return $self->{compat};
+}
+
+sub htpasswd_file {
+    my $self = shift;
+    if (@_) {
+        $self->{htpasswd_file} = shift;
+    }
+    return $self->{htpasswd_file};
+}
+
 sub htpasswd {
     my $self = shift;
     if (@_) {
         $self->{htpasswd} = shift;
     }
     return $self->{htpasswd};
+}
+
+sub keychain_file {
+    my $self = shift;
+    if (@_) {
+        $self->{keychain_file} = shift;
+    }
+    return $self->{keychain_file};
+}
+
+sub keychain {
+    my $self = shift;
+    if (@_) {
+        $self->{keychain} = shift;
+    }
+    return $self->{keychain};
 }
 
 # from https://metacpan.org/pod/Crypt::PasswdMD5

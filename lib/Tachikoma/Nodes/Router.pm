@@ -56,8 +56,7 @@ sub drain {
     alarm $SHUTDOWN_TIMEOUT;
     local $SIG{ALRM} = sub { die "timeout\n" };
     my $okay = eval {
-        do { }
-            while ( wait >= 0 );
+        do { } while ( wait >= 0 );
         return 1;
     };
     if ( not $okay ) {

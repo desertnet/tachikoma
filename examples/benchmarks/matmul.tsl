@@ -14,8 +14,8 @@ func matgen {
     local prefix = <2>;
     local tmp    = 1.0 / <count> / <count>;
     # print "tmp: <tmp>\n";
-    for i (0 .. (<count> - 1)) {
-        for j (0 .. (<count> - 1)) {
+    for i (0 .. <count> - 1) {
+        for j (0 .. <count> - 1) {
             var "<prefix>:<i>:<j>" = <tmp> * (<i> - <j>) * (<i> + <j>);
             # print ("<prefix>:<i>:<j>" = [var "<prefix>:<i>:<j>"]"\n");
         };
@@ -28,10 +28,10 @@ func mul {
     local b     = <3>;
     local c     = <4>;
     transpose <count> <b> <c>;
-    for i (0 .. (<count> - 1)) {
-        for j (0 .. (<count> - 1)) {
+    for i (0 .. <count> - 1) {
+        for j (0 .. <count> - 1) {
             var sum = 0;
-            for k (0 .. (<count> - 1)) {
+            for k (0 .. <count> - 1) {
                 # print ("<sum> +=" [var "<a>:<i>:<k>"] "*" [var "<c>:<j>:<k>"]"\n");
                 sum += [var "<a>:<i>:<k>"] * [var "<c>:<j>:<k>"];
             };
@@ -45,8 +45,8 @@ func transpose {
     local count = <1>;
     local a     = <2>;
     local b     = <3>;
-    for i (0 .. (<count> - 1)) {
-        for j (0 .. (<count> - 1)) {
+    for i (0 .. <count> - 1) {
+        for j (0 .. <count> - 1) {
             var "<b>:<i>:<j>" = [var "<a>:<j>:<i>"];
             # print ("<a>:<j>:<i>" = [var "<a>:<j>:<i>"]"\n");
         };

@@ -16,6 +16,8 @@ use Tachikoma::Message qw( TYPE PAYLOAD TM_BYTESTREAM );
 
 Tachikoma->event_framework( Tachikoma::EventFrameworks::Select->new );
 
+$ENV{TKSSL} = undef;
+
 my $address = '127.0.0.1';
 my $port    = '9197';
 my $test    = "foo\n";

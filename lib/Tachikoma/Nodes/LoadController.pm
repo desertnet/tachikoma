@@ -134,12 +134,11 @@ sub fire {
     }
     if ( @{ $self->{host_ports} } ) {
         while ( my $host_port = shift @{ $self->{host_ports} } ) {
-            my ( $host, $port, $use_SSL ) = split m{:}, $host_port, 3;
+            my ( $host, $port ) = split m{:}, $host_port, 3;
             $self->add_connector(
-                id      => "$host:$port",
-                host    => $host,
-                port    => $port,
-                use_SSL => $use_SSL
+                id   => "$host:$port",
+                host => $host,
+                port => $port
             );
         }
     }
@@ -217,14 +216,14 @@ sub note_reconnect {
             my $path = $load_balancers->{$name};
             $self->disconnect_node( $name, $path
                 ? join q(/),
-                $id, $path
+                    $id, $path
                 : $id );
         }
         for my $name ( keys %{$misc} ) {
             my $path = $misc->{$name};
             $self->disconnect_node( $name, $path
                 ? join q(/),
-                $id, $path
+                    $id, $path
                 : $id );
         }
         $offline->{$id} = undef;
@@ -249,7 +248,7 @@ sub handle_connection {
     my $message = shift;
     my $payload = $message->[PAYLOAD];
     chomp $payload;
-    my ( $host, $port, $use_SSL ) = split m{:}, $payload, 3;
+    my ( $host, $port ) = split m{:}, $payload, 2;
     my $id_regex       = $self->{id_regex};
     my $hostname_regex = $self->{hostname_regex};
     my $id             = ( $payload =~ m{$id_regex} )[0];
@@ -257,10 +256,9 @@ sub handle_connection {
 
     if ( $id and $hostname ) {
         $self->add_connector(
-            id      => $id,
-            host    => $hostname,
-            port    => $port,
-            use_SSL => $use_SSL
+            id   => $id,
+            host => $hostname,
+            port => $port
         );
     }
     else {
@@ -282,7 +280,7 @@ $C{help} = sub {
             . "          list_circuits\n"
             . "          connect <connector name>\n"
             . "          disconnect <connector name>\n"
-            . "          notify <connector name> <controller> [ port[:ssl] ]\n"
+            . "          notify <connector name> <controller> [ port ]\n"
             . "          unnotify <connector name> <controller>\n"
             . "          buffer <buffer name> <path>\n"
             . "          unbuffer <buffer name>\n"
@@ -316,12 +314,7 @@ $C{list_controllers} = sub {
     my $command     = shift;
     my $envelope    = shift;
     my $controllers = $self->patron->controllers;
-    my $response    = [
-        [   [ 'CONTROLLER' => 'left' ],
-            [ 'PATH'       => 'left' ],
-            [ 'SSL'        => 'left' ]
-        ]
-    ];
+    my $response = [ [ [ 'CONTROLLER' => 'left' ], [ 'PATH' => 'left' ], ] ];
     for my $id ( sort keys %{$controllers} ) {
         push @{$response}, [ $id, $_, $controllers->{$id}->{$_} ]
             for ( sort keys %{ $controllers->{$id} } );
@@ -389,10 +382,10 @@ $C{list_circuits} = sub {
 $C{lsr} = $C{list_circuits};
 
 $C{connect} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my ( $host_port, $use_SSL ) = split q( ), $command->arguments, 2;
+    my $self      = shift;
+    my $command   = shift;
+    my $envelope  = shift;
+    my $host_port = $command->arguments;
     my ( $host, $port );
     if ( $host_port =~ m{^(.*):(\d+)$} ) {
         $host = $1;
@@ -409,10 +402,9 @@ $C{connect} = sub {
     my $id       = ( $host_port =~ m{$id_regex} )[0];
     if ( $id and $host ) {
         $self->patron->add_connector(
-            id      => $id,
-            host    => $host,
-            port    => $port,
-            use_SSL => $use_SSL
+            id   => $id,
+            host => $host,
+            port => $port
         );
     }
     else {
@@ -441,7 +433,7 @@ $C{notify} = sub {
     my ( $name, $path, $port ) = split q( ), $command->arguments, 3;
     if ( not $path ) {
         return $self->error( $envelope,
-            "usage: notify <connector name> <controller> [ port[:ssl] ]\n" );
+            "usage: notify <connector name> <controller> [ port ]\n" );
     }
     if ( $Tachikoma::Nodes{$name} ) {
         my $note = Tachikoma::Message->new;
@@ -633,7 +625,6 @@ sub add_connector {
     my $id         = $args{id};
     my $host       = $args{host};
     my $port       = $args{port};
-    my $use_SSL    = $args{use_SSL};
     my $connection = $Tachikoma::Nodes{$id};
     return if ( not $self->{sink} );
     if ( not $connection ) {
@@ -643,7 +634,6 @@ sub add_connector {
             Tachikoma::Nodes::Socket->inet_client_async( $host, $port );
         $connection->name($id);
         $connection->on_EOF('reconnect');
-        $connection->use_SSL($use_SSL);
         $connection->sink( $self->sink );
         $Tachikoma::Nodes{$id} = $connection;
     }

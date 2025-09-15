@@ -26,8 +26,8 @@ var server_log.fields = (
 
 var tachikoma.test_stream.port       = 2400;
 var tachikoma.tasks.port             = 2500;
-var tachikoma.tasks.http.port        = 2501;
-var tachikoma.http.port              = 4241;
+var tachikoma.tasks.http.port       = 2501;
+var tachikoma.http.port              = 4200;
 var tachikoma.http.http.port         = 4242;
 var tachikoma.topic_top.port         = 4390;
 var tachikoma.tail_top.hostname      = <hostname>;
@@ -41,14 +41,13 @@ var tachikoma.buffer_top.input.port  = 4395;
 var tachikoma.buffer_top.output.port = 4396;
 var tachikoma.sounds.port            = 4800;
 var tachikoma.benchmarks.port        = 4900;
+var tachikoma.tables.port            = 5100;
+var tachikoma.tables.http.port       = 5150;
 var tachikoma.engines.port           = 5200;
 var tachikoma.engines.count          = 1;
 var tachikoma.server_logs.port       = 5300;
-var tachikoma.lookup.port            = 5400;
 var tachikoma.hubs.port              = 5500;
 var tachikoma.hubs.count             = 2;
-var tachikoma.tables.port            = 6100;
-var tachikoma.tables.http.port       = 6124;
 
 var hub        = localhost:5501;
 var broker     = <hub>/broker;

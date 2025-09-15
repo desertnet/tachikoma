@@ -29,9 +29,19 @@ my $cgi   = CGI->new;
 my $topic = $cgi->path_info;
 $topic =~ s(^/)();
 die "no topic\n" if ( not length $topic );
-my $postdata = $cgi->param('POSTDATA') or die "ERROR: wrong method\n";
-my $json     = JSON->new;
-my $query    = $json->decode($postdata);
+my $postdata = $cgi->param('POSTDATA');
+my $query = undef;
+my $json  = JSON->new;
+if ($postdata) {
+    $query = $json->decode($postdata);
+}
+else {
+    $query = {
+        field => ($cgi->multi_param("field"))[0],
+        op    => ($cgi->multi_param("op"))[0],
+        key   => ($cgi->multi_param("key"))[0]
+    };
+}
 $json->canonical(1);
 $json->pretty(1);
 $json->allow_blessed(1);

@@ -10,10 +10,13 @@ my $hostname = 'localhost';
 my $port     = $ARGV[0] || 6001;
 my $iaddr    = inet_aton($hostname) or die "ERROR: no host: $hostname\n";
 my $proto    = getprotobyname('tcp');
+my $buf_size = 65536;
+my $got      = 0;
 my $recv     = 0;
 my $size     = 0;
-my $then     = time;
+my $then     = 0;
 my $delay    = $ARGV[1] || 2;
+my $total    = 10000;
 my $buf;
 
 my $socket;
@@ -22,12 +25,17 @@ connect( $socket, pack_sockaddr_in( $port, $iaddr ) )
     or die "ERROR: connect: $!";
 
 while (1) {
-    $size += sysread( $socket, $buf, 65536 );
-    if ( $recv++ >= 10000 ) {
+    $got += sysread( $socket, $buf, $buf_size );
+    if ( $recv++ >= $total ) {
         my $span = time - $then;
         if ( $span >= $delay ) {
-            printf( "%.2f MB per second\n", $size / 1024 / 1024 / $span );
-            $size = 0;
+            if ( not $size ) {
+                $size = $got / $recv;
+                print "size: $size\n";
+            }
+            printf "%.2f MB per second\n", $got / 1024 / 1024 / $span
+                 if $then;
+            $got  = 0;
             $then = time;
         }
         $recv = 0;

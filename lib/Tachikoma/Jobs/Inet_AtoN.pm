@@ -26,7 +26,7 @@ sub initialize_graph {
     $self->sink( $self->router );
     Tachikoma->check_pid("Inet_AtoN.$<");
     Tachikoma->write_pid("Inet_AtoN.$<");
-    unlink $path if ( -e $path );
+    unlink $path or die "ERROR: unlink $path failed: $!\n" if ( -e $path );
     my $node = Tachikoma::Nodes::Socket->unix_server( $path, 700 );
     $node->name('_socket');
     $node->owner( $self->name );

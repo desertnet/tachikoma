@@ -30,7 +30,6 @@ my $select_fields = join q(,), qw(
 );
 my $host      = 'localhost';
 my $port      = 4396;
-my $use_SSL   = undef;
 my %where     = ();
 my %where_not = ();
 my %width     = ();
@@ -42,7 +41,6 @@ my $lines     = undef;          # XXX: until wrappers are updated
 my $r = GetOptions(
     'host=s'      => \$host,
     'port=i'      => \$port,
-    'use-ssl'     => \$use_SSL,
     'select=s'    => \$select_fields,
     'where=s'     => \%where,
     'where_not=s' => \%where_not,
@@ -64,9 +62,8 @@ list_fields() if ($list_fields);
 my $router    = Tachikoma::Nodes::Router->new;
 my $stdin     = Tachikoma::Nodes::STDIO->filehandle( *STDIN, TK_R );
 my $get_input = Tachikoma::Nodes::Callback->new;
-my $tachikoma =
-    Tachikoma::Nodes::Socket->inet_client( $host, $port, undef, $use_SSL );
-my $stdout = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
+my $tachikoma = Tachikoma::Nodes::Socket->inet_client( $host, $port );
+my $stdout    = Tachikoma::Nodes::STDIO->filehandle( *STDOUT, TK_SYNC );
 
 $stdin->sink($get_input);
 $get_input->callback(
@@ -116,7 +113,6 @@ sub usage {
     print "Usage:\n"
         . "buffer_top [ --host=<host>                              ]\n"
         . "           [ --port=<port>                              ]\n"
-        . "           [ --use-ssl                                  ]\n"
         . "           [ --select=<fields>                          ]\n"
         . "           [ --where <field>=<regex>                    ]\n"
         . "           [ --where_not <field>=<regex>                ]\n"

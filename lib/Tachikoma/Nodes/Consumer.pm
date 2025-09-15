@@ -255,12 +255,12 @@ sub handle_EOF {
         $self->next_offset( $self->{saved_offset} );
         $self->set_timer(0) if ( $self->{timer_interval} );
         $self->set_state('ACTIVE')
-            if ( not length $self->{set_state}->{ACTIVE} );
+            if ( not $self->{set_state}->{ACTIVE} );
     }
     else {
         $self->{next_offset} = $offset;
         $self->set_state('READY')
-            if ( not length $self->{set_state}->{READY} );
+            if ( not $self->{set_state}->{READY} );
     }
     return;
 }
@@ -268,7 +268,7 @@ sub handle_EOF {
 sub fire {
     my $self = shift;
     $self->stderr( 'DEBUG: FIRE ', $self->{timer_interval}, 'ms' )
-        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 4 );
     if ( not $self->{msg_unanswered}
         and $Tachikoma::Now - $self->{last_receive} > $self->{hub_timeout} )
     {
@@ -435,7 +435,7 @@ sub drain_buffer_persist {
 sub get_batch {
     my $self   = shift;
     my $offset = $self->{next_offset};
-    return if ( not $self->{sink} );
+    return if ( not $self->{name} );
     if ( not defined $offset ) {
         if ( $self->{status} eq 'INIT' ) {
             if ( $self->{cache_type} eq 'window' ) {
@@ -473,8 +473,8 @@ sub get_batch {
     $message->[PAYLOAD] = "GET $offset\n";
     $self->{expecting} = 1;
     $self->stderr( 'DEBUG: ' . $message->[PAYLOAD] )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
-    $self->{sink}->fill($message);
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
+    Tachikoma->nodes->{_router}->fill($message);
     return;
 }
 
@@ -519,12 +519,12 @@ sub commit_offset {
     };
     return if ( not $self->{sink} );
     $self->stderr( 'DEBUG: COMMIT_OFFSET ', $offset )
-        if ( $self->{debug_state} and $self->{debug_state} >= 2 );
+        if ( $self->{debug_state} and $self->{debug_state} >= 3 );
 
     if ( $self->{cache_type} eq 'snapshot' ) {
         my $i = $self->{partition_id};
         $self->{edge}->on_save_snapshot( $i, $stored )
-            if (defined $i
+            if ( defined $i
             and $self->{edge}
             and $self->{edge}->can('on_save_snapshot') );
     }
@@ -533,7 +533,7 @@ sub commit_offset {
     $message->[FROM]    = $self->{name};
     $message->[TO]      = $self->{offsetlog};
     $message->[PAYLOAD] = $stored;
-    $self->{sink}->fill($message);
+    Tachikoma->nodes->{_router}->fill($message);
     $self->{last_cache_size}    = $message->size;
     $self->{last_commit}        = $Tachikoma::Now;
     $self->{last_commit_offset} = $offset;

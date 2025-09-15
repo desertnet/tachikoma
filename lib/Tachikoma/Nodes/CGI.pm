@@ -22,7 +22,7 @@ my $MAX_REQUESTS = 500;
 
 my $home = ( getpwuid $< )[7];
 $Tachikoma::Nodes::CGI::Config = {
-    protocol      => 'https',
+    protocol      => 'http',
     document_root => "$home/.tachikoma/http",
     script_paths  => { '/cgi-bin' => "$home/.tachikoma/http/cgi-bin/" },
     broker_ids    => ['localhost:5501'],
@@ -88,7 +88,7 @@ sub fill {    ## no critic (ProhibitExcessComplexity)
     my $found           = undef;
     my $script_name     = undef;
     my $script_path     = undef;
-    my $proto           = $server_config->{protocol} || 'https';
+    my $proto           = $server_config->{protocol} || 'http';
     my $document_root   = $server_config->{document_root};
     my $server_paths    = $server_config->{script_paths};
     my $test_path       = $script_url;
@@ -128,6 +128,8 @@ FIND_SCRIPT: while ($test_path) {
 
     # copy HTTP headers to environment
     ## no critic (RequireLocalizedPunctuationVars)
+    my $tkssl             = $ENV{TKSSL};
+    my $no_hostname_check = $ENV{NO_HOSTNAME_CHECK};
     local %ENV = ();
     for my $key ( keys %{$headers} ) {
         my $value = $headers->{$key};
@@ -163,7 +165,10 @@ FIND_SCRIPT: while ($test_path) {
     $ENV{REMOTE_USER}    = $request->{remote_user} || q();
     $ENV{CONTENT_TYPE}   = $headers->{'content-type'}   if ($is_post);
     $ENV{CONTENT_LENGTH} = $headers->{'content-length'} if ($is_post);
-    $ENV{UNIQUE_ID}      = md5_hex(rand);
+    $ENV{TKSSL}          = $tkssl                       if ( defined $tkssl );
+    $ENV{NO_HOSTNAME_CHECK} = $no_hostname_check
+        if ( defined $no_hostname_check );
+    $ENV{UNIQUE_ID} = md5_hex(rand);
 
     for my $key ( keys %ENV ) {
         $self->stderr("WARNING: \$ENV{$key} not defined\n")

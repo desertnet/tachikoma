@@ -1,57 +1,66 @@
 #!/bin/sh -e
 config=$1
-if [ -z "$config" ] ; then
+keyconfig=$2
+if [ -z "${config}" ] ; then
     config=default
 fi
-if [ ! -d lib/Tachikoma/Nodes ] ; then
+if [ -z "${keyconfig}" ] ; then
+    keyconfig=${config}
+fi
+if [ ! -d "lib/Tachikoma/Nodes" ] ; then
     echo ERROR: must be run from within tachikoma distribution.
     exit 1
 fi
 set -x
 
 # make dirs
-mkdir -p ~/.tachikoma/
-mkdir -p ~/.tachikoma/etc/
-mkdir -p ~/.tachikoma/http/
-mkdir -p ~/.tachikoma/log/
-mkdir -p ~/.tachikoma/partitions/
-mkdir -p ~/.tachikoma/pool/
-mkdir -p ~/.tachikoma/run/
-mkdir -p ~/.tachikoma/services/
-mkdir -p ~/.tachikoma/tls/
+if [ ! -e "${HOME}/.tachikoma/" ] ; then
+    mkdir ${HOME}/.tachikoma/
+fi
+mkdir -p ${HOME}/.tachikoma/etc/
+mkdir -p ${HOME}/.tachikoma/http/
+mkdir -p ${HOME}/.tachikoma/log/
+mkdir -p ${HOME}/.tachikoma/partitions/
+mkdir -p ${HOME}/.tachikoma/pool/
+mkdir -p ${HOME}/.tachikoma/run/
+mkdir -p ${HOME}/.tachikoma/services/
 
 # server config
-if [ -e etc/tachikoma_conf/$config.conf ] ; then
-    cp etc/tachikoma_conf/$config.conf ~/.tachikoma/etc/tachikoma.conf
+if [ -e "etc/tachikoma_conf/${config}.conf" ] ; then
+    cp etc/tachikoma_conf/${config}.conf ${HOME}/.tachikoma/etc/tachikoma.conf
 else
-    cp etc/tachikoma_conf/default.conf ~/.tachikoma/etc/tachikoma.conf
+    cp etc/tachikoma_conf/default.conf ${HOME}/.tachikoma/etc/tachikoma.conf
 fi
 
 # private key
-bin/gen_server_key ~/.tachikoma/etc/id 2048 ignore
+if [ ! -e "${HOME}/.tachikoma/etc/id" ] ; then
+    bin/gen_server_key ${HOME}/.tachikoma/etc/id 2048 ignore
+fi
 
 # HTTP
-if [ -e etc/CGI_conf/$config.conf ] ; then
-    cp etc/CGI_conf/$config.conf ~/.tachikoma/etc/CGI.conf
+if [ -e "etc/CGI_conf/${config}.conf" ] ; then
+    cp etc/CGI_conf/${config}.conf ${HOME}/.tachikoma/etc/CGI.conf
 else
-    cp etc/CGI_conf/default.conf ~/.tachikoma/etc/CGI.conf
+    cp etc/CGI_conf/default.conf ${HOME}/.tachikoma/etc/CGI.conf
 fi
-cp -Trf http ~/.tachikoma/http
+cp -rfT http/default ${HOME}/.tachikoma/http
 
 # init scripts
-cp etc/scripts/$config/startup.txt ~/.tachikoma/
-if [ -e etc/scripts/$config/config.tsl ] ; then
-    cp etc/scripts/$config/config.tsl  ~/.tachikoma/
-else
-    cp etc/scripts/default/config.tsl  ~/.tachikoma/
+cp etc/scripts/${config}/startup.txt ${HOME}/.tachikoma/
+if [ -e "etc/scripts/${config}/config.tsl" ] ; then
+    cp etc/scripts/${config}/config.tsl ${HOME}/.tachikoma/
+elif [ -e "etc/scripts/default/config.tsl" ] ; then
+    cp etc/scripts/default/config.tsl ${HOME}/.tachikoma/
 fi
-cp -Trf etc/services ~/.tachikoma/services
+cp -rfT etc/services ${HOME}/.tachikoma/services
 
 # authorized keys
-cp etc/authorized_keys/$config.keys ~/.tachikoma/etc/authorized_keys
+if [ -e "etc/authorized_keys/${keyconfig}.keys" ] ; then
+    cp etc/authorized_keys/${keyconfig}.keys ${HOME}/.tachikoma/etc/authorized_keys
+else
+    cp etc/authorized_keys/default.keys ${HOME}/.tachikoma/etc/authorized_keys
+fi
 
-echo "NOTE: Remember to add ca.crt, server.crt, and server.key"
-echo "      to ~/.tachikoma/tls/ if you want TLS support."
 # extras
 if which install_tachikoma_user_extra > /dev/null 2>&1 ; then
     install_tachikoma_user_extra

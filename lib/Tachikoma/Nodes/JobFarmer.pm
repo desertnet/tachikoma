@@ -33,7 +33,6 @@ sub new {
     $self->{job_controller} = Tachikoma::Nodes::JobController->new;
     $self->{load_balancer}  = Tachikoma::Nodes::LoadBalancer->new;
     $self->{tee}            = undef;
-    $self->{autokill}       = undef;
     $self->{lazy}           = undef;
     $self->{interpreter}    = Tachikoma::Nodes::CommandInterpreter->new;
     $self->{interpreter}->patron($self);
@@ -111,19 +110,9 @@ sub fill {
     elsif ( $message->[TYPE] & TM_COMMAND ) {
         $self->{interpreter}->fill($message);
     }
-    else {
+    elsif ( $message->[TYPE] != TM_ERROR ) {
         $self->{counter}++;
-        if (    $message->[TYPE] == TM_ERROR
-            and $message->[PAYLOAD] eq "NOT_AVAILABLE\n" )
-        {
-            if ( $self->{autokill} ) {
-                $self->job_controller->kill_job( $message->[TO] );
-                $self->fire;
-            }
-        }
-        else {
-            $self->{load_balancer}->fill($message);
-        }
+        $self->{load_balancer}->fill($message);
     }
     return;
 }
@@ -151,12 +140,7 @@ sub handle_response {
         $message->[TO] = $self->{owner};
     }
     $self->{load_balancer}->handle_response($message);
-    if ( $self->{autokill} ) {
-        $self->stamp_message( $message, $self->{name} );
-    }
-    else {
-        $message->[FROM] = $from if ( $next and $next eq '_parent' );
-    }
+    $message->[FROM] = $from      if ( $next and $next eq '_parent' );
     $self->{sink}->fill($message) if ( length $message->[TO] );
     return;
 }
@@ -200,7 +184,6 @@ $C{help} = sub {
             . "          kill_job <job name>\n"
             . "          set_count <job count>\n"
             . "          tee [ 'on' | 'off' ]\n"
-            . "          autokill [ 'on' | 'off' ]\n"
             . "          lazy [ 'on' | 'off' ]\n" );
 };
 
@@ -239,7 +222,7 @@ $C{dump_job} = sub {
     my $copy = bless { %{$node} }, ref $node;
     $copy->{sink} = $copy->{sink}->name if ( $copy->{sink} );
     delete $copy->{connector};
-    return $self->response( $envelope, Dumper $copy);
+    return $self->response( $envelope, Dumper $copy );
 };
 
 $C{dump} = $C{dump_job};
@@ -386,21 +369,6 @@ $C{tee} = sub {
     return $self->okay($envelope);
 };
 
-$C{autokill} = sub {
-    my $self     = shift;
-    my $command  = shift;
-    my $envelope = shift;
-    my $value    = $command->arguments;
-    my $patron   = $self->patron;
-    if ( $value and $value eq 'off' ) {
-        $patron->autokill(undef);
-    }
-    elsif ( not $patron->autokill ) {
-        $patron->autokill($value);
-    }
-    return $self->okay($envelope);
-};
-
 $C{lazy} = sub {
     my $self     = shift;
     my $command  = shift;
@@ -500,14 +468,6 @@ sub tee {
         $self->{tee} = shift;
     }
     return $self->{tee};
-}
-
-sub autokill {
-    my $self = shift;
-    if (@_) {
-        $self->{autokill} = shift;
-    }
-    return $self->{autokill};
 }
 
 sub lazy {

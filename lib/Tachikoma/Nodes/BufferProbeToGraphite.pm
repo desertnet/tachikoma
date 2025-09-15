@@ -16,16 +16,17 @@ use version; our $VERSION = qv('v2.0.368');
 my $DEFAULT_INTERVAL = 60;
 my @FIELDS           = qw(
     buff_fills
-    err_sent
-    max_unanswered
-    msg_in_buf
-    msg_rcvd
-    msg_sent
-    msg_unanswered
     p_msg_sent
-    resp_rcvd
-    resp_sent
+    msg_in_buf
 );
+
+# err_sent
+# max_unanswered
+# msg_rcvd
+# msg_sent
+# msg_unanswered
+# resp_rcvd
+# resp_sent
 
 sub new {
     my $class = shift;
@@ -40,8 +41,10 @@ sub arguments {
     my $self = shift;
     if (@_) {
         $self->{arguments} = shift;
-        $self->{prefix}    = $self->{arguments};
-        $self->set_timer( $DEFAULT_INTERVAL * 1000 );
+        my ( $prefix, $seconds ) = split q( ), $self->{arguments}, 2;
+        $self->{prefix} = $prefix if ( defined $prefix );
+        $seconds ||= $DEFAULT_INTERVAL;
+        $self->set_timer( $seconds * 1000 );
     }
     return $self->{arguments};
 }

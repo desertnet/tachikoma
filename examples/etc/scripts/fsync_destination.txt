@@ -11,7 +11,7 @@ func fsync_destination {
     local mode             ||= 'update';
     local sources;
     local listen;
-    local port = [var fsync_ports.<name>];
+    local port = [var "fsync.ports.<name>"];
     if ( <user> ) [
         local count = 1;
     ];
@@ -58,14 +58,12 @@ func fsync_destination {
                 for i (1 .. <count>) {
                     local bridge_port = <port> + (<i> * 10) + 1;
                     command <name>:destination<i> connect_inet --scheme=rsa
-                                                               --use-ssl
                                                                --owner=FileReceiver
                                                                --host=<source>
                                                                --port=<bridge_port>;
                 };
             };
             command hosts connect_inet --scheme=rsa
-                                       --use-ssl
                                        --owner=DirCheck
                                        --host=<source>
                                        --port=(<port> + 2)
@@ -87,7 +85,7 @@ func fsync_destination {
 
 
 
-var fsync_ports.fsync = 5600;
+var fsync.ports.fsync = 5600;
 
 {
     local name             = fsync;

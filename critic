@@ -158,5 +158,6 @@ lib/Tachikoma/Nodes/Timer.pm
 lib/Tachikoma/Nodes/Timestamp.pm
 lib/Tachikoma/Nodes/Topic.pm
 lib/Tachikoma/Nodes/TopicProbe.pm
+lib/Tachikoma/Nodes/TopicProbeToGraphite.pm
 lib/Tachikoma/Nodes/TopicTop.pm
 lib/Tachikoma/Nodes/Watchdog.pm

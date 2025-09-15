@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>D3 Visualizer</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            background-color: #111;
+        }
+
+        /* .links line {
+            stroke-opacity: 0.5;
+        } */
+
+        .nodes circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+
+        body {
+            margin: 0;
+            padding: 8px;
+            box-sizing: border-box;
+            max-width: 100vw;
+            max-height: 100dvh;
+            overflow-x: hidden;
+            transform: translateZ(0);
+            will-change: transform;
+        }
+
+        svg {
+            max-width: 100%;
+            display: block;
+            height: auto;
+        }
+
+        @view-transition {
+            navigation: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <svg></svg>
+    <script>
+        let svg = d3.select("svg")
+            .attr("width", window.innerWidth)
+            .attr("height", window.innerHeight);
+
+        let zoom = d3.zoom()
+            .scaleExtent([0.1, 10])
+            .on("zoom", zoomed);
+
+        svg.call(zoom);
+
+        let g = svg.append("g"),
+            // Create LINK groups first (so they're drawn behind)
+            sinkLinkGroup = g.append("g").attr("class", "sink-links"),
+            ownerLinkGroup = g.append("g").attr("class", "owner-links"),
+            edgeLinkGroup = g.append("g").attr("class", "edge-links"),
+            // Create NODE groups after (so they're drawn on top)
+            sinkNodeGroup = g.append("g").attr("class", "sink-nodes"),
+            ownerNodeGroup = g.append("g").attr("class", "owner-nodes"),
+            edgeNodeGroup = g.append("g").attr("class", "edge-nodes"),
+            // Selections for nodes and links
+            sinkNodes = sinkNodeGroup.selectAll(".sink-node"),
+            sinkLinks = sinkLinkGroup.selectAll(".sink-link"),
+            ownerNodes = ownerNodeGroup.selectAll(".owner-node"),
+            ownerLinks = ownerLinkGroup.selectAll(".owner-link"),
+            edgeNodes = edgeNodeGroup.selectAll(".edge-node"),
+            edgeLinks = edgeLinkGroup.selectAll(".edge-link");
+
+        let params = new URLSearchParams(window.location.search);
+        let constantForceFactor = -2.0;
+        let sinkLinkColor = "#787";
+        let ownerLinkColor = "#778";
+        let edgeLinkColor = "#877";
+        let sinkNodeColor = "#898";
+        let ownerNodeColor = "#889";
+        let edgeNodeColor = "#988";
+        let sinkLinkBrightColor = "#9d9";
+        let ownerLinkBrightColor = "#99d";
+        let edgeLinkBrightColor = "#d99";
+        let sinkNodeBrightColor = "#9f9";
+        let ownerNodeBrightColor = "#99f";
+        let edgeNodeBrightColor = "#f99";
+        let initialZoomLevel = getZoom();
+        let defaultWidth = 0.5 + 0.5 / initialZoomLevel;
+        let defaultSize = 1.0 + 1.0 / initialZoomLevel;
+        let thetaFactor = 0.93;
+        let previousDecayFactor;
+        let decayFactor;
+        let alphaFactor;
+        let forceFactor;
+        let keepwarm;
+        let simulation;
+        let updateInterval;
+
+        let previousData = null;
+        let previousNodeCount = 0;
+        const sizeScale = d3.scaleLog().range([0.5, 5]);
+        const widthScale = d3.scaleLog().range([1, 3]);
+        const strengthScale = d3.scaleLog().range([5, 100]);
+        let updateQueue = [];
+        let isProcessingUpdates = false;
+        let request_type = "/full";
+        let response_type = "";
+
+        function transformData(data) {
+            let nodes = data.map(function (d, did) {
+                let previousNode = previousData ? previousData.nodes[did] : null;
+                let messageRate = previousNode ? (d.counter - previousNode.counter) / 10 : 0;
+                let changed = previousNode ? (messageRate !== previousNode.messageRate) : true;
+                let name = previousNode ? d.name || previousNode.name : d.name;
+                return {
+                    id: did,
+                    name: name,
+                    sink: d.sink,
+                    edge: d.edge,
+                    owner: d.owner,
+                    counter: d.counter,
+                    messageRate: messageRate,
+                    changed: changed,
+                    ignore: name === '_router' || name === '_responder' || name === '_return_to_sender'
+                };
+            });
+
+            let links = [];
+            data.forEach(function (d, did) {
+                if (did === -1) return;
+                if (nodes[did].ignore) return;
+                if (nodes[d.sink].ignore && nodes[did].name !== '_command_interpreter') {
+                    nodes[did].ignore = true;
+                    return;
+                }
+                if (d.sink !== -1 && !nodes[d.sink].ignore) {
+                    links.push({
+                        source: nodes[did],
+                        target: nodes[d.sink],
+                        sink: 1,
+                        edge: 0,
+                        owner: 0
+                    });
+                }
+                if (d.edge !== -1 && !nodes[d.edge].ignore) {
+                    links.push({
+                        source: nodes[did],
+                        target: nodes[d.edge],
+                        sink: 0,
+                        edge: 1,
+                        owner: 0
+                    });
+                }
+                if (!Array.isArray(d.owner)) {
+                    if (d.owner !== -1 && !nodes[d.owner].ignore) {
+                        links.push({
+                            source: nodes[did],
+                            target: nodes[d.owner],
+                            sink: 0,
+                            edge: 0,
+                            owner: 1
+                        });
+                    }
+                } else {
+                    for (let i = 0; i < d.owner.length; i++) {
+                        if (!nodes[d.owner[i]].ignore) {
+                            links.push({
+                                source: nodes[did],
+                                target: nodes[d.owner[i]],
+                                sink: 0,
+                                edge: 0,
+                                owner: 1
+                            });
+                        }
+                    }
+                }
+            });
+
+            return {
+                nodes: nodes,
+                links: links
+            };
+        }
+
+        function updateGraph() {
+            let service = params.get('service');
+
+            // Use fetch instead of d3.json for better control
+            fetch("v/" + service + request_type)
+                .then(response => response.json())
+                .then(function (data) {
+                    // Queue the update instead of doing it immediately
+                    updateQueue.push({ response_type: response_type, data: data });
+                    if (!isProcessingUpdates) {
+                        processUpdateQueue();
+                    }
+                })
+                .catch(function (error) {
+                    console.error("Error:", error);
+                });
+        }
+
+        function processUpdateQueue() {
+            if (updateQueue.length === 0) {
+                isProcessingUpdates = false;
+                return;
+            }
+
+            isProcessingUpdates = true;
+            let data = updateQueue.shift();
+
+            // Use requestIdleCallback to process updates when browser is idle
+            if (window.requestIdleCallback) {
+                requestIdleCallback(() => processUpdate(data), { timeout: 100 });
+            } else {
+                // Fallback for browsers without requestIdleCallback
+                setTimeout(() => processUpdate(data), 0);
+            }
+        }
+
+        function processUpdate(queued) {
+            let transformedData = transformData(queued.data);
+
+            if (previousNodeCount == 0) {
+                /* Initial load or reset, make sure to do a full update */
+                if (queued.response_type === "/brief") {
+                    request_type = "/full";
+                } else {
+                    processMajorUpdate(transformedData);
+                }
+            } else if (previousNodeCount !== transformedData.nodes.length) {
+                /* Hard reset if node count changed */
+                previousData = null;
+                previousNodeCount = 0;
+            } else {
+                /* For minor updates, do them quickly */
+                processMinorUpdate(transformedData);
+            }
+
+
+            /* Continue processing queue */
+            if (window.requestIdleCallback) {
+                requestIdleCallback(() => processUpdateQueue(), { timeout: 50 });
+            } else {
+                setTimeout(processUpdateQueue, 0);
+            }
+        }
+
+        function processMajorUpdate(transformedData) {
+            request_type = "/brief";
+
+            /* Separate data by type */
+            let sinkLinkData = transformedData.links.filter(d => d.sink);
+            let ownerLinkData = transformedData.links.filter(d => d.owner);
+            let edgeLinkData = transformedData.links.filter(d => d.edge);
+
+            let sinkNodeData = transformedData.nodes.filter(d => !d.ignore && d.owner === -1 && d.edge === -1);
+            let ownerNodeData = transformedData.nodes.filter(d => !d.ignore && d.owner !== -1 && d.edge === -1);
+            let edgeNodeData = transformedData.nodes.filter(d => !d.ignore && d.edge !== -1);
+
+            sinkLinks = sinkLinks.data(sinkLinkData, d => d.source.id + "-" + d.target.id);
+            sinkLinks.exit().remove();
+            let sinkLinkEnter = sinkLinks.enter().append("path")
+                .attr("fill", "none")
+                .attr("stroke", sinkLinkColor)
+                .attr("stroke-opacity", 0.25)
+                .attr("stroke-width", defaultWidth)
+                .classed("sink-link", true);
+            sinkLinks = sinkLinkEnter.merge(sinkLinks);
+
+            ownerLinks = ownerLinks.data(ownerLinkData, d => d.source.id + "-" + d.target.id);
+            ownerLinks.exit().remove();
+            let ownerLinkEnter = ownerLinks.enter().append("path")
+                .attr("fill", "none")
+                .attr("stroke", ownerLinkColor)
+                .attr("stroke-opacity", 0.25)
+                .attr("stroke-width", defaultWidth)
+                .classed("owner-link", true);
+            ownerLinks = ownerLinkEnter.merge(ownerLinks);
+
+            edgeLinks = edgeLinks.data(edgeLinkData, d => d.source.id + "-" + d.target.id);
+            edgeLinks.exit().remove();
+            let edgeLinkEnter = edgeLinks.enter().append("path")
+                .attr("fill", "none")
+                .attr("stroke", edgeLinkColor)
+                .attr("stroke-opacity", 0.25)
+                .attr("stroke-width", defaultWidth)
+                .classed("edge-link", true);
+            edgeLinks = edgeLinkEnter.merge(edgeLinks);
+
+            sinkNodes = sinkNodes.data(sinkNodeData, d => d.id);
+            sinkNodes.exit().remove();
+            let sinkEnter = sinkNodes.enter().append("circle")
+                .attr("fill", sinkNodeColor)
+                .attr("r", defaultSize)
+                .classed("sink", true)
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            sinkEnter.append("title").text(d => d.name);
+            sinkNodes = sinkEnter.merge(sinkNodes);
+
+            ownerNodes = ownerNodes.data(ownerNodeData, d => d.id);
+            ownerNodes.exit().remove();
+            let ownerEnter = ownerNodes.enter().append("circle")
+                .attr("fill", ownerNodeColor)
+                .attr("r", defaultSize)
+                .classed("owner", true)
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            ownerEnter.append("title").text(d => d.name);
+            ownerNodes = ownerEnter.merge(ownerNodes);
+
+            edgeNodes = edgeNodes.data(edgeNodeData, d => d.id);
+            edgeNodes.exit().remove();
+            let edgeEnter = edgeNodes.enter().append("circle")
+                .attr("fill", edgeNodeColor)
+                .attr("r", defaultSize)
+                .classed("edge", true)
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            edgeEnter.append("title").text(d => d.name);
+            edgeNodes = edgeEnter.merge(edgeNodes);
+            let allNodes = [...sinkNodeData, ...ownerNodeData, ...edgeNodeData];
+            let allLinks = [...sinkLinkData, ...ownerLinkData, ...edgeLinkData];
+
+            simulation
+                .nodes(allNodes)
+                .on("tick", ticked);
+            simulation.force("link")
+                .links(allLinks);
+            simulation.alpha(1).restart();
+
+            /* Store the data for the next update */
+            previousData = transformedData;
+            previousNodeCount = transformedData.nodes.length;
+        }
+
+        function processMinorUpdate(transformedData) {
+            sinkNodes.each(function (d) {
+                let node = transformedData.nodes[d.id];
+                if (node && node.changed) {
+                    d.messageRate = node.messageRate;
+                    if (d.messageRate > 0) {
+                        d3.select(this).attr("fill", sinkNodeBrightColor);
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
+                    } else {
+                        d3.select(this).attr("fill", sinkNodeColor);
+                        d3.select(this).attr("r", defaultSize);
+                    }
+                }
+            });
+
+            ownerNodes.each(function (d) {
+                let node = transformedData.nodes[d.id];
+                if (node && node.changed) {
+                    d.messageRate = node.messageRate;
+                    if (d.messageRate > 0) {
+                        d3.select(this).attr("fill", ownerNodeBrightColor);
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
+                    } else {
+                        d3.select(this).attr("fill", ownerNodeColor);
+                        d3.select(this).attr("r", defaultSize);
+                    }
+                }
+            });
+
+            /* Update edge nodes that changed */
+            edgeNodes.each(function (d) {
+                let node = transformedData.nodes[d.id];
+                if (node && node.changed) {
+                    d.messageRate = node.messageRate;
+                    if (d.messageRate > 0) {
+                        d3.select(this).attr("fill", edgeNodeBrightColor);
+                        d3.select(this).attr("r", 2.0 + 1.0 / initialZoomLevel + sizeScale(1 + d.messageRate));
+                    } else {
+                        d3.select(this).attr("fill", edgeNodeColor);
+                        d3.select(this).attr("r", defaultSize);
+                    }
+                }
+            });
+
+            sinkLinks.each(function (d) {
+                let node = transformedData.nodes[d.source.id];
+                if (node && node.changed) {
+                    d.messageRate = node.messageRate;
+                    if (d.messageRate > 0) {
+                        d3.select(this).attr("stroke", sinkLinkBrightColor);
+                        d3.select(this).attr("stroke-opacity", 0.9);
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
+                    } else {
+                        d3.select(this).attr("stroke", sinkLinkColor);
+                        d3.select(this).attr("stroke-opacity", 0.25);
+                        d3.select(this).attr("stroke-width", defaultWidth);
+                    }
+                }
+            });
+
+            ownerLinks.each(function (d) {
+                let node = transformedData.nodes[d.source.id];
+                if (node && node.changed) {
+                    d.messageRate = node.messageRate;
+                    let target = transformedData.nodes[d.target.id];
+                    if (d.messageRate > 0 && target.messageRate > 0) {
+                        d3.select(this).attr("stroke", ownerLinkBrightColor);
+                        d3.select(this).attr("stroke-opacity", 0.9);
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
+                    } else {
+                        d3.select(this).attr("stroke", ownerLinkColor);
+                        d3.select(this).attr("stroke-opacity", 0.25);
+                        d3.select(this).attr("stroke-width", defaultWidth);
+                    }
+                }
+            });
+
+            edgeLinks.each(function (d) {
+                let node = transformedData.nodes[d.source.id];
+                if (node && node.changed) {
+                    d.messageRate = node.messageRate;
+                    if (d.messageRate > 0) {
+                        d3.select(this).attr("stroke", edgeLinkBrightColor);
+                        d3.select(this).attr("stroke-opacity", 0.9);
+                        d3.select(this).attr("stroke-width", 0.5 / initialZoomLevel + widthScale(1 + d.messageRate));
+                    } else {
+                        d3.select(this).attr("stroke", edgeLinkColor);
+                        d3.select(this).attr("stroke-opacity", 0.25);
+                        d3.select(this).attr("stroke-width", defaultWidth);
+                    }
+                }
+            });
+
+            if (!keepwarm) {
+                if (decayFactor < 1.0) {
+                    setDecay(decayFactor + 0.05);
+                }
+                if (alphaFactor > 0.1) {
+                    setAlpha(alphaFactor - 0.05);
+                }
+            }
+            updateForce();
+
+            /* Store the data for the next update */
+            previousData = transformedData;
+        }
+
+
+        function ticked() {
+            /* Update all link groups - use template literals for better performance */
+            sinkLinks
+                .attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`);
+
+            ownerLinks
+                .attr("d", function (d) {
+                    /* Pre-calculate values to avoid repeated property access */
+                    const sx = d.source.x, sy = d.source.y;
+                    const tx = d.target.x, ty = d.target.y;
+                    const dx = tx - sx, dy = ty - sy;
+                    const dr = Math.sqrt(dx * dx + dy * dy);
+                    return `M${sx},${sy}A${dr},${dr} 0 0,1 ${tx},${ty}`;
+                });
+
+            edgeLinks
+                .attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`);
+
+            /* Update all node groups */
+            sinkNodes
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            ownerNodes
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            edgeNodes
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+        }
+
+        function zoomed(event) {
+            g.attr("transform", event.transform);
+            let zoomLevel = event.transform.k;
+
+            /* change drop shadow radius based on the zoom level */
+            let shadowRadius = Math.max(0, 10 / zoomLevel);
+            /* both style and attr seem to work, but they yield subtly different colors at scale? */
+            /* svg.selectAll(".sink-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkLinkBrightColor + ")");
+            svg.selectAll(".owner-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerLinkBrightColor + ")");
+            svg.selectAll(".edge-links").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeLinkBrightColor + ")");
+            svg.selectAll(".sink-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + sinkNodeBrightColor + ")");
+            svg.selectAll(".owner-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + ownerNodeBrightColor + ")");
+            svg.selectAll(".edge-nodes").style("filter", "drop-shadow(0px 0px " + shadowRadius + "px " + edgeNodeBrightColor + ")"); */
+
+            svg.selectAll(".sink-links").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${sinkLinkBrightColor})`);
+            svg.selectAll(".owner-links").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${ownerLinkBrightColor})`);
+            svg.selectAll(".edge-links").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${edgeLinkBrightColor})`);
+            svg.selectAll(".sink-nodes").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${sinkNodeBrightColor})`);
+            svg.selectAll(".owner-nodes").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${ownerNodeBrightColor})`);
+            svg.selectAll(".edge-nodes").attr("filter", `drop-shadow(0px 0px ${shadowRadius}px ${edgeNodeBrightColor})`);
+
+            /* Update the zoom level in the URL parameters */
+            params.set('zoom', Math.round(zoomLevel * 100) / 100);
+            history.replaceState(null, '', '?' + params.toString());
+        }
+
+        /* function RGBtoHSV(color) {
+            let r = parseInt(color.slice(1, 3), 16) / 255;
+            let g = parseInt(color.slice(3, 5), 16) / 255;
+            let b = parseInt(color.slice(5, 7), 16) / 255;
+            let max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, v = max;
+    
+            let d = max - min;
+            s = max === 0 ? 0 : d / max;
+    
+            if (max === min) {
+                h = 0; // achromatic
+            } else {
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return [h, s, v];
+        }
+    
+        function HSVtoRGB(h, s, v) {
+            let r, g, b;
+            let i = Math.floor(h * 6);
+            let f = h * 6 - i;
+            let p = v * (1 - s);
+            let q = v * (1 - f * s);
+            let t = v * (1 - (1 - f) * s);
+            i = i % 6;
+            if (i === 0) { r = v; g = t; b = p; }
+            else if (i === 1) { r = q; g = v; b = p; }
+            else if (i === 2) { r = p; g = v; b = t; }
+            else if (i === 3) { r = p; g = q; b = v; }
+            else if (i === 4) { r = t; g = p; b = v; }
+            else { r = v; g = p; b = q; }
+            return "#" + Math.round(r * 255).toString(16).padStart(2, '0') +
+                Math.round(g * 255).toString(16).padStart(2, '0') +
+                Math.round(b * 255).toString(16).padStart(2, '0');
+        } */
+
+        function dragstarted(event, d) {
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            d.fx = null;
+            d.fy = null;
+        }
+
+        function resize() {
+            let width = window.innerWidth,
+                height = window.innerHeight;
+
+            svg.attr("width", width)
+                .attr("height", height);
+
+            simulation.force("center", d3.forceCenter(width / 2, height / 2));
+        }
+
+        function getKeepWarm() {
+            let state = params.get('keepwarm') && params.get('keepwarm') !== 'false';
+            return state;
+        }
+
+        function setKeepWarm(newState) {
+            keepwarm = newState;
+            params.set('keepwarm', keepwarm);
+            history.replaceState(null, '', '?' + params.toString());
+        }
+
+        function getDecay() {
+            let factor = params.get('decay') || 0.5;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 1.0) {
+                factor = 1.0;
+            }
+            factor = Math.round(factor * 100) / 100;
+            if (isNaN(factor)) {
+                factor = 0.5;
+            }
+            return factor;
+        }
+
+        function setDecay(newFactor) {
+            if (newFactor < 0.1) {
+                newFactor = 0.1;
+            } else if (newFactor > 1.0) {
+                newFactor = 1.0;
+            }
+            decayFactor = Math.round(newFactor * 100) / 100;
+            if (isNaN(decayFactor)) {
+                decayFactor = 0.5;
+            }
+            params.set('decay', decayFactor);
+            history.replaceState(null, '', '?' + params.toString());
+        }
+
+        function getAlpha() {
+            let factor = params.get('alpha') || 0.5;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 1.0) {
+                factor = 1.0;
+            }
+            factor = Math.round(factor * 100) / 100;
+            if (isNaN(factor)) {
+                factor = 0.5;
+            }
+            return factor;
+        }
+
+        function setAlpha(newFactor) {
+            if (newFactor < 0.1) {
+                newFactor = 0.1;
+            } else if (newFactor > 1.0) {
+                newFactor = 1.0;
+            }
+            alphaFactor = Math.round(newFactor * 100) / 100;
+            if (isNaN(alphaFactor)) {
+                alphaFactor = 0.5;
+            }
+            params.set('alpha', alphaFactor);
+            history.replaceState(null, '', '?' + params.toString());
+        }
+
+        function getForce() {
+            let factor = params.get('force') || 1.0;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 10.0) {
+                factor = 10.0;
+            }
+            factor = Math.round(factor * 10) / 10;
+            if (isNaN(factor)) {
+                factor = 1.0;
+            }
+            return factor;
+        }
+
+        function setForce(newFactor) {
+            if (newFactor < 0.1) {
+                newFactor = 0.1;
+            } else if (newFactor > 10.0) {
+                newFactor = 10.0;
+            }
+            forceFactor = Math.round(newFactor * 10) / 10;
+            if (isNaN(forceFactor)) {
+                forceFactor = 1.0;
+            }
+            params.set('force', newFactor);
+            history.replaceState(null, '', '?' + params.toString());
+            updateForce();
+        }
+
+        function updateForce() {
+            let height = window.innerHeight,
+                width = window.innerWidth;
+            simulation
+                .force("charge",
+                    d3.forceManyBody()
+                        .strength(function (d) { return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate); })
+                        .theta(thetaFactor)
+                        .distanceMax(Math.max(width, height))
+                )
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .velocityDecay(decayFactor);
+            if (decayFactor > 0.95) {
+                simulation.stop();
+            }
+            else {
+                simulation.alphaTarget(alphaFactor).restart();
+            }
+        }
+
+        function getZoom() {
+            let factor = params.get('zoom') || 1.0;
+            if (factor < 0.1) {
+                factor = 0.1;
+            } else if (factor > 10.0) {
+                factor = 10.0;
+            }
+            factor = Math.round(factor * 10) / 10;
+            if (isNaN(factor)) {
+                amount = 1.0;
+            }
+            return factor;
+        }
+
+        function setZoom(byAmount) {
+            zoom.scaleBy(svg, byAmount);
+        }
+
+        function setInitialKeepWarm() {
+            keepwarm = getKeepWarm();
+        }
+
+        function setInitialDecay() {
+            decayFactor = getDecay();
+        }
+
+        function setInitialAlpha() {
+            alphaFactor = getAlpha();
+        }
+
+        function setInitialForce() {
+            forceFactor = getForce();
+        }
+
+        function setInitialZoom() {
+            zoom.scaleBy(svg, initialZoomLevel);
+        }
+
+        function setInitialSimulation() {
+            let height = window.innerHeight,
+                width = window.innerWidth;
+            simulation = d3.forceSimulation()
+                .force("link", d3.forceLink().id(function (d) { return d.id; }))
+                .force("charge",
+                    d3.forceManyBody()
+                        .strength(function (d) { return constantForceFactor * forceFactor * strengthScale(1 + d.messageRate); })
+                        .theta(thetaFactor)
+                        .distanceMax(Math.max(width, height))
+                )
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .velocityDecay(decayFactor);
+            simulation.alpha(1).restart();
+        }
+
+        document.addEventListener('keydown', function (e) {
+            switch (e.key) {
+                case ' ':
+                    if (decayFactor > 0.95) {
+                        if (previousDecayFactor) {
+                            setDecay(previousDecayFactor);
+                        }
+                        else {
+                            setDecay(0.1);
+                        }
+                        simulation.velocityDecay(decayFactor);
+                        simulation.alphaTarget(alphaFactor).restart();
+                        if (!updateInterval) {
+                            updateInterval = setInterval(updateGraph, 10000);
+                        }
+                    }
+                    else {
+                        previousDecayFactor = decayFactor;
+                        setDecay(1.0);
+                        simulation.stop();
+                        if (updateInterval) {
+                            clearInterval(updateInterval);
+                            updateInterval = null;
+                        }
+                    }
+                    break;
+                case 'k':
+                    setKeepWarm(!keepwarm);
+                    break;
+                case 'q':
+                    setDecay(decayFactor - 0.05);
+                    simulation.velocityDecay(decayFactor);
+                    simulation.alphaTarget(alphaFactor).restart();
+                    if (!updateInterval) {
+                        updateInterval = setInterval(updateGraph, 10000);
+                    }
+                    break;
+                case 'w':
+                    setDecay(decayFactor + 0.05);
+                    simulation.velocityDecay(decayFactor);
+                    break;
+                case 'a':
+                    setAlpha(alphaFactor - 0.05);
+                    simulation.alphaTarget(alphaFactor).restart();
+                    break;
+                case 's':
+                    setAlpha(alphaFactor + 0.05);
+                    simulation.alphaTarget(alphaFactor).restart();
+                    break;
+                case 'z':
+                    setZoom(1.1);
+                    break;
+                case 'x':
+                    setZoom(0.9);
+                    break;
+                case 'r':
+                    previousData = null;
+                    previousNodeCount = 0;
+                    request_type = "/full";
+                    updateGraph();
+                    break;
+            }
+            if ((e.key > '0' && e.key <= '9') || e.key === '0') {
+                let forceValue = parseInt(e.key);
+                if (forceValue >= 0) {
+                    if (forceValue == 0)
+                        forceValue = 10;
+                    setForce(forceValue);
+                }
+            }
+        });
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                resize();
+            }, 200); /* adjust delay as needed */
+        });
+
+        setInitialKeepWarm();
+        setInitialDecay();
+        setInitialAlpha();
+        setInitialForce();
+        setInitialZoom();
+        setInitialSimulation();
+        updateGraph();
+        updateInterval = setInterval(updateGraph, 10000);
+    </script>
+</body>
+
+</html>

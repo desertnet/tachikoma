@@ -42,23 +42,58 @@ sub fill {
     my $self    = shift;
     my $message = shift;
     my $type    = $message->[TYPE];
+    my $shell   = $self->{shell};
     $self->{counter}++;
-    if (    $type & TM_COMMAND
-        and ( $type & TM_RESPONSE or $type & TM_ERROR )
-        and $message->[ID] )
+    if (    $message->[ID]
+        and $shell
+        and $shell->{callbacks}->{ $message->[ID] } )
     {
-        my $shell = $self->{shell};
-        return $self->stderr('WARNING: unexpected command response with id')
-            if ( not $shell );
-        my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
-        $shell->callback(
-            $message->[ID],
-            {   from    => $message->[FROM],
-                event   => $command->{name},
-                payload => $command->{payload},
-                error   => $type & TM_ERROR
+        if ( $type & TM_COMMAND ) {
+            my $command = Tachikoma::Command->new( $message->[PAYLOAD] );
+            $shell->callback(
+                $message->[ID],
+                {   from    => $message->[FROM],
+                    event   => $command->{name},
+                    payload => $command->{payload},
+                    error   => $type & TM_ERROR
+                }
+            );
+        }
+        else {
+            $shell->callback(
+                $message->[ID],
+                {   from    => $message->[FROM],
+                    event   => $message->[STREAM] || 'unknown',
+                    payload => $message->[PAYLOAD],
+                    error   => $type & TM_ERROR
+                }
+            );
+        }
+        return;
+    }
+    elsif ( $type & TM_RESPONSE and $message->[FROM] eq 'Inet_AtoN' ) {
+        my $name = $message->[TO];
+        if ( $Tachikoma::Nodes{$name} ) {
+            #
+            # A connection is starting up, and our Inet_AtoN job is
+            # sending us the results of the DNS lookup.
+            # see also inet_client_async(), dns_lookup(), and init_socket()
+            # in Tachikoma::Nodes::Socket
+            #
+            my $node   = $Tachikoma::Nodes{$name};
+            my $secure = Tachikoma->configuration->{secure_level};
+            return $node->close_filehandle('reconnect')
+                if ( defined $secure and $secure == 0 );
+            my $okay = eval {
+                $node->init_socket( $message->[PAYLOAD] );
+                return 1;
+            };
+            if ( not $okay ) {
+                my $error = $@ || 'unknown error';
+                $node->stderr("ERROR: init_socket failed: $error");
+                $node->close_filehandle('reconnect');
             }
-        );
+        }
         return;
     }
     if ( $self->{owner} ) {
