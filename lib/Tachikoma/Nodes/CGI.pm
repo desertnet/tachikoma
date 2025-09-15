@@ -268,7 +268,7 @@ sub include_path {
     my $script_path = shift;
     my $counter     = $self->{include_counter};
     my $package     = $script_path;
-    $package =~ s{[^\w\d]+}{_}g;
+    $package =~ s{\W+}{_}g;
     $package =~ s{^(\d)}{_$1};
     $package .= join q(), q(_), $counter;
     $counter = ( $counter + 1 ) % $Tachikoma::Max_Int;
