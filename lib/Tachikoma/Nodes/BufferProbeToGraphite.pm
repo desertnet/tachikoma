@@ -61,7 +61,7 @@ sub fill {
         my $hostname  = $buffer->{hostname}  or next;
         my $buff_name = $buffer->{buff_name} or next;
         $hostname  =~ s{[.].*}{};
-        $buff_name =~ s{[^\w\d]+}{_}g;
+        $buff_name =~ s{\W+}{_}g;
         for my $field (@FIELDS) {
             my $key = join q(.),
                 $prefix, $hostname, 'tachikoma',

@@ -84,7 +84,7 @@ is_deeply(
     {
         'commands' => [
             {
-                'name' => { 
+                'name' => {
                     'type' => 'ident',
                     'value' => 'foo'
                 },
@@ -92,7 +92,7 @@ is_deeply(
                 'value' => {
                     'type' => 'parenthesized_expr',
                     'expressions' => [
-                        { 
+                        {
                             'type' => 'number',
                             'value' => 5
                         }

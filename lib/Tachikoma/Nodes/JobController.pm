@@ -399,7 +399,7 @@ sub start_job {
     my $self    = shift;
     my $options = shift;
     die qq(no type specified\n) if ( not $options->{type} );
-    $options->{type} =~ s{[^\w\d:]}{}g;
+    $options->{type} =~ s{[^\w:]}{}g;
     $options->{name} ||= $options->{type};
     $options->{arguments} //= q();
     $options->{owner}     //= q();

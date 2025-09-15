@@ -279,7 +279,7 @@ sub topical_help {
     elsif ( $l->{$glob} ) {
         return $self->response( $envelope, join q(), @{ $l->{$glob} } );
     }
-    my $type = ( $glob =~ m{^([\w\d:]+)$} )[0];
+    my $type = ( $glob =~ m{^([\w:]+)$} )[0];
     if ($type) {
         my $class = undef;
         for my $prefix ( @{ $config->include_nodes }, 'Tachikoma::Nodes' ) {

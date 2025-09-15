@@ -120,7 +120,7 @@ sub include_conf {
     my $script_path = shift;
     my $package     = $script_path;
     return if ( not -f $script_path );
-    $package =~ s{[^\w\d]+}{_}g;
+    $package =~ s{\W+}{_}g;
     $package =~ s{^(\d)}{_$1};
     $FORBIDDEN{$script_path} = 1;
     my $fh;

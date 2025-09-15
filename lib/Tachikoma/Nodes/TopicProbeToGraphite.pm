@@ -83,7 +83,7 @@ sub fire {
             my $topic    = $self->{consumers}->{$partition}->{$consumer};
             my $hostname = $topic->{hostname};
             $hostname =~ s{[.].*}{};
-            $consumer =~ s{[^\w\d]+}{_}g;
+            $consumer =~ s{\W+}{_}g;
             $topic->{p_offset} = $p_offset;
             $topic->{distance} = $p_offset - $topic->{c_offset};
             for my $field (@FIELDS) {
